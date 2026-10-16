@@ -3,6 +3,8 @@ name = "bearings"
 version = "0.1.0"
 description = "Organization inventory, contact review, and evidence-led threat relevance"
 requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 dependencies = ["Django>=5.2,<5.3", "httpx>=0.28,<0.29", "psycopg[binary]>=3.2,<4"]
 
 [dependency-groups]

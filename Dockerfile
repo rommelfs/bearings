@@ -9,7 +9,7 @@ RUN --mount=type=secret,id=cloud-ca \
     uv sync --frozen --no-dev
 COPY config ./config
 COPY portal ./portal
-COPY manage.py ./
+COPY manage.py LICENSE ./
 RUN useradd --create-home bearings && mkdir -p /app/.local && chown -R bearings:bearings /app
 USER bearings
 EXPOSE 8000

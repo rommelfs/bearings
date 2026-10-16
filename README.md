@@ -2,7 +2,7 @@
 
 A standalone organization inventory and evidence review portal intended for CIRCL operation. It connects inventory ownership, emergency contacts, infrastructure authority claims, and technology relevance without equating a match with compromise.
 
-**Status: first runnable development increment, not production-ready.** No operational data is included. The existing repository is `rommelfs/bearings`; no additional repository is needed. Licensing is undecided; no license grant is implied.
+**Status: first runnable development increment, not production-ready.** No operational data is included. The existing repository is `rommelfs/bearings`; no additional repository is needed. This is a public open-source project licensed under [GNU AGPL v3.0 or later](LICENSE) (`AGPL-3.0-or-later`).
 
 ## Implemented
 

@@ -1,6 +1,6 @@
 # Contributing
 
-This repository is in an initial implementation phase. Licensing and public contribution terms remain unresolved; discuss intended contributions with the repository owner before assuming an open-source license.
+Bearings is a public open-source project licensed under the GNU Affero General Public License, version 3 or (at your option) any later version (`AGPL-3.0-or-later`); see [LICENSE](LICENSE). Contributions must be compatible with that license. Do not submit third-party code or data without the necessary rights and notices.
 
 Follow README quick start. Use `uv sync --frozen`; add dependencies through uv and commit lockfile changes. Include migrations for model changes. Use synthetic data only. Keep changes small and runnable, and update relevant documentation in every commit that changes behavior.
 

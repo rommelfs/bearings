@@ -1,4 +1,4 @@
-"""Publish the canonical backlog only into the explicitly named PRIVATE repository."""
+"""Publish the canonical backlog into the owner-approved public Bearings repository."""
 
 import json
 import subprocess
@@ -31,8 +31,8 @@ def pages(path):
 
 def main():
     repo = api(f"repos/{REPOSITORY}")
-    if not repo["private"]:
-        raise SystemExit("Repository must be private before publishing this initial backlog.")
+    if repo["full_name"].lower() != REPOSITORY.lower():
+        raise SystemExit("Unexpected repository identity; refusing backlog publication.")
     milestones = {m["title"]: m["number"] for m in pages(f"repos/{REPOSITORY}/milestones?state=all")}
     issues = {i["title"] for i in pages(f"repos/{REPOSITORY}/issues?state=all") if "pull_request" not in i}
     backlog = json.loads((Path(__file__).resolve().parents[1] / "docs/backlog.json").read_text())

@@ -64,8 +64,8 @@
         "body": "SSO/MFA, rate limits, source approval/egress enforcement, DB row-level integrity, least privilege, audit export, retention and PostgreSQL recovery drill. Approve WSGI/TLS configuration and production scheduler."
       },
       {
-        "title": "Resolve licensing, security contact and release governance",
-        "body": "Owner decision on license, verified responsible reporting destination/key, dependency and integration license review, repository visibility and release approval. No license invention or public release by default."
+        "title": "Complete security contact and release governance",
+        "body": "AGPL-3.0-or-later and public source publication are approved. Establish a verified responsible reporting destination/key and review dependency/integration notices. Operational deployment and data publication require separate authorization."
       }
     ]
   },

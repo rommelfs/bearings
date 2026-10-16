@@ -1,6 +1,6 @@
 # Implementation backlog
 
-Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is pending API access. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks that the target repository is private, and updates nothing already present. The first slice is delivered locally; live connection and operations items remain open.
+Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The first slice is implemented; live connection and operations items remain open.
 
 ## M1: Foundation and inventory
 
@@ -28,7 +28,7 @@ Prepare controlled operational use
 - **Deliver controlled notification and escalation workflow**: Keep development sink; require operational authorization for production transport. Add delivery failure state, reminder escalation, deduplication, handling policy and audited preparation history.
 - **Complete organization remediation and CIRCL triage**: Review filters, acknowledgment/corrections, assignment, urgency summaries and freshness coverage. Test all counts/exports/notifications against visibility restrictions.
 - **Security and recovery gate before deployment**: SSO/MFA, rate limits, source approval/egress enforcement, DB row-level integrity, least privilege, audit export, retention and PostgreSQL recovery drill. Approve WSGI/TLS configuration and production scheduler.
-- **Resolve licensing, security contact and release governance**: Owner decision on license, verified responsible reporting destination/key, dependency and integration license review, repository visibility and release approval. No license invention or public release by default.
+- **Complete security contact and release governance**: AGPL-3.0-or-later and public source publication are approved. Establish a verified responsible reporting destination/key and review dependency/integration notices. Operational deployment and data publication require separate authorization.
 
 ## Later: Imports and delegation
 
