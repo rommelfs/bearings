@@ -21,6 +21,8 @@ The development initializer registers the public source without making a remote 
 3. Open **Asset → Vulnerability → Risk**, choose **Link a risk scenario**, and browse/search the cached catalog. Select a template or supply a known risk UUID. Verify that its catalog asset type, threat and weakness fit the actual case, then provide a justification.
 4. The link verifies all four MOSP objects live and pins their content together with the current CVE evidence. Use the pinned evidence link to inspect provenance and hashes. A mapping can be withdrawn with a reason; the original evidence and justification remain in history. Repeating an identical active mapping retains the original justification.
 
+For the synthetic server/Log4j example, search the catalog for `patches` and inspect **Server / Malware infection / Update management (patches) is flawed**, risk UUID `7f9fc1a8-4f02-11e9-b3ea-0800277f0571`. This public template was verified live. A justification must explain that flawed organizational patch management is a hypothesis requiring investigation; neither the CVE nor the template confirms it.
+
 Every external operation is a GET. Only a requested CVE ID is sent to Vulnerability-Lookup; only public schema, language, publisher and catalog UUID filters are sent to MOSP. Inventory, organization names and mapping justifications are not transmitted. Requests are user/operator initiated or development-worker catalog refreshes; there are no scans, upstream writes or notifications.
 
 ## Contract and operator settings

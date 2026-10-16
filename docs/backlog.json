@@ -39,7 +39,7 @@
       },
       {
         "title": "Connect NetBox assets, Vulnerability-Lookup evidence and MOSP risk scenarios",
-        "body": "Implemented public CC0 MONARC catalog retrieval through MOSP v2; strict publisher/schema/identity/language/licensing and bounded complete pagination; retained source health and missing records; explicit justified organization-local links with pinned CVE and risk/asset/threat/general-weakness revisions, withdrawal history, joined HTML/API views and current visibility enforcement. Validate live synthetic NetBox \u2192 live CVE \u2192 live catalog chain and SQLite/PostgreSQL regression coverage. No automated affectedness, risk score or MONARC assessment synchronization."
+        "body": "Implemented public CC0 MONARC catalog retrieval through MOSP v2; strict publisher/schema/identity/language/licensing and bounded complete pagination; retained source health and missing records; explicit justified organization-local links with pinned CVE and risk/asset/threat/general-weakness revisions, withdrawal history, joined HTML/API views and current visibility enforcement. Validated live synthetic NetBox \u2192 live CVE \u2192 live catalog chain, real authenticated HTTP view/API/evidence, final retained-image restart, 114 PostgreSQL tests and 112 SQLite passes plus two PostgreSQL-only skips. Checks 38910631336 and complete bundled lifecycle 38910631286 passed for ceabb90. No automated affectedness, risk score or MONARC assessment synchronization."
       },
       {
         "title": "Implement explicit product/version applicability",
