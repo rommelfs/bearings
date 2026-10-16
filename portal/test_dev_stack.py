@@ -146,6 +146,20 @@ class StackSetupTests(TestCase):
             NetBoxInstance.objects.get(name="external-test").base_url, "https://netbox.example.invalid"
         )
 
+    def test_smoke_refuses_a_reconfigured_database_connection_before_http(self):
+        from docker.dev.smoke import lab_sources
+
+        self.config["mode"] = "bundled"
+        item = self.config["connections"][0]
+        item["base_url"] = "https://netbox.bearings.test"
+        self.setup()
+        instance = NetBoxInstance.objects.get(name=item["name"])
+        instance.base_url = "https://operator-replacement.example.invalid"
+        instance.save()
+        with patch("httpx.Client") as client, self.assertRaisesRegex(RuntimeError, "connection changed"):
+            lab_sources(self.config)
+        client.assert_not_called()
+
 
 class StarterConfigurationTests(TestCase):
     def arguments(self, url="https://netbox.example.invalid:8443"):

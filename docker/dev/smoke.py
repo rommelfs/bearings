@@ -12,6 +12,28 @@ from portal.models import Asset, InventoryWrite, NetBoxInstance
 from portal.services import query_inventory
 
 
+def lab_sources(config):
+    sources = {}
+    for item in config["connections"]:
+        instance = NetBoxInstance.objects.get(name=item["name"])
+        source = instance.inventorysource_set.get()
+        if (
+            instance.base_url != "https://netbox.bearings.test"
+            or instance.token_env_var != item["token_env_var"]
+            or instance.auth_scheme != "Bearer"
+            or instance.access_mode != item["access_mode"]
+            or not instance.enabled
+            or source.mode != "central"
+            or source.tenant_id != item["tenant_id"]
+            or source.organization.slug != item["organization_slug"]
+        ):
+            raise RuntimeError("Lab connection changed; refusing smoke queries or writes")
+        sources[item["access_mode"]] = source
+    if set(sources) != {"read_only", "read_write"}:
+        raise RuntimeError("Both expected lab capabilities are required")
+    return sources
+
+
 def main():
     root = Path("/run/bearings")
     config = json.loads((root / "secrets/connections.json").read_text())
@@ -23,10 +45,7 @@ def main():
     ):
         raise RuntimeError("Unexpected target; refusing writes")
     password = (root / "secrets/demo_password").read_text().strip()
-    sources = {
-        i["access_mode"]: NetBoxInstance.objects.get(name=i["name"]).inventorysource_set.get()
-        for i in config["connections"]
-    }
+    sources = lab_sources(config)
     for source in sources.values():
         rows = query_inventory(source, ["devices", "virtual-machines", "ip-addresses", "prefixes"])
         assert all(rows.values()), "Expected synthetic inventory from every endpoint"
