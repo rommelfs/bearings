@@ -93,6 +93,13 @@ X_FRAME_OPTIONS = "DENY"
 CONNECTOR_PROXY_DNS = os.getenv("CONNECTOR_PROXY_DNS", "0") == "1"
 CONNECTOR_ALLOWED_HOSTS = [
     h.strip().lower()
-    for h in os.getenv("CONNECTOR_ALLOWED_HOSTS", "vulnerability.circl.lu").split(",")
+    for h in os.getenv("CONNECTOR_ALLOWED_HOSTS", "vulnerability.circl.lu,objects.monarc.lu").split(",")
     if h.strip()
 ]
+
+MOSP_URL = os.getenv("MOSP_URL", "https://objects.monarc.lu")
+MOSP_PUBLISHER = os.getenv("MOSP_PUBLISHER", "MONARC")
+MOSP_PROXY_DNS = os.getenv("MOSP_PROXY_DNS", "1" if CONNECTOR_PROXY_DNS else "0") == "1"
+VULNERABILITY_LOOKUP_PROXY_DNS = (
+    os.getenv("VULNERABILITY_LOOKUP_PROXY_DNS", "1" if CONNECTOR_PROXY_DNS else "0") == "1"
+)

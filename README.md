@@ -14,6 +14,8 @@ A standalone organization inventory and evidence review portal intended for CIRC
 - Complete paginated NetBox imports for devices, VMs, IPs and prefixes, periodic refresh, per-source freshness, retained missing-object review and preservation of local assessments.
 - Organization-local product selection, manual product identifiers, operating system/software installations, unknown versions, CVE retrieval for explicit review, evidence records, finding deduplication, analyst applicability overrides, workflow reasons, and audit history.
 
+- Public MOSP/MONARC CC0 risk catalogs, justified organization-local CVE-to-scenario links, pinned evidence revisions and a joined Asset → Vulnerability → Risk view. See [setup and workflow](docs/integrations/mosp.md).
+
 **Not yet implemented:** MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md).
 
 ## Start with bundled NetBox (recommended)

@@ -53,6 +53,11 @@ def main():
                 # Per-source failure is already persisted; other imports and writes keep running.
                 pass
             Path("/tmp/bearings-worker-heartbeat").touch()
+            try:
+                call_command("sync_mosp", all=True, due=True)
+            except CommandError:
+                pass
+            Path("/tmp/bearings-worker-heartbeat").touch()
             time.sleep(5)
     else:
         raise ValueError("Unknown stack entrypoint")

@@ -100,3 +100,7 @@ Docker storage drivers that copy entire image trees (`vfs`, used in this cloud) 
 Import details, source field ownership and missing-object review are described in [synchronization](synchronization.md). The worker processes writes first, then due imports; an upstream import failure is recorded without stopping later sources or subsequent worker iterations.
 
 Bundled source links use a separate HTTPS browser URL (`localhost` with the configured NetBox port), while API traffic retains the internal verified Docker hostname. An existing empty browser URL is initialized on upgrade; operator-customized URLs are preserved. If changing the gateway port after first startup, update the instance browser URL in platform administration as well.
+
+## Public intelligence and risk scenarios
+
+The initializer registers a public MOSP source without external HTTP. The worker periodically refreshes its CC0 MONARC catalog after inventory processing; outages retain existing evidence and do not prevent portal startup. Run `python3 scripts/dev.py manage sync_mosp --all` to request a refresh immediately, then follow the [NetBox → Vulnerability-Lookup → MOSP workflow](../integrations/mosp.md). CVEs and justified risk links are selected explicitly; bootstrap does not infer affectedness or create risk assessments for imported inventory.

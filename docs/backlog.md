@@ -1,6 +1,6 @@
 # Implementation backlog
 
-Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [4 milestones](https://github.com/rommelfs/bearings/milestones) and [17 issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; 14 issues remain open. A second publisher run created zero duplicate issues.
+Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [4 milestones](https://github.com/rommelfs/bearings/milestones) and [18 issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
 ## M1: Foundation and inventory
 
@@ -15,7 +15,8 @@ Complete inventory ownership and onboarding
 
 Add evidence-backed intelligence without unsafe inference
 
-- **Validate live Vulnerability-Lookup and canonical aliases**: Enable approved egress, exercise real API and persisted CVE evidence, record deployed version. Add aliases and immutable source record revisions, source-specific schema adapters and freshness health.
+- **Validate live Vulnerability-Lookup and canonical aliases**: Live CVE retrieval and immutable evidence revisions are implemented. Canonical aliases, broader schema adapters, deployed-version capture and freshness remain in #5.
+- **[#18](https://github.com/rommelfs/bearings/issues/18): Connect NetBox assets, Vulnerability-Lookup evidence and MOSP risk scenarios**: Public CC0 catalog refresh, justified links, pinned evidence, withdrawal history and joined tenant-scoped views are implemented. See [contract and workflow](integrations/mosp.md). Scoring and MONARC assessment synchronization remain future work.
 - **Implement explicit product/version applicability**: Use supported structured source capabilities; preserve unknown versions, vendor fixes, backports and configuration requirements. Keep severity, EPSS, catalog membership, exploitation sightings and applicability distinct.
 - **Implement MISP ingestion with redistribution policy**: Inspect selected release API, paginate/retry safely, preserve event/object roles and markings. Enforce distribution, sharing groups and operator policy for raw and derived data. Test default-deny behavior and common origins.
 - **Implement Plum Island historical observation adapter**: Verify authentication/permissions/schema and InfoIP time/404/empty semantics. Preserve tcp/udp, report-level tags, hostname context and uncertainty. Investigate network/domain export; never enumerate large ranges blindly or launch scans.

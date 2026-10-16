@@ -1,5 +1,5 @@
 from django import forms
-from .models import Asset, Contact, InfrastructureClaim, Installation, Product
+from .models import Asset, Contact, InfrastructureClaim, Installation, Product, MOSPSource
 
 
 class ContactForm(forms.ModelForm):
@@ -113,4 +113,26 @@ class VulnerabilityForm(forms.Form):
 class MissingReviewForm(forms.Form):
     reason = forms.CharField(
         max_length=1000, widget=forms.Textarea, label="Review reason (inventory is retained)"
+    )
+
+
+class RiskLinkForm(forms.Form):
+    source = forms.ModelChoiceField(queryset=MOSPSource.objects.none(), label="Approved MOSP catalog")
+    risk_uuid = forms.UUIDField(label="MONARC risk UUID")
+    reason = forms.CharField(
+        max_length=4000,
+        widget=forms.Textarea,
+        label="Why is this scenario relevant? Describe assumptions and uncertainty.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        from .models import MOSPSource
+
+        super().__init__(*args, **kwargs)
+        self.fields["source"].queryset = MOSPSource.objects.filter(enabled=True)
+
+
+class RiskWithdrawalForm(forms.Form):
+    reason = forms.CharField(
+        max_length=4000, widget=forms.Textarea, label="Reason for withdrawing this mapping"
     )

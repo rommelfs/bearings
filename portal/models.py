@@ -432,3 +432,115 @@ class FindingHistory(models.Model):
     status = models.CharField(max_length=20)
     reason = models.TextField()
     created_at = models.DateTimeField(default=timezone.now)
+
+
+class SourceRecordRevision(models.Model):
+    record = models.ForeignKey(SourceRecord, on_delete=models.PROTECT, related_name="revisions")
+    content_hash = models.CharField(max_length=64)
+    payload = models.JSONField()
+    captured_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["record", "content_hash"], name="unique_evidence_revision")
+        ]
+
+
+class MOSPSource(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    base_url = models.URLField(max_length=250, default="https://objects.monarc.lu")
+    publisher = models.CharField(max_length=100, default="MONARC")
+    language = models.CharField(max_length=2, default="EN")
+    enabled = models.BooleanField(default=True)
+    refresh_minutes = models.PositiveIntegerField(default=1440)
+    last_attempt = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=200, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        from .connectors.http import validate_base, ConnectorError
+
+        try:
+            self.base_url = validate_base(self.base_url).geturl().rstrip("/")
+        except ConnectorError as exc:
+            raise ValidationError({"base_url": str(exc)}) from None
+        if self.language not in {"EN", "DE", "FR", "NL"} or self.refresh_minutes < 1:
+            raise ValidationError("Choose a supported language and positive refresh interval")
+        old = type(self).objects.filter(pk=self.pk).first()
+        if (
+            old
+            and old.risks.exists()
+            and (old.base_url, old.publisher, old.language) != (self.base_url, self.publisher, self.language)
+        ):
+            raise ValidationError("An imported catalog source cannot be repointed")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(refresh_minutes__gte=1), name="positive_catalog_interval")
+        ]
+
+
+class MOSPRisk(models.Model):
+    source = models.ForeignKey(MOSPSource, on_delete=models.PROTECT, related_name="risks")
+    uuid = models.UUIDField()
+    external_id = models.PositiveIntegerField()
+    description = models.TextField()
+    payload = models.JSONField()
+    content_hash = models.CharField(max_length=64)
+    current_revision = models.ForeignKey(
+        "MOSPRiskRevision", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    last_seen = models.DateTimeField(default=timezone.now)
+    missing_since = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["source", "uuid"], name="unique_mosp_risk")]
+
+    def __str__(self):
+        return self.description[:180]
+
+    @property
+    def source_url(self):
+        return self.source.base_url + "/api/v2/object/?uuid=" + str(self.uuid)
+
+
+class MOSPRiskRevision(models.Model):
+    risk = models.ForeignKey(MOSPRisk, on_delete=models.PROTECT, related_name="revisions")
+    content_hash = models.CharField(max_length=64)
+    risk_hash = models.CharField(max_length=64)
+    payload = models.JSONField(help_text="Pinned CC0 risk, asset type, threat and general weakness")
+    captured_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["risk", "content_hash"], name="unique_mosp_revision")]
+
+
+class RiskLink(models.Model):
+    finding = models.ForeignKey(Finding, on_delete=models.PROTECT, related_name="risk_links")
+    evidence_revision = models.ForeignKey(SourceRecordRevision, on_delete=models.PROTECT)
+    risk_revision = models.ForeignKey(MOSPRiskRevision, on_delete=models.PROTECT)
+    reason = models.TextField(max_length=4000)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    withdrawal_reason = models.TextField(max_length=4000, blank=True)
+
+    def clean(self):
+        if (
+            self.finding_id
+            and self.evidence_revision_id
+            and self.finding.record_id != self.evidence_revision.record_id
+        ):
+            raise ValidationError("Risk link evidence must belong to the selected finding")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["finding", "evidence_revision", "risk_revision"],
+                condition=Q(withdrawn_at__isnull=True),
+                name="unique_active_risk_link",
+            )
+        ]

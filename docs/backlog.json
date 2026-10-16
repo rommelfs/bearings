@@ -35,7 +35,11 @@
     "issues": [
       {
         "title": "Validate live Vulnerability-Lookup and canonical aliases",
-        "body": "Enable approved egress, exercise real API and persisted CVE evidence, record deployed version. Add aliases and immutable source record revisions, source-specific schema adapters and freshness health."
+        "body": "Live public CVE retrieval and persisted evidence are validated. Immutable content-addressed source revisions now support pinned MOSP/MONARC scenario links, and refresh preserves operator redistribution restrictions. Remaining: canonical aliases, deployed service version, broader source-specific adapters and freshness health. No automatic applicability is claimed."
+      },
+      {
+        "title": "Connect NetBox assets, Vulnerability-Lookup evidence and MOSP risk scenarios",
+        "body": "Implemented public CC0 MONARC catalog retrieval through MOSP v2; strict publisher/schema/identity/language/licensing and bounded complete pagination; retained source health and missing records; explicit justified organization-local links with pinned CVE and risk/asset/threat/general-weakness revisions, withdrawal history, joined HTML/API views and current visibility enforcement. Validate live synthetic NetBox \u2192 live CVE \u2192 live catalog chain and SQLite/PostgreSQL regression coverage. No automated affectedness, risk score or MONARC assessment synchronization."
       },
       {
         "title": "Implement explicit product/version applicability",

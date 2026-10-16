@@ -32,7 +32,7 @@ def validate_base(url):
     return p
 
 
-def approved_base(url, allow_private=False):
+def approved_base(url, allow_private=False, *, proxy_dns=None):
     p = validate_base(url)
     try:
         literal = ipaddress.ip_address(p.hostname)
@@ -40,7 +40,9 @@ def approved_base(url, allow_private=False):
         literal = None
     if literal and not literal.is_global and not allow_private:
         raise ConnectorError("Private connector destinations require explicit operator approval")
-    if settings.CONNECTOR_PROXY_DNS:
+    if proxy_dns is None:
+        proxy_dns = settings.CONNECTOR_PROXY_DNS
+    if proxy_dns:
         if p.hostname.lower() not in settings.CONNECTOR_ALLOWED_HOSTS:
             raise ConnectorError("Connector hostname is not explicitly approved by the operator")
         if not (os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")):

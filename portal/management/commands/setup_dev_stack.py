@@ -144,6 +144,9 @@ class Command(BaseCommand):
                 Installation.objects.get_or_create(
                     asset=asset, product=product, defaults={"version": "2.14.1"}
                 )
+        from portal.intelligence import default_catalog
+
+        default_catalog()
         self.stdout.write(
             "Development accounts/connections prepared. Bundled inventory is synthetic; external mode performs GETs only."
         )

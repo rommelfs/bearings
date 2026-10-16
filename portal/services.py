@@ -133,12 +133,24 @@ def redeem_contact_token(raw):
 @transaction.atomic
 def persist_lookup(user, installation, source, identifier, payload):
     org = installation.asset.organization
-    record, _ = SourceRecord.objects.update_or_create(
+    # Internal fixture seeding has no actor; request paths always pass their authenticated user.
+    if user is not None:
+        require(can_edit(user, org))
+    installation.full_clean()
+    record, created_record = SourceRecord.objects.select_for_update().get_or_create(
         organization=org,
         source=source,
         external_id=identifier,
-        defaults={"payload": payload, "ingested_at": timezone.now(), "shareable": True},
+        defaults={"payload": payload, "shareable": True},
     )
+    from .intelligence import snapshot_evidence
+
+    if not created_record:
+        snapshot_evidence(record)
+        record.payload, record.ingested_at = payload, timezone.now()
+        # An upstream refresh never re-enables an operator-restricted evidence record.
+        record.save(update_fields=["payload", "ingested_at"])
+    snapshot_evidence(record)
     version = installation.version or "unknown"
     explanation = (
         f"A user selected {identifier} for review against {installation.product.name} (version {version}). "
@@ -161,6 +173,8 @@ def persist_lookup(user, installation, source, identifier, payload):
 
 
 def lookup_for_installation(user, installation, identifier):
+    require(can_edit(user, installation.asset.organization))
+    installation.full_clean()
     source, payload = lookup(identifier)
     return persist_lookup(user, installation, source, identifier.upper(), payload)
 

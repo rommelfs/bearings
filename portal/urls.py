@@ -1,7 +1,29 @@
 from django.urls import path
-from . import views
+from . import views, intelligence_views
 
 urlpatterns = [
+    path("organizations/<slug:slug>/intelligence/", intelligence_views.intelligence, name="intelligence"),
+    path("organizations/<slug:slug>/risk-catalog/", intelligence_views.risk_catalog, name="risk-catalog"),
+    path(
+        "organizations/<slug:slug>/findings/<int:pk>/risk/new/",
+        intelligence_views.create_risk_link,
+        name="create-risk-link",
+    ),
+    path(
+        "organizations/<slug:slug>/risk-links/<int:pk>/withdraw/",
+        intelligence_views.withdraw_risk_link,
+        name="withdraw-risk-link",
+    ),
+    path(
+        "api/v1/organizations/<slug:slug>/intelligence/",
+        intelligence_views.api_intelligence,
+        name="api-intelligence",
+    ),
+    path(
+        "api/v1/organizations/<slug:slug>/risk-links/<int:pk>/evidence/",
+        intelligence_views.risk_link_evidence,
+        name="risk-link-evidence",
+    ),
     path("", views.home, name="home"),
     path("organizations/<slug:slug>/contacts/<int:pk>/edit/", views.edit_contact, name="edit-contact"),
     path(

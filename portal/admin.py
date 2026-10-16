@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.db import transaction
 from .access import audit
-from .models import AuditEvent, InventorySource, Membership, NetBoxInstance, Organization
+from .models import AuditEvent, InventorySource, Membership, NetBoxInstance, Organization, MOSPSource
 
 
 class PlatformAdmin(admin.ModelAdmin):
@@ -115,3 +115,27 @@ class AuditAdmin(PlatformAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(MOSPSource)
+class MOSPAdmin(PlatformAdmin):
+    list_display = ["name", "base_url", "publisher", "enabled", "last_success"]
+    readonly_fields = ["last_attempt", "last_success", "error"]
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            return super().save_model(request, obj, form, change)
+        with transaction.atomic():
+            current = MOSPSource.objects.select_for_update().get(pk=obj.pk)
+            for field in form.changed_data:
+                setattr(current, field, getattr(obj, field))
+            current.full_clean()
+            current.save(update_fields=form.changed_data)
+            audit(
+                request.user,
+                None,
+                "operator.configuration_changed",
+                current.pk,
+                model=current._meta.label,
+                fields=form.changed_data,
+            )
