@@ -17,19 +17,23 @@ A standalone organization inventory and evidence review portal intended for CIRC
 
 ## Quick start
 
-Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and optionally Docker for PostgreSQL.
+Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and optionally Docker for PostgreSQL. Run these commands from your existing checkout directory, the one containing `manage.py`. No `/workspace` path is needed on your own machine.
 
 ```sh
-cd /workspace/bearings  # or your checkout
 uv sync --frozen
 export DJANGO_DEBUG=1
 # Use a random DJANGO_SECRET_KEY for anything beyond an isolated local session.
 uv run python manage.py migrate
-uv run python manage.py seed_demo
-uv run python manage.py runserver 127.0.0.1:8000
+# Enter a password of at least 12 characters when prompted (input is hidden).
+# Start the server only if seeding succeeds.
+uv run python manage.py seed_demo && uv run python manage.py runserver 127.0.0.1:8000
 ```
 
 `seed_demo` asks for a password (12+ characters) and creates `company-admin` and `circl-analyst` only if absent. Existing passwords and operator policies are preserved. All seeded data is synthetic, including the evidence record. `--no-users` is available for noninteractive checks. Create a separate platform administrator with `uv run python manage.py createsuperuser`; demo users have no platform administration privileges.
+
+Sign in as `company-admin` for the organization view or `circl-analyst` for the CIRCL view, using the password you entered during seeding.
+
+If seeding reports `CommandError: Use at least 12 characters`, the transaction rolls back and no demo accounts are created by that attempt. Rerun `uv run python manage.py seed_demo` with a longer password before starting the server. If accounts already exist from an earlier successful run, seeding leaves their passwords unchanged; reset a forgotten password with `uv run python manage.py changepassword company-admin` (or `circl-analyst`). Do not delete the database to fix a login problem.
 
 Use the existing checkout. Cloud tasks already run in isolation; do not create worktrees unless explicitly requested. No live process is assumed to survive a restored cloud snapshot.
 
