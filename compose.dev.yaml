@@ -1,0 +1,98 @@
+# Common local lab; use scripts/dev.py to select bundled or external NetBox.
+services:
+  dev-init:
+    image: bearings-development
+    build: .
+    user: root
+    command: ["/app/.venv/bin/python", "docker/dev/initialize.py"]
+    environment:
+      BEARINGS_NETBOX_MODE: ${BEARINGS_NETBOX_MODE:-external}
+    volumes:
+      - dev-secrets:/state/secrets
+      - dev-trust:/state/trust
+      - ./.local/dev-stack/external:/external:ro
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: bearings
+      POSTGRES_DB: bearings
+      POSTGRES_PASSWORD: local-development-only
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      default:
+        aliases: ["${COMPOSE_PROJECT_NAME}-database"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bearings -d bearings"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  bearings-init:
+    image: bearings-development
+    command: ["/app/.venv/bin/python", "docker/dev/entrypoint.py", "init"]
+    env_file:
+      - path: .env
+        required: false
+    environment: &bearings-env
+      DJANGO_DEBUG: "1"
+      BEARINGS_DEV_STACK: "1"
+      DATABASE_URL: postgresql://bearings:local-development-only@${COMPOSE_PROJECT_NAME}-database:5432/bearings
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
+      CONNECTOR_PROXY_DNS: "0"
+      NO_PROXY: localhost,127.0.0.1,netbox.bearings.test,host.docker.internal
+    volumes: &bearings-volumes
+      - dev-secrets:/run/bearings/secrets:ro
+      - dev-trust:/run/bearings/trust:ro
+      - local-data:/app/.local
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      dev-init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+  web:
+    image: bearings-development
+    command: ["/app/.venv/bin/python", "docker/dev/entrypoint.py", "web"]
+    env_file:
+      - path: .env
+        required: false
+    environment: *bearings-env
+    volumes: *bearings-volumes
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "127.0.0.1:${BEARINGS_PORT:-8000}:8000"
+    depends_on:
+      bearings-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/accounts/login/', timeout=5)"]
+      interval: 5s
+      timeout: 6s
+      start_period: 10s
+      retries: 30
+  worker:
+    image: bearings-development
+    command: ["/app/.venv/bin/python", "docker/dev/entrypoint.py", "worker"]
+    env_file:
+      - path: .env
+        required: false
+    environment: *bearings-env
+    volumes: *bearings-volumes
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      bearings-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import pathlib,time; assert time.time()-pathlib.Path('/tmp/bearings-worker-heartbeat').stat().st_mtime < 60"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 10
+volumes:
+  postgres-data:
+  local-data:
+  dev-secrets:
+  dev-trust:

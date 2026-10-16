@@ -10,6 +10,8 @@ RUN --mount=type=secret,id=cloud-ca \
 COPY config ./config
 COPY portal ./portal
 COPY manage.py LICENSE ./
+COPY docker ./docker
+COPY scripts ./scripts
 RUN useradd --create-home bearings && mkdir -p /app/.local && chown -R bearings:bearings /app
 USER bearings
 EXPOSE 8000

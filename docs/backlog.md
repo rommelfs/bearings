@@ -1,6 +1,6 @@
 # Implementation backlog
 
-Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [4 milestones](https://github.com/rommelfs/bearings/milestones) and [16 issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; 14 issues remain open. A second publisher run created zero duplicate issues.
+Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [4 milestones](https://github.com/rommelfs/bearings/milestones) and [17 issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; 14 issues remain open. A second publisher run created zero duplicate issues.
 
 ## M1: Foundation and inventory
 
@@ -40,3 +40,7 @@ Extend without changing authoritative-source rules
 ## Multi-instance NetBox increment
 
 Named instances, isolated credential references, explicit read-only/read-write/disabled capability, shared tenant and dedicated ownership scopes, paginated GET-only queries and read health are implemented. This does not complete automatic inventory imports. The new milestone-1 item is defined in backlog.json; live mixed-capability validation remains in #2 and projection/reconciliation in #3/#14.
+
+## Complete local environment
+
+A bundled real NetBox + Bearings lab and external-instance starter are implemented, with generated credentials, verified TLS, read-only/read-write examples, automatic job processing and retained data across mode changes. See development-stack.md. General inventory imports remain in #3/#14; live compatibility beyond the pinned bundled NetBox version remains in #2.

@@ -160,6 +160,8 @@ def write_asset(asset):
         }
         if source.tenant_id:
             body["tenant"] = source.tenant_id
+        if vm and instance.site_id:
+            body["site"] = instance.site_id
         if not vm:
             for field, value in [
                 ("site", instance.site_id),

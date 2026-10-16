@@ -1,5 +1,7 @@
 # Local deployment and production prerequisites
 
+For the recommended complete Bearings + NetBox lab or an external backend, use [development-stack.md](development-stack.md). `python3 scripts/dev.py up` requires only Docker Compose and host Python. The minimal Compose workflow below remains supported separately.
+
 Use README for host-based development. `docker compose up --build` starts PostgreSQL 17 and the local Django development server; web and DB published ports bind to loopback only. Compose embeds a clearly local-only DB password and is not a production deployment. `docker compose down` preserves its database volume; `down -v` destroys it, so never run that against valuable data. No external service is needed for the synthetic slice.
 
 Environment settings are operator-owned. `.env.example` contains placeholders only. Host-based Django does not auto-load `.env`; export variables or use a trusted environment manager. Docker Compose reads its own environment interpolation, but organization users cannot supply process configuration. Freeze dependencies using `uv sync --frozen`; no migration is silently generated at startup.

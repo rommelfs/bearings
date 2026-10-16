@@ -1,6 +1,6 @@
 # NetBox: multiple instances and explicit capabilities
 
-Status: **multi-instance connections, scoped paginated queries and recoverable writes implemented and fixture-tested**. No live NetBox instance or key has been supplied; deployed version compatibility is not yet certified. Queries do not yet import/reconcile local inventory. Development mode remains a separately labeled synthetic adapter.
+Status: **multi-instance connections, scoped paginated queries and recoverable writes implemented and fixture-tested**. Live integration is verified against the bundled official NetBox v4.7.3 / netbox-docker 5.1.1 image using scoped v2 Bearer tokens. Other deployed versions and authentication configurations still need validation. Queries do not yet import/reconcile local inventory. Development mode remains a separately labeled synthetic adapter.
 
 An organization has one authoritative infrastructure source binding. The platform can query many instances and many tenant-scoped bindings on a shared instance. Results from organization-owned instances are not copied into central NetBox. Read-write capability authorizes portal writes to that instance only; it does not introduce bidirectional synchronization between instances. Multiple simultaneous authoritative inventories within one organization are not part of this increment.
 
@@ -41,7 +41,7 @@ The operator-only command uses GETs exclusively on both access modes. It reports
 
 ## Write recovery
 
-Portal submissions persist as pending with an InventoryWrite job. `process_jobs` checks current connection capability, queries the selected instance using tenant plus `cf_bearings_id`, rejects partial/ambiguous results, and creates only when the complete filtered result is empty. Devices use that instance's defaults; VMs use their own endpoint. Lifecycle active/retired maps to NetBox active/offline. A returned object must match the tenant (where scoped) and custom identity.
+Portal submissions persist as pending with an InventoryWrite job. `process_jobs` checks current connection capability, queries the selected instance using tenant plus `cf_bearings_id`, rejects partial/ambiguous results, and creates only when the complete filtered result is empty. Devices use that instance's defaults; VMs use their own endpoint and the configured site default, required by the tested NetBox version. Lifecycle active/retired maps to NetBox active/offline. A returned object must match the tenant (where scoped) and custom identity.
 
 Lost POST responses are retried with a lookup before another POST. Local job row locks prevent duplicate local workers; NetBox custom-field uniqueness is not guaranteed, so out-of-band duplicates require review. Errors and permission downgrades leave the write visibly failed/unconfirmed with capped retry backoff and retain last-known data. No external request is made when the connection is read only or disabled. No response bodies or credentials enter job error state. Read success and write success are shown separately.
 
@@ -56,3 +56,7 @@ The old global `NETBOX_URL`, `NETBOX_ALLOW_PRIVATE`, and site/role/type settings
 Official references inspected 2026-10-16: [REST pagination/API examples](https://github.com/netbox-community/netbox/blob/main/docs/integrations/rest-api.md) and [device serializer](https://github.com/netbox-community/netbox/blob/main/netbox/dcim/api/serializers_/devices.py). Current REST examples use Bearer authentication; legacy token mode remains explicit. Latest documentation is a starting contract, not a tested deployed-version guarantee.
 
 Validate both read-only and read-write keys against isolated live instances before operational use. Continuous import/projection, snapshot consistency, disappearing-object review, scheduling, freshness thresholds, connection onboarding UX and broader source migration workflows remain tracked in the backlog.
+
+## Bundled starter
+
+`python3 scripts/dev.py up` installs/runs the isolated NetBox alongside Bearings and provisions scoped read/write and read-only connections with verified local TLS. `configure` plus `up --external` selects another instance without starting bundled NetBox services. See [development stack](../operations/development-stack.md) for accounts, certificate trust, data retention and external configuration. The bundled initializer projects only its known synthetic seed identities, not general inventory results.

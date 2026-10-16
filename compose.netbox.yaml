@@ -1,0 +1,121 @@
+# Bundled official NetBox, isolated PostgreSQL/Valkey and verified local HTTPS.
+x-netbox: &netbox
+  image: netboxcommunity/netbox:v4.7.3-5.1.1
+  user: netbox:root
+  environment: &netbox-env
+    DB_HOST: netbox-db
+    DB_NAME: netbox
+    DB_USER: netbox
+    REDIS_HOST: netbox-redis
+    REDIS_CACHE_HOST: netbox-redis
+    REDIS_DATABASE: "0"
+    REDIS_CACHE_DATABASE: "1"
+    SKIP_SUPERUSER: "true"
+    ALLOWED_HOSTS: netbox netbox.bearings.test localhost 127.0.0.1 host.docker.internal
+    CSRF_TRUSTED_ORIGINS: https://localhost:${NETBOX_PORT:-8443} https://127.0.0.1:${NETBOX_PORT:-8443}
+    SESSION_COOKIE_NAME: netboxsessionid
+    CSRF_COOKIE_NAME: netboxcsrftoken
+    CENSUS_REPORTING_ENABLED: "false"
+    RELEASE_CHECK_URL: ""
+    EMAIL_SERVER: "127.0.0.1"
+    EMAIL_PORT: "1"
+    EMAIL_TIMEOUT: "1"
+  volumes: &netbox-volumes
+    - netbox-secrets:/run/secrets:ro
+    - netbox-media:/opt/netbox/netbox/media
+    - ./docker/netbox/extra.py:/etc/netbox/config/extra.py:ro
+services:
+  dev-init:
+    environment:
+      BEARINGS_NETBOX_MODE: bundled
+    volumes:
+      - netbox-secrets:/state/netbox-secrets
+      - netbox-tls:/state/tls
+      - ca-private:/state/ca-private
+  netbox-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: netbox
+      POSTGRES_DB: netbox
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - netbox-postgres:/var/lib/postgresql/data
+      - netbox-secrets:/run/secrets:ro
+    depends_on:
+      dev-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netbox -d netbox"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  netbox-redis:
+    image: valkey/valkey:9.1-alpine
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - netbox-redis:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  netbox:
+    <<: *netbox
+    depends_on:
+      netbox-db:
+        condition: service_healthy
+      netbox-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/opt/netbox/health.sh"]
+      start_period: 90s
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  netbox-worker:
+    <<: *netbox
+    command: ["/opt/netbox/venv/bin/python", "/opt/netbox/netbox/manage.py", "rqworker"]
+    depends_on:
+      netbox:
+        condition: service_healthy
+  netbox-tls:
+    image: nginx:1.28-alpine
+    volumes:
+      - ./docker/netbox/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - netbox-tls:/etc/nginx/certs:ro
+    ports:
+      - "127.0.0.1:${NETBOX_PORT:-8443}:443"
+    networks:
+      default:
+        aliases: [netbox.bearings.test]
+    depends_on:
+      netbox:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  netbox-provision:
+    <<: *netbox
+    user: root
+    entrypoint: ["/opt/netbox/venv/bin/python", "/opt/netbox/netbox/manage.py", "shell", "--no-startup", "--no-imports", "-c", "exec(open('/provision.py').read())"]
+    volumes:
+      - netbox-secrets:/run/secrets:ro
+      - dev-secrets:/run/bearings/secrets
+      - ./docker/netbox/extra.py:/etc/netbox/config/extra.py:ro
+      - ./docker/netbox/provision.py:/provision.py:ro
+    depends_on:
+      netbox-tls:
+        condition: service_healthy
+  bearings-init:
+    depends_on:
+      netbox-provision:
+        condition: service_completed_successfully
+volumes:
+  netbox-postgres:
+  netbox-redis:
+  netbox-media:
+  netbox-secrets:
+  netbox-tls:
+  ca-private:

@@ -1,0 +1,54 @@
+name: Development stack
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'compose*.yaml'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker/**'
+      - 'scripts/dev.py'
+      - 'portal/connectors/**'
+      - 'portal/management/commands/setup_dev_stack.py'
+      - 'portal/management/commands/seed_demo.py'
+      - '.github/workflows/dev-stack.yml'
+  pull_request:
+    paths:
+      - 'compose*.yaml'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'docker/**'
+      - 'scripts/dev.py'
+      - 'portal/connectors/**'
+      - 'portal/management/commands/setup_dev_stack.py'
+      - 'portal/management/commands/seed_demo.py'
+      - '.github/workflows/dev-stack.yml'
+permissions:
+  contents: read
+jobs:
+  bundled:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start real Bearings and NetBox
+        run: python3 scripts/dev.py up --timeout 900
+      - name: Exercise HTTPS, scoped queries, portal writes and recovery
+        run: python3 scripts/dev.py smoke
+      - name: Stop without deleting data
+        run: python3 scripts/dev.py down
+      - name: Restart retained volumes and query
+        run: |
+          python3 scripts/dev.py up --no-build --timeout 300
+          python3 scripts/dev.py query
+      - name: Capture failure logs without credentials
+        if: failure()
+        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml logs --no-color > dev-stack.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: dev-stack-logs
+          path: dev-stack.log
+      - name: Stop test containers
+        if: always()
+        run: python3 scripts/dev.py down

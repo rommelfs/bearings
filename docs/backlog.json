@@ -9,7 +9,7 @@
       },
       {
         "title": "Validate central NetBox against an isolated live tenant",
-        "body": "Validate the multi-instance connector against isolated read-only and read-write NetBox instances. Provision approved host/key bindings, tenant/dedicated scope, authentication schemes, write defaults and bearings_id fields only for write paths. Verify queries, device/VM creates and lost-POST recovery, record deployed versions; no production inventory."
+        "body": "Bundled official NetBox v4.7.3 / netbox-docker 5.1.1 has now been exercised live with tenant-scoped read-only and read/write v2 tokens, devices/VMs/IPs/prefixes, portal writes, upstream write denial and lost-ack recovery. External-mode connectivity to this isolated reference backend is validated too. Remaining: independently deployed instances/versions and legacy authentication, broader site/type/role mappings and operational key policies; no production inventory."
       },
       {
         "title": "Implement complete NetBox source refresh and reconciliation",
@@ -22,6 +22,10 @@
       {
         "title": "Support multi-instance NetBox queries and access modes",
         "body": "Implemented named instances with credential references, read-only/read-write/disabled capabilities, shared tenant and dedicated organization scope, safe pagination for devices/VMs/IPs/prefixes, GET-only multi-source query runner, independent read health, UI/job write restrictions, migrations and isolation tests. No automatic import or inter-instance synchronization; live compatibility remains tracked separately."
+      },
+      {
+        "title": "Provide a bundled NetBox development stack and external starter",
+        "body": "Deliver Docker/Python starter with official pinned NetBox, scoped read/write and read-only synthetic tenants, generated credentials and verified TLS, a Bearings worker, repeatable provisioning and preserved volumes. Provide external read-only-by-default configuration without remote writes during bootstrap, private key handling, real functional smoke tests and CI. General inventory import remains separate."
       }
     ]
   },

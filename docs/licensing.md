@@ -22,3 +22,5 @@ Reviewed on 2026-10-16 using installed distribution metadata/license files and u
 | MISP, Vulnerability-Lookup, Plum Island | AGPL-3.0 family reported by upstream license records; retain each project's exact terms |
 
 These projects retain their own licenses. Preserve distribution notices and inspect the exact selected release and any bundled native libraries when packaging or redistributing artifacts. Psycopg binary wheels include native components with their own notices; the public source repository does not vendor these wheels. Data/API redistribution permissions, particularly MISP intelligence, remain separate from software licensing. Repeat the review when dependencies, deployed upstream releases or distribution artifacts change.
+
+The optional development stack uses official NetBox (Apache-2.0), Valkey (BSD-3-Clause), Nginx (BSD-2-Clause) and PostgreSQL (PostgreSQL License) images. Those images retain upstream licenses/notices and are not relicensed by Bearings' AGPL grant. No upstream application source is vendored.

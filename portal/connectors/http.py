@@ -26,9 +26,9 @@ def validate_base(url):
         or p.password
         or p.query
         or p.fragment
-        or port not in (None, 443)
+        or port == 0
     ):
-        raise ConnectorError("Operator must configure a credential-free HTTPS base URL on port 443")
+        raise ConnectorError("Operator must configure a credential-free HTTPS base URL with a valid port")
     return p
 
 
@@ -48,7 +48,7 @@ def approved_base(url, allow_private=False):
         # The operator's egress proxy performs DNS and enforces destination policy.
         return url.rstrip("/")
     try:
-        addresses = socket.getaddrinfo(p.hostname, 443, type=socket.SOCK_STREAM)
+        addresses = socket.getaddrinfo(p.hostname, p.port or 443, type=socket.SOCK_STREAM)
     except OSError:
         raise ConnectorError("Connector DNS resolution failed") from None
     if not addresses or (

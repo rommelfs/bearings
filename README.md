@@ -15,7 +15,43 @@ A standalone organization inventory and evidence review portal intended for CIRC
 
 **Not yet implemented:** continuous NetBox import/refresh, MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, complete organization-owned NetBox inventory imports, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md).
 
-## Quick start
+## Start with bundled NetBox (recommended)
+
+Requires Docker Engine/Desktop with Compose v2.24+ and Python 3.10+ on the host. Application dependencies run in containers; no local uv/PostgreSQL/NetBox installation is needed. Allow about 6 GB of Docker memory and 10 GB of disk space. Images support AMD64 and ARM64, including Apple Silicon. First startup can take several minutes while NetBox migrates its database.
+
+From your checkout:
+
+```sh
+python3 scripts/dev.py up
+python3 scripts/dev.py credentials
+```
+
+Bearings runs on loopback port **8000**, bundled NetBox on **8443 (HTTPS)**. The credentials command displays the generated **local-development** password: use `company-admin`, `circl-analyst`, or `platform-admin` in Bearings, and `netbox-admin` in NetBox. Existing passwords are not reset. Databases, secrets and demo inventory persist across restarts.
+
+The lab includes two tenant-scoped NetBox connections: read/write and read-only, with synthetic devices, VMs, IPs, prefixes and local software installations. A background worker processes portal submissions automatically. These are real NetBox API connections to synthetic local data, separate from the existing fixture-only Example Labs workspace. NetBox cookies use distinct names so both applications can stay logged in.
+
+Bearings automatically trusts the generated local NetBox CA. To use the NetBox browser interface, export its **public** CA with `python3 scripts/dev.py trust` and trust that certificate locally in your browser/OS. Private CA keys are not exported and verification is never disabled. See the [development stack guide](docs/operations/development-stack.md).
+
+```sh
+python3 scripts/dev.py query        # live GET queries and connection health
+python3 scripts/dev.py smoke        # bundled-only synthetic writes and retry checks
+python3 scripts/dev.py down         # stop containers; retain all data
+```
+
+### Use an existing NetBox instead
+
+Replace the example URL and tenant ID with your approved instance. The API token is prompted without echo and stored outside Git.
+
+```sh
+python3 scripts/dev.py configure --url https://netbox.example.org --tenant-id 42
+python3 scripts/dev.py up --external
+```
+
+External mode is **read-only by default** and starts no bundled NetBox, Redis/Valkey or NetBox database services. For a dedicated organization-owned instance, explicitly use `--dedicated` instead of a tenant ID. Options cover legacy authentication, private destinations, custom CA certificates, HTTPS ports and explicit read/write capability. Switching modes stops the previous lab and retains its volumes; each external endpoint/scope/access mode gets a separate development database. Startup never writes to external NetBox.
+
+External queries currently report counts and health; general inventory import/reconciliation is still planned. Only the bundled synthetic seed objects are projected into the portal automatically. [Configuration and lifecycle details](docs/operations/development-stack.md).
+
+## Run Bearings directly (without bundled NetBox)
 
 Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and optionally Docker for PostgreSQL. Run these commands from your existing checkout directory, the one containing `manage.py`. No `/workspace` path is needed on your own machine.
 
@@ -81,7 +117,7 @@ Live vulnerability retrieval is opt-in through the inventory UI: select an insta
 - [Architecture](docs/architecture.md), [data model](docs/data-model.md), [authorization](docs/authorization.md), [correlation](docs/correlation.md)
 - [NetBox](docs/integrations/netbox.md), [Vulnerability-Lookup](docs/integrations/vulnerability-lookup.md), [MISP](docs/integrations/misp.md), [Plum Island](docs/integrations/plum-island.md)
 - [Company guide](docs/user-guide/companies.md), [CIRCL guide](docs/user-guide/circl.md)
-- [Deployment](docs/operations/deployment.md), [backup/restore](docs/operations/backup-restore.md), [synchronization](docs/operations/synchronization.md), [incident handling](docs/operations/incidents.md)
+- [Development stack](docs/operations/development-stack.md), [deployment](docs/operations/deployment.md), [backup/restore](docs/operations/backup-restore.md), [synchronization](docs/operations/synchronization.md), [incident handling](docs/operations/incidents.md)
 - [Licensing](docs/licensing.md), [public-license decision](docs/decisions/0002-license-and-public-development.md)
 - [ADR](docs/decisions/0001-modular-monolith.md), [open decisions](docs/decisions/open.md), [backlog](docs/backlog.md), [validation record](docs/validation.md)
 - [Contributing](CONTRIBUTING.md), [security](SECURITY.md), [agent instructions](AGENTS.md)

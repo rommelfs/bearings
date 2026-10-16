@@ -81,7 +81,7 @@ class Command(BaseCommand):
         product, _ = Product.objects.get_or_create(
             organization=org,
             name="Apache Log4j",
-            defaults={"identifier": "pkg:maven/org.apache.logging.log4j/log4j-core"},
+            identifier="pkg:maven/org.apache.logging.log4j/log4j-core",
         )
         installation, _ = Installation.objects.get_or_create(
             asset=asset, product=product, defaults={"version": "2.14.1"}
