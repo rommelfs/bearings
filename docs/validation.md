@@ -15,7 +15,7 @@ Date: 2026-10-16. All application data used here is synthetic. No production not
 | Docker | Built non-root development image with frozen dependencies and verified TLS using temporary cloud CA mount; repeat helper build passed. Container + PostgreSQL real HTTP login, organization page and software inventory API passed |
 | Compose | Configuration syntax validated; image/runtime/database separately exercised. Full Compose lifecycle was not used in this session |
 | PostgreSQL recovery | Custom-format dump restored into an isolated database; organization, operator policy, source/asset, installation and finding relationships verified, then isolated restore database removed |
-| GitHub read access | Native Git read and API repository metadata succeeded after network access became available |
+| GitHub access | Native Git read and API metadata succeeded. `git push --dry-run origin HEAD:refs/heads/main` passed, confirming the push path without publishing a branch |
 | GitHub visibility update | **Failed HTTP 403 `Resource not accessible by integration`**; repository was confirmed public. No code/backlog publication until private visibility is established |
 | GitHub Actions | Workflow authored for both databases; not run remotely while commits remain local |
 
@@ -26,3 +26,5 @@ Toolchain: host Python 3.12.14, Django 5.2.18, uv 0.12.23; image Python 3.12.15.
 Connections: Vulnerability-Lookup real public read tested; central NetBox adapter fixture-tested but no live instance/key supplied; development inventory adapter explicitly synthetic; MISP official OpenAPI researched but adapter pending; Plum Island official InfoIP semantics researched but adapter pending. Generalized applicability, continuous import, production scheduling/delivery/security controls and complete connector policy remain backlog work.
 
 The environment install/start configuration was saved as a draft, including cloud proxy-DNS settings and required GitHub/Vulnerability-Lookup domains. Draft persistence is not publication or proof of fresh-task restoration. Repository visibility must be changed by an authorized owner because this integration cannot do it. Licensing and a verified security reporting channel remain owner decisions.
+
+The initial implementation is committed locally. Remote publication is deliberately pending private visibility; the tested push was a dry run only. A recoverable Git bundle is retained outside the checkout. Do not assume unpublished local commits can be restored by cloning the remote or a fresh task.
