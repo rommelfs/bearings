@@ -344,6 +344,21 @@ class InventoryImportTests(Fixture):
         self.assertEqual(self.sa.import_summary["total"], 4)
         self.assertFalse(self.sa.import_enabled)
 
+    def test_browser_links_use_a_separate_https_base_without_changing_api_target(self):
+        from django.core.exceptions import ValidationError
+
+        self.alpha.browser_url = "https://localhost:8443"
+        self.alpha.full_clean()
+        self.alpha.save()
+        refresh_inventory(self.sa.pk)
+        self.assertEqual(self.imported().source_url, "https://localhost:8443/dcim/devices/1/")
+        self.assertTrue(
+            all(c.args[1].startswith("https://alpha.example.invalid/") for c in self.http.call_args_list)
+        )
+        self.alpha.browser_url = "https://user:secret@netbox.example.invalid"
+        with self.assertRaises(ValidationError):
+            self.alpha.full_clean()
+
 
 # Real concurrent transactions are meaningful on PostgreSQL, not SQLite's single-writer fallback.
 

@@ -98,3 +98,5 @@ In the proxy-only Codex cloud sandbox, build first with `uv run python scripts/c
 Docker storage drivers that copy entire image trees (`vfs`, used in this cloud) can consume substantially more space and inodes than normal Docker Desktop/overlay storage. Check both `docker system df` and host inode limits if startup reports no space; preserve database and secret volumes when reclaiming disposable build cache. The full-stack CI uses a standard Docker runner.
 
 Import details, source field ownership and missing-object review are described in [synchronization](synchronization.md). The worker processes writes first, then due imports; an upstream import failure is recorded without stopping later sources or subsequent worker iterations.
+
+Bundled source links use a separate HTTPS browser URL (`localhost` with the configured NetBox port), while API traffic retains the internal verified Docker hostname. An existing empty browser URL is initialized on upgrade; operator-customized URLs are preserved. If changing the gateway port after first startup, update the instance browser URL in platform administration as well.

@@ -94,6 +94,9 @@ def main():
         external_id = str(response.json()["id"])
         refresh_inventory(rw.pk)
         imported = Asset.objects.get(source=rw, object_type="dcim.device", external_id=external_id)
+        assert imported.source_url.startswith("https://localhost:"), (
+            "Bundled browser links must use the host gateway port"
+        )
         imported.criticality, imported.responsible_team = "high", "local smoke review"
         imported.save()
         endpoint = "https://netbox.bearings.test/api/dcim/devices/" + external_id + "/"

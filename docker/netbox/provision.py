@@ -123,6 +123,7 @@ def main():
                 "organization_slug": "netbox-lab-" + suffix,
                 "organization_name": "NetBox lab " + suffix.upper() + " (SYNTHETIC)",
                 "base_url": "https://netbox.bearings.test",
+                "browser_url": os.environ["BEARINGS_NETBOX_BROWSER_URL"],
                 "token_env_var": variable,
                 "auth_scheme": "Bearer",
                 "access_mode": access,

@@ -3,6 +3,7 @@ x-netbox: &netbox
   image: netboxcommunity/netbox:v4.7.3-5.1.1
   user: netbox:root
   environment: &netbox-env
+    BEARINGS_NETBOX_BROWSER_URL: https://localhost:${NETBOX_PORT:-8443}
     DB_HOST: netbox-db
     DB_NAME: netbox
     DB_USER: netbox

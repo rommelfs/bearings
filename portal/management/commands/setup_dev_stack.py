@@ -77,10 +77,15 @@ class Command(BaseCommand):
                 for key in ["base_url", "token_env_var", "auth_scheme", "access_mode", "allow_private"]
             }
             fields.update({key: item.get(key) for key in ["site_id", "role_id", "device_type_id"]})
+            fields["browser_url"] = item.get("browser_url", "")
             fields["organization"] = org if item.get("dedicated") else None
             instance, created = NetBoxInstance.objects.get_or_create(name=item["name"], defaults=fields)
             if instance.base_url != item["base_url"] or instance.token_env_var != item["token_env_var"]:
                 raise CommandError("Existing development connection identity differs; refusing to repoint it")
+            if config["mode"] == "bundled" and not instance.browser_url and item.get("browser_url"):
+                instance.browser_url = item["browser_url"]
+                instance.full_clean()
+                instance.save(update_fields=["browser_url"])
             instance.full_clean()
             if created:
                 audit(

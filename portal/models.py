@@ -112,6 +112,11 @@ class NetBoxInstance(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     base_url = models.URLField(max_length=250, help_text="Approved HTTPS endpoint; never include credentials")
+    browser_url = models.URLField(
+        max_length=250,
+        blank=True,
+        help_text="Optional operator-approved HTTPS browser base; API credentials are never sent here",
+    )
     token_env_var = models.CharField(
         max_length=100, help_text="Environment variable NAME only, e.g. NETBOX_ACME_TOKEN"
     )
@@ -151,6 +156,11 @@ class NetBoxInstance(models.Model):
             self.base_url = validate_base(self.base_url).geturl().rstrip("/")
         except ConnectorError as exc:
             raise ValidationError({"base_url": str(exc)}) from None
+        if self.browser_url:
+            try:
+                self.browser_url = validate_base(self.browser_url).geturl().rstrip("/")
+            except ConnectorError as exc:
+                raise ValidationError({"browser_url": str(exc)}) from None
         if not re.fullmatch(r"NETBOX_[A-Z0-9_]*TOKEN", self.token_env_var):
             raise ValidationError(
                 {"token_env_var": "Use a NETBOX_*TOKEN environment variable name, never a token value"}
@@ -303,7 +313,11 @@ class Asset(models.Model):
         if not self.source.instance_id or self.object_type not in paths or not self.external_id.isdecimal():
             return ""
         try:
-            base = validate_base(self.source.instance.base_url).geturl().rstrip("/")
+            base = (
+                validate_base(self.source.instance.browser_url or self.source.instance.base_url)
+                .geturl()
+                .rstrip("/")
+            )
         except ConnectorError:
             return ""
         return f"{base}/{paths[self.object_type]}/{self.external_id}/"
