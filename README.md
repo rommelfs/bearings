@@ -47,7 +47,7 @@ python3 scripts/dev.py configure --url https://netbox.example.org --tenant-id 42
 python3 scripts/dev.py up --external
 ```
 
-External mode is **read-only by default** and starts no bundled NetBox, Redis/Valkey or NetBox database services. For a dedicated organization-owned instance, explicitly use `--dedicated` instead of a tenant ID. Options cover legacy authentication, private destinations, custom CA certificates, HTTPS ports and explicit read/write capability. Switching modes stops the previous lab and retains its volumes; each external endpoint/scope/access mode gets a separate development database. Startup never writes to external NetBox.
+External mode is **read-only by default** and starts no bundled NetBox, Redis/Valkey or NetBox database services. For a dedicated organization-owned instance, explicitly use `--dedicated` instead of a tenant ID. Options cover legacy authentication, private destinations, custom CA certificates, HTTPS ports and explicit read/write capability. Switching modes stops the previous lab and retains its volumes; each external endpoint/scope/access mode gets a separate development database. Initialization never provisions external NetBox; the worker processes authorized pending submissions only for read/write connections.
 
 External queries currently report counts and health; general inventory import/reconciliation is still planned. Only the bundled synthetic seed objects are projected into the portal automatically. [Configuration and lifecycle details](docs/operations/development-stack.md).
 
