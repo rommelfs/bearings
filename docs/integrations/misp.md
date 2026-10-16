@@ -1,0 +1,9 @@
+# MISP
+
+Status: **planned, not connected; no MISP data is ingested or exposed**. No deployed version or permission contract has been validated. The official [MISP 2.5 OpenAPI source](https://github.com/MISP/MISP/blob/fc99c9e3fc85beddc6ef18835359f3c8b7f44608/app/webroot/doc/openapi.yaml) was inspected on 2026-10-16. It documents the `Authorization` API-key header and POST `/events/restSearch` / `/attributes/restSearch`. No runtime request was made. Revalidate the selected deployed release's API/schema before coding.
+
+Expected boundary: server-side API key over approved HTTPS, least-privilege read access, paginated event/attribute/object retrieval and retained event/object/relationship context. Capabilities, retries, incremental cursor and version compatibility must be recorded against the real release; the initial documented header is `Authorization: <API-key>`. No portal-supplied destinations or keys are accepted.
+
+Permission for CIRCL to read an event is not permission to redistribute it. Evaluate distribution, sharing group, handling markings, attribute overrides and operator rules for raw evidence **and derived summaries/counts/notifications**. When eligibility is ambiguous, deny participant redistribution. Current SourceRecord shareability defaults false and participant finding queries exclude restricted records; this is groundwork, not a complete MISP policy engine.
+
+Distinguish victim/malicious/contextual roles where structured data permits and retain ambiguity otherwise. Preserve observation times and infrastructure responsibility at those times. A CVE mention alone is not exploitation; technology overlap alone is not a sighting or compromise. Never publish inventories or findings back to MISP automatically. Implement pagination, origin deduplication, restriction-propagation and partial-response tests before enabling live ingestion.

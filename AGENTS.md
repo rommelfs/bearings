@@ -1,0 +1,13 @@
+# Working on Bearings
+
+Use this existing checkout. Cloud tasks are isolated; do not create a Git worktree unless the user explicitly asks. Use Python 3.12+, Django 5.2 LTS, uv, and the frozen `uv.lock`. Run `uv sync --frozen`, migrations, Django checks/tests, and Ruff checks after relevant changes. Use PostgreSQL for relational/concurrency validation; SQLite is a one-worker local fallback.
+
+Maintain documentation in the same change as behavior. Document implemented vs planned capabilities, fixtures vs live services, uncertainty, authorization, source ownership, and failure semantics. Update `docs/backlog.json` and `docs/backlog.md` as work changes; publish backlog items with the provided script only when GitHub API access is available. Do not choose a license or public repository visibility on CIRCL's behalf.
+
+All organization-owned reads and writes must be scoped through the authenticated user's visible organizations. Do not expose raw or derived restricted intelligence to participants. Platform superusers are trusted administrators; the CIRCL analysts group alone is constrained by explicit operator visibility. Organization users cannot edit those policies. Audit policy changes and sensitive operator reads. Keep contacts' channel reachability, role review, and emergency availability distinct.
+
+Never infer confirmed applicability from product names or missing versions. Preserve evidence and automated results when analysts override an assessment. Private indicators require organization and network context; use proper address arithmetic and DNS label boundaries.
+
+Connector URLs and credentials belong to the software operator. Keep tokens server-side and outside logs, Git, examples, and issues. Use only approved HTTPS destinations, timeouts, bounded responses, no redirects, and retained TLS verification. Do not accept arbitrary URLs from organization forms or follow untrusted pagination links. Production egress enforcement is needed against DNS rebinding. External data is untrusted; preserve Django template escaping and JSON content types.
+
+No production notification delivery, scans, public deployment, or operational data publication without explicit authorization. File-based local delivery and synthetic fixtures are the defaults. Preserve last-known data on connector outages; never treat auth failures, partial pages, or errors as deletions. Manual NetBox submissions remain unconfirmed until an external identity is validated. Do not change source endpoints beneath existing identities.

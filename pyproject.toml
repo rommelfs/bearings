@@ -1,0 +1,16 @@
+[project]
+name = "bearings"
+version = "0.1.0"
+description = "Organization inventory, contact review, and evidence-led threat relevance"
+requires-python = ">=3.12"
+dependencies = ["Django>=5.2,<5.3", "httpx>=0.28,<0.29", "psycopg[binary]>=3.2,<4"]
+
+[dependency-groups]
+dev = ["ruff>=0.12,<0.16"]
+
+[tool.ruff]
+line-length = 110
+exclude = ["portal/migrations"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

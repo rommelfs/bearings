@@ -1,0 +1,1 @@
+{% extends 'portal/base.html' %}{% block content %}<section class="login"><p class="eyebrow">CIRCL / PARTICIPANT PORTAL</p><h1>Know your infrastructure.<br>Understand your exposure.</h1><p>Sign in to review your inventory, emergency contacts, and findings.</p><form method="post">{% csrf_token %}{{ form.as_p }}<button class="primary">Sign in</button></form></section>{% endblock %}

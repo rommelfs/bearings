@@ -1,0 +1,25 @@
+# Authorization and operator visibility
+
+Django users and organizations are separate. Login is required for all organization pages and APIs. Unknown and unauthorized organization/object IDs both return 404. Every object route first resolves a visible organization; child objects are queried within it. Templates and APIs use the same evidence filtering. No exports, attachments, caches, or search endpoints exist yet.
+
+| Capability | Reader | Editor | Organization admin | CIRCL analyst | Platform superuser |
+| --- | --- | --- | --- | --- | --- |
+| Read own org inventory/contacts/shareable findings | yes | yes | yes | only policy-permitted orgs, or explicit membership | all |
+| Create inventory/software/claims | no | yes | yes | only with explicit editing membership | yes |
+| Create/update/review contacts | no | no | yes | only with explicit org-admin membership | yes |
+| Verify/dispute infrastructure authority | no | no | no | policy-permitted organizations | yes |
+| Review findings | no | yes | yes | policy-permitted organizations | yes |
+| See restricted evidence and derived findings | no | no | no | policy-permitted organizations | yes |
+| Change memberships, source bindings, visibility policy | no | no | no | no | yes |
+
+Group name: `CIRCL analysts`. Being staff alone grants no organization access. Platform superusers are trusted administrators with full access; hiding data from them is not a promise this software can enforce. Their reads are audited. `operator_visibility=False` is the per-organization default and denies analyst access; explicit memberships still grant their ordinary organization role. Revocation is evaluated on every request, not cached in a session. There are no self-service membership changes yet.
+
+Only platform administration edits visibility. Policy changes record previous/new values in `AuditEvent`; sensitive cross-organization reads record actor and organization. Django administration separately logs administrative actions. Audit rows are read-only through application admin and have no deletion UI; database administrators remain trusted. Tamper-evident external audit export is planned.
+
+SourceRecord `shareable=False` is the conservative default. Participants see neither these records nor their derived findings/counts/history/evidence endpoints. Only the public Vulnerability-Lookup adapter and explicitly synthetic demo records mark records shareable. A boolean is not a replacement for MISP distribution/sharing-group/marking evaluation: no live MISP ingestion is enabled. Future ingestion must compute redistribution eligibility for both evidence and every derived statement before exposure.
+
+Background jobs carry an organization through the asset/source binding; reminders select only that organization's administrators. Jobs have no user-supplied organization IDs or destinations. Future jobs, notifications, search, exports and cache keys must retain this same scope.
+
+Local passwords are a development foundation. Production SSO/MFA, account recovery, session/rate-limit review and delegated providers are backlog items. Public token redemption changes reachability only, checks hashed 256-bit random tokens, expiry and one-use state, and uses CSRF on POST. GET never consumes a token.
+
+All current contact messages use the development file sink. The UI labels this explicitly; a redeemed local token exercises the confirmation state machine but is not evidence of real-world email delivery. Enabling production contact reachability needs an authorized transport and delivery validation.

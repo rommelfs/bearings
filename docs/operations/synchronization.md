@@ -1,0 +1,9 @@
+# Inventory jobs, failure and reconciliation
+
+`process_jobs` selects due unfinished durable writes and locks one job inside a PostgreSQL transaction. Successful writes set asset synced, external identity and source success time. Failure sets failed with a safe generic error and a capped exponential retry date. The command's completion means due jobs were attempted, not that every write succeeded: inspect the workspace/API/source state. Operators may run `process_jobs --retry-now` after diagnosing configuration or service recovery. Do not run multiple SQLite workers.
+
+NetBox uses a unique local asset UUID in the provisioned `bearings_id` custom field. Before every POST/retry it queries that field plus tenant, rejects multiple matches/partial pagination, and validates returned tenant/custom field. A failed response after POST may hide an accepted write; the next read recovers its identity. For ambiguous/duplicate results, examine NetBox within the correct tenant and reconcile manually before retry. Never erase local data to resolve auth/transport errors. Do not paste response bodies or credentials into issues/logs.
+
+Source attempt/success/error state appears in the UI. Last success is a write acknowledgement, not full-source freshness. Existing data remains when an attempt fails. Periodic source import, pagination cursors, deletion-review candidates and stale thresholds remain pending. No endpoint currently interprets missing objects as deletions. A production importer must complete all pages and explicit reconciliation before proposing removals.
+
+Software and contact state are platform-owned. Source binding changes, endpoint migrations and replay of restored jobs require operator review. Development adapter is safe and synthetic; changing a binding mode beneath existing assets is unsupported. Create a new reviewed mapping/migration rather than rewriting identity.

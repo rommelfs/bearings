@@ -1,0 +1,1 @@
+{% extends 'portal/base.html' %}{% block content %}<a href="{% url 'organization' org.slug %}">← {{ org.name }}</a><h1>{{ title }}</h1><form class="editor" method="post">{% csrf_token %}{{ form.as_p }}<button class="primary">Save</button></form>{% endblock %}

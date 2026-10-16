@@ -1,0 +1,15 @@
+# NetBox
+
+Status: central **write adapter implemented and fixture-contract-tested**, no live instance configured/tested. Development mode is explicitly synthetic. Periodic import, full pagination and disappearing-object reconciliation are pending. Organization-owned NetBox is a future read-only import source, never bidirectional and never copied automatically into central NetBox.
+
+Reference inspected 2026-10-16: [current upstream device serializer](https://github.com/netbox-community/netbox/blob/main/netbox/dcim/api/serializers_/devices.py). Device required fields include type, role and site. No deployed version is certified. Record a deployed release and capability checks before enabling a live source.
+
+Configure operator-only `NETBOX_URL` (HTTPS), `NETBOX_TOKEN`, `NETBOX_SITE_ID`, `NETBOX_ROLE_ID`, `NETBOX_DEVICE_TYPE_ID`. Map each organization source to its central tenant ID through platform admin. Create a text custom field `bearings_id` applicable to `dcim.device` and `virtualization.virtualmachine`, writable and filterable through REST. Use least privilege for querying/adding those objects and custom fields; inventory tenancy alone does not enforce Bearings authorization. Verify token format for the chosen NetBox release (initial adapter uses `Authorization: Token ...`). Private NetBox DNS requires explicit `NETBOX_ALLOW_PRIVATE=1` plus operator-approved network/VPN routes; no separate VPN client is installed.
+
+Source identity is the binding UUID plus object type and external object ID. Do not change NETBOX_URL or repoint an existing binding beneath existing IDs. Migration to a new instance needs a separately reviewed identity/reconciliation procedure.
+
+Portal submissions persist locally as pending, with an InventoryWrite job. `process_jobs` filters by tenant and `cf_bearings_id`, rejects partial/ambiguous results, and creates a device (or VM endpoint for kind vm) only when the full filtered result is empty. Server/desktop/laptop/appliance map to devices. Device site/type/role use operator defaults, not user-selected arbitrary objects. Asset lifecycle active/retired maps to NetBox active/offline. Product/installations stay in Bearings; VM configuration beyond name/tenant/status is not yet exposed.
+
+A recovered or created object must return matching tenant and custom identity. Lost POST responses are retried with a lookup before another POST. Row locks serialize the local job; uniqueness of the NetBox custom field is not guaranteed by NetBox, so out-of-band duplicate writes still require reconciliation. HTTP/auth/partial/identity failures set a visible failure and capped retry backoff, preserve last-known data, and do not report success. No response bodies or credentials enter job error messages. There is no deletion logic.
+
+Last attempt, last successful write, unconfirmed state and error are displayed. These timestamps do **not** establish a complete inventory refresh; no periodic source importer is implemented yet. Validate live create/recovery in an isolated test tenant before operational use. Central full sync, missing-object review and source links/freshness thresholds are milestone-1 follow-up work.

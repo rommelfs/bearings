@@ -1,0 +1,7 @@
+# Backup and restore
+
+No operational data is present initially. For PostgreSQL, take a consistent `pg_dump --format=custom` using an operator-managed least-privilege backup account and store it encrypted outside the host. Back up deployment configuration separately; credentials belong in the approved secret store. `.local/mail/` contains verification tokens/PII and needs restricted access and retention; it is not a production mail system.
+
+Restore into a new isolated database with `pg_restore`, apply committed migrations, run Django checks and the application smoke workflow, and verify organization policies, memberships, source IDs and finding history before switching any traffic. Disable outbound writes/delivery during restore exercises; review queued InventoryWrite jobs before restarting the runner to avoid replay against an unintended instance. Do not repoint existing source IDs at a different NetBox.
+
+SQLite local data is `.local/development.sqlite3`. Stop web/worker processes you own before copying the database (or use SQLite's online backup facility); copying an actively written database/WAL without coordination is unsafe. Restore only into a local development environment. No general-purpose backup command is executed automatically and no recovery SLA is claimed. A PostgreSQL dump/restore smoke exercise is recorded in validation; production recovery drills and retention remain required.

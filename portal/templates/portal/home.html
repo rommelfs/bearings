@@ -1,0 +1,8 @@
+{% extends 'portal/base.html' %}{% block content %}
+<p class="eyebrow">{% if operator %}CIRCL / AUTHORIZED ORGANIZATIONS{% else %}YOUR WORKSPACE{% endif %}</p>
+<h1>Infrastructure overview</h1><p class="intro">Keep the inventory current. Review who to call. Investigate what matters.</p>
+{% if operator %}<aside>Operator view: only organizations permitted by policy are included. Platform administrators have full administrative access. Sensitive operator reads are audited.</aside>{% endif %}
+<div class="cards">{% for org in orgs %}<article><div class="row"><span class="badge">{{ org.slug }}</span><span>{% if org.operator_visibility %}Analyst access allowed{% else %}Analyst access denied{% endif %}</span></div>
+<h2><a href="{% url 'organization' org.slug %}">{{ org.name }} ↗</a></h2><div class="metrics"><div><strong>{{ org.assets.count }}</strong>Assets</div><div><strong>{{ org.overdue_count }}</strong>Contacts due</div><div><strong>{{ org.finding_count }}</strong>Open reviews</div></div>
+<p>Source: {{ org.inventory_source.get_mode_display|default:'Not configured' }}</p></article>{% empty %}<article><h2>No organizations assigned</h2><p>A platform administrator must create an organization, source, and membership.</p></article>{% endfor %}</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% load static %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Bearings · CIRCL{% endblock %}</title><link rel="stylesheet" href="{% static 'portal/style.css' %}"></head>
+<body><header><a class="brand" href="{% url 'home' %}">◈ BEARINGS <span>CIRCL / Infrastructure & intelligence</span></a>
+{% if user.is_authenticated %}<div>{{ user.username }} <form class="inline" method="post" action="{% url 'logout' %}">{% csrf_token %}<button>Sign out</button></form></div>{% endif %}</header>
+<main><aside>Development delivery only: email stays in the local mail sink. Contact confirmations do not establish real-world reachability.</aside>{% for message in messages %}<aside role="status">{{ message }}</aside>{% endfor %}{% block content %}{% endblock %}</main>
+<footer>Evidence before conclusions. No matching findings does not mean safe. · Development increment 0.1</footer></body></html>
