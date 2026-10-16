@@ -23,3 +23,7 @@ Background jobs carry an organization through the asset/source binding; reminder
 Local passwords are a development foundation. Production SSO/MFA, account recovery, session/rate-limit review and delegated providers are backlog items. Public token redemption changes reachability only, checks hashed 256-bit random tokens, expiry and one-use state, and uses CSRF on POST. GET never consumes a token.
 
 All current contact messages use the development file sink. The UI labels this explicitly; a redeemed local token exercises the confirmation state machine but is not evidence of real-world email delivery. Enabling production contact reachability needs an authorized transport and delivery validation.
+
+## NetBox connection capabilities
+
+Only platform superusers configure instances, credential references, dedicated ownership, scope and read-only/read-write/disabled state. Organization users and analysts cannot elevate connection capabilities. Shared-instance queries require a tenant and validate every returned tenant. Dedicated whole-instance queries require a matching organization assignment. Read-only blocks portal infrastructure submission and all queued external writes even if the user is an editor/admin; local software entry retains its membership rules. Capability downgrades are checked again in the connector against current database configuration. Permission changes are audited. The operator CLI can query many bindings, but no participant endpoint accepts arbitrary instance URLs, credentials or unscoped query IDs.

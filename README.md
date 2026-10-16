@@ -10,10 +10,10 @@ A standalone organization inventory and evidence review portal intended for CIRC
 - Organization and authorized CIRCL dashboards; versioned, session-authenticated read APIs with the same isolation rules.
 - Emergency contacts, substantive review, configurable review intervals, separate reachability and emergency availability, expiring one-use verification tokens, and deduplicated review reminders in a **local file mail sink**.
 - Infrastructure declarations and operator verification, overlapping assignments, historical validity, IPv4/IPv6/range/domain matching, and private-network context isolation.
-- Durable manual inventory submissions, a labeled development adapter, central NetBox write adapter with pending/failed/confirmed state and read-before-retry reconciliation. Source/object/external-ID identity is distinct from an address.
+- Durable manual inventory submissions, a labeled development adapter, multi-instance NetBox connector with explicit read-only/read-write capabilities and a write adapter with pending/failed/confirmed state and read-before-retry reconciliation. Source/object/external-ID identity is distinct from an address.
 - Organization-local product selection, manual product identifiers, operating system/software installations, unknown versions, CVE retrieval for explicit review, evidence records, finding deduplication, analyst applicability overrides, workflow reasons, and audit history.
 
-**Not yet implemented:** continuous NetBox import/refresh, MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, organization-owned NetBox, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md).
+**Not yet implemented:** continuous NetBox import/refresh, MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, complete organization-owned NetBox inventory imports, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md).
 
 ## Quick start
 
@@ -46,6 +46,19 @@ uv run python manage.py remind_contacts
 ```
 
 Commands run once. For local continuous processing, run `while uv run python manage.py process_jobs; do sleep 10; done`. SQLite supports one worker only. Reminders and verification messages are written under `.local/mail/`; they are **never sent to real companies**. Tokens are submitted on the contact verification page. The message does not establish authority or emergency availability.
+
+### Multiple NetBox instances
+
+Platform administrators register each NetBox instance under `/admin/` with its HTTPS endpoint, token environment-variable **name**, authentication scheme, and read-only (default) or read-write capability. Bind each organization to its authoritative instance. Shared instances require tenant-scoped bindings; querying a whole instance requires an explicit dedicated-organization assignment. Use a least-privilege key for each instance. No credentials are stored in the database.
+
+```sh
+# After operator configuration and secure credential injection:
+uv run python manage.py query_netbox --all
+uv run python manage.py query_netbox --source "<binding-uuid>" --object-type devices --object-type virtual-machines
+# Also supported: --object-type ip-addresses and --object-type prefixes
+```
+
+This is a GET-only query runner for both connection modes. It reports counts and per-binding query health, never raw records or keys. It does not yet import results into local inventory or reconcile missing objects. Queries paginate within the approved endpoint/scope and fail closed on partial/ambiguous results. Read-only instances reject portal asset submission and queued external writes; local software records remain editable according to membership. See [NetBox setup and migration](docs/integrations/netbox.md).
 
 For PostgreSQL, use `docker compose up -d db`, export `DATABASE_URL=postgresql://bearings:local-development-only@127.0.0.1:5432/bearings`, then rerun migrations. The Compose password is intentionally local-only. `docker compose up --build` additionally runs the local web application. See [deployment](docs/operations/deployment.md).
 

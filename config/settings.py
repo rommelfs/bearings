@@ -82,12 +82,6 @@ EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
 EMAIL_FILE_PATH = LOCAL_DIR / "mail"
 DEFAULT_FROM_EMAIL = "bearings@example.invalid"
 CONTACT_REVIEW_DAYS = int(os.getenv("CONTACT_REVIEW_DAYS", "183"))
-NETBOX_ALLOW_PRIVATE = os.getenv("NETBOX_ALLOW_PRIVATE", "0") == "1"
-NETBOX_URL = os.getenv("NETBOX_URL", "")
-NETBOX_TOKEN = os.getenv("NETBOX_TOKEN", "")
-NETBOX_SITE_ID = os.getenv("NETBOX_SITE_ID", "")
-NETBOX_ROLE_ID = os.getenv("NETBOX_ROLE_ID", "")
-NETBOX_DEVICE_TYPE_ID = os.getenv("NETBOX_DEVICE_TYPE_ID", "")
 VULNERABILITY_LOOKUP_URL = os.getenv("VULNERABILITY_LOOKUP_URL", "https://vulnerability.circl.lu")
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG

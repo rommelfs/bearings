@@ -13,8 +13,12 @@ class ConnectorError(Exception):
     pass
 
 
-def approved_base(url, allow_private=False):
-    p = urlsplit(url)
+def validate_base(url):
+    try:
+        p = urlsplit(url)
+        port = p.port
+    except ValueError:
+        raise ConnectorError("Invalid operator connector URL") from None
     if (
         p.scheme != "https"
         or not p.hostname
@@ -22,9 +26,14 @@ def approved_base(url, allow_private=False):
         or p.password
         or p.query
         or p.fragment
-        or p.port not in (None, 443)
+        or port not in (None, 443)
     ):
         raise ConnectorError("Operator must configure a credential-free HTTPS base URL on port 443")
+    return p
+
+
+def approved_base(url, allow_private=False):
+    p = validate_base(url)
     try:
         literal = ipaddress.ip_address(p.hostname)
     except ValueError:

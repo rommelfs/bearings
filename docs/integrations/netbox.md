@@ -1,15 +1,58 @@
-# NetBox
+# NetBox: multiple instances and explicit capabilities
 
-Status: central **write adapter implemented and fixture-contract-tested**, no live instance configured/tested. Development mode is explicitly synthetic. Periodic import, full pagination and disappearing-object reconciliation are pending. Organization-owned NetBox is a future read-only import source, never bidirectional and never copied automatically into central NetBox.
+Status: **multi-instance connections, scoped paginated queries and recoverable writes implemented and fixture-tested**. No live NetBox instance or key has been supplied; deployed version compatibility is not yet certified. Queries do not yet import/reconcile local inventory. Development mode remains a separately labeled synthetic adapter.
 
-Reference inspected 2026-10-16: [current upstream device serializer](https://github.com/netbox-community/netbox/blob/main/netbox/dcim/api/serializers_/devices.py). Device required fields include type, role and site. No deployed version is certified. Record a deployed release and capability checks before enabling a live source.
+An organization has one authoritative infrastructure source binding. The platform can query many instances and many tenant-scoped bindings on a shared instance. Results from organization-owned instances are not copied into central NetBox. Read-write capability authorizes portal writes to that instance only; it does not introduce bidirectional synchronization between instances. Multiple simultaneous authoritative inventories within one organization are not part of this increment.
 
-Configure operator-only `NETBOX_URL` (HTTPS), `NETBOX_TOKEN`, `NETBOX_SITE_ID`, `NETBOX_ROLE_ID`, `NETBOX_DEVICE_TYPE_ID`. Map each organization source to its central tenant ID through platform admin. Create a text custom field `bearings_id` applicable to `dcim.device` and `virtualization.virtualmachine`, writable and filterable through REST. Use least privilege for querying/adding those objects and custom fields; inventory tenancy alone does not enforce Bearings authorization. Verify token format for the chosen NetBox release (initial adapter uses `Authorization: Token ...`). Private NetBox DNS requires explicit `NETBOX_ALLOW_PRIVATE=1` plus operator-approved network/VPN routes; no separate VPN client is installed.
+## Operator configuration
 
-Source identity is the binding UUID plus object type and external object ID. Do not change NETBOX_URL or repoint an existing binding beneath existing IDs. Migration to a new instance needs a separately reviewed identity/reconciliation procedure.
+1. Create a **NetBox instance** in platform administration: name, approved HTTPS base URL (no credentials/query/fragment), credential environment-variable name, authentication scheme, enabled flag and access mode. Access defaults to `read_only`; choose `read_write` explicitly where authorized. Only platform superusers can edit these fields. Permission changes are audited.
+2. Give each connection a least-privilege credential, injected securely into a `NETBOX_*TOKEN` variable such as `NETBOX_CENTRAL_TOKEN` or `NETBOX_ACME_TOKEN`. The database holds the variable name only. Missing credentials never fall back to another instance's key. Rotate a key or its reference without changing source identity. In proxy-backed environments authorize the binding for the exact destination; never copy placeholder values into database fields.
+3. Select `Bearer` for current tokens or `Token` for a deployed legacy contract; test the selected scheme against the chosen NetBox release. Keys may have upstream restrictions stricter than Bearings' capability; a local read-write setting never overrides upstream denial. Use an upstream read-only key for read-only connections as defense in depth.
+4. Bind the organization's **InventorySource** to the instance in `central` or `external` mode. Shared instances (no dedicated organization) require an explicit tenant ID. Every returned record must match it. Whole-instance scope is permitted only if the instance was explicitly dedicated to that same organization before binding. A dedicated instance cannot be assigned to another organization. Missing tenant assignments on objects are excluded from tenant-scoped queries.
+5. For writes, configure site, role and device-type IDs on that instance. Provision a writable/filterable text custom field `bearings_id` on devices and virtual machines. Read-only queries require none of these write fields. Current writes create/recover devices or VMs; arbitrary updates and deletes are not implemented.
+6. Approve network destinations separately. With cloud proxy DNS, add each exact hostname to `CONNECTOR_ALLOWED_HOSTS` and the environment egress policy. Private/VPN destinations require the instance's `allow_private` approval plus deployment networking rules. TLS verification, no redirects, 15-second timeouts and bounded JSON responses remain enforced. Do not install a separate VPN client.
 
-Portal submissions persist locally as pending, with an InventoryWrite job. `process_jobs` filters by tenant and `cf_bearings_id`, rejects partial/ambiguous results, and creates a device (or VM endpoint for kind vm) only when the full filtered result is empty. Server/desktop/laptop/appliance map to devices. Device site/type/role use operator defaults, not user-selected arbitrary objects. Asset lifecycle active/retired maps to NetBox active/offline. Product/installations stay in Bearings; VM configuration beyond name/tenant/status is not yet exposed.
+Instances and bindings have stable UUIDs. Imported identity is instance/binding, object type and external ID; the same numeric ID in two instances is distinct. Bound endpoint/dedicated ownership cannot be repointed in admin. Bindings with existing assets cannot change their instance or tenant. A migration needs explicit reconciliation; a hostname change must not silently rewrite identity. Credentials and permission modes can be rotated/revoked without repointing identity.
 
-A recovered or created object must return matching tenant and custom identity. Lost POST responses are retried with a lookup before another POST. Row locks serialize the local job; uniqueness of the NetBox custom field is not guaranteed by NetBox, so out-of-band duplicate writes still require reconciliation. HTTP/auth/partial/identity failures set a visible failure and capped retry backoff, preserve last-known data, and do not report success. No response bodies or credentials enter job error messages. There is no deletion logic.
+## Capability matrix
 
-Last attempt, last successful write, unconfirmed state and error are displayed. These timestamps do **not** establish a complete inventory refresh; no periodic source importer is implemented yet. Validate live create/recovery in an isolated test tenant before operational use. Central full sync, missing-object review and source links/freshness thresholds are milestone-1 follow-up work.
+| Operation | Read only | Read and write |
+| --- | --- | --- |
+| Scoped GET queries: devices, VMs, IP addresses, prefixes | yes | yes |
+| Portal submission / external create and recovery | denied | allowed for editors/admins |
+| Queued writes after a downgrade to read only | denied before any external request | allowed while authorized |
+| Local software/contact workflows | normal membership policy | normal membership policy |
+| Automatic import / disappearance reconciliation | not implemented | not implemented |
+
+A disabled instance permits no connector requests. The connector reloads instance capabilities before an operation so a cached instance object cannot bypass a downgrade. Calls already in flight when an operator revokes access cannot be retroactively cancelled; revoke upstream credentials and egress too when immediate containment is needed. Read-write permits only the create/recovery workflow currently implemented, not unrestricted NetBox administration.
+
+## Query runner and health
+
+```sh
+DJANGO_DEBUG=1 uv run python manage.py query_netbox --all
+DJANGO_DEBUG=1 uv run python manage.py query_netbox --source "<binding-uuid>" --source "<another-binding-uuid>" --object-type devices
+DJANGO_DEBUG=1 uv run python manage.py query_netbox --all --object-type virtual-machines --object-type ip-addresses --object-type prefixes
+```
+
+The operator-only command uses GETs exclusively on both access modes. It reports counts by source UUID and updates separate last-read attempt/success/error state and an audit event. It continues other bindings after one fails, then exits nonzero if any failed. It does not print raw operational records or credentials. Query health records success for the requested types only; it is not proof of a complete refreshed local inventory.
+
+`query_objects(source, object_type)` returns source/instance/type/external-ID provenance and the untrusted raw record for a future importer. Offset pagination requests 100 records per page, caps at 100 pages and 10,000 records per type/binding, rejects changing counts, duplicates, missing pages and wrong tenants, and reconstructs requests rather than following supplied links. Continuations must retain the exact destination, path, tenant scope, limit and next offset. Cursor/count-null pagination and server limits incompatible with this contract fail closed. A complete query is not an atomic upstream snapshot; concurrent edits preserving count may still require later reconciliation. No empty/partial/error response triggers deletion or local projection updates.
+
+## Write recovery
+
+Portal submissions persist as pending with an InventoryWrite job. `process_jobs` checks current connection capability, queries the selected instance using tenant plus `cf_bearings_id`, rejects partial/ambiguous results, and creates only when the complete filtered result is empty. Devices use that instance's defaults; VMs use their own endpoint. Lifecycle active/retired maps to NetBox active/offline. A returned object must match the tenant (where scoped) and custom identity.
+
+Lost POST responses are retried with a lookup before another POST. Local job row locks prevent duplicate local workers; NetBox custom-field uniqueness is not guaranteed, so out-of-band duplicates require review. Errors and permission downgrades leave the write visibly failed/unconfirmed with capped retry backoff and retain last-known data. No external request is made when the connection is read only or disabled. No response bodies or credentials enter job error state. Read success and write success are shown separately.
+
+## Upgrade from singleton configuration
+
+Run committed migrations. Existing development sources are unchanged. Existing `central` sources retain all local assets and identities but have no instance assignment, so writes/queries fail closed until an operator configures and assigns the intended instance. An initial assignment to a previously unbound legacy source is allowed; moving an already-bound source is not. Migrations do not read or copy secret values or silently enable write access.
+
+The old global `NETBOX_URL`, `NETBOX_ALLOW_PRIVATE`, and site/role/type settings are no longer used. Move their non-secret values into the instance record. You may reference an existing `NETBOX_TOKEN` variable explicitly for its intended instance, or create distinct named bindings. Review per-instance permissions and scope before retrying old jobs.
+
+## Inspected contracts and remaining work
+
+Official references inspected 2026-10-16: [REST pagination/API examples](https://github.com/netbox-community/netbox/blob/main/docs/integrations/rest-api.md) and [device serializer](https://github.com/netbox-community/netbox/blob/main/netbox/dcim/api/serializers_/devices.py). Current REST examples use Bearer authentication; legacy token mode remains explicit. Latest documentation is a starting contract, not a tested deployed-version guarantee.
+
+Validate both read-only and read-write keys against isolated live instances before operational use. Continuous import/projection, snapshot consistency, disappearing-object review, scheduling, freshness thresholds, connection onboarding UX and broader source migration workflows remain tracked in the backlog.

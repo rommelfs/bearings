@@ -1,6 +1,6 @@
 # CIRCL and platform operator workflow
 
-Platform administrators are Django superusers. Use `/admin/` to create organizations, organization-local memberships, and exactly one source binding per organization. Source mode development is synthetic; central requires a tenant ID and operator environment configuration. Provision NetBox custom fields and validate the chosen release before connecting it. Do not grant superuser/staff to participant accounts.
+Platform administrators are Django superusers. Use `/admin/` to create organizations, organization-local memberships, and exactly one source binding per organization. Source mode development is synthetic. For live central/external sources, create an operator-approved NetBoxInstance with a named credential binding and explicit read-only/read-write capability, then assign it to the source. Shared instances require a tenant ID; whole-instance access requires dedicated organization ownership. Provision NetBox custom fields and validate the chosen release before connecting it. Do not grant superuser/staff to participant accounts.
 
 Analysts belong to the exact `CIRCL analysts` group. The CIRCL dashboard includes only explicitly visible organizations unless the analyst also holds ordinary organization memberships. A platform superuser has full administrative access. The per-organization visibility switch is operator-owned, default deny, and audited when changed. Operator reads are audited. Explain this deployed policy to participants.
 
@@ -11,3 +11,5 @@ Run `process_jobs` to process due inventory submissions, inspect failed assets/s
 Finding review records workflow state, analyst applicability and a reason while preserving the original automated assessment/evidence. An unassessed technology-review relationship is not compromise. Restricted evidence is operator-only; MISP sharing evaluation is not yet implemented and live ingestion remains disabled.
 
 `remind_contacts` prepares reminders to each organization's administrators, deduplicated for the due review. All notifications remain in the local development sink. Production delivery, scans and deployment require explicit operational authorization. See incident and recovery runbooks before introducing production data.
+
+Use `query_netbox --all` or repeated `--source` UUIDs to query multiple instances. Both capability modes can read; only read-write connections allow portal infrastructure submissions. Query counts/health do not import records into the portal. A read-only downgrade blocks queued writes, and disabling an instance blocks reads too. Review the full per-instance setup/upgrade instructions in the NetBox integration document before configuring live keys.

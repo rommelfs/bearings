@@ -9,7 +9,7 @@
       },
       {
         "title": "Validate central NetBox against an isolated live tenant",
-        "body": "Provision filterable bearings_id custom fields, least-privilege credentials and tenant/site/type/role defaults. Verify devices and VMs, lost-POST recovery, field permissions and tested release. No production inventory."
+        "body": "Validate the multi-instance connector against isolated read-only and read-write NetBox instances. Provision approved host/key bindings, tenant/dedicated scope, authentication schemes, write defaults and bearings_id fields only for write paths. Verify queries, device/VM creates and lost-POST recovery, record deployed versions; no production inventory."
       },
       {
         "title": "Implement complete NetBox source refresh and reconciliation",
@@ -18,6 +18,10 @@
       {
         "title": "Harden operator-assisted onboarding and product normalization",
         "body": "Account/membership lifecycle, contact validation and history, explicit product identity normalization, network/service inventory topology, database tenant integrity, source binding migration controls."
+      },
+      {
+        "title": "Support multi-instance NetBox queries and access modes",
+        "body": "Implemented named instances with credential references, read-only/read-write/disabled capabilities, shared tenant and dedicated organization scope, safe pagination for devices/VMs/IPs/prefixes, GET-only multi-source query runner, independent read health, UI/job write restrictions, migrations and isolation tests. No automatic import or inter-instance synchronization; live compatibility remains tracked separately."
       }
     ]
   },
@@ -75,7 +79,7 @@
     "issues": [
       {
         "title": "Add organization-owned NetBox read-only sources",
-        "body": "Exactly one authoritative source per organization. Import directly into common model, no central duplication or bidirectional synchronization. Explicit URL approval and SSRF/credential controls."
+        "body": "Multi-instance connections, dedicated scope and read-only/read-write queries are implemented. Remaining: complete common-model inventory import/projection and reconciliation for organization-owned sources, migration workflow and scale validation. Keep exactly one authoritative source per organization, no central duplication and no bidirectional synchronization; preserve approval/SSRF/credential controls."
       },
       {
         "title": "Add SBOM, endpoint imports and delegated providers",

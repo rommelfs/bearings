@@ -5,9 +5,9 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
-from .access import audit, require
+from .access import audit, can_edit, require
 from .connectors.http import ConnectorError
-from .connectors.netbox import write_asset
+from .connectors.netbox import query_objects, write_asset
 from .connectors.vulnerability_lookup import lookup
 from .models import ContactToken, Finding, FindingHistory, InventoryWrite, SourceRecord
 
@@ -15,6 +15,7 @@ from .models import ContactToken, Finding, FindingHistory, InventoryWrite, Sourc
 @transaction.atomic
 def submit_asset(user, org, form):
     source = org.inventory_source
+    require(can_edit(user, org) and source.can_write)
     asset = form.save(commit=False)
     asset.organization, asset.source = org, source
     asset.full_clean()
@@ -52,6 +53,30 @@ def process_write(pk, force=False):
         job.save()
         source.save()
         audit(None, asset.organization, "inventory.write", asset.pk, state=asset.state, attempt=job.attempts)
+
+
+def query_inventory(source, object_types):
+    """Scoped read health only: no partial response changes the inventory projection."""
+    source.last_read_attempt = timezone.now()
+    source.save(update_fields=["last_read_attempt"])
+    try:
+        result = {kind: query_objects(source, kind) for kind in object_types}
+    except ConnectorError as exc:
+        source.read_error = str(exc)[:200]
+        source.save(update_fields=["read_error"])
+        audit(None, source.organization, "inventory.query_failed", source.pk, object_types=object_types)
+        raise
+    source.last_read_success, source.read_error = timezone.now(), ""
+    source.save(update_fields=["last_read_success", "read_error"])
+    audit(
+        None,
+        source.organization,
+        "inventory.queried",
+        source.pk,
+        object_types=object_types,
+        counts={kind: len(rows) for kind, rows in result.items()},
+    )
+    return result
 
 
 @transaction.atomic

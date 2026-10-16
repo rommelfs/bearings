@@ -106,15 +106,87 @@ class InfrastructureClaim(models.Model):
             raise ValidationError("End of assignment must follow its start")
 
 
+class NetBoxInstance(models.Model):
+    """Operator-approved endpoint and capabilities; credentials remain in the environment."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+    base_url = models.URLField(max_length=250, help_text="Approved HTTPS endpoint; never include credentials")
+    token_env_var = models.CharField(
+        max_length=100, help_text="Environment variable NAME only, e.g. NETBOX_ACME_TOKEN"
+    )
+    auth_scheme = models.CharField(
+        max_length=6,
+        choices=[("Bearer", "Bearer (current tokens)"), ("Token", "Token (legacy)")],
+        default="Bearer",
+    )
+    access_mode = models.CharField(
+        max_length=12,
+        choices=[("read_only", "Read only"), ("read_write", "Read and write")],
+        default="read_only",
+    )
+    enabled = models.BooleanField(default=True)
+    allow_private = models.BooleanField(
+        default=False, help_text="Explicit approval for a private/VPN destination"
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="Dedicated organization, or blank for a shared instance requiring tenant-scoped bindings",
+    )
+    site_id = models.PositiveIntegerField(null=True, blank=True)
+    role_id = models.PositiveIntegerField(null=True, blank=True)
+    device_type_id = models.PositiveIntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        import re
+        from .connectors.http import ConnectorError, validate_base
+
+        try:
+            self.base_url = validate_base(self.base_url).geturl().rstrip("/")
+        except ConnectorError as exc:
+            raise ValidationError({"base_url": str(exc)}) from None
+        if not re.fullmatch(r"NETBOX_[A-Z0-9_]*TOKEN", self.token_env_var):
+            raise ValidationError(
+                {"token_env_var": "Use a NETBOX_*TOKEN environment variable name, never a token value"}
+            )
+        previous = type(self).objects.filter(pk=self.pk).first()
+        if (
+            previous
+            and previous.inventorysource_set.exists()
+            and (
+                previous.base_url.rstrip("/") != self.base_url
+                or previous.organization_id != self.organization_id
+            )
+        ):
+            raise ValidationError(
+                "A bound instance endpoint/ownership is immutable; perform a reviewed source migration"
+            )
+
+
 class InventorySource(models.Model):
     organization = models.OneToOneField(
         Organization, on_delete=models.CASCADE, related_name="inventory_source"
     )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mode = models.CharField(
-        max_length=12, choices=[("development", "DEVELOPMENT fixture"), ("central", "Central NetBox")]
+        max_length=12,
+        choices=[
+            ("development", "DEVELOPMENT fixture"),
+            ("central", "Central NetBox"),
+            ("external", "Organization NetBox"),
+        ],
     )
+    instance = models.ForeignKey(NetBoxInstance, on_delete=models.PROTECT, null=True, blank=True)
     tenant_id = models.PositiveIntegerField(null=True, blank=True)
+    last_read_attempt = models.DateTimeField(null=True, blank=True)
+    last_read_success = models.DateTimeField(null=True, blank=True)
+    read_error = models.CharField(max_length=200, blank=True)
     last_attempt = models.DateTimeField(null=True, blank=True)
     last_success = models.DateTimeField(null=True, blank=True)
     error = models.CharField(max_length=200, blank=True)
@@ -128,13 +200,38 @@ class InventorySource(models.Model):
                 previous.mode != self.mode
                 or previous.tenant_id != self.tenant_id
                 or previous.organization_id != self.organization_id
+                or (previous.instance_id is not None and previous.instance_id != self.instance_id)
             )
         ):
             raise ValidationError(
                 "Existing inventory binding cannot be repointed; perform a reviewed source migration"
             )
-        if self.mode == "central" and not self.tenant_id:
-            raise ValidationError("Central NetBox requires an operator-assigned tenant ID")
+        if self.tenant_id is not None and self.tenant_id < 1:
+            raise ValidationError("NetBox tenant ID must be positive or explicitly unset")
+        if self.mode == "development":
+            if self.instance_id:
+                raise ValidationError("Development sources cannot use a live NetBox instance")
+        else:
+            if not self.instance_id:
+                raise ValidationError("Select an operator-approved NetBox instance")
+            if self.instance.organization_id and self.instance.organization_id != self.organization_id:
+                raise ValidationError("Dedicated NetBox instance belongs to another organization")
+            if not self.tenant_id and self.instance.organization_id != self.organization_id:
+                raise ValidationError("Shared NetBox instances require an explicit tenant ID")
+
+    @property
+    def can_write(self):
+        if self.mode == "development":
+            return self.instance_id is None
+        return bool(
+            self.mode in {"central", "external"}
+            and self.instance_id
+            and self.instance.enabled
+            and self.instance.access_mode == "read_write"
+            and (self.tenant_id is None or self.tenant_id > 0)
+            and (not self.instance.organization_id or self.instance.organization_id == self.organization_id)
+            and (self.tenant_id or self.instance.organization_id == self.organization_id)
+        )
 
 
 class Asset(models.Model):

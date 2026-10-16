@@ -46,7 +46,9 @@ def organization(request, slug):
 @login_required
 def home(request):
     orgs = list(
-        organizations_for(request.user).prefetch_related("contacts", "assets", "findings", "inventory_source")
+        organizations_for(request.user).prefetch_related(
+            "contacts", "assets", "findings", "inventory_source__instance"
+        )
     )
     for org in orgs:
         audit_operator_access(request.user, org)
@@ -70,6 +72,9 @@ def detail(request, slug):
         {
             "org": org,
             "editable": can_edit(request.user, org),
+            "inventory_writable": can_edit(request.user, org)
+            and hasattr(org, "inventory_source")
+            and org.inventory_source.can_write,
             "contact_reviewer": can_review_contact(request.user, org),
             "operator_reviewer": can_operator_review(request.user, org),
             "findings": visible_findings(request.user, org),
@@ -178,7 +183,7 @@ def claim_review(request, slug, pk):
 def create_asset(request, slug):
     org = organization(request, slug)
     require(can_edit(request.user, org))
-    require(hasattr(org, "inventory_source"))
+    require(hasattr(org, "inventory_source") and org.inventory_source.can_write)
     form = AssetForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         submit_asset(request.user, org, form)
@@ -262,6 +267,7 @@ def api_inventory(request, slug):
                     "id": str(a.pk),
                     "name": a.name,
                     "source_id": str(a.source_id),
+                    "instance_id": str(a.source.instance_id) if a.source.instance_id else None,
                     "object_type": a.object_type,
                     "external_id": a.external_id,
                     "state": a.state,
@@ -274,7 +280,7 @@ def api_inventory(request, slug):
                         for i in a.installations.select_related("product")
                     ],
                 }
-                for a in org.assets.all()
+                for a in org.assets.select_related("source")
             ],
         }
     )

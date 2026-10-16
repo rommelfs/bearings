@@ -3,7 +3,8 @@
 | Entity | Ownership and purpose |
 | --- | --- |
 | Organization / Membership | Platform identity separate from users; one user may have different roles in several organizations |
-| InventorySource | One authoritative binding per organization; immutable identity UUID, mode, operator-assigned NetBox tenant, attempt/success/error state |
+| NetBoxInstance | Operator-owned endpoint, credential reference, auth scheme, default-deny read/write capability, dedicated/shared ownership and write defaults |
+| InventorySource | One authoritative binding per organization; stable UUID, instance, mode, tenant scope, separate query/write attempt/success/error state |
 | Asset / InventoryWrite | Local submission/projection plus durable pending external write; external identity is unique within source and object type |
 | Product / Installation | Organization-local product name and original supplied CPE/PURL; installation records version, edition, build, and OS designation on an asset |
 | InfrastructureClaim | Declared/verified/disputed/expired responsibility, method/reviewer/time, assignment interval and network context; overlaps permitted |
@@ -13,7 +14,7 @@
 | FindingHistory | Actor, previous/new workflow and analyst applicability, reason and timestamp; original evidence unchanged |
 | AuditEvent | Policy/configuration changes, reads by operators, inventory/contact/claim/finding actions |
 
-Source identity and original IDs are preserved. CVE-only retrieval is supported initially; aliases and source-specific identifiers need a canonical identity layer before expanding beyond this adapter. Product identifiers are stored as manual assertions, not authoritative normalization or affectedness. Version blank means unknown.
+Source and instance identity and original IDs are preserved. Query results carry both UUIDs and do not update projections until a separate importer is implemented. CVE-only retrieval is supported initially; aliases and source-specific identifiers need a canonical identity layer before expanding beyond this adapter. Product identifiers are stored as manual assertions, not authoritative normalization or affectedness. Version blank means unknown.
 
 `full_clean` checks cross-organization foreign keys in service paths, and all views scope foreign object IDs. Django's `save()` does not automatically validate models: future importers must validate and authorize explicitly. Database uniqueness prevents duplicate identities, memberships, records, and findings, but multi-column tenant integrity does not yet have database-level triggers/RLS. Direct SQL/ORM scripts and superusers are trusted administrative boundaries.
 

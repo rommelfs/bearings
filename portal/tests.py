@@ -22,6 +22,7 @@ from .models import (
     InfrastructureClaim,
     Installation,
     InventorySource,
+    NetBoxInstance,
     InventoryWrite,
     Membership,
     Organization,
@@ -393,16 +394,19 @@ class InventoryTests(Fixture):
         )
         self.assertContains(self.client.get(self.url("organization")), "Unknown — applicability uncertain")
 
-    @override_settings(
-        NETBOX_URL="https://netbox.example.invalid",
-        NETBOX_TOKEN="synthetic",
-        NETBOX_SITE_ID="1",
-        NETBOX_ROLE_ID="2",
-        NETBOX_DEVICE_TYPE_ID="3",
-    )
+    @patch.dict("os.environ", {"NETBOX_TEST_TOKEN": "synthetic"})
     @patch("portal.connectors.netbox.approved_base", return_value="https://netbox.example.invalid")
     @patch("portal.connectors.netbox.request_json")
     def test_netbox_recovers_lost_post_without_duplicate(self, request, approved):
+        self.sa.instance = NetBoxInstance.objects.create(
+            name="test",
+            base_url="https://netbox.example.invalid",
+            token_env_var="NETBOX_TEST_TOKEN",
+            access_mode="read_write",
+            site_id=1,
+            role_id=2,
+            device_type_id=3,
+        )
         self.sa.mode, self.sa.tenant_id = "central", 7
         self.sa.save()
         self.asset.refresh_from_db()
@@ -416,10 +420,19 @@ class InventoryTests(Fixture):
         self.assertEqual(request.call_count, 1)
         self.assertEqual(request.call_args.args[0], "GET")
 
-    @override_settings(NETBOX_URL="https://netbox.example.invalid", NETBOX_TOKEN="synthetic")
+    @patch.dict("os.environ", {"NETBOX_TEST_TOKEN": "synthetic"})
     @patch("portal.connectors.netbox.approved_base", return_value="https://netbox.example.invalid")
     @patch("portal.connectors.netbox.request_json")
     def test_partial_query_never_becomes_delete_or_create(self, request, approved):
+        self.sa.instance = NetBoxInstance.objects.create(
+            name="test",
+            base_url="https://netbox.example.invalid",
+            token_env_var="NETBOX_TEST_TOKEN",
+            access_mode="read_write",
+            site_id=1,
+            role_id=2,
+            device_type_id=3,
+        )
         self.sa.mode, self.sa.tenant_id = "central", 7
         self.sa.save()
         self.asset.refresh_from_db()
@@ -568,10 +581,19 @@ class ExtendedWorkflowTests(Fixture):
         with self.assertRaises(ValidationError):
             self.sa.full_clean()
 
-    @override_settings(NETBOX_URL="https://netbox.example.invalid", NETBOX_TOKEN="synthetic")
+    @patch.dict("os.environ", {"NETBOX_TEST_TOKEN": "synthetic"})
     @patch("portal.connectors.netbox.approved_base", return_value="https://netbox.example.invalid")
     @patch("portal.connectors.netbox.request_json")
     def test_netbox_rejects_cross_tenant_identity(self, request, approved):
+        self.sa.instance = NetBoxInstance.objects.create(
+            name="test",
+            base_url="https://netbox.example.invalid",
+            token_env_var="NETBOX_TEST_TOKEN",
+            access_mode="read_write",
+            site_id=1,
+            role_id=2,
+            device_type_id=3,
+        )
         self.sa.mode, self.sa.tenant_id = "central", 7
         self.sa.save()
         self.asset.refresh_from_db()
