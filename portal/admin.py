@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db import transaction
 from .access import audit
 from .models import AuditEvent, InventorySource, Membership, NetBoxInstance, Organization
 
@@ -51,10 +52,44 @@ admin.site.register(Membership, PlatformAdmin)
 
 @admin.register(InventorySource)
 class SourceAdmin(PlatformAdmin):
-    list_display = ["organization", "mode", "instance", "tenant_id", "last_read_success", "last_success"]
+    list_display = [
+        "organization",
+        "mode",
+        "instance",
+        "tenant_id",
+        "last_read_success",
+        "last_import_success",
+        "last_success",
+    ]
     list_select_related = ["organization", "instance"]
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            return super().save_model(request, obj, form, change)
+        # The operator form can be older than an import. Never overwrite health
+        # with stale readonly values, and revalidate binding identity under lock.
+        with transaction.atomic():
+            current = InventorySource.objects.select_for_update().get(pk=obj.pk)
+            for field in form.changed_data:
+                setattr(current, field, getattr(obj, field))
+            current.full_clean()
+            current.save(update_fields=form.changed_data)
+            audit(
+                request.user,
+                current.organization,
+                "operator.configuration_changed",
+                current.pk,
+                model=current._meta.label,
+                fields=form.changed_data,
+            )
+
     readonly_fields = [
         "id",
+        "import_requested",
+        "last_import_attempt",
+        "last_import_success",
+        "import_error",
+        "import_summary",
         "last_read_attempt",
         "last_read_success",
         "read_error",

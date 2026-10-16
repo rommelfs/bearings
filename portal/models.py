@@ -191,7 +191,32 @@ class InventorySource(models.Model):
     last_success = models.DateTimeField(null=True, blank=True)
     error = models.CharField(max_length=200, blank=True)
 
+    import_enabled = models.BooleanField(default=True, help_text="Enable periodic GET-only inventory import")
+    import_interval_minutes = models.PositiveIntegerField(default=15)
+    import_requested = models.BooleanField(default=False, editable=False)
+    last_import_attempt = models.DateTimeField(null=True, blank=True)
+    last_import_success = models.DateTimeField(null=True, blank=True)
+    import_error = models.CharField(max_length=200, blank=True)
+    import_summary = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(import_interval_minutes__gte=1), name="positive_import_interval"
+            )
+        ]
+
+    @property
+    def import_stale(self):
+        from datetime import timedelta
+
+        return not self.last_import_success or timezone.now() - self.last_import_success > timedelta(
+            minutes=2 * self.import_interval_minutes
+        )
+
     def clean(self):
+        if self.import_interval_minutes < 1:
+            raise ValidationError({"import_interval_minutes": "Use an interval of at least one minute"})
         previous = type(self).objects.filter(pk=self.pk).first()
         if (
             previous
@@ -240,7 +265,10 @@ class Asset(models.Model):
     source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
     name = models.CharField(max_length=180)
     kind = models.CharField(
-        max_length=20, choices=[(x, x.title()) for x in ["server", "desktop", "laptop", "appliance", "vm"]]
+        max_length=20,
+        choices=[
+            (x, x.title()) for x in ["server", "desktop", "laptop", "appliance", "vm", "ip_address", "prefix"]
+        ],
     )
     criticality = models.CharField(
         max_length=10, choices=[("normal", "Normal"), ("high", "High")], default="normal"
@@ -255,6 +283,30 @@ class Asset(models.Model):
         max_length=12, default="pending", choices=[(x, x.title()) for x in ["pending", "synced", "failed"]]
     )
     updated_at = models.DateTimeField(auto_now=True)
+
+    upstream_data = models.JSONField(default=dict, blank=True)
+    inventory_seen_at = models.DateTimeField(null=True, blank=True)
+    missing_since = models.DateTimeField(null=True, blank=True)
+    missing_reviewed_at = models.DateTimeField(null=True, blank=True)
+    missing_review_reason = models.CharField(max_length=1000, blank=True)
+
+    @property
+    def source_url(self):
+        from .connectors.http import ConnectorError, validate_base
+
+        paths = {
+            "dcim.device": "dcim/devices",
+            "virtualization.virtualmachine": "virtualization/virtual-machines",
+            "ipam.ipaddress": "ipam/ip-addresses",
+            "ipam.prefix": "ipam/prefixes",
+        }
+        if not self.source.instance_id or self.object_type not in paths or not self.external_id.isdecimal():
+            return ""
+        try:
+            base = validate_base(self.source.instance.base_url).geturl().rstrip("/")
+        except ConnectorError:
+            return ""
+        return f"{base}/{paths[self.object_type]}/{self.external_id}/"
 
     class Meta:
         constraints = [

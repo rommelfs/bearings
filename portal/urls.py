@@ -19,6 +19,16 @@ urlpatterns = [
     ),
     path("organizations/<slug:slug>/scope/new/", views.create_claim, name="create-claim"),
     path("organizations/<slug:slug>/scope/<int:pk>/review/", views.claim_review, name="claim-review"),
+    path(
+        "organizations/<slug:slug>/inventory/import/",
+        views.request_inventory_import,
+        name="request-inventory-import",
+    ),
+    path(
+        "organizations/<slug:slug>/assets/<uuid:pk>/missing/review/",
+        views.review_missing_asset,
+        name="review-missing-asset",
+    ),
     path("organizations/<slug:slug>/assets/new/", views.create_asset, name="create-asset"),
     path(
         "organizations/<slug:slug>/assets/<uuid:pk>/software/new/",

@@ -11,9 +11,10 @@ A standalone organization inventory and evidence review portal intended for CIRC
 - Emergency contacts, substantive review, configurable review intervals, separate reachability and emergency availability, expiring one-use verification tokens, and deduplicated review reminders in a **local file mail sink**.
 - Infrastructure declarations and operator verification, overlapping assignments, historical validity, IPv4/IPv6/range/domain matching, and private-network context isolation.
 - Durable manual inventory submissions, a labeled development adapter, multi-instance NetBox connector with explicit read-only/read-write capabilities and a write adapter with pending/failed/confirmed state and read-before-retry reconciliation. Source/object/external-ID identity is distinct from an address.
+- Complete paginated NetBox imports for devices, VMs, IPs and prefixes, periodic refresh, per-source freshness, retained missing-object review and preservation of local assessments.
 - Organization-local product selection, manual product identifiers, operating system/software installations, unknown versions, CVE retrieval for explicit review, evidence records, finding deduplication, analyst applicability overrides, workflow reasons, and audit history.
 
-**Not yet implemented:** continuous NetBox import/refresh, MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, complete organization-owned NetBox inventory imports, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md).
+**Not yet implemented:** MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md).
 
 ## Start with bundled NetBox (recommended)
 
@@ -51,7 +52,7 @@ python3 scripts/dev.py up --external
 
 External mode is **read-only by default** and starts no bundled NetBox, Redis/Valkey or NetBox database services. For a dedicated organization-owned instance, explicitly use `--dedicated` instead of a tenant ID. Options cover legacy authentication, private destinations, custom CA certificates, HTTPS ports and explicit read/write capability. Switching modes stops the previous lab and retains its volumes; each external endpoint/scope/access mode gets a separate development database. Initialization never provisions external NetBox; the worker processes authorized pending submissions only for read/write connections.
 
-External queries currently report counts and health; general inventory import/reconciliation is still planned. Only the bundled synthetic seed objects are projected into the portal automatically. [Configuration and lifecycle details](docs/operations/development-stack.md).
+The worker imports all four supported NetBox object types every 15 minutes by default, for bundled and external connections. Use **Refresh inventory** in the organization workspace to queue an earlier import. Operator administration can pause imports or change the interval. Missing objects remain available for review; local software, criticality and findings are retained. [Configuration and lifecycle details](docs/operations/development-stack.md).
 
 ## Run Bearings directly (without bundled NetBox)
 
@@ -96,7 +97,7 @@ uv run python manage.py query_netbox --source "<binding-uuid>" --object-type dev
 # Also supported: --object-type ip-addresses and --object-type prefixes
 ```
 
-This is a GET-only query runner for both connection modes. It reports counts and per-binding query health, never raw records or keys. It does not yet import results into local inventory or reconcile missing objects. Queries paginate within the approved endpoint/scope and fail closed on partial/ambiguous results. Read-only instances reject portal asset submission and queued external writes; local software records remain editable according to membership. See [NetBox setup and migration](docs/integrations/netbox.md).
+This is a GET-only query runner for both connection modes. It reports counts and per-binding query health, never raw records or keys. It deliberately does not import results; use `sync_netbox` for a complete inventory refresh. Queries paginate within the approved endpoint/scope and fail closed on partial/ambiguous results. Read-only instances reject portal asset submission and queued external writes; local software records remain editable according to membership. See [NetBox setup and migration](docs/integrations/netbox.md).
 
 For PostgreSQL, use `docker compose up -d db`, export `DATABASE_URL=postgresql://bearings:local-development-only@127.0.0.1:5432/bearings`, then rerun migrations. The Compose password is intentionally local-only. `docker compose up --build` additionally runs the local web application. See [deployment](docs/operations/deployment.md).
 
@@ -123,3 +124,13 @@ Live vulnerability retrieval is opt-in through the inventory UI: select an insta
 - [Licensing](docs/licensing.md), [public-license decision](docs/decisions/0002-license-and-public-development.md)
 - [ADR](docs/decisions/0001-modular-monolith.md), [open decisions](docs/decisions/open.md), [backlog](docs/backlog.md), [validation record](docs/validation.md)
 - [Contributing](CONTRIBUTING.md), [security](SECURITY.md), [agent instructions](AGENTS.md)
+
+## Inventory import and refresh
+
+The Docker starter runs periodic imports automatically. For an immediate complete refresh:
+
+```sh
+python3 scripts/dev.py manage sync_netbox --all
+```
+
+Native development uses `DJANGO_DEBUG=1 uv run python manage.py sync_netbox --all`; schedule `sync_netbox --all --due` alongside `process_jobs` when running without the starter worker. A refresh performs GETs only for both read-only and read/write connections. Each source commits only after all four object types/pages validate; failures retain its last complete projection and success time while other sources continue. Missing objects are flagged for review rather than deleted. See [synchronization](docs/operations/synchronization.md) for field ownership, scheduling, freshness and limits. The inventory API now returns up to 100 assets per page (`?page=2`) with pagination metadata.

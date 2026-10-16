@@ -13,7 +13,7 @@
       },
       {
         "title": "Implement complete NetBox source refresh and reconciliation",
-        "body": "Paginate safely, retain data on auth/partial failures, expose stale thresholds and source links, stage disappearances for explicit review. Test idempotency, concurrency and tenant isolation."
+        "body": "Implemented: devices, VMs, IP addresses and prefixes import atomically after complete scoped pagination; periodic scheduling, queued manual refresh, per-source freshness/errors/counts and source links; missing objects retained with explicit review and reappearance; local software/findings/assessments preserved; source locks serialize import and write-ack recovery. Contract and PostgreSQL concurrency tests plus live bundled integration validate the bounded four-type importer. Strong upstream snapshots, broader topology and monitored production scheduling remain distinct work."
       },
       {
         "title": "Harden operator-assisted onboarding and product normalization",
@@ -83,7 +83,7 @@
     "issues": [
       {
         "title": "Add organization-owned NetBox read-only sources",
-        "body": "Multi-instance connections, dedicated scope and read-only/read-write queries are implemented. Remaining: complete common-model inventory import/projection and reconciliation for organization-owned sources, migration workflow and scale validation. Keep exactly one authoritative source per organization, no central duplication and no bidirectional synchronization; preserve approval/SSRF/credential controls."
+        "body": "Implemented for operator-approved organization-owned NetBox sources: the same four-type importer projects directly into the common organization-scoped Asset model with an independent key and tenant/dedicated scope. GET-only in both access modes; no central NetBox duplication or bidirectional synchronization. Broader source onboarding and deployed-version validation remain separate."
       },
       {
         "title": "Add SBOM, endpoint imports and delegated providers",

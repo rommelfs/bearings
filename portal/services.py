@@ -9,7 +9,7 @@ from .access import audit, can_edit, require
 from .connectors.http import ConnectorError
 from .connectors.netbox import query_objects, write_asset
 from .connectors.vulnerability_lookup import lookup
-from .models import ContactToken, Finding, FindingHistory, InventoryWrite, SourceRecord
+from .models import ContactToken, Finding, FindingHistory, InventorySource, InventoryWrite, SourceRecord
 
 
 @transaction.atomic
@@ -28,11 +28,13 @@ def submit_asset(user, org, form):
 def process_write(pk, force=False):
     # Row lock serializes workers in PostgreSQL. SQLite is single-worker development only.
     with transaction.atomic():
+        source_id = InventoryWrite.objects.values_list("asset__source_id", flat=True).get(pk=pk)
+        # Importers take the same source lock before touching assets/jobs.
+        source = InventorySource.objects.select_for_update().get(pk=source_id)
         job = InventoryWrite.objects.select_for_update().select_related("asset__source").get(pk=pk)
         if job.completed_at or (not force and job.next_attempt > timezone.now()):
             return
         asset, now = job.asset, timezone.now()
-        source = asset.source
         source.last_attempt = now
         job.attempts += 1
         try:

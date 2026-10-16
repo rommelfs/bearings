@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -24,6 +25,7 @@ from .forms import (
     ContactForm,
     FindingReviewForm,
     InstallationForm,
+    MissingReviewForm,
     VulnerabilityForm,
 )
 from .models import Asset, Contact, ContactToken, InfrastructureClaim, Installation, Product
@@ -81,6 +83,13 @@ def detail(request, slug):
             "claim_review_form": ClaimReviewForm(),
             "finding_review_form": FindingReviewForm(),
             "lookup_form": VulnerabilityForm(),
+            "missing_review_form": MissingReviewForm(),
+            "inventory_page": Paginator(
+                org.assets.select_related("source__instance")
+                .prefetch_related("installations__product")
+                .order_by("name", "pk"),
+                50,
+            ).get_page(request.GET.get("inventory_page")),
         },
     )
 
@@ -196,6 +205,45 @@ def create_asset(request, slug):
 
 
 @login_required
+@require_POST
+def request_inventory_import(request, slug):
+    from .models import InventorySource
+
+    org = organization(request, slug)
+    require(can_edit(request.user, org))
+    with transaction.atomic():
+        source = get_object_or_404(InventorySource.objects.select_for_update(), organization=org)
+        require(source.mode in {"central", "external"} and source.instance_id and source.instance.enabled)
+        source.import_requested = True
+        source.save(update_fields=["import_requested"])
+        audit(request.user, org, "inventory.import_requested", source.pk)
+    messages.success(request, "Inventory import queued. The worker will perform a complete GET-only refresh.")
+    return redirect("organization", slug=slug)
+
+
+@login_required
+@require_POST
+def review_missing_asset(request, slug, pk):
+    org = organization(request, slug)
+    require(can_edit(request.user, org))
+    form = MissingReviewForm(request.POST)
+    if form.is_valid():
+        with transaction.atomic():
+            asset = get_object_or_404(Asset.objects.select_for_update(), organization=org, pk=pk)
+            require(asset.missing_since is not None)
+            asset.missing_reviewed_at = timezone.now()
+            asset.missing_review_reason = form.cleaned_data["reason"]
+            asset.save(update_fields=["missing_reviewed_at", "missing_review_reason"])
+            audit(
+                request.user, org, "inventory.missing_reviewed", asset.pk, reason=asset.missing_review_reason
+            )
+        messages.success(request, "Missing-object review recorded. Inventory and assessments retained.")
+    else:
+        messages.error(request, "Record a reason for the missing-object review.")
+    return redirect("organization", slug=slug)
+
+
+@login_required
 def create_installation(request, slug, pk):
     org = organization(request, slug)
     require(can_edit(request.user, org))
@@ -259,9 +307,29 @@ def finding_review(request, slug, pk):
 @login_required
 def api_inventory(request, slug):
     org = organization(request, slug)
+    page = Paginator(
+        org.assets.select_related("source__instance")
+        .prefetch_related("installations__product")
+        .order_by("name", "pk"),
+        100,
+    ).get_page(request.GET.get("page"))
     return JsonResponse(
         {
             "organization": org.slug,
+            "pagination": {
+                "page": page.number,
+                "pages": page.paginator.num_pages,
+                "count": page.paginator.count,
+            },
+            "import": {
+                "last_attempt": org.inventory_source.last_import_attempt,
+                "last_success": org.inventory_source.last_import_success,
+                "stale": org.inventory_source.import_stale,
+                "error": org.inventory_source.import_error,
+                "summary": org.inventory_source.import_summary,
+            }
+            if hasattr(org, "inventory_source")
+            else None,
             "assets": [
                 {
                     "id": str(a.pk),
@@ -271,16 +339,22 @@ def api_inventory(request, slug):
                     "object_type": a.object_type,
                     "external_id": a.external_id,
                     "state": a.state,
+                    "kind": a.kind,
+                    "source_url": a.source_url,
+                    "upstream": a.upstream_data,
+                    "last_seen": a.inventory_seen_at,
+                    "missing_since": a.missing_since,
+                    "missing_reviewed_at": a.missing_reviewed_at,
                     "software": [
                         {
                             "product": i.product.name,
                             "identifier": i.product.identifier,
                             "version": i.version or None,
                         }
-                        for i in a.installations.select_related("product")
+                        for i in a.installations.all()
                     ],
                 }
-                for a in org.assets.select_related("source")
+                for a in page
             ],
         }
     )

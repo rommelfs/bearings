@@ -45,6 +45,13 @@ def main():
     elif mode == "worker":
         while True:
             call_command("process_jobs")
+            from django.core.management import CommandError
+
+            try:
+                call_command("sync_netbox", all=True, due=True)
+            except CommandError:
+                # Per-source failure is already persisted; other imports and writes keep running.
+                pass
             Path("/tmp/bearings-worker-heartbeat").touch()
             time.sleep(5)
     else:

@@ -10,6 +10,7 @@ from django.conf import settings
 from django.utils import timezone
 from portal.models import Asset, InventoryWrite, NetBoxInstance
 from portal.services import query_inventory
+from portal.inventory import refresh_inventory
 
 
 def lab_sources(config):
@@ -71,6 +72,53 @@ def main():
             headers={"Referer": "https://netbox.bearings.test/login/"},
         )
         assert response.status_code == 302, "Bundled NetBox admin login failed"
+        # Create directly in NetBox, without a bearings_id or starter fixture identity.
+        api_headers = {
+            "X-CSRFToken": netbox.cookies.get("netboxcsrftoken"),
+            "Referer": "https://netbox.bearings.test/",
+        }
+        name = "smoke-import-" + uuid.uuid4().hex[:8]
+        response = netbox.post(
+            "https://netbox.bearings.test/api/dcim/devices/",
+            headers=api_headers,
+            json={
+                "name": name,
+                "status": "active",
+                "site": rw.instance.site_id,
+                "role": rw.instance.role_id,
+                "device_type": rw.instance.device_type_id,
+                "tenant": rw.tenant_id,
+            },
+        )
+        assert response.status_code == 201, "Direct synthetic NetBox creation failed"
+        external_id = str(response.json()["id"])
+        refresh_inventory(rw.pk)
+        imported = Asset.objects.get(source=rw, object_type="dcim.device", external_id=external_id)
+        imported.criticality, imported.responsible_team = "high", "local smoke review"
+        imported.save()
+        endpoint = "https://netbox.bearings.test/api/dcim/devices/" + external_id + "/"
+        response = netbox.patch(endpoint, headers=api_headers, json={"name": name + "-updated"})
+        assert response.status_code == 200
+        refresh_inventory(rw.pk)
+        imported.refresh_from_db()
+        assert (
+            imported.name == name + "-updated"
+            and imported.criticality == "high"
+            and imported.responsible_team == "local smoke review"
+        )
+        # Only remove the synthetic probe created by this invocation; retain its local projection.
+        assert netbox.delete(endpoint, headers=api_headers).status_code == 204
+        refresh_inventory(rw.pk)
+        imported.refresh_from_db()
+        assert imported.missing_since is not None and imported.criticality == "high"
+        refresh_inventory(ro.pk)
+        assert not ro.asset_set.filter(pk=imported.pk).exists()
+        assert (
+            Asset.objects.filter(source=rw, object_type="dcim.device", external_id=external_id).count() == 1
+        )
+        print(
+            "Verified general import from direct NetBox creation, update, local assessment preservation and retained missing object; read-only import passed."
+        )
     print("Verified HTTPS, both scoped keys, four query types, upstream read-only denial and NetBox login.")
     base = "http://127.0.0.1:8000"
     with httpx.Client(trust_env=False, follow_redirects=True) as client:

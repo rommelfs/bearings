@@ -43,7 +43,9 @@ def connection(source, *, write=False):
 
 def in_scope(source, record):
     tenant = record.get("tenant") or {}
-    return not source.tenant_id or (isinstance(tenant, dict) and tenant.get("id") == source.tenant_id)
+    return not source.tenant_id or (
+        isinstance(tenant, dict) and type(tenant.get("id")) is int and tenant.get("id") == source.tenant_id
+    )
 
 
 def query_objects(source, object_type="devices"):
@@ -123,6 +125,8 @@ def query_objects(source, object_type="devices"):
 
 
 def write_asset(asset):
+    if asset.kind in {"ip_address", "prefix"}:
+        raise ConnectorError("IP addresses and prefixes are imported only; portal writes are unsupported")
     source = asset.source
     if source.mode == "development" and not source.instance_id:
         return "development.asset", f"fixture-{asset.pk}"

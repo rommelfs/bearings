@@ -8,9 +8,10 @@ on:
       - '.dockerignore'
       - 'docker/**'
       - 'scripts/dev.py'
-      - 'portal/connectors/**'
-      - 'portal/management/commands/setup_dev_stack.py'
-      - 'portal/management/commands/seed_demo.py'
+      - 'portal/**'
+      - 'config/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
       - '.github/workflows/dev-stack.yml'
   pull_request:
     paths:
@@ -19,9 +20,10 @@ on:
       - '.dockerignore'
       - 'docker/**'
       - 'scripts/dev.py'
-      - 'portal/connectors/**'
-      - 'portal/management/commands/setup_dev_stack.py'
-      - 'portal/management/commands/seed_demo.py'
+      - 'portal/**'
+      - 'config/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
       - '.github/workflows/dev-stack.yml'
 permissions:
   contents: read

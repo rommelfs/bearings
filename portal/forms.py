@@ -31,6 +31,14 @@ class ClaimForm(forms.ModelForm):
 
 
 class AssetForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["kind"].choices = [
+            (value, label)
+            for value, label in self.fields["kind"].choices
+            if value not in {"ip_address", "prefix"}
+        ]
+
     class Meta:
         model = Asset
         fields = ["name", "kind", "criticality", "lifecycle", "responsible_team"]
@@ -99,4 +107,10 @@ class ClaimReviewForm(forms.Form):
 class VulnerabilityForm(forms.Form):
     identifier = forms.RegexField(
         regex=r"(?i)^CVE-\d{4}-\d{4,}$", max_length=40, label="CVE identifier to investigate"
+    )
+
+
+class MissingReviewForm(forms.Form):
+    reason = forms.CharField(
+        max_length=1000, widget=forms.Textarea, label="Review reason (inventory is retained)"
     )

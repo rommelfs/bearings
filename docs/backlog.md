@@ -39,10 +39,14 @@ Extend without changing authoritative-source rules
 
 ## Multi-instance NetBox increment
 
-Named instances, isolated credential references, explicit read-only/read-write/disabled capability, shared tenant and dedicated ownership scopes, paginated GET-only queries and read health are implemented. This does not complete automatic inventory imports. The new milestone-1 item is defined in backlog.json; live mixed-capability validation remains in #2 and projection/reconciliation in #3/#14.
+Named instances, isolated credential references, explicit read-only/read-write/disabled capability, shared tenant and dedicated ownership scopes, paginated GET-only queries and read health are implemented. The following import increment now completes bounded four-type inventory projection. The new milestone-1 item is defined in backlog.json; live mixed-capability validation remains in #2 and projection/reconciliation is implemented in #3/#14.
 
 ## Complete local environment
 
-Completed in [#17](https://github.com/rommelfs/bearings/issues/17): a bundled real NetBox + Bearings lab and external-instance starter are implemented, with generated credentials, verified TLS, read-only/read-write examples, automatic job processing and retained data across mode changes. See development-stack.md. General inventory imports remain in #3/#14; live compatibility beyond the pinned bundled NetBox version remains in #2.
+Completed in [#17](https://github.com/rommelfs/bearings/issues/17): a bundled real NetBox + Bearings lab and external-instance starter are implemented, with generated credentials, verified TLS, read-only/read-write examples, automatic job processing and retained data across mode changes. See development-stack.md. General four-type inventory imports are now implemented in #3/#14; live compatibility beyond the pinned bundled NetBox version remains in #2.
 
 The starter now checks Docker CLI, Compose and engine availability before changing lab state, with actionable macOS installation/PATH guidance instead of a traceback.
+
+## NetBox import and reconciliation
+
+Implemented #3/#14: atomic paginated imports across multiple instances, source-local identities, periodic/manual scheduling, separate import health/freshness, source links, retained missing-object review and local assessment preservation. Broader topology, upstream snapshot consistency, monitored production scheduling and additional deployed-version compatibility are not implied.

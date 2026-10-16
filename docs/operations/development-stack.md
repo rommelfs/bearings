@@ -29,7 +29,7 @@ Verify `docker --version`, `docker compose version` and `docker info` before ret
 
 Two synthetic NetBox tenants exercise different capabilities, each with a separate non-superuser service account, scoped object permissions and v2 token. The upstream read-only token also disables writes. Write defaults and a filterable `bearings_id` custom field are provisioned for the writable example. NetBox has a device, VM, prefix and IP per tenant. Bearings verifies the sample identities through the real API before projecting just those known seed objects and adding synthetic software relationships. The Example Labs fixture workspace remains separately labeled.
 
-These seed projections are not a general importer. New assets added directly in NetBox do not yet appear automatically in Bearings. Portal submissions to the writable connection do create real local NetBox objects and are confirmed by the worker. Read-only connections block portal and queued external writes. Local software entry still follows membership policy.
+The initializer verifies only its explicit seeds. The running worker now imports general devices, VMs, IP addresses and prefixes every 15 minutes by default; **Refresh inventory** queues an earlier import. Portal submissions to the writable connection do create real local NetBox objects and are confirmed by the worker. Read-only connections block portal and queued external writes. Local software entry still follows membership policy.
 
 On restart, seeded objects use stable identities, keys and passwords are reused, and existing source identities/policies are not repointed. Bootstrap refuses conflicting identities rather than overwriting local work. It does not re-enable disabled connections or raise a read-only connection back to read/write.
 
@@ -64,13 +64,14 @@ Configuration and token files are stored under gitignored `.local/dev-stack/exte
 
 External mode starts only Bearings, its worker/database and local initializers. It starts no NetBox backend or cache services. The target must be reachable from Docker, not just from the host shell: configure local/VPN DNS, approved outbound rules, or an appropriate Docker network for your environment. For a service on the host, `host.docker.internal` behavior depends on Docker Desktop/Linux routing, listener address and certificate SANs; use a genuinely reachable approved HTTPS endpoint. Never compensate with insecure TLS settings.
 
-An unavailable or unauthorized external server is recorded in query health while the local portal remains usable. Successful container startup does not prove the remote connection works: run `query` and inspect workspace read health. External query results are not automatically imported into local inventory yet.
+An unavailable or unauthorized external server is recorded in query health while the local portal remains usable. Successful container startup does not prove the remote connection works: run `query` and inspect workspace read health. The worker imports external inventory using GETs only with the configured tenant/dedicated scope. Periodic import is enabled by default; operators can pause it or change the interval in InventorySource administration.
 
 ## Daily commands and data preservation
 
 ```sh
 python3 scripts/dev.py status
 python3 scripts/dev.py query
+python3 scripts/dev.py manage sync_netbox --all
 python3 scripts/dev.py manage check
 python3 scripts/dev.py manage changepassword company-admin
 python3 scripts/dev.py down
@@ -88,10 +89,12 @@ Docker volumes retain credentials and database state. Copying or restoring only 
 python3 scripts/dev.py smoke
 ```
 
-The smoke command refuses external mode or unexpected destinations. Against the bundled synthetic lab it validates the real TLS connection, four scoped query types, upstream and portal read-only denial, both logins, device/VM creation through the background worker and recovery from a simulated lost acknowledgement without duplicates. It adds two clearly named synthetic smoke assets per invocation and does not delete user data. Run it with the original generated demo credentials; if you changed them, use your own functional checks rather than resetting accounts implicitly.
+The smoke command refuses external mode or unexpected destinations. Against the bundled synthetic lab it validates the real TLS connection, four scoped query types, upstream and portal read-only denial, both logins, device/VM creation through the background worker and recovery from a simulated lost acknowledgement without duplicates. It retains two synthetic portal-created smoke assets and also creates/updates/deletes one synthetic NetBox import probe owned by that invocation. Its local missing projection remains retained; existing user data is not deleted. Run it with the original generated demo credentials; if you changed them, use your own functional checks rather than resetting accounts implicitly.
 
 The Development stack GitHub Actions workflow runs the same startup/smoke commands, stops without deleting volumes, restarts, and re-queries the backend. Unit tests separately cover external configuration privacy, bootstrap guards, identity conflicts and preservation of operator state. Failures collect service logs, not credentials or volume contents. See docs/validation.md for actual session results.
 
 In the proxy-only Codex cloud sandbox, build first with `uv run python scripts/cloud_image_build.py`, then use `python3 scripts/dev.py up --no-build`. That helper supplies the existing approved build proxy and temporary CA without embedding them in the image. NetBox's internal Docker HTTPS connection does not need an external proxy. Corporate/VPN external destinations need their own explicitly approved runtime networking/trust configuration.
 
 Docker storage drivers that copy entire image trees (`vfs`, used in this cloud) can consume substantially more space and inodes than normal Docker Desktop/overlay storage. Check both `docker system df` and host inode limits if startup reports no space; preserve database and secret volumes when reclaiming disposable build cache. The full-stack CI uses a standard Docker runner.
+
+Import details, source field ownership and missing-object review are described in [synchronization](synchronization.md). The worker processes writes first, then due imports; an upstream import failure is recorded without stopping later sources or subsequent worker iterations.
