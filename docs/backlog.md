@@ -8,7 +8,7 @@ Complete inventory ownership and onboarding
 
 - **Deliver first organization-to-installation slice**: Local first increment: login, memberships, operator policy, contacts/scope review, manual asset outbox, software and evidence UI/API. Validate tests and docs; track delivered status in docs/validation.md.
 - **Validate central NetBox against an isolated live tenant**: Provision filterable bearings_id custom fields, least-privilege credentials and tenant/site/type/role defaults. Verify devices and VMs, lost-POST recovery, field permissions and tested release. No production inventory.
-- **Implement complete NetBox source refresh and reconciliation**: Paginate safely, retain data on auth/partial failures, expose stale thresholds and source links, stage disappearances for explicit review. Test idempotency, concurrency and tenant isolation.
+- **Completed [#3](https://github.com/rommelfs/bearings/issues/3): NetBox source refresh and reconciliation**: Four-type atomic import, periodic/manual refresh, freshness/source links, retained missing-object review, local assessment preservation and PostgreSQL concurrency validation.
 - **Harden operator-assisted onboarding and product normalization**: Account/membership lifecycle, contact validation and history, explicit product identity normalization, network/service inventory topology, database tenant integrity, source binding migration controls.
 
 ## M2: Correlation
@@ -34,7 +34,7 @@ Prepare controlled operational use
 
 Extend without changing authoritative-source rules
 
-- **Add organization-owned NetBox read-only sources**: Exactly one authoritative source per organization. Import directly into common model, no central duplication or bidirectional synchronization. Explicit URL approval and SSRF/credential controls.
+- **Completed [#14](https://github.com/rommelfs/bearings/issues/14): organization-owned NetBox read-only sources**: Operator-approved connections import directly into the common organization-scoped model, with one authoritative source, isolated credentials and no central duplication or bidirectional synchronization.
 - **Add SBOM, endpoint imports and delegated providers**: Reuse software identity boundaries and source provenance; scanner/agent/SBOM imports with isolation and explicit grants. Scanning remains separate authorization.
 
 ## Multi-instance NetBox increment
