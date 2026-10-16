@@ -19,6 +19,8 @@ A standalone organization inventory and evidence review portal intended for CIRC
 
 Requires Docker Engine/Desktop with Compose v2.24+ and Python 3.10+ on the host. Application dependencies run in containers; no local uv/PostgreSQL/NetBox installation is needed. Allow about 6 GB of Docker memory and 10 GB of disk space. Images support AMD64 and ARM64, including Apple Silicon. First startup can take several minutes while NetBox migrates its database.
 
+On macOS, install Docker Desktop (`brew install --cask docker`), launch it (`open -a Docker`), complete its first-run setup and wait for the engine to run. Verify `docker info` and `docker compose version` in your terminal. If the app is already installed but `docker` is missing, check Docker Desktop’s CLI/PATH settings.
+
 From your checkout:
 
 ```sh

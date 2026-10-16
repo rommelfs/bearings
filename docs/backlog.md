@@ -44,3 +44,5 @@ Named instances, isolated credential references, explicit read-only/read-write/d
 ## Complete local environment
 
 Completed in [#17](https://github.com/rommelfs/bearings/issues/17): a bundled real NetBox + Bearings lab and external-instance starter are implemented, with generated credentials, verified TLS, read-only/read-write examples, automatic job processing and retained data across mode changes. See development-stack.md. General inventory imports remain in #3/#14; live compatibility beyond the pinned bundled NetBox version remains in #2.
+
+The starter now checks Docker CLI, Compose and engine availability before changing lab state, with actionable macOS installation/PATH guidance instead of a traceback.

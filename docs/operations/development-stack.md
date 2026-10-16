@@ -17,6 +17,12 @@ Services: Bearings web, a durable-write worker, its PostgreSQL database, officia
 
 `compose.dev.yaml` defines Bearings and its storage; `compose.netbox.yaml` adds the bundled backend. The helper selects files and isolated project names. The default bundled project is `bearings-dev`. Export `BEARINGS_DEV_PROJECT` to use another project namespace. Ports default to Bearings 8000 and NetBox HTTPS 8443; set `BEARINGS_PORT` / `NETBOX_PORT` in your shell or a gitignored `.env` file before startup to change them. The Compose runtime can also load additional operator-owned credential variables from `.env`; bare host Django still does not auto-load that file.
 
+## Docker prerequisite errors on macOS
+
+`FileNotFoundError: ... 'docker'` means the Docker CLI is not installed or is missing from your terminal's PATH. With Homebrew, install Docker Desktop using `brew install --cask docker`, then launch it with `open -a Docker`. Complete first-run setup and wait until Docker Engine is running. If already installed, open Docker Desktop and check its CLI installation/PATH settings; reopen the terminal after changing them.
+
+Verify `docker --version`, `docker compose version` and `docker info` before retrying `python3 scripts/dev.py up`. Run `python3 scripts/dev.py credentials` only after startup succeeds. Installing only the Docker CLI does not supply the engine needed to run the lab. The helper checks these prerequisites before changing active lab state; `configure` can still be used without Docker.
+
 ## Accounts and sample data
 
 `credentials` intentionally displays only the generated initial local login password, never API tokens. New users share it: Bearings `platform-admin` (platform superuser), `company-admin` (organization administrator), `circl-analyst` (CIRCL role), plus bundled NetBox `netbox-admin`. Existing passwords, disabled users, memberships and connection capability changes are preserved. To change a Bearings password, use `python3 scripts/dev.py manage changepassword company-admin` (or the relevant account). A changed password is not reflected in the original generated-password file.

@@ -46,3 +46,7 @@ A final full restart in this cloud hit the shared host's inode limit: Docker use
 The smoke target guard additionally checks the current database endpoint, token reference, authentication, capability, tenant and organization before any HTTP access; a regression test verifies refusal after an operator changes the stored endpoint. The guarded real smoke workflow passed again.
 
 Public CI confirmed the complete default stack on the guarded implementation: [Development stack run 38883987302](https://github.com/rommelfs/bearings/actions/runs/38883987302) passed fresh startup, the real HTTPS/query/login/write/recovery smoke, shutdown without data deletion, retained-volume restart and queries. [Checks run 38883987223](https://github.com/rommelfs/bearings/actions/runs/38883987223) passed 75 tests on each database plus lint, formatting, system checks, migration drift and static collection. Issue #17 is complete; general import and broader deployed-version validation remain separate backlog work.
+
+## Docker prerequisite diagnostics
+
+Following a macOS report with no `docker` executable on PATH, the helper now fails before changing local lab state, identifies missing Docker/Compose or an unreachable engine, and preserves offline external configuration. Regression checks cover missing CLI without state creation, missing Compose, engine errors and engine timeout. The expanded SQLite suite passed all 77 tests; Ruff passed. macOS Desktop installation remains a user-side prerequisite and was not performed in the Linux cloud.

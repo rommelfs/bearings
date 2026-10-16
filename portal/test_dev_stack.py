@@ -220,3 +220,30 @@ class StarterConfigurationTests(TestCase):
             with self.subTest(connector=url), self.assertRaises(ConnectorError):
                 validate_base(url)
         self.assertEqual(validate_base("https://netbox.example.invalid:8443").port, 8443)
+
+
+class StarterPrerequisiteTests(TestCase):
+    def test_missing_docker_fails_before_creating_local_state(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(dev, "LOCAL", Path(directory) / "not-created"),
+            patch("sys.argv", ["dev.py", "up"]),
+            patch("shutil.which", return_value=None),
+            patch.object(dev, "run") as run,
+        ):
+            with self.assertRaisesRegex(SystemExit, "Docker command not found"):
+                dev.main()
+            self.assertFalse(dev.LOCAL.exists())
+            run.assert_not_called()
+
+    def test_unavailable_compose_and_engine_have_actionable_errors(self):
+        cases = [
+            ([dev.subprocess.CalledProcessError(1, "docker")], "Compose is unavailable"),
+            ([None, dev.subprocess.CalledProcessError(1, "docker")], "Engine is unreachable"),
+            ([None, dev.subprocess.TimeoutExpired("docker", 15)], "Engine is unreachable"),
+        ]
+        for effects, message in cases:
+            with self.subTest(message=message), patch("shutil.which", return_value="/bin/docker"):
+                with patch.object(dev, "run", side_effect=effects):
+                    with self.assertRaisesRegex(SystemExit, message):
+                        dev.check_docker()

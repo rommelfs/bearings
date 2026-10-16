@@ -14,6 +14,12 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL = ROOT / ".local/dev-stack"
 STATE = LOCAL / "active.json"
+DOCKER_NOT_FOUND = (
+    "Docker command not found. Install and open Docker Desktop on macOS/Windows "
+    "(https://www.docker.com/products/docker-desktop/), then reopen your terminal. "
+    "On Linux install Docker Engine and the Compose plugin. "
+    "If Docker is installed, ensure its CLI is on PATH."
+)
 
 
 def environment():
@@ -33,7 +39,29 @@ def compose(mode, project):
 
 
 def run(args, **kwargs):
-    return subprocess.run(args, cwd=ROOT, env=environment(), check=True, **kwargs)
+    try:
+        return subprocess.run(args, cwd=ROOT, env=environment(), check=True, **kwargs)
+    except FileNotFoundError:
+        raise SystemExit(DOCKER_NOT_FOUND) from None
+
+
+def check_docker():
+    if shutil.which("docker") is None:
+        raise SystemExit(DOCKER_NOT_FOUND)
+    for command, message in [
+        (
+            ["docker", "compose", "version"],
+            "Docker Compose is unavailable. Install Compose v2.24+ (included in Docker Desktop).",
+        ),
+        (
+            ["docker", "info", "--format", "{{.ServerVersion}}"],
+            "Docker Engine is unreachable. Open Docker Desktop and wait until it is running, or start your Linux Docker service. Check your Docker context and socket permissions.",
+        ),
+    ]:
+        try:
+            run(command, capture_output=True, text=True, timeout=15)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            raise SystemExit(message) from None
 
 
 def private_file(path, value):
@@ -148,6 +176,8 @@ def main():
     )
     manage.add_argument("arguments", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    if args.action != "configure":
+        check_docker()
     LOCAL.mkdir(parents=True, exist_ok=True)
     (LOCAL / "external").mkdir(exist_ok=True)
     if args.action == "configure":
