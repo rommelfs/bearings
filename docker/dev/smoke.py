@@ -134,7 +134,15 @@ def main():
                 "csrfmiddlewaretoken": client.cookies.get("csrftoken"),
             },
         )
-        assert response.status_code == 200 and "Infrastructure overview" in response.text
+        assert response.status_code == 200 and response.url.path == "/", "Bearings login failed"
+        assert "<h1>Security review</h1>" in response.text and "company-admin" in response.text
+        assert 'id="review-heading"' in response.text and 'class="severity-filters"' in response.text
+        located = rw.asset_set.filter(
+            object_type="dcim.device", state="synced", missing_since__isnull=True
+        ).first()
+        detail = client.get(base + f"/organizations/{rw.organization.slug}/assets/{located.pk}/")
+        assert detail.status_code == 200 and "Locate this machine" in detail.text
+        assert located.name in detail.text and located.source_url in detail.text
         ro_url = base + f"/organizations/{ro.organization.slug}/assets/new/"
         fields = {
             "name": "must-not-be-created",
