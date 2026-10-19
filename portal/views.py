@@ -2,7 +2,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, Count, IntegerField, Q, TextField, Value, When
+from django.db.models.functions import Cast
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -22,6 +23,7 @@ from .access import (
 from .connectors.http import ConnectorError
 from .forms import (
     AssetForm,
+    LocalAssetForm,
     ClaimForm,
     ClaimReviewForm,
     ContactForm,
@@ -31,6 +33,7 @@ from .forms import (
     VulnerabilityForm,
 )
 from .presentation import ACTIVE_REVIEWS, decorate_finding
+from .asset_context import asset_context
 from .models import Asset, Contact, ContactToken, InfrastructureClaim, Installation, Product
 from .services import (
     issue_contact_token,
@@ -57,18 +60,49 @@ def home(request):
         audit_operator_access(request.user, org)
         org.overdue_count = sum(c.overdue for c in org.contacts.all())
         org.finding_count = visible_findings(request.user, org).filter(status__in=ACTIVE_REVIEWS).count()
+    query = request.GET.get("q", "")[:160].strip()
+    severity = request.GET.get("severity", "").lower()
+    severity_choices = ["critical", "high", "medium", "low", "none", "unknown"]
+    if severity not in severity_choices:
+        severity = ""
     reviews = (
         visible_findings_for(request.user)
         .filter(status__in=ACTIVE_REVIEWS)
         .annotate(
+            severity_order=Case(
+                *[When(record__source_severity=key, then=Value(i)) for i, key in enumerate(severity_choices)],
+                default=Value(5),
+                output_field=IntegerField(),
+            ),
             review_order=Case(
                 When(installation__asset__criticality="high", then=Value(0)),
                 default=Value(1),
                 output_field=IntegerField(),
-            )
+            ),
         )
-        .order_by("review_order", "-evaluated_at", "pk")
+        .order_by("severity_order", "review_order", "-evaluated_at", "pk")
     )
+    if query:
+        reviews = reviews.annotate(
+            inventory_text=Cast("installation__asset__upstream_data", TextField())
+        ).filter(
+            Q(record__external_id__icontains=query)
+            | Q(installation__asset__name__icontains=query)
+            | Q(organization__name__icontains=query)
+            | Q(installation__product__name__icontains=query)
+            | Q(installation__asset__responsible_team__icontains=query)
+            | Q(inventory_text__icontains=query)
+        )
+    counts = {
+        r["record__source_severity"]: r["total"]
+        for r in reviews.order_by().values("record__source_severity").annotate(total=Count("pk"))
+    }
+    severity_counts = [
+        {"key": key, "label": key.title(), "count": counts.get(key, 0)} for key in severity_choices
+    ]
+    review_total = sum(counts.values())
+    if severity:
+        reviews = reviews.filter(record__source_severity=severity)
     review_page = Paginator(reviews, 25).get_page(request.GET.get("review_page"))
     for finding in review_page:
         decorate_finding(finding)
@@ -79,6 +113,10 @@ def home(request):
             "orgs": orgs,
             "operator": request.user.is_superuser or is_analyst(request.user),
             "review_page": review_page,
+            "query": query,
+            "severity": severity,
+            "severity_counts": severity_counts,
+            "review_total": review_total,
         },
     )
 
@@ -319,6 +357,12 @@ def finding_review(request, slug, pk):
         transition_finding(request.user, finding, **form.cleaned_data)
     else:
         messages.error(request, "Choose a workflow state and record a reason.")
+    if request.GET.get("return") == "intelligence":
+        from django.urls import reverse
+
+        return redirect(
+            reverse("intelligence", kwargs={"slug": slug}) + f"?finding={finding.pk}#finding-{finding.pk}"
+        )
     return redirect("organization", slug=slug)
 
 
@@ -439,4 +483,55 @@ def api_evidence(request, slug, pk):
             "ingested_at": finding.record.ingested_at.isoformat(),
             "record": finding.record.payload,
         }
+    )
+
+
+@login_required
+def asset_detail(request, slug, pk):
+    org = organization(request, slug)
+    asset = get_object_or_404(
+        org.assets.select_related("source__instance").prefetch_related("installations__product"), pk=pk
+    )
+    findings = (
+        visible_findings(request.user, org)
+        .select_related("installation__asset__source__instance")
+        .filter(installation__asset=asset)
+        .order_by("-evaluated_at", "pk")
+    )
+    page = Paginator(findings, 25).get_page(request.GET.get("page"))
+    for finding in page:
+        decorate_finding(finding)
+    return render(
+        request,
+        "portal/asset.html",
+        {
+            "org": org,
+            "asset": asset,
+            "facts": asset_context(asset),
+            "page": page,
+            "editable": can_edit(request.user, org),
+        },
+    )
+
+
+@login_required
+def edit_local_asset(request, slug, pk):
+    org = organization(request, slug)
+    require(can_edit(request.user, org))
+    asset = get_object_or_404(org.assets, pk=pk)
+    form = LocalAssetForm(request.POST or None, instance=asset)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            from .models import InventorySource
+
+            InventorySource.objects.select_for_update().get(pk=asset.source_id)
+            current = Asset.objects.select_for_update().get(pk=asset.pk, organization=org)
+            for field in form.Meta.fields:
+                setattr(current, field, form.cleaned_data[field])
+            current.full_clean()
+            current.save(update_fields=[*form.Meta.fields, "updated_at"])
+            audit(request.user, org, "asset.context_reviewed", current.pk, fields=list(form.Meta.fields))
+        return redirect("asset", slug=slug, pk=asset.pk)
+    return render(
+        request, "portal/form.html", {"org": org, "form": form, "title": f"Local assessment · {asset.name}"}
     )

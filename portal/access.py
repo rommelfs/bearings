@@ -53,7 +53,9 @@ def audit_operator_access(user, org):
 
 
 def visible_findings(user, org):
-    findings = org.findings.select_related("record", "installation__product", "installation__asset")
+    findings = org.findings.select_related(
+        "organization", "record", "installation__product", "installation__asset"
+    )
     if not can_operator_review(user, org):
         findings = findings.filter(record__shareable=True)
     return findings
@@ -64,7 +66,7 @@ def visible_findings_for(user):
     from .models import Finding
 
     findings = Finding.objects.filter(organization__in=organizations_for(user)).select_related(
-        "organization", "record", "installation__product", "installation__asset"
+        "organization", "record", "installation__product", "installation__asset__source__instance"
     )
     if not user.is_superuser:
         policy = Q(record__shareable=True)

@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from .access import can_edit, can_operator_review, require, visible_findings
 from .connectors.http import ConnectorError, validate_base
-from .forms import RiskLinkForm, RiskWithdrawalForm
+from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link
 from .models import MOSPRisk, MOSPSource, RiskLink
 from .views import organization
@@ -28,7 +28,7 @@ def finding_page(request, org):
     findings = (
         visible_findings(request.user, org)
         .select_related("installation__asset__source__instance")
-        .prefetch_related(Prefetch("risk_links", queryset=links))
+        .prefetch_related(Prefetch("risk_links", queryset=links), "history__actor")
         .order_by("-evaluated_at", "pk")
     )
     if request.GET.get("finding"):
@@ -61,6 +61,7 @@ def intelligence(request, slug):
             "editable": can_edit(request.user, org) or can_operator_review(request.user, org),
             "sources": MOSPSource.objects.all(),
             "withdrawal_form": RiskWithdrawalForm(),
+            "finding_review_form": FindingReviewForm(),
         },
     )
 
@@ -191,6 +192,7 @@ def api_intelligence(request, slug):
                     "object_type": asset.object_type,
                     "external_id": asset.external_id,
                     "source_url": asset.source_url,
+                    "context": finding.asset_context,
                     "missing_since": asset.missing_since,
                 },
                 "software": {

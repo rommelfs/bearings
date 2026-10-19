@@ -1,0 +1,11 @@
+# ADR 0006: asset location and source-severity review order
+
+Status: accepted, 2026-10-19.
+
+The analyst must identify a machine and navigate to supporting records without treating source severity as organizational risk. We retain a bounded allowlist of NetBox site/location/rack/platform/tenant references, rack position/face, hardware labels, primary IP IDs and scoped primary-IP DNS/VRF. Primary IP strings remain backward compatible. DNS joins require both source-local primary ID and canonical address in the complete authorized IP snapshot; address-only matching would be ambiguous across VRFs and tenants. All four source types validate before any update. Failure retains the complete previous projection and last-success state.
+
+Browser links are constructed from the operator's approved browser/API base, fixed application-owned paths and positive integer IDs. Upstream URLs and machine addresses are not navigation targets. Missing context is explicit. Local assessments take the same InventorySource lock as imports before updating the asset, and update only team/criticality/lifecycle. Findings, counts and actions use the existing raw/derived visibility policy.
+
+A typed, indexed SourceRecord.source_severity cache stores the supported CNA CVSS qualitative category, derived with strict numeric/version bounds. Migration 0009 backfills older records with a frozen adapter. SourceRecord.save updates the cache when payload changes; supported ingestion uses this path and retains evidence policy and immutable snapshots. Direct database/bulk payload updates bypassing application services must maintain the derived cache and are trusted-operator work. Read-time summary remains based on the source payload. Severity ordering is global before pagination; counts are scoped and search-filtered before the severity filter. This avoids page-local sorting that can bury a high-severity record behind many unknown records. No applicability, exploitation or business risk score is inferred.
+
+A separate opt-in development helper enriches only the confirmed synthetic Exchange device in the guarded bundled NetBox, then invokes the regular GET-only importer. It does not expand the scoped service tokens or run at startup. External provisioning, arbitrary production inventory edits, active scans and operational alerts remain outside this decision.

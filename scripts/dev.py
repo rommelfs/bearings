@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import uuid
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -146,6 +147,56 @@ def active():
     )
 
 
+def exchange_example(base, mode, *, inventory_only=False):
+    if mode != "bundled":
+        raise SystemExit("Exchange example context is restricted to the bundled synthetic NetBox lab")
+    manage = base + ["exec", "-T", "web", "/app/.venv/bin/python", "docker/dev/entrypoint.py", "manage"]
+    if not inventory_only:
+        run(manage + ["seed_exchange_example", "--bundled"])
+    code = (
+        "import json,uuid; from pathlib import Path; from docker.dev.smoke import lab_sources; "
+        "from portal.models import Asset; "
+        "config=json.loads(Path('/run/bearings/secrets/connections.json').read_text()); "
+        "assert config['mode']=='bundled'; source=lab_sources(config)['read_write']; "
+        "marker=uuid.uuid5(uuid.NAMESPACE_URL,'bearings:exchange-example:'+str(source.pk)); "
+        "asset=Asset.objects.get(pk=marker,source=source,state='synced'); print(asset.pk)"
+    )
+    identity = run(
+        manage + ["shell", "--no-imports", "-c", code], capture_output=True, text=True
+    ).stdout.strip()
+    try:
+        marker = str(uuid.UUID(identity))
+    except ValueError:
+        raise SystemExit(
+            "No confirmed bundled Exchange example identity; no fixture placement attempted"
+        ) from None
+    script = (
+        "EXAMPLE_BEARINGS_ID = "
+        + repr(marker)
+        + "\n"
+        + (ROOT / "docker/netbox/example_exchange.py").read_text()
+    )
+    run(
+        base
+        + [
+            "exec",
+            "-T",
+            "netbox",
+            "/opt/netbox/venv/bin/python",
+            "/opt/netbox/netbox/manage.py",
+            "shell",
+            "--no-startup",
+            "--no-imports",
+            "--interface",
+            "python",
+        ],
+        input=script,
+        text=True,
+    )
+    run(manage + ["sync_netbox", "--all"])
+    print("Exchange example context imported. Open Security review or the scoped asset record.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
@@ -171,6 +222,14 @@ def main():
         connect.add_argument("--" + name, type=int)
     for name in ["down", "status", "logs", "credentials", "trust", "query", "smoke"]:
         commands.add_parser(name)
+    example = commands.add_parser(
+        "example-exchange", help="Create the synthetic Exchange case and add verified lab IP/DNS/rack context"
+    )
+    example.add_argument(
+        "--inventory-only",
+        action="store_true",
+        help="Enrich an existing confirmed example without fetching CVE/MOSP evidence",
+    )
     manage = commands.add_parser(
         "manage", help="Run a Bearings management command with stack credentials/trust loaded"
     )
@@ -211,7 +270,9 @@ def main():
         return
     state = active()
     base = compose(state["mode"], state["project"])
-    if args.action == "down":
+    if args.action == "example-exchange":
+        exchange_example(base, state["mode"], inventory_only=args.inventory_only)
+    elif args.action == "down":
         run(base + ["down"])
         print("Containers stopped; persistent volumes and data retained.")
     elif args.action == "status":

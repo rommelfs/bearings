@@ -55,3 +55,7 @@ Implemented #3/#14: atomic paginated imports across multiple instances, source-l
 ## Exchange example and analyst review cues
 
 Completed [#19](https://github.com/rommelfs/bearings/issues/19): an opt-in [Exchange CVE-2026-70571 exercise](user-guide/exchange-example.md) with real public evidence, explicit manual affectedness, a guarded bundled NetBox inventory write and a justified MOSP scenario. The start page now surfaces active visible findings, source severity, criticality/build/team and scoped direct links. Inventory-only CVE discovery, generalized applicability, business risk assessment and outgoing notifications remain separate work. The broader remediation/triage issue remains open.
+
+## Locate affected assets and prioritize review
+
+The [asset triage increment](user-guide/asset-triage.md) adds source IP/DNS/location/rack context, linked asset/evidence/actions, distinct severity styling, search/global severity filters and source-first ordering. A guarded opt-in Exchange fixture validates actual NetBox placement and the regular GET-only projection; no permissions are raised or external servers provisioned. Broader topology, source freshness workflows, risk scoring and notification delivery remain separate backlog items.

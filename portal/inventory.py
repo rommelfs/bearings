@@ -1,6 +1,7 @@
 """Atomic GET-only NetBox projection. Local assessments are never upstream-owned."""
 
 import ipaddress
+from decimal import Decimal, InvalidOperation
 import uuid
 from datetime import timedelta
 from django.core.exceptions import ValidationError
@@ -44,7 +45,7 @@ def project(kind, wrapper):
         status = status.get("value", "")
     data["status"] = text(status, 40)
     # Deliberately retain a small allowlist, never arbitrary custom fields or upstream URLs.
-    for field in ["site", "role", "device_type", "cluster", "vrf"]:
+    for field in ["site", "location", "rack", "role", "device_type", "cluster", "vrf", "platform", "tenant"]:
         value = row.get(field)
         if value is not None:
             if kind == "ip-addresses" and field == "role" and isinstance(value, dict):
@@ -58,8 +59,28 @@ def project(kind, wrapper):
         if value is not None:
             try:
                 data[field] = str(ipaddress.ip_interface(text(value.get("address"), required=True)))
+                if ipaddress.ip_interface(data[field]).version != (4 if field == "primary_ip4" else 6):
+                    raise ConnectorError("Primary IP family mismatch; complete import discarded")
+                if value.get("id") is not None:
+                    if type(value["id"]) is not int or value["id"] < 1:
+                        raise ConnectorError("Invalid primary IP identity; complete import discarded")
+                    data[field + "_id"] = value["id"]
             except (ValueError, AttributeError):
                 raise ConnectorError("Invalid primary IP; complete import discarded") from None
+    for field in ["serial", "asset_tag", "dns_name"]:
+        if row.get(field) is not None:
+            data[field] = text(row[field], 255)
+    if row.get("position") is not None:
+        try:
+            position = Decimal(str(row["position"]))
+            if not position.is_finite() or not 0 <= position <= 10000:
+                raise InvalidOperation
+            data["position"] = format(position.normalize(), "f")
+        except (InvalidOperation, ValueError):
+            raise ConnectorError("Invalid rack position; complete import discarded") from None
+    if row.get("face") is not None:
+        face = row["face"]
+        data["face"] = text(face.get("value") if isinstance(face, dict) else face, 20)
     custom = row.get("custom_fields", {})
     if not isinstance(custom, dict):
         raise ConnectorError("Invalid custom fields; complete import discarded")
@@ -120,6 +141,17 @@ def refresh_locked(source, now):
     result = {kind: query_objects(source, kind) for kind in OBJECT_TYPES}
     # Validate the entire snapshot before any local projection changes.
     prepared = [(kind, row, *project(kind, row)) for kind, rows in result.items() for row in rows]
+    # Resolve DNS only by the primary IP's source-local ID within this complete scoped IP snapshot.
+    ips = {row["external_id"]: data for kind, row, name, data, marker in prepared if kind == "ip-addresses"}
+    for kind, row, name, data, marker in prepared:
+        if kind not in {"devices", "virtual-machines"}:
+            continue
+        for field in ["primary_ip4", "primary_ip6"]:
+            ip = ips.get(str(data.get(field + "_id")))
+            if ip and ip.get("address") == data.get(field) and ip.get("dns_name"):
+                data[field + "_dns_name"] = ip["dns_name"]
+            if ip and ip.get("address") == data.get(field) and ip.get("vrf"):
+                data[field + "_vrf"] = ip["vrf"]
     counts = dict(
         created=0, updated=0, unchanged=0, missing=0, reappeared=0, reconciled=0, total=len(prepared)
     )

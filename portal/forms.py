@@ -136,3 +136,9 @@ class RiskWithdrawalForm(forms.Form):
     reason = forms.CharField(
         max_length=4000, widget=forms.Textarea, label="Reason for withdrawing this mapping"
     )
+
+
+class LocalAssetForm(forms.ModelForm):
+    class Meta:
+        model = Asset
+        fields = ["criticality", "lifecycle", "responsible_team"]

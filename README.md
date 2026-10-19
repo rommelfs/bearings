@@ -18,6 +18,8 @@ A standalone organization inventory and evidence review portal intended for CIRC
 
 **Not yet implemented:** MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md).
 
+See [asset location, source-severity filters and linked analyst triage](docs/user-guide/asset-triage.md).
+
 See the [unpatched Exchange example and analyst workflow](docs/user-guide/exchange-example.md) for CVE-2026-70571, possible consequences, in-app review cues and notification limits.
 
 ## Start with bundled NetBox (recommended)

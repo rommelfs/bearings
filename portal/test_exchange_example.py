@@ -4,6 +4,7 @@ import uuid
 from unittest.mock import patch
 from django.core.management import call_command, CommandError
 from django.test import SimpleTestCase, override_settings
+from django.utils.html import strip_tags
 from .tests import Fixture
 from .models import Asset, Finding, FindingHistory, InventorySource, Organization, RiskLink
 from .presentation import vulnerability_summary
@@ -147,7 +148,7 @@ class ExchangeExampleTests(Fixture):
         detail = self.client.get(self.url("intelligence", finding.organization), {"finding": finding.pk})
         self.assertContains(detail, "Possible consequences")
         self.assertContains(detail, "Source severity: High")
-        self.assertContains(detail, "Analyst assessment: affected")
+        self.assertIn("Analyst assessment: affected", strip_tags(detail.content.decode()))
         data = self.client.get(
             self.url("api-intelligence", finding.organization), {"finding": finding.pk}
         ).json()

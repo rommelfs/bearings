@@ -2,6 +2,12 @@ from django.urls import path
 from . import views, intelligence_views
 
 urlpatterns = [
+    path("organizations/<slug:slug>/assets/<uuid:pk>/", views.asset_detail, name="asset"),
+    path(
+        "organizations/<slug:slug>/assets/<uuid:pk>/assessment/",
+        views.edit_local_asset,
+        name="edit-local-asset",
+    ),
     path("organizations/<slug:slug>/intelligence/", intelligence_views.intelligence, name="intelligence"),
     path("organizations/<slug:slug>/risk-catalog/", intelligence_views.risk_catalog, name="risk-catalog"),
     path(

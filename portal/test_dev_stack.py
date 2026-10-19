@@ -247,3 +247,27 @@ class StarterPrerequisiteTests(TestCase):
                 with patch.object(dev, "run", side_effect=effects):
                     with self.assertRaisesRegex(SystemExit, message):
                         dev.check_docker()
+
+
+class ExchangePlacementHelperTests(TestCase):
+    def test_external_mode_is_refused_before_any_command(self):
+        with patch.object(dev, "run") as run:
+            with self.assertRaisesMessage(SystemExit, "bundled"):
+                dev.exchange_example(["docker", "compose"], "external")
+            run.assert_not_called()
+
+    def test_inventory_only_checks_identity_then_places_and_imports_without_keys_or_public_lookup(self):
+        marker = str(uuid.uuid4())
+        result = argparse.Namespace(stdout=marker)
+        with patch.object(dev, "run", return_value=result) as run:
+            dev.exchange_example(["docker", "compose"], "bundled", inventory_only=True)
+        self.assertEqual(run.call_count, 3)
+        self.assertIn("lab_sources", run.call_args_list[0].args[0][-1])
+        self.assertIn(marker, run.call_args_list[1].kwargs["input"])
+        self.assertIn("/opt/netbox/netbox/manage.py", run.call_args_list[1].args[0])
+        self.assertEqual(run.call_args_list[2].args[0][-2:], ["sync_netbox", "--all"])
+        self.assertFalse(any("seed_exchange_example" in c.args[0] for c in run.call_args_list))
+        with patch.object(dev, "run", return_value=argparse.Namespace(stdout="invalid")) as run:
+            with self.assertRaisesMessage(SystemExit, "No confirmed"):
+                dev.exchange_example(["docker", "compose"], "bundled", inventory_only=True)
+            self.assertEqual(run.call_count, 1)

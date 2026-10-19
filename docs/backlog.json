@@ -82,6 +82,10 @@
       {
         "title": "Demonstrate unpatched Exchange consequences and analyst review cues",
         "body": "Implemented the opt-in idempotent synthetic Exchange 2019 CU15 build 15.2.1748.54 example for published CVE-2026-70571, live VL/MOSP evidence, explicitly manual affectedness/history and a guarded real bundled NetBox object. Active visible reviews now appear on the dashboard with source title/CVSS, asset criticality/build/team and scoped deep links. Reruns preserve source restrictions, remediation, workflow and withdrawn links. Validated twice against the real bundled backend and public APIs, including real analyst login/dashboard/detail/API/pinned evidence, 124 PostgreSQL tests, SQLite 122 passes plus two explicit PostgreSQL-only skips, and the complete public lifecycle CI (39315217194) and Checks (39315216988) for 15ac294. Possible consequences remain hypotheses; generalized matching, scored organizational risk and outgoing notifications remain separate work."
+      },
+      {
+        "title": "Locate affected assets and distinguish source severity in analyst triage",
+        "body": "Deliver linked asset location/network context in overview, evidence and scoped asset detail: primary IPv4/IPv6, source-local DNS/VRF, site/location/rack/unit/face, platform, responsibility and freshness. Add distinct accessible severity cards, globally scoped counters/filtering/search/order with a validated backfilled source-severity cache, direct evidence/review actions and safe local assessment edits. Guard a repeatable bundled-only Exchange placement fixture and retain current raw/derived visibility. Validate SQLite/PostgreSQL, real NetBox import/smoke, desktop/mobile browser navigation and safe source links. No generalized applicability, reachability inference, risk scoring or operational alerts."
       }
     ]
   },

@@ -68,3 +68,7 @@ The MONARC link remains a review hypothesis. Risk owner, likelihood, business im
 **Automatic discovery from NetBox import: no.** Inventory alone does not establish installed Exchange versions or applicable CVEs. Continuous product/version matching and automatic CVE discovery remain backlog work. The example command is not a general matching engine or scanner.
 
 **Outgoing email, pager, push alerts or escalation: no.** This change sends none. Production notification delivery requires a separate implementation and operational authorization. The existing local contact-review mail sink is unrelated to vulnerability alerts.
+
+## Locate the actual example asset
+
+The [asset triage guide](asset-triage.md) describes the new severity cards, search/filters, linked asset details and the guarded `python3 scripts/dev.py example-exchange` helper. For an already seeded example, `example-exchange --inventory-only` adds verified synthetic NetBox IP/DNS/datacenter/rack context without another public CVE lookup. Source severity now sorts before asset criticality; the earlier criticality-only ordering has been superseded.

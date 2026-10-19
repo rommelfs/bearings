@@ -59,5 +59,14 @@ def vulnerability_summary(payload):
 
 
 def decorate_finding(finding):
+    from .asset_context import asset_context
+
     finding.source_summary = vulnerability_summary(finding.record.payload)
+    finding.severity_key = finding.source_summary["severity"].lower()
+    finding.assessment_key = (
+        finding.analyst_applicability
+        if finding.analyst_applicability in {"affected", "potential", "not_affected"}
+        else "unknown"
+    )
+    finding.asset_context = asset_context(finding.installation.asset)
     return finding

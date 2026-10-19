@@ -36,3 +36,7 @@ The workspace shows attempts, last complete import, interval/pause/queue state, 
 ## Development validation
 
 `python3 scripts/dev.py smoke` is restricted to the bundled synthetic lab. It creates one device directly in NetBox without a seed identity, verifies import/update and local assessment preservation, deletes only that newly created probe in NetBox, and verifies retained local missing state. It also validates read-only import and existing write/recovery behavior. This controlled upstream deletion is a smoke fixture action, never importer behavior. See `docs/validation.md` for actual results and deployed versions.
+
+## Asset location and primary-IP DNS
+
+The projection also retains site/location/rack/platform/tenant references, position/face, serial/asset tag, DNS names on IP records, primary IP IDs and scoped DNS/VRF context. DNS joins require the primary ID and canonical address in this source's complete IP snapshot. Upstream URLs are ignored. The overview and new scoped asset record display these facts and construct safe links from operator-approved bases. Missing fields remain explicit; no DNS, discovery or reachability probing is performed. See [ADR 0006](../decisions/0006-asset-context-and-source-severity.md) and [asset triage](../user-guide/asset-triage.md).

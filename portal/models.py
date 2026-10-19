@@ -382,6 +382,23 @@ class SourceRecord(models.Model):
     payload = models.JSONField()
     ingested_at = models.DateTimeField(default=timezone.now)
     shareable = models.BooleanField(default=False)
+    source_severity = models.CharField(
+        max_length=10,
+        default="unknown",
+        db_index=True,
+        editable=False,
+        choices=[(v, v.title()) for v in ["critical", "high", "medium", "low", "none", "unknown"]],
+    )
+
+    def save(self, *args, **kwargs):
+        fields = kwargs.get("update_fields")
+        if self._state.adding or fields is None or "payload" in fields:
+            from .presentation import vulnerability_summary
+
+            self.source_severity = vulnerability_summary(self.payload)["severity"].lower()
+            if fields is not None:
+                kwargs["update_fields"] = set(fields) | {"source_severity"}
+        return super().save(*args, **kwargs)
 
     class Meta:
         constraints = [
