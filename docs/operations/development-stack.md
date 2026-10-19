@@ -1,6 +1,6 @@
 # Bundled and external NetBox development environments
 
-This is a local development lab, not a production deployment. Host ports bind to loopback. No scans, real notifications or operational data publication occur. Synthetic sample inventory uses documentation address ranges. Default startup contacts only the local NetBox API after pulling/building images.
+This is a local development lab, not a production deployment. Host ports bind to loopback. No scans, real notifications or operational data publication occur. Synthetic sample inventory uses documentation address ranges. Startup initializes local NetBox and Bearings after pulling/building images; the worker also refreshes enabled public MOSP catalogs. CVE retrieval is explicit.
 
 ## Requirements and startup
 
