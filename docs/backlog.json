@@ -69,7 +69,7 @@
       },
       {
         "title": "Complete organization remediation and CIRCL triage",
-        "body": "Review filters, acknowledgment/corrections, assignment, urgency summaries and freshness coverage. Test all counts/exports/notifications against visibility restrictions."
+        "body": "Implemented first in-app cross-organization active-review queue, source CNA title/description and CVSS severity, asset criticality/build/team, source-scoped direct links and a repeatable synthetic Exchange CVE-2026-70571 example with justified MOSP mapping. Current visibility applies to all cues/counts. Remaining: richer filters, assignment/acknowledgment/corrections, deadlines/escalation, freshness coverage and operational notification delivery. Inventory import alone does not discover applicable CVEs."
       },
       {
         "title": "Security and recovery gate before deployment",
@@ -78,6 +78,10 @@
       {
         "title": "Complete security contact and release governance",
         "body": "AGPL-3.0-or-later and public source publication are approved. Establish a verified responsible reporting destination/key and review dependency/integration notices. Operational deployment and data publication require separate authorization."
+      },
+      {
+        "title": "Demonstrate unpatched Exchange consequences and analyst review cues",
+        "body": "Add an opt-in idempotent synthetic Exchange 2019 CU15 build 15.2.1748.54 example for published CVE-2026-70571, live VL/MOSP evidence, manually justified affectedness/history and a guarded real bundled NetBox object. Expose active visible reviews on the dashboard with source title/CVSS, asset criticality/build/team and deep links; preserve raw/derived visibility, accepted/closed history, operator restrictions and remediation on rerun. Document possible CIA/follow-on consequences without claiming observed exploitation, automatic matching, outgoing alerts or assessed organizational risk."
       }
     ]
   },

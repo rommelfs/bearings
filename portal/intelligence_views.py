@@ -12,6 +12,7 @@ from .forms import RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link
 from .models import MOSPRisk, MOSPSource, RiskLink
 from .views import organization
+from .presentation import decorate_finding
 
 
 def vulnerability_url(finding):
@@ -30,8 +31,16 @@ def finding_page(request, org):
         .prefetch_related(Prefetch("risk_links", queryset=links))
         .order_by("-evaluated_at", "pk")
     )
+    if request.GET.get("finding"):
+        try:
+            finding_id = int(request.GET["finding"])
+        except ValueError:
+            raise Http404 from None
+        get_object_or_404(findings, pk=finding_id)
+        findings = findings.filter(pk=finding_id)
     page = Paginator(findings, 25).get_page(request.GET.get("page"))
     for finding in page:
+        decorate_finding(finding)
         finding.vulnerability_url = vulnerability_url(finding)
         finding.links = list(finding.risk_links.all())
         for link in finding.links:
@@ -172,6 +181,8 @@ def api_intelligence(request, slug):
         rows.append(
             {
                 "finding_id": finding.pk,
+                "source_summary": finding.source_summary,
+                "status": finding.status,
                 "asset": {
                     "id": str(asset.pk),
                     "name": asset.name,

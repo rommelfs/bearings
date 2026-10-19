@@ -57,3 +57,18 @@ def visible_findings(user, org):
     if not can_operator_review(user, org):
         findings = findings.filter(record__shareable=True)
     return findings
+
+
+def visible_findings_for(user):
+    """Cross-organization queue with the same current raw/derived policy as workspace reads."""
+    from .models import Finding
+
+    findings = Finding.objects.filter(organization__in=organizations_for(user)).select_related(
+        "organization", "record", "installation__product", "installation__asset"
+    )
+    if not user.is_superuser:
+        policy = Q(record__shareable=True)
+        if is_analyst(user):
+            policy |= Q(organization__operator_visibility=True)
+        findings = findings.filter(policy)
+    return findings

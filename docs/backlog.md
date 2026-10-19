@@ -51,3 +51,7 @@ The starter now checks Docker CLI, Compose and engine availability before changi
 ## NetBox import and reconciliation
 
 Implemented #3/#14: atomic paginated imports across multiple instances, source-local identities, periodic/manual scheduling, separate import health/freshness, source links, retained missing-object review and local assessment preservation. Broader topology, upstream snapshot consistency, monitored production scheduling and additional deployed-version compatibility are not implied.
+
+## Exchange example and analyst review cues
+
+Implemented an opt-in [Exchange CVE-2026-70571 exercise](user-guide/exchange-example.md) with real public evidence, explicit manual affectedness, a guarded bundled NetBox inventory write and a justified MOSP scenario. The start page now surfaces active visible findings, source severity, criticality/build/team and scoped direct links. Inventory-only CVE discovery, generalized applicability, business risk assessment and outgoing notifications remain separate work. The broader remediation/triage issue remains open.

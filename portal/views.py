@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Case, IntegerField, Value, When
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -16,6 +17,7 @@ from .access import (
     organizations_for,
     require,
     visible_findings,
+    visible_findings_for,
 )
 from .connectors.http import ConnectorError
 from .forms import (
@@ -28,6 +30,7 @@ from .forms import (
     MissingReviewForm,
     VulnerabilityForm,
 )
+from .presentation import ACTIVE_REVIEWS, decorate_finding
 from .models import Asset, Contact, ContactToken, InfrastructureClaim, Installation, Product
 from .services import (
     issue_contact_token,
@@ -48,20 +51,35 @@ def organization(request, slug):
 @login_required
 def home(request):
     orgs = list(
-        organizations_for(request.user).prefetch_related(
-            "contacts", "assets", "findings", "inventory_source__instance"
-        )
+        organizations_for(request.user).prefetch_related("contacts", "assets", "inventory_source__instance")
     )
     for org in orgs:
         audit_operator_access(request.user, org)
         org.overdue_count = sum(c.overdue for c in org.contacts.all())
-        org.finding_count = (
-            visible_findings(request.user, org).exclude(status__in=["resolved", "false_positive"]).count()
+        org.finding_count = visible_findings(request.user, org).filter(status__in=ACTIVE_REVIEWS).count()
+    reviews = (
+        visible_findings_for(request.user)
+        .filter(status__in=ACTIVE_REVIEWS)
+        .annotate(
+            review_order=Case(
+                When(installation__asset__criticality="high", then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
         )
+        .order_by("review_order", "-evaluated_at", "pk")
+    )
+    review_page = Paginator(reviews, 25).get_page(request.GET.get("review_page"))
+    for finding in review_page:
+        decorate_finding(finding)
     return render(
         request,
         "portal/home.html",
-        {"orgs": orgs, "operator": request.user.is_superuser or is_analyst(request.user)},
+        {
+            "orgs": orgs,
+            "operator": request.user.is_superuser or is_analyst(request.user),
+            "review_page": review_page,
+        },
     )
 
 
