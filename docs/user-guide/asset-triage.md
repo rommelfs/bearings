@@ -4,6 +4,14 @@ The start page's **Security review** queue places source severity next to the af
 
 Source severity determines the first sort key, followed by local asset criticality and latest evaluation. This is a technical review order, not a calculated organizational risk ranking. Severity filters and counts apply across the complete authorized active-review set before pagination. Search matches CVE, inventory name, organization, software, team and the imported address/location context. Search and severity selection remain applied across pages. Closed/accepted records remain accessible in their workspaces.
 
+## Verified views
+
+The screenshots show the synthetic Exchange example after a real analyst login:
+
+![Analyst review with source severity and machine context](../images/asset-review.png)
+
+[Mobile asset review](../images/asset-review-mobile.png).
+
 ## Asset identity and navigation
 
 Each review shows the inventory name separately from primary-IP DNS names. The asset card shows primary IPv4/IPv6, VRF when supplied, site/datacenter, location, rack/unit/face, responsible team, source instance and inventory observation time. Facts absent from the approved source are labeled **Not recorded**. The source's site is not assumed to be a building, and an inventory name is not assumed to be a resolvable DNS name. No DNS queries, reachability checks or scans are performed.
