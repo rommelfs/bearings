@@ -16,8 +16,16 @@ For the bundled development environment, after updating the checkout:
 
 ```sh
 python3 scripts/dev.py up
-python3 scripts/dev.py manage seed_exchange_example --bundled
+python3 scripts/dev.py example-exchange
 ```
+
+If you already ran `python3 scripts/dev.py manage seed_exchange_example --bundled`, the case exists but its network/location fixture has not been populated. Complete that existing case without another CVE/MOSP lookup:
+
+```sh
+python3 scripts/dev.py example-exchange --inventory-only
+```
+
+This fills real bundled NetBox primary IPv4 `192.0.2.25/24`, IPv6 `2001:db8::25/64`, DNS `exchange-01.mail.example.invalid`, Luxembourg DC / Messaging room M1 / rack EX-01 / U22 / front, then imports them into Bearings. The lower-level `manage seed_exchange_example --bundled` command only records the case and evidence; running it again does not execute this placement step. Use the complete helper above for new examples.
 
 The command adds `exchange-example-01 (SYNTHETIC)` to the existing bundled **writable** organization's tenant using its scoped NetBox connection. It confirms the inventory write before creating a finding. It refuses external mode, altered lab identities, disabled/read-only targets or actors without editing rights. It never changes access mode or grants itself remote permissions. The separate bundled read-only company is untouched.
 

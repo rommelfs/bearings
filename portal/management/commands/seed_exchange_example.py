@@ -181,6 +181,12 @@ class Command(BaseCommand):
         self.stdout.write(
             f"SYNTHETIC Exchange example ready: organization {source.organization.slug}, finding {finding.pk}. Manual example assessment; no scans, compromise assertion or notifications."
         )
+        if options["bundled"]:
+            self.stdout.write(
+                "IP/DNS/datacenter/rack placement is a separate bundled-lab step. "
+                "For this existing case run: python3 scripts/dev.py example-exchange --inventory-only. "
+                "The full scripts/dev.py example-exchange helper includes placement and import automatically."
+            )
         try:
             catalog = default_catalog()
             for risk_uuid in RISK_UUIDS:
