@@ -14,6 +14,6 @@ Run a worker with deployment credentials loaded:
 uv run python manage.py process_rt_tickets --all --due
 ```
 
-The bundled worker includes this command. Repeated/concurrent workers do not create duplicate POSTs. An uncertain creation is reconciled using bounded read-only search for the exact queue/subject; no blind POST retry. Remote URLs in API responses are ignored. Status/owner/due-date refresh is separate workflow feedback; completion never patches inventory, changes applicability or closes an issue. Access/transport failure retains the last known state. Revoked visibility suppresses read access and further hand-off.
+The bundled worker includes this command. Repeated/concurrent workers do not create duplicate POSTs. An uncertain creation is reconciled using bounded read-only search for the exact queue/subject; no blind POST retry. Remote URLs in API responses are ignored. Status/owner/due-date refresh is separate workflow feedback; completion never patches inventory, changes applicability or closes an issue. Access/transport failure retains the last known state. Revoked visibility suppresses read access and further hand-off. For Plum-derived issues, a withdrawn company source grant also blocks export even when CIRCL retains internal investigation access.
 
 HTTPS verification, bounded JSON, timeouts and redirect refusal apply. RTIR-specific creation, deployed queue scrips, production service accounts, remote retention and live permission tests remain installation acceptance work.

@@ -70,6 +70,20 @@ def visible_issues(user):
     )
 
 
+def exportable_issues(user):
+    # Operator investigation access does not grant redistribution to a company whose source read grant was withdrawn.
+    return (
+        visible_issues(user)
+        .filter(operator_only=False)
+        .filter(Q(finding__isnull=True, shareable=True) | Q(finding__record__shareable=True))
+        .filter(
+            Q(exposure_review__isnull=True)
+            | Q(exposure_review__observation__source__organizations=F("organization_id"))
+        )
+        .distinct()
+    )
+
+
 def editable(user, issue):
     return can_edit(user, issue.organization) or can_operator_review(user, issue.organization)
 

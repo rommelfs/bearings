@@ -9,14 +9,13 @@ import uuid
 from datetime import timedelta
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 from .access import audit, can_review_contact, require
 from .connectors.http import ConnectorError, approved_base, request_json
-from .issues import issue_json, visible_issues
+from .issues import issue_json, exportable_issues
 from .models import Asset, CompanyInstance, FederatedReport, FederationGrant
 from .asset_context import asset_context
 
@@ -78,11 +77,7 @@ def export(request):
     except (ValueError, FederationGrant.DoesNotExist):
         return JsonResponse({"error": "Export grant unavailable"}, status=403)
     org = grant.organization
-    qs = (
-        visible_issues(grant.publisher)
-        .filter(organization=org, operator_only=False)
-        .filter(Q(finding__isnull=True, shareable=True) | Q(finding__record__shareable=True))
-    )
+    qs = exportable_issues(grant.publisher).filter(organization=org)
     rows = list(qs.order_by("pk")[: MAX_RECORDS + 1])
     assets = (
         list(

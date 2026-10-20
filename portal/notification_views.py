@@ -17,7 +17,7 @@ from .models import (
     NotificationReceipt,
     NotificationSubscription,
 )
-from .issues import visible_issues
+from .issues import exportable_issues
 from .notifications import (
     DEFAULT_BODY,
     DEFAULT_SUBJECT,
@@ -133,7 +133,7 @@ def center(request):
         .exclude(findings__record__shareable=False)
         .exclude(
             issues__in=AssetIssue.objects.exclude(
-                pk__in=visible_issues(request.user).filter(shareable=True, operator_only=False)
+                pk__in=exportable_issues(request.user).filter(shareable=True, operator_only=False)
             )
         )
         .exclude(Q(issues__isnull=False) & ~Q(issues__organization_id=F("organization_id")))

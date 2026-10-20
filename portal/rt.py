@@ -35,6 +35,7 @@ def can_write(actor, issue, instance):
         and instance.private_queue_confirmed
         and (issue.finding.record.shareable if issue.finding_id else issue.shareable)
         and not issue.operator_only
+        and issues.exportable_issues(actor).filter(pk=issue.pk).exists()
     )
 
 

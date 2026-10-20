@@ -270,3 +270,50 @@ class PlumTests(tests.Fixture):
         self.source.save()
         with self.assertRaises(ConnectorError):
             connector.infoip(self.source, "8.8.8.8", self.begin, self.end)
+
+    def test_withdrawn_company_source_grant_blocks_operator_outreach_and_tickets(self):
+        from . import rt
+        from .notifications import preview_batch, approve_local, candidates, authorized_delivery
+        from .models import Contact, RTInstance, NotificationReceipt
+
+        row = self.ingest()
+        issue = plum.create_review(self.analyst, row, 443, "tcp", "", "Review authorized exposure")
+        issue = issues.save_issue(
+            self.analyst, issue, {"shareable": True}, "Explicit synthetic review export"
+        )
+        Contact.objects.create(
+            organization=self.a,
+            name="Owner",
+            role="Owner",
+            email="owner@example.invalid",
+            notification_enabled=True,
+            reachable_at=timezone.now(),
+            reviewed_at=timezone.now(),
+            next_review=timezone.localdate() + timedelta(days=60),
+        )
+        filters = {"organization": self.a.pk, "domain": "asset_issues", "sort": "severity"}
+        batch = preview_batch(self.analyst, "circl", filters, "Review", "{{ items }}")
+        delivery = batch.deliveries.get()
+        instance = RTInstance.objects.create(
+            name="Review queue",
+            organization=self.a,
+            base_url="https://rt.example.invalid",
+            token_env_var="RT_TEST_TOKEN",
+            queue_id=3,
+            enabled=True,
+            private_queue_confirmed=True,
+        )
+        ticket = rt.preview(self.analyst, issue, instance, "Coordinate exposure review")
+        self.source.organizations.clear()
+        self.assertTrue(issues.visible_issues(self.analyst).filter(pk=issue.pk).exists())
+        self.assertFalse(issues.exportable_issues(self.analyst).filter(pk=issue.pk).exists())
+        self.assertEqual(candidates(self.analyst, "circl", filters).count(), 0)
+        self.assertFalse(authorized_delivery(self.analyst, delivery))
+        with patch("portal.notifications.EmailBackend") as mail, patch("portal.rt.api") as api:
+            with self.assertRaises(PermissionDenied):
+                approve_local(self.analyst, batch.pk, [delivery.pk])
+            with self.assertRaises(PermissionDenied):
+                rt.approve(self.analyst, ticket.pk)
+            mail.assert_not_called()
+            api.assert_not_called()
+        self.assertEqual(NotificationReceipt.objects.count(), 0)

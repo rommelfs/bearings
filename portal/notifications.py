@@ -202,10 +202,10 @@ class NotificationForm(forms.Form):
 
 def candidates(user, mode, filters):
     if filters.get("domain") == "asset_issues":
-        from .issues import visible_issues, active_filter
+        from .issues import exportable_issues, active_filter
 
         qs = (
-            visible_issues(user)
+            exportable_issues(user)
             .filter(
                 organization__in=scoped_organizations(user, mode),
                 shareable=True,
@@ -483,9 +483,9 @@ def authorized_delivery(user, delivery):
         return False
     ids = [f["id"] for f in delivery.snapshot["findings"]]
     if delivery.snapshot.get("domain") == "asset_issues":
-        from .issues import visible_issues
+        from .issues import exportable_issues
 
-        return visible_issues(user).filter(
+        return exportable_issues(user).filter(
             pk__in=ids, organization=org, shareable=True, operator_only=False
         ).count() == len(ids)
     # Even historical previews/messages disappear when redistribution is revoked.
