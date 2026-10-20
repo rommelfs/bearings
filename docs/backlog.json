@@ -90,6 +90,10 @@
       {
         "title": "Provide reviewed bulk notification previews and local company inbox",
         "body": "Implement the bounded first notification increment: populate synthetic NetBox context in both capability examples; CIRCL/company filters, deterministic sorting, constrained text templates, separate per-contact previews, explicit inclusion and current contact readiness, scoped approval, policy/content revalidation, duplicate-attempt prevention, a forced local-file backend, company inbox and acknowledgment. Verify real bundled NetBox, browser flows, SQLite/PostgreSQL including racing claims, and document uncertainty and remaining automatic feed/product matching/production transport/escalation in #5/#6/#10/#11. No production delivery. Update troubleshooting now distinguishes source/image updates from retained databases, immediate NetBox projection refresh, optional seeds, exact Critical/Log4j and organization filters, manual inbox approval and separate native/Docker environments."
+      },
+      {
+        "title": "Pilot optional FlowIntel case hand-off with tenant-safe status feedback",
+        "body": "Source feasibility reviewed against FlowIntel 4.0.0 and main 0fd54db3 (2026-10-20); no connector/live pilot implemented. Build an optional pinned synthetic lab and approved instance/key references; actor/policy-rechecked export preview; explicitly private one-organization case via case/task API; stable source-bound correlation/outbox with concurrent and lost-ack reconciliation; approved playbook tasks; scoped FlowIntel link and GET-only external state/freshness in Bearings. Keep product/applicability, company contacts, bulk message approval and remediation authority in Bearings. Verify private-at-creation (template path currently defaults public), two-organization isolation, revoked policies, source severity versus MISP threat-level semantics, version-specific deduplication, outages and preserved lifecycle. No production mail, scans, public deployment or automatic finding closure. See docs/integrations/flowintel.md for source-pinned contracts and gates."
       }
     ]
   },
