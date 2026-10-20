@@ -449,3 +449,35 @@ class AssetIssueTests(tests.Fixture):
         link.refresh_from_db()
         self.assertIsNotNone(link.withdrawn_at)
         self.assertTrue(issue.revisions.filter(pk=first).exists())
+
+    def test_exposure_seed_reports_skipped_and_real_windows_and_current_visibility(self):
+        import io
+        from django.core.management import call_command
+        from django.test import override_settings
+        from .models import PlumSnapshot, InfrastructureClaim
+
+        with (
+            override_settings(DEBUG=True),
+            patch(
+                "portal.management.commands.seed_asset_issues.ExchangeCommand.source", return_value=self.sa
+            ),
+        ):
+            output = io.StringIO()
+            call_command("seed_asset_issues", actor=self.admin.username, stdout=output)
+            self.assertIn("Exposure example SKIPPED", output.getvalue())
+            self.assertEqual(PlumSnapshot.objects.count(), 0)
+            self.asset.upstream_data = {"primary_ip4": "192.0.2.25/24"}
+            self.asset.save()
+            output = io.StringIO()
+            call_command("seed_asset_issues", actor=self.admin.username, stdout=output)
+            self.assertIn("Historical Exposure: 2 snapshots retained, 2 currently visible", output.getvalue())
+            self.assertIn("192.0.2.25", output.getvalue())
+            self.assertEqual(PlumSnapshot.objects.count(), 2)
+            claim = InfrastructureClaim.objects.get(organization=self.a, kind="ip", value="192.0.2.25")
+            claim.status = "declared"
+            claim.save()
+            output = io.StringIO()
+            call_command("seed_asset_issues", actor=self.admin.username, stdout=output)
+            self.assertIn("2 snapshots retained, 0 currently visible", output.getvalue())
+            claim.refresh_from_db()
+            self.assertEqual(claim.status, "declared")

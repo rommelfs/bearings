@@ -26,3 +26,7 @@ The JSON evidence links expose only currently authorized evidence. Revoking a Pl
 ![Scoped lifecycle issue and asset location](../images/asset-issues.png)
 
 ![Historical exposure comparison with explicit uncertainty](../images/plum-comparison.png)
+
+## Empty Exposure history after an update
+
+A Git update/rebuild does not insert optional historical examples into your database. Run `python3 scripts/dev.py manage seed_asset_issues --bundled`. The command now reports the exact retained/visible snapshot counts, target asset/IP and observation windows. If it prints **Exposure example SKIPPED**, the selected device has no imported primary IPv4 in the exercise range. For an existing Exchange case run `python3 scripts/dev.py example-exchange --inventory-only`, then repeat the seed. Otherwise import the current bundled inventory with `python3 scripts/dev.py manage sync_netbox --all` and repeat. A retained count with zero visible snapshots indicates current source/historical-scope policy; the seed preserves those decisions rather than granting access again. These are synthetic observations, separate from live Plum data.

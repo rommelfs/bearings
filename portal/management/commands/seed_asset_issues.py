@@ -89,6 +89,12 @@ class Command(BaseCommand):
             ),
             None,
         )
+        if not address:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Exposure example SKIPPED: {asset.name} has no imported primary IPv4 in 192.0.2.0/24. For an existing Exchange example run: python3 scripts/dev.py example-exchange --inventory-only; otherwise refresh the bundled inventory with: python3 scripts/dev.py manage sync_netbox --all. Then repeat this seed."
+                )
+            )
         if address:
             fixture, created = PlumInstance.objects.get_or_create(
                 name="SYNTHETIC Plum historical exercise",
@@ -144,6 +150,26 @@ class Command(BaseCommand):
                             }
                         },
                     )
+            rows = PlumSnapshot.objects.filter(
+                source=fixture, organization=source.organization, ip=address
+            ).order_by("window_start")
+            visible = plum.visible_snapshots(actor).filter(pk__in=rows).count()
+            self.stdout.write(
+                f"Historical Exposure: {rows.count()} snapshots retained, {visible} currently visible to {actor.username}; asset {asset.name}, IP {address}."
+            )
+            for row in rows:
+                self.stdout.write(
+                    f"  {row.window_start.isoformat()} → {row.window_stop.isoformat()} · {len(row.ports)} port observations"
+                )
+            if not visible:
+                self.stdout.write(
+                    self.style.WARNING(
+                        "History is retained but hidden by current source grants or historical scope. Review the policy; the seed does not reset it."
+                    )
+                )
+            self.stdout.write(
+                f"Open Exposure history and choose {source.organization.name} (slug: {source.organization.slug})."
+            )
         self.stdout.write(
-            "SYNTHETIC lifecycle issues ready; existing decisions preserved. Exposure windows added only for a mapped documentation IP. No scans, external writes, cases or notifications."
+            "SYNTHETIC lifecycle issues ready; existing decisions preserved. See the explicit Exposure result above. No scans, external writes, cases or notifications."
         )

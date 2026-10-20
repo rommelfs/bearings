@@ -63,7 +63,7 @@
       },
       {
         "title": "Compare Plum Island exposure observations over time with explicit coverage",
-        "body": "Implemented source/customer/IP/asset window comparisons preserving protocol/port/requested hostname. Shows newly/still observed, changed evidence, missing observations, unknown/filtered and explicit scan closure only. Earlier out-of-window first_seen withheld; co-observed tags never prove malware. Current scope/source revocation hides raw/derived evidence/counts. Mapped observations can create one durable reviewed exposure issue; no automatic affectedness, priority, outreach or scan. Synthetic real-browser example and contract tests; live national corpus and coverage certification remain open."
+        "body": "Implemented source/customer/IP/asset window comparisons preserving protocol/port/requested hostname. Shows newly/still observed, changed evidence, missing observations, unknown/filtered and explicit scan closure only. Earlier out-of-window first_seen withheld; co-observed tags never prove malware. Current scope/source revocation hides raw/derived evidence/counts. Mapped observations can create one durable reviewed exposure issue; no automatic affectedness, priority, outreach or scan. Synthetic real-browser example and contract tests; live national corpus and coverage certification remain open. Synthetic seed feedback now reports skip reasons, retained/visible snapshot counts and exact windows without resetting source or scope policy."
       }
     ]
   },
