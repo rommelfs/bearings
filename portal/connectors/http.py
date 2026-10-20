@@ -60,7 +60,7 @@ def approved_base(url, allow_private=False, *, proxy_dns=None):
     return url.rstrip("/")
 
 
-def request_json(method, url, **kwargs):
+def request_json(method, url, *, allow_list=False, **kwargs):
     try:
         with httpx.Client(timeout=15, follow_redirects=False) as client:
             with client.stream(method, url, **kwargs) as response:
@@ -73,7 +73,7 @@ def request_json(method, url, **kwargs):
                         raise ConnectorError("Upstream response exceeds 2 MB limit")
                     chunks.append(chunk)
                 data = json.loads(b"".join(chunks))
-                if not isinstance(data, dict):
+                if not isinstance(data, dict) and not (allow_list and isinstance(data, list)):
                     raise ConnectorError("Expected an upstream JSON object")
                 return data
     except (httpx.HTTPError, ValueError):

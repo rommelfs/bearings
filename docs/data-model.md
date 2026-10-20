@@ -23,3 +23,7 @@ Migrations are committed. Evidence/finding/time fields form the initial correlat
 ## Pinned intelligence and MONARC scenarios
 
 `SourceRecordRevision` preserves content-addressed CVE evidence. Operator-owned `MOSPSource` connections feed retained `MOSPRisk` catalog roots; `MOSPRiskRevision` pins a verified CC0 risk/asset-type/threat/general-weakness bundle. `RiskLink` joins an existing organization-scoped finding to a CVE revision and scenario revision, with author, reason and optional withdrawal history. Raw/derived visibility is always derived from the finding. Links do not mutate analyst applicability or imply a likelihood/impact/acceptance assessment. See [MOSP integration](integrations/mosp.md) for update/failure semantics and definition-only refresh limitations.
+
+## FlowIntel hand-off
+
+`FlowIntelInstance` is an operator-owned approved API/browser origin, credential reference and expected service organization; API/key/scope cannot be repointed after a preview exists. `FlowIntelCase` retains the immutable approved snapshot, correlation UUID, creator, durable attempt state, remote case ID/UUID and last-known workflow summary. Finding/instance and instance/remote-case pairs are unique. Four `FlowIntelTask` records retain step/correlation, durable attempt state and verified remote identity. These are integration records, not alternative applicability/remediation assessments. See the [guide](user-guide/flowintel.md) for uncertain-write recovery and retained-state limits.

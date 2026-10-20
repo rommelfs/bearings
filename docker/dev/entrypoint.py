@@ -14,7 +14,7 @@ def environment():
     os.environ["DJANGO_SECRET_KEY"] = (ROOT / "secrets/django_secret").read_text().strip()
     os.environ["SSL_CERT_FILE"] = str(ROOT / "trust/ca-bundle.pem")
     for path in (ROOT / "secrets").iterdir():
-        if re.fullmatch(r"NETBOX_[A-Z0-9_]*TOKEN", path.name):
+        if re.fullmatch(r"(?:NETBOX|FLOWINTEL)_[A-Z0-9_]*TOKEN", path.name):
             os.environ[path.name] = path.read_text().strip()
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
@@ -38,13 +38,20 @@ def main():
             config=str(ROOT / "secrets/connections.json"),
             password_file=str(ROOT / "secrets/demo_password"),
         )
+        if os.getenv("BEARINGS_FLOWINTEL") == "1":
+            call_command("setup_flowintel_lab")
     elif mode == "smoke":
         from docker.dev.smoke import main as smoke
 
         smoke()
+        if os.getenv("BEARINGS_FLOWINTEL") == "1":
+            from docker.dev.flowintel_smoke import main as flowintel_smoke
+
+            flowintel_smoke()
     elif mode == "worker":
         while True:
             call_command("process_jobs")
+            call_command("process_flowintel", all=True, due=True)
             from django.core.management import CommandError
 
             try:

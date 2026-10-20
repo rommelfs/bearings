@@ -32,10 +32,12 @@ def environment():
     return result
 
 
-def compose(mode, project):
+def compose(mode, project, flowintel=False):
     result = ["docker", "compose", "-p", project, "-f", str(ROOT / "compose.dev.yaml")]
     if mode == "bundled":
         result += ["-f", str(ROOT / "compose.netbox.yaml")]
+    if flowintel:
+        result += ["-f", str(ROOT / "compose.flowintel.yaml")]
     return result
 
 
@@ -140,11 +142,13 @@ def configure(args):
 
 
 def active():
-    return (
+    state = (
         json.loads(STATE.read_text())
         if STATE.exists()
         else {"mode": "bundled", "project": os.getenv("BEARINGS_DEV_PROJECT", "bearings-dev")}
     )
+    state.setdefault("flowintel", False)
+    return state
 
 
 def exchange_example(base, mode, *, inventory_only=False):
@@ -202,6 +206,12 @@ def main():
     commands = parser.add_subparsers(dest="action", required=True)
     up = commands.add_parser("up", help="Start the bundled lab, or use --external for an existing NetBox")
     up.add_argument("--external", action="store_true")
+    up.add_argument(
+        "--flowintel",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Include optional synthetic FlowIntel (preserved on subsequent up calls)",
+    )
     up.add_argument("--no-build", action="store_true")
     up.add_argument("--timeout", type=int, default=600)
     connect = commands.add_parser("configure", help="Configure an external NetBox without logging its token")
@@ -251,25 +261,43 @@ def main():
                 raise SystemExit("Run scripts/dev.py configure first; no external token or scope is guessed")
             config = json.loads(path.read_text())
             project += "-external-" + config["name"].removeprefix("external-")
-        target = {"mode": mode, "project": project}
+        flowintel = (
+            args.flowintel
+            if args.flowintel is not None
+            else (active()["flowintel"] if active()["mode"] == mode else False)
+        )
+        if flowintel and mode != "bundled":
+            raise SystemExit(
+                "The FlowIntel development profile requires bundled mode; external connections can be configured in platform administration"
+            )
+        if flowintel:
+            import sys
+
+            sys.path.insert(0, str(ROOT))
+            from scripts.flowintel_source import prepare_source
+
+            prepare_source()
+        target = {"mode": mode, "project": project, "flowintel": flowintel}
         if STATE.exists() and active() != target:
             old = active()
-            run(compose(old["mode"], old["project"]) + ["down"])
+            run(compose(old["mode"], old["project"], old.get("flowintel", False)) + ["down"])
             print("Previous lab stopped; its volumes and data were retained.")
         private_file(STATE, json.dumps(target))
         options = ["up", "-d", "--wait", "--wait-timeout", str(args.timeout)]
         if not args.no_build:
             options.append("--build")
-        run(compose(mode, project) + options)
+        run(compose(mode, project, flowintel) + options)
         if mode == "bundled":
-            run(compose(mode, project) + ["exec", "-T", "netbox-tls", "nginx", "-s", "reload"])
+            run(compose(mode, project, flowintel) + ["exec", "-T", "netbox-tls", "nginx", "-s", "reload"])
+        if flowintel:
+            run(compose(mode, project, flowintel) + ["exec", "-T", "flowintel-tls", "nginx", "-s", "reload"])
         print(
             "Bearings development stack started. Check connection health in the workspace; external availability is independent."
         )
         print("Use 'python3 scripts/dev.py credentials' to display the generated local login password.")
         return
     state = active()
-    base = compose(state["mode"], state["project"])
+    base = compose(state["mode"], state["project"], state.get("flowintel", False))
     if args.action == "example-exchange":
         exchange_example(base, state["mode"], inventory_only=args.inventory_only)
     elif args.action == "down":
@@ -321,6 +349,10 @@ def main():
         else:
             run(base + ["exec", "-T", "web", "/app/.venv/bin/python", "docker/dev/entrypoint.py", "smoke"])
     elif args.action == "credentials":
+        if state.get("flowintel"):
+            print(
+                "Bundled FlowIntel logins: platform-admin@example.com and circl-analyst@example.com. Existing passwords are unchanged."
+            )
         print("LOCAL DEVELOPMENT ONLY: Bearings users platform-admin, company-admin, circl-analyst.")
         if state["mode"] == "bundled":
             print(

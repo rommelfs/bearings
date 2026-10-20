@@ -3,6 +3,7 @@
 import os
 import socket
 import subprocess
+import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -28,6 +29,23 @@ def main():
         "bearings-development",
         ".",
     ]
+    if "--flowintel" in sys.argv:
+        root = Path(__file__).resolve().parents[1]
+        sys.path.insert(0, str(root))
+        from scripts.flowintel_source import prepare_source
+
+        source = prepare_source()
+        args = args[:-3] + [
+            "--build-context",
+            "flowintel=" + str(source),
+            "--build-context",
+            "flowintel-conf=" + str(source / "conf"),
+            "-f",
+            "docker/flowintel/Dockerfile",
+            "-t",
+            "bearings-flowintel",
+            ".",
+        ]
     config_path = "/workspace/.cache/docker"
     Path(config_path).mkdir(parents=True, exist_ok=True)
     runenv = dict(os.environ, DOCKER_CONFIG=config_path)

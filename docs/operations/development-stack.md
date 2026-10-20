@@ -112,3 +112,7 @@ After bundled startup run `python3 scripts/dev.py manage seed_notification_examp
 ### Missing screenshot data after updating
 
 Screenshots are a populated test database, not a database distributed by Git. For an existing bundled stack, run `python3 scripts/dev.py up` to rebuild application code, then `python3 scripts/dev.py manage sync_netbox --all` for an immediate GET-only projection refresh. Optional Log4j contacts/reviews require `python3 scripts/dev.py manage seed_notification_example --bundled`; inbox messages require preview and approval. The default 15-minute import interval can otherwise delay new NetBox facts. [Troubleshooting and exact filters](../user-guide/notifications.md#screenshot-data-missing-after-an-update) also cover the separate Exchange case, existing policies and native versus Docker databases.
+
+### Optional bundled FlowIntel
+
+`python3 scripts/dev.py up --flowintel` adds a compact case-workflow build of pinned upstream FlowIntel, isolated PostgreSQL/Valkey, generated credentials and a separate verified HTTPS gateway. The selection is retained on subsequent `up` calls. `up --no-flowintel` stops the optional services and pauses managed work without deleting volumes or affecting Bearings/NetBox. The native-architecture source build excludes PDF/AI/external analysis services; it uses a separate hash-locked dependency set and preserves upstream source/license notices. See the [FlowIntel guide](../user-guide/flowintel.md) for login identities, CA trust, Exchange hand-off, uncertain writes, API-only alternatives and actual limits.

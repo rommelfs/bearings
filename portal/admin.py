@@ -1,7 +1,15 @@
 from django.contrib import admin
 from django.db import transaction
 from .access import audit
-from .models import AuditEvent, InventorySource, Membership, NetBoxInstance, Organization, MOSPSource
+from .models import (
+    AuditEvent,
+    InventorySource,
+    Membership,
+    NetBoxInstance,
+    Organization,
+    MOSPSource,
+    FlowIntelInstance,
+)
 
 
 class PlatformAdmin(admin.ModelAdmin):
@@ -137,5 +145,30 @@ class MOSPAdmin(PlatformAdmin):
                 "operator.configuration_changed",
                 current.pk,
                 model=current._meta.label,
+                fields=form.changed_data,
+            )
+
+
+@admin.register(FlowIntelInstance)
+class FlowIntelAdmin(PlatformAdmin):
+    list_display = ["name", "base_url", "service_org_id", "enabled"]
+
+    def save_model(self, request, obj, form, change):
+        with transaction.atomic():
+            if change:
+                current = FlowIntelInstance.objects.select_for_update().get(pk=obj.pk)
+                for field in form.changed_data:
+                    setattr(current, field, getattr(obj, field))
+                current.full_clean()
+                current.save(update_fields=form.changed_data)
+            else:
+                obj.full_clean()
+                obj.save()
+            audit(
+                request.user,
+                None,
+                "operator.configuration_changed",
+                obj.pk,
+                model=obj._meta.label,
                 fields=form.changed_data,
             )

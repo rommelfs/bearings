@@ -612,3 +612,131 @@ class NotificationDeliveryFinding(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["delivery", "finding"], name="unique_notification_finding")
         ]
+
+
+class FlowIntelInstance(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+    base_url = models.URLField(max_length=250)
+    browser_url = models.URLField(max_length=250, blank=True)
+    bearings_url = models.URLField(
+        max_length=250, blank=True, help_text="Bearings browser origin for case links"
+    )
+    token_env_var = models.CharField(max_length=100)
+    service_org_id = models.PositiveIntegerField(
+        help_text="Expected CIRCL/service organization ID in FlowIntel"
+    )
+    enabled = models.BooleanField(default=True)
+    allow_private = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def available(self):
+        import os
+
+        return self.enabled and not (
+            os.getenv("BEARINGS_DEV_STACK") == "1"
+            and self.name == "bundled-flowintel"
+            and os.getenv("BEARINGS_FLOWINTEL") != "1"
+        )
+
+    def clean(self):
+        import re
+        from urllib.parse import urlsplit
+        from .connectors.http import ConnectorError, validate_base
+
+        for field in ["base_url", "browser_url", "bearings_url"]:
+            value = getattr(self, field)
+            if not value:
+                continue
+            try:
+                parsed = urlsplit(value)
+                if (
+                    field == "bearings_url"
+                    and settings.DEBUG
+                    and parsed.scheme == "http"
+                    and parsed.hostname in {"localhost", "127.0.0.1"}
+                    and not (parsed.username or parsed.password or parsed.query or parsed.fragment)
+                ):
+                    parsed.port
+                else:
+                    validate_base(value)
+            except (ConnectorError, ValueError):
+                raise ValidationError({field: "Use an approved credential-free HTTPS URL"}) from None
+            setattr(self, field, value.rstrip("/"))
+        if not self.base_url or not self.service_org_id:
+            raise ValidationError("A FlowIntel endpoint and positive service organization ID are required")
+        if not re.fullmatch(r"FLOWINTEL_[A-Z0-9_]*TOKEN", self.token_env_var):
+            raise ValidationError({"token_env_var": "Use a FLOWINTEL_*TOKEN variable name, never its value"})
+        if self.pk and FlowIntelCase.objects.filter(instance_id=self.pk).exists():
+            old = FlowIntelInstance.objects.get(pk=self.pk)
+            if any(
+                getattr(old, field) != getattr(self, field)
+                for field in ["base_url", "token_env_var", "service_org_id"]
+            ):
+                raise ValidationError(
+                    "An instance with case identities cannot be repointed; configure a new instance"
+                )
+
+
+class FlowIntelCase(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    instance = models.ForeignKey(FlowIntelInstance, on_delete=models.PROTECT)
+    finding = models.ForeignKey(Finding, on_delete=models.PROTECT, related_name="flowintel_cases")
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    snapshot = models.JSONField()
+    fingerprint = models.CharField(max_length=64)
+    title = models.CharField(max_length=240)
+    description = models.TextField()
+    deadline = models.DateField(null=True, blank=True)
+    reason = models.TextField()
+    state = models.CharField(max_length=20, default="draft")
+    remote_id = models.PositiveIntegerField(null=True, blank=True)
+    remote_uuid = models.UUIDField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    attempted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    last_attempt = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=250, blank=True)
+    summary = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["instance", "finding"], name="unique_flowintel_finding"),
+            models.UniqueConstraint(
+                fields=["instance", "remote_id"],
+                condition=Q(remote_id__isnull=False),
+                name="unique_flowintel_remote_case",
+            ),
+        ]
+
+    @property
+    def case_url(self):
+        from .connectors.http import validate_base, ConnectorError
+
+        if not self.remote_id or not self.remote_uuid:
+            return ""
+        try:
+            base = validate_base(self.instance.browser_url or self.instance.base_url).geturl().rstrip("/")
+        except ConnectorError:
+            return ""
+        return f"{base}/case/{self.remote_id}"
+
+
+class FlowIntelTask(models.Model):
+    case = models.ForeignKey(FlowIntelCase, on_delete=models.PROTECT, related_name="tasks")
+    step = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=240)
+    description = models.TextField()
+    state = models.CharField(max_length=20, default="pending")
+    remote_id = models.PositiveIntegerField(null=True, blank=True)
+
+    @property
+    def label(self):
+        return self.title.rsplit(" [", 1)[0]
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["case", "step"], name="unique_flowintel_step")]

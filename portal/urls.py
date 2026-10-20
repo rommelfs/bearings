@@ -1,7 +1,25 @@
 from django.urls import path
-from . import views, intelligence_views, notification_views
+from . import views, intelligence_views, notification_views, flowintel_views
 
 urlpatterns = [
+    path(
+        "organizations/<slug:slug>/findings/<int:pk>/flowintel/new/",
+        flowintel_views.new_case,
+        name="flowintel-new",
+    ),
+    path(
+        "organizations/<slug:slug>/flowintel/<uuid:pk>/", flowintel_views.case_detail, name="flowintel-case"
+    ),
+    path(
+        "organizations/<slug:slug>/flowintel/<uuid:pk>/approve/",
+        flowintel_views.approve_case,
+        name="flowintel-approve",
+    ),
+    path(
+        "organizations/<slug:slug>/flowintel/<uuid:pk>/refresh/",
+        flowintel_views.refresh_case,
+        name="flowintel-refresh",
+    ),
     path("notifications/", notification_views.center, name="notifications"),
     path("notifications/batches/<uuid:pk>/", notification_views.batch_detail, name="notification-batch"),
     path("notifications/batches/<uuid:pk>/approve/", notification_views.approve, name="notification-approve"),

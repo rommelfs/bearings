@@ -271,3 +271,39 @@ class ExchangePlacementHelperTests(TestCase):
             with self.assertRaisesMessage(SystemExit, "No confirmed"):
                 dev.exchange_example(["docker", "compose"], "bundled", inventory_only=True)
             self.assertEqual(run.call_count, 1)
+
+
+class FlowIntelStarterTests(TestCase):
+    def test_flowintel_compose_is_explicit_and_keeps_netbox_overlay(self):
+        plain = dev.compose("bundled", "bearings-test")
+        combined = dev.compose("bundled", "bearings-test", True)
+        self.assertNotIn(str(dev.ROOT / "compose.flowintel.yaml"), plain)
+        self.assertIn(str(dev.ROOT / "compose.netbox.yaml"), combined)
+        self.assertEqual(combined[-1], str(dev.ROOT / "compose.flowintel.yaml"))
+
+    def test_old_state_defaults_to_disabled_without_changing_saved_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.json"
+            text = json.dumps({"mode": "bundled", "project": "retained"})
+            path.write_text(text)
+            with patch.object(dev, "STATE", path):
+                self.assertFalse(dev.active()["flowintel"])
+            self.assertEqual(path.read_text(), text)
+
+    def test_cached_upstream_source_with_local_changes_is_not_overwritten(self):
+        from scripts import flowintel_source
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / ".local/dev-stack/flowintel-source"
+            (source / ".git").mkdir(parents=True)
+            with (
+                patch.object(flowintel_source, "ROOT", root),
+                patch.object(
+                    flowintel_source.subprocess, "run", return_value=argparse.Namespace(stdout=" M README.md")
+                ) as run,
+            ):
+                with self.assertRaisesMessage(SystemExit, "local changes"):
+                    flowintel_source.prepare_source()
+                self.assertEqual(run.call_count, 1)
+                self.assertNotIn("checkout", run.call_args.args[0])

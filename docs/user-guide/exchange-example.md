@@ -80,3 +80,5 @@ The MONARC link remains a review hypothesis. Risk owner, likelihood, business im
 ## Locate the actual example asset
 
 The [asset triage guide](asset-triage.md) describes the new severity cards, search/filters, linked asset details and the guarded `python3 scripts/dev.py example-exchange` helper. For an already seeded example, `example-exchange --inventory-only` adds verified synthetic NetBox IP/DNS/datacenter/rack context without another public CVE lookup. Source severity now sorts before asset criticality; the earlier criticality-only ordering has been superseded.
+
+The optional [FlowIntel workflow](flowintel.md) adds a reviewed private case, follow-up tasks and status feedback for the existing finding. It does not resolve findings or send notifications automatically.

@@ -32,6 +32,73 @@ def openssl(*args):
     subprocess.run(["openssl", *args], check=True, capture_output=True)
 
 
+def initialize_flowintel():
+    """Separate keys and DB credentials; reuse only the public lab CA trust."""
+    directory = ROOT / "flowintel-secrets"
+    directory.mkdir(parents=True, exist_ok=True)
+    for name in ["db_password", "secret_key"]:
+        secret(directory / name)
+    if not (directory / "demo_password").exists():
+        write(directory / "demo_password", (ROOT / "secrets/demo_password").read_text())
+        (directory / "demo_password").chmod(0o640)
+    tls = ROOT / "flowintel-tls"
+    tls.mkdir(parents=True, exist_ok=True)
+    cert, key = tls / "flowintel.crt", tls / "flowintel.key"
+    ca = ROOT / "tls/ca.crt"
+    renew = not cert.exists()
+    if not renew:
+        renew = any(
+            subprocess.run(["openssl", *args], capture_output=True).returncode
+            for args in [
+                ["x509", "-in", str(cert), "-noout", "-checkend", "1209600"],
+                ["verify", "-CAfile", str(ca), str(cert)],
+                ["x509", "-in", str(cert), "-noout", "-checkhost", "flowintel.bearings.test"],
+            ]
+        )
+    if renew:
+        config = ROOT / "ca-private/flowintel.cnf"
+        config.write_text(
+            "[req]\ndistinguished_name=dn\nprompt=no\n[dn]\nCN=flowintel.bearings.test\n[server]\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:flowintel.bearings.test,DNS:localhost,DNS:host.docker.internal,IP:127.0.0.1,IP:::1\n"
+        )
+        csr = ROOT / "ca-private/flowintel.csr"
+        openssl(
+            "req",
+            "-new",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-keyout",
+            str(key),
+            "-out",
+            str(csr),
+            "-config",
+            str(config),
+        )
+        key.chmod(0o600)
+        openssl(
+            "x509",
+            "-req",
+            "-in",
+            str(csr),
+            "-CA",
+            str(ca),
+            "-CAkey",
+            str(ROOT / "ca-private/ca.key"),
+            "-CAcreateserial",
+            "-out",
+            str(cert),
+            "-days",
+            "397",
+            "-sha256",
+            "-extfile",
+            str(config),
+            "-extensions",
+            "server",
+        )
+    openssl("verify", "-CAfile", str(ca), str(cert))
+    write(tls / "ca.crt", ca.read_text(), public=True)
+
+
 def main():
     mode = os.environ.get("BEARINGS_NETBOX_MODE", "bundled")
     for name in ["secrets", "trust", "netbox-secrets", "tls", "ca-private"]:
@@ -132,6 +199,10 @@ def main():
             ca = (directory / "ca.crt").read_bytes()
     else:
         raise ValueError("Unknown development NetBox mode")
+    if os.environ.get("BEARINGS_FLOWINTEL") == "1":
+        if mode != "bundled":
+            raise ValueError("The bundled FlowIntel profile requires the bundled NetBox lab")
+        initialize_flowintel()
     write(ROOT / "trust/ca-bundle.pem", Path(certifi.where()).read_text() + "\n" + ca.decode(), public=True)
     if ca:
         write(ROOT / "trust/netbox-ca.crt", ca.decode(), public=True)

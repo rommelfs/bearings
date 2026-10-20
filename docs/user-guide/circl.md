@@ -17,3 +17,5 @@ Use `query_netbox --all` or repeated `--source` UUIDs to query multiple instance
 Inventory refresh is now available: organization editors can queue **Refresh inventory** without changing connector scope; the worker performs GET-only imports. Operators can run `sync_netbox --all` or repeated `--source UUID` arguments, and configure periodic intervals in source administration. Review freshness, import errors and retained missing-object notices independently from write health. Missing objects can reflect reassignment or changed upstream visibility, not just deletion. The inventory API uses 100-object pages with `?page=N`.
 
 See the [notification workflow](notifications.md) for product/severity filters, templates, reviewed bulk preparation, local mail output and company acknowledgment.
+
+The optional [FlowIntel workflow](flowintel.md) adds a reviewed private case, follow-up tasks and status feedback for the existing finding. It does not resolve findings or send notifications automatically.

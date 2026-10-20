@@ -1,0 +1,130 @@
+# Optional native-architecture case-workflow build of pinned upstream FlowIntel.
+x-flowintel: &flowintel
+  image: bearings-flowintel
+  build:
+    context: .
+    dockerfile: docker/flowintel/Dockerfile
+    additional_contexts:
+      flowintel: ./.local/dev-stack/flowintel-source
+      flowintel-conf: ./.local/dev-stack/flowintel-source/conf
+  entrypoint: ["/home/flowintel/venv/bin/python", "/adapter/start.py"]
+  working_dir: /home/flowintel/app
+  environment: &flowintel-env
+    BEARINGS_FLOWINTEL_LAB: "1"
+    FLOWINTEL_APP_ENV: production
+    DB_DIALECT: postgresql
+    DB_DRIVER: psycopg2
+    DB_HOST: flowintel-db
+    DB_PORT: "5432"
+    DB_USER: flowintel
+    DB_NAME: flowintel
+    VALKEY_IP: flowintel-redis
+    VALKEY_PORT: "6379"
+    ADMIN_FIRST_NAME: Bearings
+    ADMIN_LAST_NAME: SYNTHETIC
+    ADMIN_MAIL: platform-admin@example.com
+    BOT_MAIL: flowintel-bot@example.invalid
+    BEARINGS_FLOWINTEL_BROWSER_URL: https://localhost:${FLOWINTEL_PORT:-9443}
+    BEARINGS_BROWSER_URL: http://localhost:${BEARINGS_PORT:-8000}
+  volumes: &flowintel-volumes
+    - flowintel-secrets:/run/flowintel:ro
+    - flowintel-data:/var/lib/bearings-flowintel
+    - ./docker/flowintel/start.py:/adapter/start.py:ro
+    - ./docker/flowintel/config.py:/home/flowintel/app/conf/config.py:ro
+    - ./docker/flowintel/config_module.py:/home/flowintel/app/conf/config_module.py:ro
+services:
+  dev-init:
+    environment:
+      BEARINGS_FLOWINTEL: "1"
+    volumes:
+      - flowintel-secrets:/state/flowintel-secrets
+      - flowintel-tls:/state/flowintel-tls
+  flowintel-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: flowintel
+      POSTGRES_DB: flowintel
+      POSTGRES_PASSWORD_FILE: /run/flowintel/db_password
+    volumes:
+      - flowintel-postgres:/var/lib/postgresql/data
+      - flowintel-secrets:/run/flowintel:ro
+    depends_on:
+      dev-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowintel -d flowintel"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  flowintel-redis:
+    image: valkey/valkey:9.1-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  flowintel-init:
+    <<: *flowintel
+    user: root
+    command: ["init"]
+    volumes:
+      - flowintel-secrets:/run/flowintel:ro
+      - flowintel-data:/var/lib/bearings-flowintel
+      - dev-secrets:/run/bearings/secrets
+      - ./docker/flowintel/start.py:/adapter/start.py:ro
+      - ./docker/flowintel/config.py:/home/flowintel/app/conf/config.py:ro
+      - ./docker/flowintel/config_module.py:/home/flowintel/app/conf/config_module.py:ro
+    depends_on:
+      flowintel-db:
+        condition: service_healthy
+      flowintel-redis:
+        condition: service_healthy
+  flowintel:
+    <<: *flowintel
+    user: "10000:0"
+    command: ["web"]
+    depends_on:
+      flowintel-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/home/flowintel/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7006/account/login', timeout=5)"]
+      interval: 5s
+      timeout: 6s
+      start_period: 15s
+      retries: 30
+  flowintel-tls:
+    image: nginx:1.28-alpine
+    volumes:
+      - flowintel-tls:/etc/nginx/certs:ro
+      - ./docker/flowintel/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:${FLOWINTEL_PORT:-9443}:443"
+    networks:
+      default:
+        aliases: [flowintel.bearings.test]
+    depends_on:
+      flowintel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --cacert /etc/nginx/certs/ca.crt --fail --silent --show-error --max-time 5 https://127.0.0.1/account/login > /dev/null"]
+      interval: 5s
+      timeout: 6s
+      retries: 20
+  bearings-init:
+    environment:
+      BEARINGS_FLOWINTEL: "1"
+    depends_on:
+      flowintel-tls:
+        condition: service_healthy
+  web:
+    environment:
+      BEARINGS_FLOWINTEL: "1"
+  worker:
+    environment:
+      BEARINGS_FLOWINTEL: "1"
+volumes:
+  flowintel-secrets:
+  flowintel-tls:
+  flowintel-postgres:
+  flowintel-data:

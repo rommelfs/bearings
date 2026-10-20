@@ -41,6 +41,9 @@ def finding_page(request, org):
     page = Paginator(findings, 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
+        from .flowintel_views import decorate
+
+        decorate(finding, request.user)
         finding.vulnerability_url = vulnerability_url(finding)
         finding.links = list(finding.risk_links.all())
         for link in finding.links:

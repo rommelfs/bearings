@@ -126,7 +126,7 @@ Live vulnerability retrieval is opt-in through the inventory UI: select an insta
 - [Architecture](docs/architecture.md), [data model](docs/data-model.md), [authorization](docs/authorization.md), [correlation](docs/correlation.md)
 - [NetBox](docs/integrations/netbox.md), [Vulnerability-Lookup](docs/integrations/vulnerability-lookup.md), [MISP](docs/integrations/misp.md), [Plum Island](docs/integrations/plum-island.md)
 - [Notification workflow](docs/user-guide/notifications.md) · [Synthetic asset triage](docs/user-guide/asset-triage.md)
-- [FlowIntel integration assessment](docs/integrations/flowintel.md) — optional case/task pilot, not implemented
+- [FlowIntel setup and workflow](docs/user-guide/flowintel.md) · [integration design](docs/integrations/flowintel.md)
 - [Company guide](docs/user-guide/companies.md), [CIRCL guide](docs/user-guide/circl.md)
 - [Development stack](docs/operations/development-stack.md), [deployment](docs/operations/deployment.md), [backup/restore](docs/operations/backup-restore.md), [synchronization](docs/operations/synchronization.md), [incident handling](docs/operations/incidents.md)
 - [Licensing](docs/licensing.md), [public-license decision](docs/decisions/0002-license-and-public-development.md)
