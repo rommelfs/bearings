@@ -16,7 +16,13 @@ A standalone organization inventory and evidence review portal intended for CIRC
 
 - Public MOSP/MONARC CC0 risk catalogs, justified organization-local CVE-to-scenario links, pinned evidence revisions and a joined Asset → Vulnerability → Risk view. See [setup and workflow](docs/integrations/mosp.md).
 
-**Not yet implemented:** MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
+- Asset issue queue for CVEs, EOL, support, licenses, warranty, maintenance and exposure, with separate evidence/priority/deadlines, pinned MOSP scenario links and preserved original CVE workflows. [Lifecycle exercise](docs/user-guide/asset-issues.md).
+- Reviewed [RT/RTIR 5.x REST2 ticket adapter](docs/integrations/rt-rtir.md) alongside the existing optional bundled [FlowIntel](docs/user-guide/flowintel.md), with uncertain-write reconciliation and separate workflow feedback.
+- Bounded [Plum Island historical imports and exposure comparisons](docs/integrations/plum-island.md), current/time-valid customer scoping and review cues. Synthetic fixtures are separate from live observations; deployed-instance access remains unvalidated.
+- [Bulk notifications](docs/user-guide/notifications.md) for CVE and lifecycle/exposure reviews, constrained templates, draft subscriptions, explicit approval, file delivery by default, opt-in TLS SMTP, inbox and acknowledgments.
+- [Read-only company-instance federation pilot](docs/integrations/federation.md): expiring explicit company grants, bounded snapshots, provenance/freshness and retained reports, separate from authoritative local inventory.
+
+**Not yet implemented:** MISP ingestion, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, scan coordination, production bounce/escalation management, resumable/delta federation, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
 
 See [asset location, source-severity filters and linked analyst triage](docs/user-guide/asset-triage.md).
 

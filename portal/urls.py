@@ -1,7 +1,48 @@
 from django.urls import path
-from . import views, intelligence_views, notification_views, flowintel_views
+from . import (
+    views,
+    intelligence_views,
+    notification_views,
+    flowintel_views,
+    issue_views,
+    rt_views,
+    plum_views,
+    federation,
+    federation_views,
+)
 
 urlpatterns = [
+    path("api/v1/federation/export/", federation.export, name="federation-export"),
+    path("companies/", federation_views.center, name="companies"),
+    path(
+        "notifications/subscriptions/<uuid:pk>/toggle/",
+        notification_views.toggle_subscription,
+        name="notification-subscription-toggle",
+    ),
+    path("exposure/", plum_views.center, name="plum"),
+    path("organizations/<slug:slug>/exposure/import/", plum_views.upload, name="plum-import"),
+    path("organizations/<slug:slug>/exposure/<uuid:pk>/", plum_views.detail, name="plum-snapshot"),
+    path("organizations/<slug:slug>/exposure/<uuid:pk>/review/", plum_views.review, name="plum-review"),
+    path("api/v1/organizations/<slug:slug>/exposure/<uuid:pk>/", plum_views.evidence, name="plum-evidence"),
+    path("organizations/<slug:slug>/issues/<uuid:pk>/rt/new/", rt_views.new, name="rt-new"),
+    path("organizations/<slug:slug>/rt/<uuid:pk>/", rt_views.detail, name="rt-ticket"),
+    path("organizations/<slug:slug>/rt/<uuid:pk>/action/", rt_views.action, name="rt-action"),
+    path("issues/", issue_views.board, name="issues"),
+    path("organizations/<slug:slug>/issues/new/", issue_views.create, name="issue-new"),
+    path("organizations/<slug:slug>/issues/<uuid:pk>/", issue_views.detail, name="issue"),
+    path("organizations/<slug:slug>/issues/<uuid:pk>/edit/", issue_views.edit, name="issue-edit"),
+    path("organizations/<slug:slug>/issues/<uuid:pk>/risk/", issue_views.add_risk, name="issue-risk-add"),
+    path(
+        "organizations/<slug:slug>/issues/<uuid:pk>/risk/<int:link_pk>/withdraw/",
+        issue_views.withdraw_risk,
+        name="issue-risk-withdraw",
+    ),
+    path("api/v1/organizations/<slug:slug>/issues/", issue_views.api_list, name="api-issues"),
+    path(
+        "api/v1/organizations/<slug:slug>/issues/<uuid:pk>/evidence/",
+        issue_views.api_evidence,
+        name="issue-evidence",
+    ),
     path(
         "organizations/<slug:slug>/findings/<int:pk>/flowintel/new/",
         flowintel_views.new_case,

@@ -13,6 +13,12 @@ class ConnectorError(Exception):
     pass
 
 
+class UpstreamHTTPError(ConnectorError):
+    def __init__(self, status_code):
+        self.status_code = status_code
+        super().__init__(f"Upstream HTTP {status_code}; no data removed")
+
+
 def validate_base(url):
     try:
         p = urlsplit(url)
@@ -65,7 +71,7 @@ def request_json(method, url, *, allow_list=False, **kwargs):
         with httpx.Client(timeout=15, follow_redirects=False) as client:
             with client.stream(method, url, **kwargs) as response:
                 if response.status_code >= 300:
-                    raise ConnectorError(f"Upstream HTTP {response.status_code}; no data removed")
+                    raise UpstreamHTTPError(response.status_code)
                 chunks, size = [], 0
                 for chunk in response.iter_bytes():
                     size += len(chunk)

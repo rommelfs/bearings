@@ -62,14 +62,19 @@ class InstallationForm(forms.ModelForm):
             "edition",
             "build",
             "is_operating_system",
+            "component_type",
         ]
 
     def __init__(self, *args, organization=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["component_type"].required = False
         if organization:
             self.fields["existing_product"].queryset = Product.objects.filter(
                 organization=organization
             ).order_by("name")
+
+    def clean_component_type(self):
+        return self.cleaned_data.get("component_type") or "software"
 
     def clean(self):
         data = super().clean()

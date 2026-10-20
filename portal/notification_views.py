@@ -1,13 +1,23 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404
+from django.db import transaction
+from django.db.models import F, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from .access import audit, audit_operator_access, can_edit, is_analyst, organizations_for, require
-from .models import NotificationBatch, NotificationDelivery, NotificationReceipt
+from .models import (
+    AssetIssue,
+    NotificationBatch,
+    NotificationDelivery,
+    NotificationReceipt,
+    NotificationSubscription,
+)
+from .issues import visible_issues
 from .notifications import (
     DEFAULT_BODY,
     DEFAULT_SUBJECT,
@@ -17,6 +27,7 @@ from .notifications import (
     candidates,
     eligible_contacts,
     preview_batch,
+    scoped_organizations,
 )
 
 
@@ -26,6 +37,7 @@ def center(request):
     defaults = {
         "mode": "circl" if operator else "company",
         "severity": "high",
+        "domain": "vulnerabilities",
         "sort": "severity",
         "subject_template": DEFAULT_SUBJECT,
         "body_template": DEFAULT_BODY,
@@ -46,10 +58,31 @@ def center(request):
             **{
                 k: request.GET[k]
                 for k in request.GET
-                if k in defaults or k in ["organization", "product", "cve", "assessment"]
+                if k in defaults
+                or k
+                in ["organization", "product", "cve", "assessment", "domain", "kind", "subscription_name"]
             },
         }
     )
+    if data.get("domain") == "asset_issues":
+        data = data.copy()
+        data.setdefault("subject_template", "[Bearings] {{ item_count }} asset issues · {{ organization }}")
+        if data.get("subject_template") == DEFAULT_SUBJECT or (
+            request.method != "POST" and "subject_template" not in request.GET
+        ):
+            data["subject_template"] = "[Bearings] {{ item_count }} asset issues · {{ organization }}"
+        if data.get("body_template") == DEFAULT_BODY or (
+            request.method != "POST" and "body_template" not in request.GET
+        ):
+            data["body_template"] = (
+                "Hello {{ contact_name }},\n\n{{ audience }}\n\n{{ items }}\n\nPlease review the evidence, assign an owner, plan the next action and acknowledge this message in Bearings.\n"
+            )
+    if settings.NOTIFICATION_TRANSPORT == "smtp" and data.get("body_template") == DEFAULT_BODY:
+        data = data.copy()
+        data["body_template"] = DEFAULT_BODY.replace(
+            "This is a local development message; no external delivery or compromise is asserted.",
+            "Please acknowledge receipt in Bearings. This message does not assert compromise.",
+        )
     form = NotificationForm(request.user, data)
     matches, groups, total = [], [], 0
     if form.is_valid():
@@ -63,6 +96,20 @@ def center(request):
                 seen.add(f.organization_id)
                 audit_operator_access(request.user, f.organization)
                 groups.append({"org": f.organization, "ready": eligible_contacts(f.organization).count()})
+        if request.method == "POST" and request.POST.get("action") == "subscribe":
+            from . import subscriptions
+
+            try:
+                with transaction.atomic():
+                    row = subscriptions.create(request.user, form)
+                    subscriptions.prepare(row.pk)
+                messages.success(
+                    request,
+                    "Subscription enabled. Changed reviews prepare drafts; every message still requires approval.",
+                )
+                return redirect("notifications")
+            except ValidationError as exc:
+                form.add_error(None, exc)
         if request.method == "POST" and request.POST.get("action") == "preview":
             try:
                 batch = preview_batch(
@@ -82,8 +129,14 @@ def center(request):
     inbox = []
     # Apply current redistribution policy before pagination, including its navigation metadata.
     inbox_page = Paginator(
-        NotificationDelivery.objects.filter(organization__in=inbox_orgs, status="filed")
+        NotificationDelivery.objects.filter(organization__in=inbox_orgs, status__in=["filed", "accepted"])
         .exclude(findings__record__shareable=False)
+        .exclude(
+            issues__in=AssetIssue.objects.exclude(
+                pk__in=visible_issues(request.user).filter(shareable=True, operator_only=False)
+            )
+        )
+        .exclude(Q(issues__isnull=False) & ~Q(issues__organization_id=F("organization_id")))
         .select_related("organization", "batch")
         .order_by("-filed_at", "-pk"),
         25,
@@ -103,6 +156,17 @@ def center(request):
         if all(authorized_delivery(request.user, d) for d in deliveries):
             batch.recipient_count = len(deliveries)
             recent_batches.append(batch)
+    subscriptions = [
+        row
+        for row in NotificationSubscription.objects.filter(creator=request.user).select_related(
+            "organization", "last_batch"
+        )
+        if (
+            scoped_organizations(request.user, row.mode).filter(pk=row.organization_id).exists()
+            if row.organization_id
+            else scoped_organizations(request.user, row.mode).exists()
+        )
+    ]
     return render(
         request,
         "portal/notifications.html",
@@ -114,6 +178,8 @@ def center(request):
             "inbox": inbox,
             "inbox_page": inbox_page,
             "recent_batches": recent_batches,
+            "subscriptions": subscriptions,
+            "issue_domain": form.is_valid() and form.cleaned_data.get("domain") == "asset_issues",
         },
     )
 
@@ -156,7 +222,7 @@ def approve(request, pk):
         approve_local(request.user, batch.pk, selected)
         messages.success(
             request,
-            "Approval recorded. See each recipient result below. Filed means local file only; uncertain attempts require investigation and are not retried.",
+            "Approval recorded. Filed means local file; accepted means the SMTP relay accepted the message, not confirmed delivery. Uncertain attempts require investigation and are not retried.",
         )
     except (ValidationError, ValueError) as exc:
         messages.error(
@@ -173,7 +239,7 @@ def acknowledge(request, pk):
         NotificationDelivery.objects.select_related("organization"),
         pk=pk,
         organization__in=organizations_for(request.user),
-        status="filed",
+        status__in=["filed", "accepted"],
     )
     require(can_edit(request.user, d.organization))
     if not authorized_delivery(request.user, d):
@@ -186,4 +252,14 @@ def acknowledge(request, pk):
     messages.success(
         request, "Receipt acknowledged. Finding assessment and remediation status are unchanged."
     )
+    return redirect("notifications")
+
+
+@login_required
+@require_POST
+def toggle_subscription(request, pk):
+    row = get_object_or_404(NotificationSubscription, pk=pk, creator=request.user)
+    row.enabled = not row.enabled
+    row.save(update_fields=["enabled"])
+    audit(request.user, row.organization, "notification.subscription_toggled", row.pk, enabled=row.enabled)
     return redirect("notifications")

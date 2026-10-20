@@ -14,7 +14,7 @@ def environment():
     os.environ["DJANGO_SECRET_KEY"] = (ROOT / "secrets/django_secret").read_text().strip()
     os.environ["SSL_CERT_FILE"] = str(ROOT / "trust/ca-bundle.pem")
     for path in (ROOT / "secrets").iterdir():
-        if re.fullmatch(r"(?:NETBOX|FLOWINTEL)_[A-Z0-9_]*TOKEN", path.name):
+        if re.fullmatch(r"(?:NETBOX|FLOWINTEL|RT|PLUM|FEDERATION)_[A-Z0-9_]*TOKEN", path.name):
             os.environ[path.name] = path.read_text().strip()
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
@@ -52,6 +52,8 @@ def main():
         while True:
             call_command("process_jobs")
             call_command("process_flowintel", all=True, due=True)
+            call_command("process_rt_tickets", all=True, due=True)
+            call_command("prepare_notifications", due=True)
             from django.core.management import CommandError
 
             try:

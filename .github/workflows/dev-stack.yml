@@ -43,12 +43,15 @@ jobs:
         run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} --timeout 900
       - name: Exercise HTTPS, scoped queries, portal writes and recovery
         run: python3 scripts/dev.py smoke
+      - name: Prepare bounded synthetic lifecycle and exposure exercise
+        run: python3 scripts/dev.py manage seed_asset_issues --bundled
       - name: Stop without deleting data
         run: python3 scripts/dev.py down
       - name: Restart retained volumes and query
         run: |
           python3 scripts/dev.py up --no-build --timeout 300
           python3 scripts/dev.py query
+          python3 scripts/dev.py manage seed_asset_issues --bundled
       - name: Verify retained FlowIntel cases and task identities
         if: matrix.flowintel
         run: python3 scripts/dev.py smoke

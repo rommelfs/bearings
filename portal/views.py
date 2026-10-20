@@ -421,6 +421,9 @@ def api_inventory(request, slug):
                             "product": i.product.name,
                             "identifier": i.product.identifier,
                             "version": i.version or None,
+                            "component_type": i.component_type,
+                            "edition": i.edition or None,
+                            "build": i.build or None,
                         }
                         for i in a.installations.all()
                     ],

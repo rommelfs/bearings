@@ -168,6 +168,9 @@ def persist_lookup(user, installation, source, identifier, payload):
     if not created:
         finding.evaluated_at = timezone.now()
         finding.save(update_fields=["evaluated_at"])
+    from .issues import ensure_vulnerability_issue
+
+    ensure_vulnerability_issue(finding)
     audit(user, org, "vulnerability.review_requested", finding.pk, created=created)
     return finding
 

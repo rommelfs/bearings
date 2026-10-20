@@ -38,6 +38,7 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                "portal.context.deployment",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
             ]
@@ -80,7 +81,16 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 # Intentionally a local delivery sink. Production delivery requires a separate authorized change.
 EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
 EMAIL_FILE_PATH = LOCAL_DIR / "mail"
-DEFAULT_FROM_EMAIL = "bearings@example.invalid"
+DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "bearings@example.invalid")
+# Reviewed outreach has its own explicit transport switch; other application mail stays local.
+NOTIFICATION_TRANSPORT = os.getenv("BEARINGS_NOTIFICATION_TRANSPORT", "file")
+EMAIL_HOST = os.getenv("SMTP_HOST", "")
+EMAIL_PORT = int(os.getenv("SMTP_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("SMTP_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("SMTP_STARTTLS", "1") == "1"
+EMAIL_USE_SSL = os.getenv("SMTP_TLS", "0") == "1"
+EMAIL_TIMEOUT = 10
 CONTACT_REVIEW_DAYS = int(os.getenv("CONTACT_REVIEW_DAYS", "183"))
 VULNERABILITY_LOOKUP_URL = os.getenv("VULNERABILITY_LOOKUP_URL", "https://vulnerability.circl.lu")
 SESSION_COOKIE_HTTPONLY = True

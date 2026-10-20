@@ -2,12 +2,15 @@
 
 import hashlib
 import json
+import os
 import re
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.core.mail.backends.filebased import EmailBackend
+from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
+from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import Case, IntegerField, Value, When
 from django.template import Context, Engine
@@ -23,7 +26,7 @@ from .access import (
     visible_findings_for,
 )
 from .asset_context import asset_context
-from .models import Contact, NotificationBatch, NotificationDelivery, NotificationReceipt
+from .models import AssetIssue, Contact, NotificationBatch, NotificationDelivery, NotificationReceipt
 from .presentation import ACTIVE_REVIEWS
 
 SEVERITIES = ["critical", "high", "medium", "low", "none", "unknown"]
@@ -36,6 +39,8 @@ VARIABLES = {
     "finding_count",
     "action",
     "audience",
+    "item_count",
+    "items",
 }
 DEFAULT_SUBJECT = "[Bearings] {{ finding_count }} vulnerability reviews · {{ organization }}"
 DEFAULT_BODY = """Hello {{ contact_name }},
@@ -49,6 +54,41 @@ DEFAULT_BODY = """Hello {{ contact_name }},
 Product registration alone does not confirm affectedness. CVSS is source severity, not business risk.
 This is a local development message; no external delivery or compromise is asserted.
 """
+
+
+def transport_configuration():
+    mode = settings.NOTIFICATION_TRANSPORT
+    if mode == "file":
+        return mode, digest({"transport": "file"})
+    if mode != "smtp" or settings.DEBUG or os.getenv("BEARINGS_DEV_STACK") == "1":
+        raise ValidationError("SMTP outreach requires an explicitly configured non-development deployment")
+    if (
+        not settings.EMAIL_HOST
+        or not 1 <= settings.EMAIL_PORT <= 65535
+        or bool(settings.EMAIL_USE_TLS) == bool(settings.EMAIL_USE_SSL)
+    ):
+        raise ValidationError("Configure an approved SMTP host/port and exactly one verified TLS mode")
+    validate_email(settings.DEFAULT_FROM_EMAIL)
+    if settings.DEFAULT_FROM_EMAIL.lower().endswith((".invalid", "@localhost")):
+        raise ValidationError("Configure a real approved notification sender")
+    return mode, digest(
+        {
+            "transport": mode,
+            "host": settings.EMAIL_HOST,
+            "port": settings.EMAIL_PORT,
+            "tls": settings.EMAIL_USE_TLS,
+            "ssl": settings.EMAIL_USE_SSL,
+            "user": settings.EMAIL_HOST_USER,
+            "sender": settings.DEFAULT_FROM_EMAIL,
+        }
+    )
+
+
+def require_transport(batch):
+    mode, signature = transport_configuration()
+    if batch.transport != mode or (batch.transport_fingerprint and batch.transport_fingerprint != signature):
+        raise ValidationError("Notification transport/sender configuration changed; create a new preview")
+    return mode
 
 
 def scoped_organizations(user, mode):
@@ -77,6 +117,23 @@ def render_text(template, values):
 
 
 class NotificationForm(forms.Form):
+    subscription_name = forms.CharField(
+        max_length=120, required=False, label="Subscription name (draft preparation only)"
+    )
+    domain = forms.ChoiceField(
+        required=False,
+        choices=[
+            ("vulnerabilities", "Vulnerability reviews"),
+            ("asset_issues", "Lifecycle / exposure issues"),
+        ],
+        initial="vulnerabilities",
+    )
+    kind = forms.ChoiceField(
+        required=False,
+        choices=[("", "All issue types")]
+        + [(key, label) for key, label in AssetIssue.KINDS if key != "vulnerability"],
+    )
+
     mode = forms.ChoiceField(
         choices=[("circl", "CIRCL → affected organizations"), ("company", "Company → internal contacts")]
     )
@@ -84,7 +141,7 @@ class NotificationForm(forms.Form):
     product = forms.CharField(max_length=160, required=False, label="Installed product contains")
     cve = forms.CharField(max_length=120, required=False, label="Vulnerability identifier contains")
     severity = forms.ChoiceField(
-        choices=[("", "All source severities")] + [(v, v.title()) for v in SEVERITIES],
+        choices=[("", "All source severities (CVE only)")] + [(v, v.title()) for v in SEVERITIES],
         required=False,
         initial="high",
     )
@@ -139,11 +196,47 @@ class NotificationForm(forms.Form):
                 if k == "organization" and self.cleaned_data[k]
                 else self.cleaned_data[k]
             )
-            for k in ["organization", "product", "cve", "severity", "assessment", "sort"]
+            for k in ["organization", "product", "cve", "severity", "assessment", "sort", "domain", "kind"]
         }
 
 
 def candidates(user, mode, filters):
+    if filters.get("domain") == "asset_issues":
+        from .issues import visible_issues, active_filter
+
+        qs = (
+            visible_issues(user)
+            .filter(
+                organization__in=scoped_organizations(user, mode),
+                shareable=True,
+                operator_only=False,
+                finding__isnull=True,
+                asset__lifecycle="active",
+            )
+            .filter(active_filter())
+        )
+        if mode == "company" and not filters.get("organization"):
+            return qs.none()
+        if filters.get("organization"):
+            qs = qs.filter(organization_id=filters["organization"])
+        if filters.get("kind"):
+            qs = qs.filter(kind=filters["kind"])
+        if filters.get("product"):
+            qs = qs.filter(installation__product__name__icontains=filters["product"])
+        qs = qs.annotate(
+            notification_priority=Case(
+                When(priority="critical", then=Value(0)),
+                When(priority="high", then=Value(1)),
+                When(priority="review", then=Value(2)),
+                default=Value(3),
+                output_field=IntegerField(),
+            )
+        )
+        order = {
+            "organization": ["organization__name", "asset__name"],
+            "product": ["installation__product__name", "organization__name"],
+        }.get(filters.get("sort"), ["notification_priority", "organization__name"])
+        return qs.order_by(*order, "asset__name", "pk")
     # Operator-only evidence can be investigated, but cannot be redistributed to companies.
     qs = (
         visible_findings_for(user)
@@ -201,6 +294,49 @@ def eligible_contacts(org):
 
 
 def finding_snapshot(f):
+    from .models import AssetIssue
+
+    if isinstance(f, AssetIssue):
+        from .issues import data_for
+
+        data = data_for(f)
+        facts = asset_context(f.asset)
+        data["asset"] = {
+            "name": f.asset.name,
+            "criticality": f.asset.criticality,
+            "team": f.asset.responsible_team,
+            "facts": facts,
+            "missing_since": str(f.asset.missing_since or ""),
+        }
+        data["timing"] = f.timing
+        data["risks"] = list(
+            f.risk_scenarios.filter(withdrawn_at__isnull=True)
+            .order_by("pk")
+            .values("issue_revision_id", "risk_revision_id", "reason")
+        )
+        path = reverse("issue", args=[f.organization.slug, f.pk])
+        text = f"""{f.get_kind_display()}: {f.title} · Organizational priority {f.priority}
+Asset: {f.asset.name} · criticality {f.asset.criticality} · owner {f.owner_team or f.asset.responsible_team or "Unassigned"}
+IP: {", ".join(a["prefix"] for a in facts["addresses"]) or "Not recorded"} · DNS: {", ".join(d["name"] for d in facts["dns_names"]) or "Not recorded"}
+Location: {" / ".join(r["name"] for r in facts["references"] if r["field"] in {"site", "location", "rack", "cluster"}) or "Not recorded"}
+Product: {f.installation.product.name if f.installation_id else "Asset/contract issue"}
+Reported expiry / EOL: {f.event_date or "Unknown / not applicable"} · Action due: {f.action_due or "Not recorded"}
+Fact scope: {f.get_fact_scope_display()} · Evidence status: {f.fact_status} · Workflow: {f.current_status}
+Source: {f.source_label} · {f.source_url or "No external URL"} · Observed {f.observed_at}
+Evidence: {f.evidence_text}
+Possible consequences: {f.consequence or "Unassessed"}
+Next action: {f.next_action or "Review evidence and assign an owner"}
+Bearings: {path}
+NetBox: {f.asset.source_url or "No external source"}
+These are evidence-backed review items, not automatically calculated business risk."""
+        return {
+            "id": str(f.pk),
+            "evidence_hash": digest(data),
+            "text": text,
+            "source": f.source_label,
+            "rule": "asset-issue/v1",
+            "product_identifier": f.installation.product.identifier if f.installation_id else "",
+        }
     asset, inst = f.installation.asset, f.installation
     facts = asset_context(asset)
     location = (
@@ -240,12 +376,15 @@ def digest(value):
 
 def message_snapshot(mode, contact, findings, subject_template, body_template):
     snapshots = [finding_snapshot(f) for f in findings]
+    issue_domain = bool(findings and getattr(findings[0], "kind", None))
     values = {
         "organization": contact.organization.name,
         "contact_name": contact.name,
         "contact_role": contact.role,
         "language": contact.language,
         "finding_count": str(len(findings)),
+        "item_count": str(len(findings)),
+        "items": "\n\n".join(s["text"] for s in snapshots),
         "findings": "\n\n".join(s["text"] for s in snapshots),
         "audience": "CIRCL requests your organization to review these findings."
         if mode == "circl"
@@ -254,6 +393,8 @@ def message_snapshot(mode, contact, findings, subject_template, body_template):
     }
     subject = render_text(subject_template, values)
     body = render_text(body_template, values)
+    if len(body.encode("utf-8")) > 1_000_000:
+        raise ValidationError("Rendered message exceeds 1 MB; narrow the filters before previewing")
     if "\n" in subject or "\r" in subject or len(subject) > 250:
         raise ValidationError("Rendered subject must be one line and at most 250 characters.")
     snapshot = {
@@ -264,12 +405,17 @@ def message_snapshot(mode, contact, findings, subject_template, body_template):
         "subject": subject,
         "body": body,
     }
+    if settings.NOTIFICATION_TRANSPORT == "smtp":
+        snapshot["transport"], snapshot["transport_configuration"] = transport_configuration()
+    if issue_domain:
+        snapshot["domain"] = "asset_issues"
     return snapshot, digest(snapshot), subject, body
 
 
 @transaction.atomic
 def preview_batch(user, mode, filters, subject_template, body_template):
     require(user.is_active and mode in {"circl", "company"})
+    transport, transport_signature = transport_configuration()
     findings = list(candidates(user, mode, filters)[:501])
     if not findings:
         raise ValidationError("No active, redistributable findings match these filters.")
@@ -281,6 +427,8 @@ def preview_batch(user, mode, filters, subject_template, body_template):
     batch = NotificationBatch.objects.create(
         creator=user,
         mode=mode,
+        transport=transport,
+        transport_fingerprint=transport_signature,
         organization_id=filters.get("organization"),
         filters=filters,
         subject_template=subject_template,
@@ -290,7 +438,13 @@ def preview_batch(user, mode, filters, subject_template, body_template):
     for group in grouped.values():
         org = group[0].organization
         require(can_operator_review(user, org) if mode == "circl" else can_edit(user, org))
-        audit(user, org, "notification.preview", batch.pk, finding_ids=[f.pk for f in group])
+        audit(
+            user,
+            org,
+            "notification.preview",
+            batch.pk,
+            finding_ids=[str(f.pk) if isinstance(f, AssetIssue) else f.pk for f in group],
+        )
         contacts = list(eligible_contacts(org))
         if not contacts:
             raise ValidationError(
@@ -312,7 +466,10 @@ def preview_batch(user, mode, filters, subject_template, body_template):
                 subject=subject,
                 body=body,
             )
-            delivery.findings.add(*group)
+            if filters.get("domain") == "asset_issues":
+                delivery.issues.add(*group)
+            else:
+                delivery.findings.add(*group)
     if not count:
         raise ValidationError(
             "No opted-in contacts with verified email and a current role review. Update contacts first."
@@ -325,6 +482,12 @@ def authorized_delivery(user, delivery):
     if not organizations_for(user).filter(pk=org.pk).exists():
         return False
     ids = [f["id"] for f in delivery.snapshot["findings"]]
+    if delivery.snapshot.get("domain") == "asset_issues":
+        from .issues import visible_issues
+
+        return visible_issues(user).filter(
+            pk__in=ids, organization=org, shareable=True, operator_only=False
+        ).count() == len(ids)
     # Even historical previews/messages disappear when redistribution is revoked.
     return visible_findings_for(user).filter(
         pk__in=ids, organization=org, record__shareable=True
@@ -335,6 +498,7 @@ def authorized_delivery(user, delivery):
 def claim_batch(user, batch_id, selected):
     batch = NotificationBatch.objects.select_for_update().get(pk=batch_id)
     require(batch.creator_id == user.pk and user.is_active)
+    require_transport(batch)
     if batch.status != "draft":
         raise ValidationError("This batch was already approved. Create a new preview for further messages.")
     deliveries = list(
@@ -403,8 +567,14 @@ def approve_local(user, batch_id, selected):
                 != d.fingerprint
             ):
                 raise ValidationError("Preview is stale.")
-            # Explicit backend: switching project EMAIL_BACKEND never enables real delivery here.
-            with EmailBackend(file_path=settings.EMAIL_FILE_PATH) as connection:
+            # The reviewed batch pins the transport; changing EMAIL_BACKEND alone cannot send outreach.
+            transport = require_transport(d.batch)
+            backend = (
+                EmailBackend(file_path=settings.EMAIL_FILE_PATH)
+                if transport == "file"
+                else SMTPBackend(timeout=10)
+            )
+            with backend as connection:
                 sent = EmailMessage(
                     d.subject,
                     d.body,
@@ -415,9 +585,15 @@ def approve_local(user, batch_id, selected):
                 ).send()
             if sent != 1:
                 raise OSError("Local file backend did not confirm writing the message.")
-            d.status, d.filed_at = "filed", timezone.now()
+            d.status, d.filed_at = ("filed" if transport == "file" else "accepted"), timezone.now()
         except (OSError, ValidationError, ValueError):
             d.status = "uncertain"
         d.save(update_fields=["status", "filed_at"])
-        audit(user, d.organization, "notification.local_result", d.pk, status=d.status)
+        audit(
+            user,
+            d.organization,
+            "notification.local_result" if d.batch.transport == "file" else "notification.smtp_result",
+            d.pk,
+            status=d.status,
+        )
     return NotificationBatch.objects.get(pk=batch_id)

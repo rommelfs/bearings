@@ -2,7 +2,7 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, F
 from django.utils import timezone
 
 
@@ -371,6 +371,9 @@ class Installation(models.Model):
     version = models.CharField(max_length=120, blank=True, help_text="Blank means unknown")
     edition = models.CharField(max_length=120, blank=True)
     build = models.CharField(max_length=120, blank=True)
+    component_type = models.CharField(
+        max_length=10, default="software", choices=[("software", "Software"), ("firmware", "Firmware")]
+    )
     is_operating_system = models.BooleanField(default=False)
 
     def clean(self):
@@ -574,6 +577,10 @@ class NotificationBatch(models.Model):
     )
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT, null=True, blank=True)
     filters = models.JSONField(default=dict)
+    transport = models.CharField(
+        max_length=10, default="file", choices=[("file", "Local file"), ("smtp", "SMTP acceptance")]
+    )
+    transport_fingerprint = models.CharField(max_length=64, blank=True)
     subject_template = models.CharField(max_length=250)
     body_template = models.TextField()
     status = models.CharField(max_length=20, default="draft")
@@ -586,6 +593,7 @@ class NotificationDelivery(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT)
     findings = models.ManyToManyField(Finding, through="NotificationDeliveryFinding")
+    issues = models.ManyToManyField("AssetIssue", through="NotificationDeliveryIssue")
     snapshot = models.JSONField()
     fingerprint = models.CharField(max_length=64)
     subject = models.CharField(max_length=250)
@@ -740,3 +748,493 @@ class FlowIntelTask(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["case", "step"], name="unique_flowintel_step")]
+
+
+class AssetIssue(models.Model):
+    """Common asset problem; linked CVE reviews keep their original assessment authority."""
+
+    KINDS = [
+        (key, label)
+        for key, label in [
+            ("vulnerability", "Vulnerability"),
+            ("eol", "End of life"),
+            ("support", "Support expiry"),
+            ("license", "License expiry"),
+            ("maintenance", "Maintenance expiry"),
+            ("warranty", "Warranty expiry"),
+            ("exposure", "Network exposure"),
+            ("other", "Other asset issue"),
+        ]
+    ]
+    STATUSES = [
+        (key, key.replace("_", " ").title())
+        for key in [
+            "new",
+            "under_review",
+            "confirmed",
+            "resolved",
+            "accepted_risk",
+            "false_positive",
+        ]
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="asset_issues")
+    asset = models.ForeignKey(Asset, on_delete=models.PROTECT, related_name="issues")
+    installation = models.ForeignKey(Installation, on_delete=models.PROTECT, null=True, blank=True)
+    finding = models.OneToOneField(
+        Finding, on_delete=models.PROTECT, null=True, blank=True, related_name="asset_issue"
+    )
+    kind = models.CharField(max_length=20, choices=KINDS)
+    title = models.CharField(max_length=220)
+    status = models.CharField(max_length=20, choices=STATUSES, default="new")
+    priority = models.CharField(
+        max_length=10,
+        default="review",
+        choices=[("critical", "Critical"), ("high", "High"), ("review", "Review"), ("low", "Low")],
+    )
+    owner_team = models.CharField(max_length=180, blank=True)
+    event_date = models.DateField(
+        null=True, blank=True, help_text="Reported end/expiry date; blank means unknown"
+    )
+    action_due = models.DateField(
+        null=True, blank=True, help_text="Organization's action deadline, separate from expiry"
+    )
+    fact_scope = models.CharField(
+        max_length=20,
+        default="asset",
+        choices=[
+            ("asset", "This asset"),
+            ("installation", "This installation"),
+            ("vendor_lifecycle", "Vendor/product lifecycle"),
+            ("entitlement", "Organization contract/entitlement"),
+        ],
+    )
+    contract_reference = models.CharField(max_length=250, blank=True)
+    source_label = models.CharField(max_length=250)
+    source_url = models.URLField(max_length=500, blank=True)
+    observed_at = models.DateTimeField(default=timezone.now)
+    valid_from = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    fact_status = models.CharField(
+        max_length=15,
+        default="unverified",
+        choices=[
+            ("unverified", "Unverified assertion"),
+            ("verified", "Verified against evidence"),
+            ("disputed", "Disputed"),
+            ("unknown", "Unknown"),
+        ],
+    )
+    evidence_text = models.TextField(max_length=12000)
+    consequence = models.TextField(max_length=4000, blank=True)
+    next_action = models.TextField(max_length=4000, blank=True)
+    operator_only = models.BooleanField(default=False)
+    shareable = models.BooleanField(
+        default=False, help_text="Evidence may be exported after a separate approval"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_asset_issues",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def current_status(self):
+        return self.finding.status if self.finding_id else self.status
+
+    @property
+    def active(self):
+        return self.current_status in {"new", "under_review", "confirmed"}
+
+    @property
+    def deadline(self):
+        return self.action_due or self.event_date
+
+    @property
+    def timing(self):
+        if not self.active:
+            return "closed"
+        if self.deadline is None:
+            return "unknown"
+        days = (self.deadline - timezone.localdate()).days
+        return "overdue" if days < 0 else "soon" if days <= 30 else "scheduled"
+
+    def clean(self):
+        from .connectors.http import ConnectorError, validate_base
+
+        if self.asset_id and (
+            self.asset.organization_id != self.organization_id
+            or self.asset.source.organization_id != self.organization_id
+        ):
+            raise ValidationError("Issue asset/source must belong to the issue organization")
+        if self.installation_id and (
+            self.installation.asset_id != self.asset_id
+            or self.installation.product.organization_id != self.organization_id
+        ):
+            raise ValidationError("Issue installation must belong to this asset and organization")
+        if (self.kind == "vulnerability") != bool(self.finding_id):
+            raise ValidationError("Vulnerability issues must reference an existing finding")
+        if self.finding_id and (
+            self.finding.organization_id != self.organization_id
+            or self.finding.installation_id != self.installation_id
+            or self.finding.record.organization_id != self.organization_id
+        ):
+            raise ValidationError(
+                "Issue finding and evidence must belong to this organization and installation"
+            )
+        if self.fact_scope in {"installation", "vendor_lifecycle"} and not self.installation_id:
+            raise ValidationError("Select an installation for product lifecycle facts")
+        if self.valid_from and self.valid_until and self.valid_until < self.valid_from:
+            raise ValidationError("Evidence validity ends before it begins")
+        if self.observed_at and self.observed_at > timezone.now():
+            raise ValidationError("Observation time cannot be in the future")
+        if self.source_url:
+            try:
+                validate_base(self.source_url)
+            except ConnectorError:
+                raise ValidationError({"source_url": "Use a credential-free HTTPS evidence URL"}) from None
+        if self.pk:
+            old = AssetIssue.objects.filter(pk=self.pk).first()
+            if old and any(
+                getattr(old, field) != getattr(self, field)
+                for field in ["organization_id", "asset_id", "installation_id", "finding_id", "kind"]
+            ):
+                raise ValidationError("Issue target/type cannot be repointed; create a separate issue")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(kind="vulnerability", finding__isnull=False)
+                | (~Q(kind="vulnerability") & Q(finding__isnull=True)),
+                name="issue_vulnerability_reference",
+            )
+        ]
+        indexes = [models.Index(fields=["organization", "status", "event_date"])]
+
+
+class IssueRevision(models.Model):
+    issue = models.ForeignKey(AssetIssue, on_delete=models.PROTECT, related_name="revisions")
+    digest = models.CharField(max_length=64)
+    snapshot = models.JSONField()
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    captured_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["issue", "digest"], name="unique_issue_revision")]
+
+
+class IssueHistory(models.Model):
+    issue = models.ForeignKey(AssetIssue, on_delete=models.PROTECT, related_name="history")
+    revision = models.ForeignKey(IssueRevision, on_delete=models.PROTECT)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    changes = models.JSONField(default=dict)
+    reason = models.TextField(max_length=4000)
+    created_at = models.DateTimeField(default=timezone.now)
+
+
+class IssueRiskLink(models.Model):
+    issue = models.ForeignKey(AssetIssue, on_delete=models.PROTECT, related_name="risk_scenarios")
+    issue_revision = models.ForeignKey(IssueRevision, on_delete=models.PROTECT)
+    risk_revision = models.ForeignKey(MOSPRiskRevision, on_delete=models.PROTECT)
+    reason = models.TextField(max_length=4000)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    withdrawal_reason = models.TextField(max_length=4000, blank=True)
+
+    def clean(self):
+        if self.issue_id and self.issue_revision_id and self.issue_revision.issue_id != self.issue_id:
+            raise ValidationError("Risk reference must pin evidence from the same issue")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["issue", "issue_revision", "risk_revision"],
+                condition=Q(withdrawn_at__isnull=True),
+                name="unique_active_issue_risk",
+            )
+        ]
+
+
+class RTInstance(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="Blank: CIRCL-only service queue; otherwise this company's queue",
+    )
+    base_url = models.URLField(max_length=250)
+    browser_url = models.URLField(max_length=250, blank=True)
+    token_env_var = models.CharField(max_length=100)
+    queue_id = models.PositiveIntegerField()
+    product = models.CharField(max_length=10, default="rt", choices=[("rt", "RT"), ("rtir", "RTIR queue")])
+    custom_fields = models.JSONField(
+        default=dict, blank=True, help_text="Operator-approved numeric custom-field IDs to fixed text values"
+    )
+    enabled = models.BooleanField(default=False)
+    allow_private = models.BooleanField(default=False)
+    private_queue_confirmed = models.BooleanField(
+        default=False, help_text="Operator verified queue access and notification scrips"
+    )
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        import re
+        from .connectors.http import ConnectorError, validate_base
+
+        try:
+            validate_base(self.base_url)
+            if self.browser_url:
+                validate_base(self.browser_url)
+        except ConnectorError:
+            raise ValidationError("Configure credential-free HTTPS RT API/browser bases") from None
+        if not re.fullmatch(r"RT_[A-Z0-9_]*TOKEN", self.token_env_var) or not self.queue_id:
+            raise ValidationError("Configure an RT_*TOKEN reference and positive queue ID")
+        if (
+            not isinstance(self.custom_fields, dict)
+            or len(self.custom_fields) > 20
+            or any(
+                not re.fullmatch(r"[1-9][0-9]{0,8}", str(k)) or not isinstance(v, str) or len(v) > 1000
+                for k, v in self.custom_fields.items()
+            )
+        ):
+            raise ValidationError(
+                "Custom fields must be at most 20 numeric IDs with bounded fixed text values"
+            )
+        if self.pk and RTTicket.objects.filter(instance_id=self.pk).exists():
+            old = RTInstance.objects.get(pk=self.pk)
+            if any(
+                getattr(old, field) != getattr(self, field)
+                for field in ["base_url", "token_env_var", "queue_id", "organization_id", "product"]
+            ):
+                raise ValidationError("An RT connection with hand-offs cannot be repointed")
+
+
+class RTTicket(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    instance = models.ForeignKey(RTInstance, on_delete=models.PROTECT)
+    issue = models.ForeignKey(AssetIssue, on_delete=models.PROTECT, related_name="rt_tickets")
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    snapshot = models.JSONField()
+    fingerprint = models.CharField(max_length=64)
+    subject = models.CharField(max_length=220)
+    content = models.TextField()
+    reason = models.TextField(max_length=3000)
+    state = models.CharField(max_length=20, default="draft")
+    remote_id = models.PositiveIntegerField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    attempted_at = models.DateTimeField(null=True, blank=True)
+    last_attempt = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    error = models.CharField(max_length=250, blank=True)
+    summary = models.JSONField(default=dict, blank=True)
+
+    @property
+    def ticket_url(self):
+        if not self.remote_id or not self.last_success:
+            return ""
+        from .connectors.http import validate_base
+
+        return (
+            validate_base(self.instance.browser_url or self.instance.base_url).geturl().rstrip("/")
+            + f"/Ticket/Display.html?id={self.remote_id}"
+        )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["instance", "issue"], name="unique_rt_issue"),
+            models.UniqueConstraint(
+                fields=["instance", "remote_id"],
+                condition=Q(remote_id__isnull=False),
+                name="unique_rt_identity",
+            ),
+        ]
+
+
+class PlumInstance(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+    base_url = models.URLField(max_length=250)
+    token_env_var = models.CharField(max_length=100, blank=True)
+    enabled = models.BooleanField(default=False)
+    allow_private = models.BooleanField(default=False)
+    fixture = models.BooleanField(
+        default=False, help_text="DEBUG-only offline synthetic data; network requests prohibited"
+    )
+    organizations = models.ManyToManyField(
+        Organization,
+        blank=True,
+        related_name="plum_instances",
+        help_text="Organizations explicitly allowed to read their scoped observations",
+    )
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        import re
+        from .connectors.http import ConnectorError, validate_base
+
+        try:
+            validate_base(self.base_url)
+        except ConnectorError:
+            raise ValidationError("Plum Island requires an approved credential-free HTTPS endpoint") from None
+        if self.fixture and not settings.DEBUG:
+            raise ValidationError("Synthetic Plum sources require DEBUG")
+        if not self.fixture and not re.fullmatch(r"PLUM_[A-Z0-9_]*TOKEN", self.token_env_var):
+            raise ValidationError("Use an operator-managed PLUM_*TOKEN reference for the API JWT")
+        if self.pk and PlumSnapshot.objects.filter(source_id=self.pk).exists():
+            old = PlumInstance.objects.get(pk=self.pk)
+            if any(
+                getattr(old, field) != getattr(self, field)
+                for field in ["base_url", "token_env_var", "fixture"]
+            ):
+                raise ValidationError("A Plum source with observations cannot be repointed")
+
+
+class PlumSnapshot(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="plum_snapshots")
+    source = models.ForeignKey(PlumInstance, on_delete=models.PROTECT)
+    asset = models.ForeignKey(Asset, on_delete=models.PROTECT, null=True, blank=True)
+    scope_claim = models.ForeignKey(InfrastructureClaim, on_delete=models.PROTECT)
+    proof_kind = models.CharField(max_length=10)
+    proof_value = models.CharField(max_length=255)
+    proof_context = models.CharField(max_length=100, blank=True)
+    proof_from = models.DateTimeField()
+    proof_until = models.DateTimeField(null=True, blank=True)
+    ip = models.GenericIPAddressField()
+    window_start = models.DateTimeField()
+    window_stop = models.DateTimeField()
+    state = models.CharField(
+        max_length=15, choices=[("indexed", "Indexed"), ("not_indexed", "Never indexed")]
+    )
+    report_count = models.PositiveIntegerField(default=0)
+    ports = models.JSONField(default=list)
+    source_digest = models.CharField(max_length=64)
+    fingerprint = models.CharField(max_length=64)
+    imported_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    ingested_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "organization", "fingerprint"], name="unique_plum_snapshot"
+            ),
+            models.CheckConstraint(
+                condition=Q(window_stop__gte=F("window_start")), name="ordered_plum_window"
+            ),
+        ]
+        indexes = [models.Index(fields=["organization", "ip", "window_stop"])]
+
+
+class ExposureReview(models.Model):
+    issue = models.OneToOneField(AssetIssue, on_delete=models.PROTECT, related_name="exposure_review")
+    observation = models.ForeignKey(PlumSnapshot, on_delete=models.PROTECT)
+    identity = models.CharField(max_length=64, unique=True)
+    port = models.PositiveIntegerField()
+    protocol = models.CharField(max_length=10)
+
+
+class NotificationDeliveryIssue(models.Model):
+    delivery = models.ForeignKey(NotificationDelivery, on_delete=models.PROTECT)
+    issue = models.ForeignKey(AssetIssue, on_delete=models.PROTECT)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["delivery", "issue"], name="unique_notification_issue")
+        ]
+
+
+class NotificationSubscription(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    name = models.CharField(max_length=120)
+    mode = models.CharField(max_length=10, choices=[("company", "Company"), ("circl", "CIRCL")])
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, null=True, blank=True)
+    filters = models.JSONField(default=dict)
+    subject_template = models.CharField(max_length=250)
+    body_template = models.TextField(max_length=12000)
+    enabled = models.BooleanField(default=True)
+    last_checked = models.DateTimeField(null=True, blank=True)
+    last_fingerprint = models.CharField(max_length=64, blank=True)
+    last_batch = models.ForeignKey(NotificationBatch, on_delete=models.PROTECT, null=True, blank=True)
+    error = models.CharField(max_length=250, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+
+class FederationGrant(models.Model):
+    """Explicit single-company export permission; only a digest of its bearer secret is retained."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    publisher = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    token_hash = models.CharField(max_length=64)
+    client_id = models.UUIDField()
+    inventory = models.BooleanField(default=False)
+    enabled = models.BooleanField(default=True)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class CompanyInstance(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    remote_organization = models.UUIDField(help_text="Export identity supplied by the company grant")
+    client_id = models.UUIDField(default=uuid.uuid4, editable=False)
+    base_url = models.URLField(max_length=250)
+    token_env_var = models.CharField(max_length=100)
+    enabled = models.BooleanField(default=False)
+    allow_private = models.BooleanField(default=False)
+    last_attempt = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=500, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        import re
+        from .connectors.http import ConnectorError, validate_base
+
+        try:
+            validate_base(self.base_url)
+        except ConnectorError:
+            raise ValidationError("Company instances require approved credential-free HTTPS") from None
+        if not re.fullmatch(r"FEDERATION_[A-Z0-9_]*TOKEN", self.token_env_var):
+            raise ValidationError("Use a server-side FEDERATION_*TOKEN credential reference")
+        if self.pk and FederatedReport.objects.filter(source_id=self.pk).exists():
+            old = CompanyInstance.objects.get(pk=self.pk)
+            if any(
+                getattr(old, f) != getattr(self, f)
+                for f in ["organization_id", "remote_organization", "client_id", "base_url", "token_env_var"]
+            ):
+                raise ValidationError("A company source with reports cannot be repointed")
+
+
+class FederatedReport(models.Model):
+    source = models.ForeignKey(CompanyInstance, on_delete=models.PROTECT, related_name="reports")
+    resource = models.CharField(max_length=20, choices=[("issues", "Issues"), ("inventory", "Inventory")])
+    remote_id = models.UUIDField()
+    payload = models.JSONField()
+    digest = models.CharField(max_length=64)
+    seen_at = models.DateTimeField()
+    missing_since = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "resource", "remote_id"], name="unique_federated_report"
+            )
+        ]
