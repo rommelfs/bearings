@@ -43,7 +43,7 @@
       },
       {
         "title": "Implement explicit product/version applicability",
-        "body": "Use supported structured source capabilities; preserve unknown versions, vendor fixes, backports and configuration requirements. Keep severity, EPSS, catalog membership, exploitation sightings and applicability distinct."
+        "body": "Use supported structured source capabilities; preserve unknown versions, vendor fixes, backports and configuration requirements. Keep severity, EPSS, catalog membership, exploitation sightings and applicability distinct. Notification acceptance: a new/changed Vulnerability-Lookup revision must correlate canonical product identifiers to registered installations, retain potential/unknown for unsupported builds/backports/configuration, preserve revision/match reason, and create scoped CIRCL/company review cues. A product-only match must never become confirmed affectedness. Idempotent revision handling and redistribution/freshness tests precede event-driven notification subscriptions (#10)."
       },
       {
         "title": "Implement MISP ingestion with redistribution policy",

@@ -52,6 +52,15 @@ Files use Django's explicit file backend and configured `EMAIL_FILE_PATH` (`.loc
 
 The current cue is derived from **already recorded CVE reviews on registered installations**, such as the Exchange live lookup or explicit fixture. Inventory import alone does not discover CVEs or generate applicability. Continuous Vulnerability-Lookup ingestion, canonical product/version correlation, saved notification subscriptions and event-driven CIRCL/internal alerts remain separate work. A product-only match must create a potential/unknown review with evidence, never automatically assert affectedness. Production transport additionally needs reviewed operational authorization, verified destinations, monitored retry/bounce/escalation policy and an approved public application origin. Issues #5/#6/#10/#11 retain these parts.
 
+### Target event flow for the next increment (planned)
+
+1. A scheduled Vulnerability-Lookup importer records a new/changed CVE revision. Match canonical product identifiers (vendor/product, CPE or package identity) against registered installations, then evaluate only supported structured version rules. Unknown builds, backports or configuration requirements retain potential/unknown applicability.
+2. Create/update a deduplicated finding with source revision, match reason and uncertainty. CIRCL sees a new actionable cue such as “High · Exchange · 2 permitted organizations · 3 installations · notification review required.” The organization's own review queue receives the same scoped finding. Operator-only evidence stays out of redistribution.
+3. Apply saved audience subscriptions (organization, product, severity and assessment), then offer the bulk template preview. Confirmed affectedness may select a different message from a potential-match investigation request. The existing approval/outbox/inbox/acknowledgment flow handles the reviewed result.
+4. Track which finding revision/recipient/audience was handled so unchanged refreshes do not raise repeated alerts. Meaningful evidence changes can reopen review. Outages retain last-known evidence and expose freshness instead of silently clearing findings. Production delivery, bounce recovery and timed escalation require their own transport/recovery increment.
+
+These are acceptance goals for #5/#6/#10/#11, not currently running background discovery or automatic mail delivery.
+
 ## Screenshots
 
 Only synthetic data is shown.
