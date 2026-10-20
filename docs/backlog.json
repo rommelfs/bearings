@@ -51,11 +51,19 @@
       },
       {
         "title": "Implement Plum Island historical observation adapter",
-        "body": "Verify authentication/permissions/schema and InfoIP time/404/empty semantics. Preserve tcp/udp, report-level tags, hostname context and uncertainty. Investigate network/domain export; never enumerate large ranges blindly or launch scans."
+        "body": "Planned phase 5a; may begin alongside the common asset-issue model. CIRCL reports an existing Luxembourg scanning mandate and a large historical corpus. Start with existing scoped observations, not target registration. Source review at 06972ba8 (2026-10-20) confirms protected individual-IP InfoIP, network/requested-hostname search, owner-scoped asynchronous UI export, agent-key separation and differing time-window semantics. Deployed release/auth/headless bulk contract remain unverified. Use operator-approved HTTPS/private credentials and bounded resumable network/time ingestion with stable UIDs/hashes, late-data overlap, last-known state and time-valid customer attribution. Preserve tcp/udp/unknown protocol, report-level tags, hostname and first/last vs scan/ingestion time. Never infer closed ports from empty/404/partial/stale observations; no malware/affectedness inference. No internal endpoint or national/customer dataset is published. See docs/roadmap.md and docs/integrations/plum-island.md."
       },
       {
         "title": "Generalize observations, relationships and explained priorities",
         "body": "Keep categories and assessment dimensions distinct. Match historical/shared claims, preserve rule versions, observation/ingestion/evaluation times, evidence provenance and independent origins."
+      },
+      {
+        "title": "Generalize asset issues to lifecycle, support and entitlement risks",
+        "body": "Agreed phase 1: organization-scoped issue/evidence and clear asset views covering existing CVE reviews, first EOL/support expiry, then firmware/licenses/maintenance/warranty. Preserve existing vulnerability finding/history/remote-case identities. Link assets/installations or contracts with source, validity, due date, owner, independent assessment and uncertainty. Separate vendor/product lifecycle facts from organization entitlements and source CVSS from business priority. Reuse verified NetBox identities, justified MOSP/MONARC scenario references and current sharing/audit boundaries. Generalize notification/case references without reclassifying lifecycle records as CVEs. Synthetic Exchange+CVE+support-expiry acceptance example. Planned, not implemented; see docs/roadmap.md."
+      },
+      {
+        "title": "Compare Plum Island exposure observations over time with explicit coverage",
+        "body": "Planned phase 5a companion: source-bound protocol/port/hostname observations, time-valid network attribution, baseline and scan-profile/coverage-aware comparisons. Distinguish newly observed, still observed, no longer observed, confirmed closed only with explicit evidence, and unknown/stale. InfoIP positive-history aggregates and rolling-window absence do not establish closure; skipped ASN-0 scheduling completion is not a scan. Handle shared hosting, changing ownership, partial/failed exports, indexing lag and late results; preserve raw/derived visibility. Compact company/CIRCL timeline, review reasons, justified MOSP/VL links and controlled notification/ticket actions. Bounded national-scale ingestion; no direct national-data replication or blind address enumeration. Planned; see docs/roadmap.md."
       }
     ]
   },
@@ -94,6 +102,18 @@
       {
         "title": "Pilot optional FlowIntel case hand-off with tenant-safe status feedback",
         "body": "Implemented bounded pilot: optional compact FlowIntel source build pinned to 0fd54db3, separate PostgreSQL/Valkey/TLS/private credentials, retained profile selection and volumes. CIRCL-only scoped finding preview/approval exports a private service-organization case and four follow-up tasks with asset IP/DNS/rack, CVE/source severity, applicability uncertainty and pinned risk references. Committed pre-I/O claims, current sharing/access/content checks, identity uniqueness and bounded GET-only reconciliation avoid blind retries after uncertain writes. Explicit/manual and ten-minute polling retain separate workflow status without changing findings, NetBox or notification approval. Synthetic real-lab RO/RW organization cases, unrelated FlowIntel-organization denial, browser hand-off and PostgreSQL concurrent claims verified; see docs/validation.md and docs/user-guide/flowintel.md for exact evidence. Remaining: MISP alert ingest/severity contract, assignment-name mapping, supported external-version matrix, richer playbooks, remote retention/revocation process, production scheduler/egress/SSO/recovery. No production mail/scans/automatic remediation. Follow-up: fixed Docker image-layer EXDEV directory rename during startup using a preserving copy/remove fallback, collision/link guards and regression coverage; recovery recreates containers with the updated bind-mounted adapter while reusing existing images/volumes."
+      },
+      {
+        "title": "Add optional RT and RTIR issue hand-off with scoped status feedback",
+        "body": "Agreed phase 2: validate selected Best Practical RT/RTIR release/API/auth and queue/type/custom-field visibility before coding. Optional alternative to FlowIntel for an approved scoped CVE/lifecycle/exposure issue. Exact export preview/approval, server-side instance credentials, stable remote mapping, committed claims, uncertain-create read-only reconciliation, status/owner/deadline feedback, retained state and current sharing checks. No automatic incident classification or issue remediation on ticket closure; no implicit duplicate FlowIntel+RT ticket creation. Synthetic multi-organization/reader/revocation/racing/lost-ack tests and actual isolated backend pilot required. Planned, not implemented; see docs/integrations/rt-rtir.md."
+      },
+      {
+        "title": "Connect CIRCL master to independently operated company Bearings instances",
+        "body": "Agreed phase 4: retain hosted organization workspaces and add explicit company-instance federation using approved sharing, versioned scoped delta API, stable instance/org/source identity and per-connection credentials. Preserve time-valid ownership, origin/revision/cursor, independent local NetBox authority, current visibility for raw/derived data and counts, idempotent updates and last-known state on outages. No shared databases, unrestricted inventory dumps, implied bidirectional writes or leakage of national observations to unrelated companies. Separate company/CIRCL review and stakeholder workflows. Planned, not implemented; see docs/roadmap.md."
+      },
+      {
+        "title": "Add mandate-aware optional Plum Island scan coordination",
+        "body": "Planned phase 5b, separate from existing-data reads. Reuse CIRCL stated Luxembourg scanning mandate through configured operational scope, profiles, exclusions, rate/cadence/budget and audit policy; customer attribution is separately verified. Source-reviewed target bulk_import schedules scanning and Plum-Agent executes jobs, so keep it out of historical read connectors. Verify selected deployed target/profile/job APIs and permissions, duplicate-target and uncertain-write semantics before enabling requests. Import results with job/outcome/coverage and never equate skipped/failed work with closed services. No scans or live target registration performed in planning; no private endpoint/customer data published. See docs/roadmap.md."
       }
     ]
   },

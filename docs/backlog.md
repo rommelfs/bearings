@@ -1,6 +1,6 @@
 # Implementation backlog
 
-Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [4 milestones](https://github.com/rommelfs/bearings/milestones) and [20 issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
+Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
 ## M1: Foundation and inventory
 
@@ -75,3 +75,9 @@ Implemented [#22](https://github.com/rommelfs/bearings/issues/22): [private case
 Remaining work: MISP alert ingestion and severity semantics, assignment-name mapping, external-version compatibility, richer playbooks, remote retention/revocation process and production scheduling/egress/SSO/recovery. These are not enabled by the local pilot; notification/product matching and broader remediation remain in #6/#10/#11.
 
 The #22 follow-up fixes startup on image-layer filesystems that reject directory renames with EXDEV. The adapter preserves the image tree before linking retained runtime data; regression checks cover EXDEV, repeat startup, existing backups and unexpected links. The guide documents recovery by updating the bind-mounted adapter without rebuilding or deleting volumes.
+
+## Agreed lifecycle, response and Plum Island phases (2026-10-20)
+
+The [roadmap](roadmap.md) records the agreed order: common asset/lifecycle issues and UI; optional RT/RTIR hand-off; production notification/subscription/escalation work (#10); independent company-instance federation; existing Plum Island observations/comparison; optional mandate-aware scan coordination. New definitions are in backlog.json; existing #8 remains the historical reader, not a scan-submission connector.
+
+CIRCL reports a Luxembourg scanning mandate and a large existing observation corpus. The first Plum Island increment therefore reuses scoped historical data and can begin alongside the common issue model. Preserve protocol/port/hostname, source/report identity, comparable coverage and time-valid customer ownership; new or disappearing observations remain qualified review cues. Confirmed closure requires suitable scan evidence. Public source review at 06972ba8 establishes API/UI/agent and scheduling distinctions; the deployed internal endpoint was not contacted. No internal address, national/customer observations or credentials are published. These phases are planned, not shipped capabilities.

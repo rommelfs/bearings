@@ -16,7 +16,7 @@ A standalone organization inventory and evidence review portal intended for CIRC
 
 - Public MOSP/MONARC CC0 risk catalogs, justified organization-local CVE-to-scenario links, pinned evidence revisions and a joined Asset → Vulnerability → Risk view. See [setup and workflow](docs/integrations/mosp.md).
 
-**Not yet implemented:** MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md).
+**Not yet implemented:** MISP and Plum Island adapters, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, active scanning, production notifications, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
 
 See [asset location, source-severity filters and linked analyst triage](docs/user-guide/asset-triage.md).
 
