@@ -8,13 +8,80 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from users.models import User, Token, ObjectPermission
 from tenancy.models import Tenant
-from dcim.models import Site, Manufacturer, DeviceType, DeviceRole, Device
-from virtualization.models import VirtualMachine
+from dcim.models import (
+    Site,
+    Manufacturer,
+    DeviceType,
+    DeviceRole,
+    Device,
+    Interface,
+    Location,
+    Rack,
+    Platform,
+)
+from virtualization.models import VirtualMachine, VMInterface
 from ipam.models import Prefix, IPAddress
 from extras.models import CustomField
 
 SECRETS = Path("/run/bearings/secrets")
 NETBOX_SECRETS = Path("/run/secrets")
+
+
+def enrich_asset(asset, tenant, site, suffix, kind):
+    """Fill empty synthetic fixture facts only; preserve operator edits and API capabilities."""
+    if asset.tenant_id != tenant.pk or asset.name != f"lab-{suffix}-{kind}" or asset.site_id != site.pk:
+        return
+    platform, _ = Platform.objects.get_or_create(
+        slug="bearings-debian", defaults={"name": "Debian 12 (SYNTHETIC)"}
+    )
+    if not asset.platform_id:
+        asset.platform = platform
+    if isinstance(asset, Device):
+        room, _ = Location.objects.get_or_create(
+            site=site,
+            slug="bearings-" + suffix,
+            defaults={"name": f"Infrastructure room {suffix.upper()} (SYNTHETIC)"},
+        )
+        rack, _ = Rack.objects.get_or_create(
+            site=site,
+            name=f"LAB-{suffix.upper()}-01 (SYNTHETIC)",
+            defaults={"location": room, "tenant": tenant, "u_height": 42},
+        )
+        if not asset.rack_id and not asset.location_id and asset.position is None:
+            if rack.location_id != room.pk or rack.tenant_id != tenant.pk:
+                raise RuntimeError("Synthetic rack changed; refusing to overwrite operator placement")
+            asset.location, asset.rack, asset.position, asset.face = room, rack, 10, "front"
+        if not asset.serial:
+            asset.serial = f"SYNTHETIC-{suffix.upper()}-0001"
+        if not asset.asset_tag:
+            asset.asset_tag = f"LAB-{suffix.upper()}-SERVER-01"
+        interface, _ = Interface.objects.get_or_create(
+            device=asset, name="lab-mgmt0", defaults={"type": "virtual"}
+        )
+    else:
+        interface, _ = VMInterface.objects.get_or_create(virtual_machine=asset, name="lab-mgmt0")
+    number = 20 if kind == "server" else 21
+    ipv4 = ("192.0.2." if suffix == "rw" else "198.51.100.") + str(number) + "/24"
+    ipv6 = f"2001:db8:{10 if suffix == 'rw' else 20}::{number}/64"
+    dns = f"lab-{suffix}-{kind}.infra.example.invalid"
+    for field, address in [("primary_ip4", ipv4), ("primary_ip6", ipv6)]:
+        if getattr(asset, field + "_id"):
+            continue
+        ip, _ = IPAddress.objects.get_or_create(
+            tenant=tenant, address=address, vrf=None, defaults={"dns_name": dns}
+        )
+        ct = ContentType.objects.get_for_model(type(interface))
+        if (
+            ip.assigned_object_id is not None
+            and (ip.assigned_object_type_id != ct.pk or ip.assigned_object_id != interface.pk)
+        ) or ip.dns_name != dns:
+            raise RuntimeError("Synthetic address ownership/DNS changed; existing data preserved")
+        ip.assigned_object = interface
+        ip.full_clean()
+        ip.save()
+        setattr(asset, field, ip)
+    asset.full_clean()
+    asset.save()
 
 
 @transaction.atomic
@@ -73,7 +140,17 @@ def main():
         taxonomy.object_types.add(
             *(
                 ContentType.objects.get_for_model(model)
-                for model in [Site, DeviceRole, DeviceType, Manufacturer, Tenant, CustomField]
+                for model in [
+                    Site,
+                    Location,
+                    Rack,
+                    Platform,
+                    DeviceRole,
+                    DeviceType,
+                    Manufacturer,
+                    Tenant,
+                    CustomField,
+                ]
             )
         )
         taxonomy.users.add(service)
@@ -107,6 +184,7 @@ def main():
             if model is Device:
                 defaults.update({"role": role, "device_type": dtype})
             asset, _ = model.objects.get_or_create(custom_field_data__bearings_id=key, defaults=defaults)
+            enrich_asset(asset, tenant, site, suffix, kind)
             assets.append(
                 {
                     "id": key,

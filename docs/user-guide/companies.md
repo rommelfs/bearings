@@ -10,3 +10,5 @@ A platform administrator creates your organization, maps its inventory source, a
 6. Select a CVE to retrieve for review. A successful record lookup does not determine applicability, exploitation or compromise. Read evidence/explanation and record an assessment and reason; workflow and applicability are separate. Repeating a lookup preserves review history.
 
 Readers cannot mutate data. Editors cannot change contacts or memberships. Organization administrators manage contacts but cannot self-verify infrastructure authority or modify operator policy. Missing/stale inventory and absent findings are coverage gaps, not a safe result.
+
+See the [notification workflow](notifications.md) for product/severity filters, templates, reviewed bulk preparation, local mail output and company acknowledgment.

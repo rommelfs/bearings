@@ -106,6 +106,15 @@ def home(request):
     review_page = Paginator(reviews, 25).get_page(request.GET.get("review_page"))
     for finding in review_page:
         decorate_finding(finding)
+        finding.notification_mode = ""
+        if finding.record.shareable and finding.analyst_applicability != "not_affected":
+            if (
+                can_operator_review(request.user, finding.organization)
+                and finding.organization.operator_visibility
+            ):
+                finding.notification_mode = "circl"
+            elif can_edit(request.user, finding.organization):
+                finding.notification_mode = "company"
     return render(
         request,
         "portal/home.html",

@@ -53,6 +53,9 @@ class Contact(models.Model):
     escalation_order = models.PositiveSmallIntegerField(default=1)
     reachable_at = models.DateTimeField(null=True, blank=True)
     invalid_delivery = models.BooleanField(default=False)
+    notification_enabled = models.BooleanField(
+        default=False, help_text="Explicitly include this contact in vulnerability notification previews"
+    )
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
@@ -560,4 +563,52 @@ class RiskLink(models.Model):
                 condition=Q(withdrawn_at__isnull=True),
                 name="unique_active_risk_link",
             )
+        ]
+
+
+class NotificationBatch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    mode = models.CharField(
+        max_length=10, choices=[("circl", "CIRCL outreach"), ("company", "Internal company")]
+    )
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, null=True, blank=True)
+    filters = models.JSONField(default=dict)
+    subject_template = models.CharField(max_length=250)
+    body_template = models.TextField()
+    status = models.CharField(max_length=20, default="draft")
+    created_at = models.DateTimeField(default=timezone.now)
+    approved_at = models.DateTimeField(null=True)
+
+
+class NotificationDelivery(models.Model):
+    batch = models.ForeignKey(NotificationBatch, on_delete=models.PROTECT, related_name="deliveries")
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT)
+    findings = models.ManyToManyField(Finding, through="NotificationDeliveryFinding")
+    snapshot = models.JSONField()
+    fingerprint = models.CharField(max_length=64)
+    subject = models.CharField(max_length=250)
+    body = models.TextField()
+    status = models.CharField(max_length=20, default="draft")
+    filed_at = models.DateTimeField(null=True)
+    acknowledged_at = models.DateTimeField(null=True)
+    acknowledged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+
+class NotificationReceipt(models.Model):
+    """Committed before file I/O: an interrupted attempt is never silently retried."""
+
+    fingerprint = models.CharField(max_length=64, unique=True)
+    delivery = models.OneToOneField(NotificationDelivery, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(default=timezone.now)
+
+
+class NotificationDeliveryFinding(models.Model):
+    delivery = models.ForeignKey(NotificationDelivery, on_delete=models.PROTECT)
+    finding = models.ForeignKey(Finding, on_delete=models.PROTECT)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["delivery", "finding"], name="unique_notification_finding")
         ]

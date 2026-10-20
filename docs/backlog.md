@@ -59,3 +59,7 @@ Completed [#19](https://github.com/rommelfs/bearings/issues/19): an opt-in [Exch
 ## Locate affected assets and prioritize review
 
 Completed [#20](https://github.com/rommelfs/bearings/issues/20): the [asset triage increment](user-guide/asset-triage.md) adds source IP/DNS/location/rack context, linked asset/evidence/actions, distinct severity styling, search/global severity filters and source-first ordering. A guarded opt-in Exchange fixture validates actual NetBox placement and the regular GET-only projection; no permissions are raised or external servers provisioned. Broader topology, source freshness workflows, risk scoring and notification delivery remain separate backlog items.
+
+## Notification preparation and richer bundled inventory
+
+Implemented [#21](https://github.com/rommelfs/bearings/issues/21), the first part of [#10](https://github.com/rommelfs/bearings/issues/10): CIRCL/company filters and sorting, constrained templates, reviewed per-contact previews, policy revalidation, local file approval, duplicate-attempt prevention, company inbox and acknowledgment. [Notification guide](user-guide/notifications.md) distinguishes existing-review cues from future automated feed/product matching and local file output from production delivery. Both bundled tenants now have IP/DNS/platform facts; physical starter devices also have room/rack/U/serial/tag. #10 remains open for subscriptions, production transport, escalation and recovery governance; #6 retains product/version correlation and #11 assignment/remediation workflows.

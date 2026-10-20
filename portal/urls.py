@@ -1,7 +1,11 @@
 from django.urls import path
-from . import views, intelligence_views
+from . import views, intelligence_views, notification_views
 
 urlpatterns = [
+    path("notifications/", notification_views.center, name="notifications"),
+    path("notifications/batches/<uuid:pk>/", notification_views.batch_detail, name="notification-batch"),
+    path("notifications/batches/<uuid:pk>/approve/", notification_views.approve, name="notification-approve"),
+    path("notifications/<int:pk>/acknowledge/", notification_views.acknowledge, name="notification-ack"),
     path("organizations/<slug:slug>/assets/<uuid:pk>/", views.asset_detail, name="asset"),
     path(
         "organizations/<slug:slug>/assets/<uuid:pk>/assessment/",

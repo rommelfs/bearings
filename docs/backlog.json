@@ -65,7 +65,7 @@
     "issues": [
       {
         "title": "Deliver controlled notification and escalation workflow",
-        "body": "Keep development sink; require operational authorization for production transport. Add delivery failure state, reminder escalation, deduplication, handling policy and audited preparation history."
+        "body": "Implemented first increment: scoped CIRCL/company bulk filtering and sorting from existing reviews; constrained text templates; per-contact rendered previews; eligible explicit contact inclusion; audited approval with current redistribution/access and content revalidation; unique pre-I/O receipt and local-file-only output; company inbox and acknowledgment. Synthetic examples populate both bundled tenants without raising API capabilities. Remaining: continuous feed/product-version correlation, event-driven subscriptions and pending-only cues, granular team/service routing, approved production transport/public origin, remote delivery/bounce handling, recovery policy, reminders/escalation and retention. No production email is enabled."
       },
       {
         "title": "Complete organization remediation and CIRCL triage",
@@ -86,6 +86,10 @@
       {
         "title": "Locate affected assets and distinguish source severity in analyst triage",
         "body": "Implemented linked asset context in overview, evidence and scoped asset detail: primary IPv4/IPv6, source-local DNS/VRF, site/location/rack/unit/face, platform, responsibility and freshness. Added distinct contrast-tested severity cards, global scoped counts/filtering/search/order with a validated backfilled source-severity cache, direct evidence/review links and safe local assessment edits. The guarded opt-in bundled Exchange placement fixture reuses confirmed identity without granting service permissions or writing to external instances. Validated 136 PostgreSQL tests, SQLite 134 passes plus two PostgreSQL-only skips, real NetBox enrichment/import repeated without changed projections, full local smoke, real desktop/mobile Chromium analyst navigation, 6.76:1\u20139.00:1 severity text contrast and no mobile horizontal overflow. Final behavioral revision fd92380 passed Checks 39323407391 and complete Development stack 39323407347. Screenshots and ADR 0006 document the result. General applicability, secondary-interface topology, risk scoring and operational alerts remain separate work."
+      },
+      {
+        "title": "Provide reviewed bulk notification previews and local company inbox",
+        "body": "Implement the bounded first notification increment: populate synthetic NetBox context in both capability examples; CIRCL/company filters, deterministic sorting, constrained text templates, separate per-contact previews, explicit inclusion and current contact readiness, scoped approval, policy/content revalidation, duplicate-attempt prevention, a forced local-file backend, company inbox and acknowledgment. Verify real bundled NetBox, browser flows, SQLite/PostgreSQL including racing claims, and document uncertainty and remaining automatic feed/product matching/production transport/escalation in #5/#6/#10/#11. No production delivery."
       }
     ]
   },

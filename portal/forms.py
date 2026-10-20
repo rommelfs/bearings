@@ -17,6 +17,7 @@ class ContactForm(forms.ModelForm):
             "secure_communication",
             "scope",
             "escalation_order",
+            "notification_enabled",
         ]
 
 

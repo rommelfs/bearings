@@ -115,6 +115,21 @@ def main():
         imported.refresh_from_db()
         assert imported.missing_since is not None and imported.criticality == "high"
         refresh_inventory(ro.pk)
+        for item in config["connections"]:
+            source = sources[item["access_mode"]]
+            for seed in item["assets"]:
+                asset = Asset.objects.get(source=source, pk=seed["id"])
+                data = asset.upstream_data
+                assert data.get("primary_ip4") and data.get("primary_ip6")
+                assert data.get("primary_ip4_dns_name", "").endswith(".example.invalid")
+                assert data.get("primary_ip6_dns_name") == data["primary_ip4_dns_name"]
+                assert data.get("platform", {}).get("name") == "Debian 12 (SYNTHETIC)"
+                if seed["kind"] == "server":
+                    assert data.get("rack") and data.get("location") and data.get("position") == "10"
+                    assert data.get("serial", "").startswith("SYNTHETIC-") and data.get("asset_tag")
+        print(
+            "Verified real primary IPv4/IPv6, DNS/platform and physical room/rack/U/serial/tag for all four bundled starter assets."
+        )
         assert not ro.asset_set.filter(pk=imported.pk).exists()
         assert (
             Asset.objects.filter(source=rw, object_type="dcim.device", external_id=external_id).count() == 1

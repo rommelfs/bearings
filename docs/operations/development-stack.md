@@ -104,3 +104,7 @@ Bundled source links use a separate HTTPS browser URL (`localhost` with the conf
 ## Public intelligence and risk scenarios
 
 The initializer registers a public MOSP source without external HTTP. The worker periodically refreshes its CC0 MONARC catalog after inventory processing; outages retain existing evidence and do not prevent portal startup. Run `python3 scripts/dev.py manage sync_mosp --all` to request a refresh immediately, then follow the [NetBox → Vulnerability-Lookup → MOSP workflow](../integrations/mosp.md). CVEs and justified risk links are selected explicitly; bootstrap does not infer affectedness or create risk assessments for imported inventory.
+
+### Synthetic notification exercise
+
+After bundled startup run `python3 scripts/dev.py manage seed_notification_example --bundled`. It prepares explicitly synthetic Critical Log4j reviews and simulated eligible contacts for both tenants. In Notifications choose Critical + Log4j; preview before approving to the local file sink. No external mail is sent. See the [complete workflow](../user-guide/notifications.md). Startup also fills empty primary IPv4/IPv6, DNS/platform and physical room/rack/U/serial/tag on the four original synthetic assets, preserving operator changes and RO/RW token capabilities.
