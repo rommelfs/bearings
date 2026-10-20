@@ -108,3 +108,7 @@ The initializer registers a public MOSP source without external HTTP. The worker
 ### Synthetic notification exercise
 
 After bundled startup run `python3 scripts/dev.py manage seed_notification_example --bundled`. It prepares explicitly synthetic Critical Log4j reviews and simulated eligible contacts for both tenants. In Notifications choose Critical + Log4j; preview before approving to the local file sink. No external mail is sent. See the [complete workflow](../user-guide/notifications.md). Startup also fills empty primary IPv4/IPv6, DNS/platform and physical room/rack/U/serial/tag on the four original synthetic assets, preserving operator changes and RO/RW token capabilities.
+
+### Missing screenshot data after updating
+
+Screenshots are a populated test database, not a database distributed by Git. For an existing bundled stack, run `python3 scripts/dev.py up` to rebuild application code, then `python3 scripts/dev.py manage sync_netbox --all` for an immediate GET-only projection refresh. Optional Log4j contacts/reviews require `python3 scripts/dev.py manage seed_notification_example --bundled`; inbox messages require preview and approval. The default 15-minute import interval can otherwise delay new NetBox facts. [Troubleshooting and exact filters](../user-guide/notifications.md#screenshot-data-missing-after-an-update) also cover the separate Exchange case, existing policies and native versus Docker databases.

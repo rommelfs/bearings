@@ -7,6 +7,7 @@ This increment implements filtered bulk previews, a constrained message template
 ```sh
 git pull
 python3 scripts/dev.py up
+python3 scripts/dev.py manage sync_netbox --all
 python3 scripts/dev.py manage seed_notification_example --bundled
 ```
 
@@ -17,6 +18,20 @@ The explicit notification exercise adds **synthetic minimal Log4j CVE-2021-44228
 For the existing live-evidence Exchange exercise, keep its separately documented [setup](exchange-example.md). Its CVE-2026-70571 has **High** severity, so use the High filter and product Exchange. The bundled notification exercise provides an eligible synthetic contact for that same RW organization. The Exchange placement command remains `python3 scripts/dev.py example-exchange --inventory-only` for an already confirmed case.
 
 Native fallback: `DJANGO_DEBUG=1 uv run python manage.py seed_notification_example` prepares only the separate Example Labs development workspace; it does not provision NetBox.
+
+## Screenshot data missing after an update
+
+Screenshots show a separately populated test database. `git pull` updates source files; it does not copy that database, create optional scenarios or approve messages. Docker runs the packaged application image, so run `python3 scripts/dev.py up` after pulling; restarting an old image alone does not install new application code.
+
+The commands above rebuild/start the bundled application, immediately import current NetBox facts and explicitly add the notification exercise. Without the explicit import, an existing projection can retain old fields until the next scheduled refresh (15 minutes by default). Check the organization's inventory import health if the command reports a failed source; failures retain last-known data.
+
+To see the four seeded Log4j reviews, sign in as `circl-analyst`, choose CIRCL audience, all organizations, **Critical** severity and product **Log4j**, then refresh matches. As `company-admin`, choose Company audience and **NetBox lab RW** or **NetBox lab RO**; the default separate Example Labs workspace is not one of these bundled organizations. High severity does not include Critical. Existing restrictions, closed findings and membership/visibility decisions remain respected; the seed does not reset them.
+
+The company inbox screenshot also includes messages that were manually previewed, approved and partly acknowledged. Seeding creates no messages. Follow the approval steps below to populate your inbox; an empty inbox immediately after seeding is expected.
+
+The Exchange screenshot is a separate opt-in scenario. For an already confirmed bundled Exchange case, run `python3 scripts/dev.py example-exchange --inventory-only` to populate IP/DNS/placement and import it. If the case does not exist yet, run `python3 scripts/dev.py example-exchange` instead; that command retrieves live CVE/MOSP evidence and reports any public-service connectivity failure. Neither command targets external NetBox instances.
+
+Native `uv run ... runserver` uses its own database and development inventory adapter. Starting or seeding Docker does not populate that native instance. Use the matching native instructions above, or access the bundled application you started; do not run both against the same local port.
 
 ## CIRCL → organizations
 

@@ -89,7 +89,7 @@
       },
       {
         "title": "Provide reviewed bulk notification previews and local company inbox",
-        "body": "Implement the bounded first notification increment: populate synthetic NetBox context in both capability examples; CIRCL/company filters, deterministic sorting, constrained text templates, separate per-contact previews, explicit inclusion and current contact readiness, scoped approval, policy/content revalidation, duplicate-attempt prevention, a forced local-file backend, company inbox and acknowledgment. Verify real bundled NetBox, browser flows, SQLite/PostgreSQL including racing claims, and document uncertainty and remaining automatic feed/product matching/production transport/escalation in #5/#6/#10/#11. No production delivery."
+        "body": "Implement the bounded first notification increment: populate synthetic NetBox context in both capability examples; CIRCL/company filters, deterministic sorting, constrained text templates, separate per-contact previews, explicit inclusion and current contact readiness, scoped approval, policy/content revalidation, duplicate-attempt prevention, a forced local-file backend, company inbox and acknowledgment. Verify real bundled NetBox, browser flows, SQLite/PostgreSQL including racing claims, and document uncertainty and remaining automatic feed/product matching/production transport/escalation in #5/#6/#10/#11. No production delivery. Update troubleshooting now distinguishes source/image updates from retained databases, immediate NetBox projection refresh, optional seeds, exact Critical/Log4j and organization filters, manual inbox approval and separate native/Docker environments."
       }
     ]
   },
