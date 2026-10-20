@@ -1,6 +1,7 @@
 """Runtime entrypoint for the development stack (no secret values in arguments/logs)."""
 
 import os
+import json
 import re
 import sys
 import time
@@ -16,6 +17,21 @@ def environment():
     for path in (ROOT / "secrets").iterdir():
         if re.fullmatch(r"(?:NETBOX|FLOWINTEL|RT|PLUM|FEDERATION)_[A-Z0-9_]*TOKEN", path.name):
             os.environ[path.name] = path.read_text().strip()
+    if os.getenv("BEARINGS_SSO_LAB") == "1":
+        manifest = json.loads((ROOT / "secrets/oidc-lab.json").read_text())
+        os.environ["BEARINGS_SSO_ENABLED"] = "1"
+        os.environ["OIDC_ISSUER"] = manifest["issuer"]
+        os.environ["OIDC_CLIENT_SECRET"] = (ROOT / "secrets/oidc_client_secret").read_text().strip()
+        os.environ["OIDC_CA_BUNDLE"] = str(ROOT / "trust/ca-bundle.pem")
+        public = manifest["issuer"] + "/protocol/openid-connect/"
+        internal = "https://netbox.bearings.test:444/realms/bearings-lab/protocol/openid-connect/"
+        for name, value in {
+            "OIDC_AUTHORIZATION_URL": public + "auth",
+            "OIDC_TOKEN_URL": internal + "token",
+            "OIDC_USERINFO_URL": internal + "userinfo",
+            "OIDC_JWKS_URL": internal + "certs",
+        }.items():
+            os.environ[name] = value
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 
@@ -40,6 +56,8 @@ def main():
         )
         if os.getenv("BEARINGS_FLOWINTEL") == "1":
             call_command("setup_flowintel_lab")
+        if os.getenv("BEARINGS_SSO_LAB") == "1":
+            call_command("setup_sso_lab")
     elif mode == "smoke":
         from docker.dev.smoke import main as smoke
 

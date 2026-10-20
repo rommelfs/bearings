@@ -113,3 +113,66 @@ MOSP_PROXY_DNS = os.getenv("MOSP_PROXY_DNS", "1" if CONNECTOR_PROXY_DNS else "0"
 VULNERABILITY_LOOKUP_PROXY_DNS = (
     os.getenv("VULNERABILITY_LOOKUP_PROXY_DNS", "1" if CONNECTOR_PROXY_DNS else "0") == "1"
 )
+
+# OIDC is optional. Accounts/roles are explicitly managed locally; IdP claims cannot grant access.
+SSO_ENABLED = os.getenv("BEARINGS_SSO_ENABLED", "0") == "1"
+SSO_ISSUER = os.getenv("OIDC_ISSUER", "").rstrip("/")
+SSO_SESSION_SECONDS = int(os.getenv("OIDC_SESSION_SECONDS", "1800"))
+INSTALLED_APPS += ["social_django"]
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
+MIDDLEWARE.insert(
+    MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware") + 1, "portal.sso.SessionGuard"
+)
+SOCIAL_AUTH_PIPELINE = (
+    "social_core.pipeline.social_auth.social_details",
+    "social_core.pipeline.social_auth.social_uid",
+    "social_core.pipeline.social_auth.social_user",
+    "config.oidc.require_approved_user",
+)
+SOCIAL_AUTH_MAX_SESSION_LENGTH = SSO_SESSION_SECONDS
+SOCIAL_AUTH_SESSION_EXPIRATION = True
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = "/"
+SOCIAL_AUTH_LOGIN_ERROR_URL = "/accounts/login/"
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
+SOCIAL_AUTH_RAISE_EXCEPTIONS = True  # Sanitized by SessionGuard, including in DEBUG mode.
+SOCIAL_AUTH_OIDC_USE_PKCE = True
+SOCIAL_AUTH_OIDC_PKCE_CODE_CHALLENGE_METHOD = "S256"
+SOCIAL_AUTH_OIDC_JWT_ALGORITHMS = ["RS256"]
+SOCIAL_AUTH_OIDC_JWT_DECODE_OPTIONS = {"require": ["iss", "sub", "aud", "exp", "iat"]}
+SOCIAL_AUTH_OIDC_TOKEN_ENDPOINT_AUTH_METHOD = "client_secret_basic"
+SOCIAL_AUTH_OIDC_ID_TOKEN_ISSUER = SSO_ISSUER
+SOCIAL_AUTH_OIDC_KEY = os.getenv("OIDC_CLIENT_ID", "bearings")
+SOCIAL_AUTH_OIDC_SECRET = os.getenv("OIDC_CLIENT_SECRET", "")
+SOCIAL_AUTH_OIDC_VERIFY_SSL = os.getenv("OIDC_CA_BUNDLE") or True
+SOCIAL_AUTH_OIDC_AUTHORIZATION_URL = os.getenv("OIDC_AUTHORIZATION_URL", "")
+SOCIAL_AUTH_OIDC_ACCESS_TOKEN_URL = os.getenv("OIDC_TOKEN_URL", "")
+SOCIAL_AUTH_OIDC_USERINFO_URL = os.getenv("OIDC_USERINFO_URL", "")
+SOCIAL_AUTH_OIDC_JWKS_URI = os.getenv("OIDC_JWKS_URL", "")
+if SSO_ENABLED:
+    from django.core.exceptions import ImproperlyConfigured
+    from portal.connectors.http import ConnectorError, validate_base
+
+    try:
+        for endpoint in [
+            SSO_ISSUER,
+            SOCIAL_AUTH_OIDC_AUTHORIZATION_URL,
+            SOCIAL_AUTH_OIDC_ACCESS_TOKEN_URL,
+            SOCIAL_AUTH_OIDC_USERINFO_URL,
+            SOCIAL_AUTH_OIDC_JWKS_URI,
+        ]:
+            validate_base(endpoint)
+    except ConnectorError:
+        raise ImproperlyConfigured(
+            "SSO requires explicit credential-free HTTPS issuer and endpoints"
+        ) from None
+    if not SOCIAL_AUTH_OIDC_SECRET or not 60 <= SSO_SESSION_SECONDS <= 86400:
+        raise ImproperlyConfigured("Configure an OIDC client secret and session lifetime of 60–86400 seconds")
+    AUTHENTICATION_BACKENDS += ["config.oidc.ApprovedOpenIdConnect"]
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"oidc_redaction": {"()": "config.oidc.RedactAuthQueries"}},
+    "handlers": {"django.server": {"class": "logging.StreamHandler", "filters": ["oidc_redaction"]}},
+    "loggers": {"django.server": {"handlers": ["django.server"], "level": "INFO", "propagate": False}},
+}

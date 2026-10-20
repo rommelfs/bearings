@@ -361,3 +361,43 @@ class FlowIntelRuntimeDirectoryTests(SimpleTestCase):
             with self.assertRaises(RuntimeError):
                 link_runtime_directory(path, target)
             self.assertEqual(path.resolve(), other)
+
+
+class SSOStarterTests(SimpleTestCase):
+    def test_optional_sso_compose_retains_both_other_profiles_and_refuses_external(self):
+        plain = dev.compose("bundled", "bearings-test", True)
+        combined = dev.compose("bundled", "bearings-test", True, True)
+        self.assertNotIn(str(dev.ROOT / "compose.sso.yaml"), plain)
+        self.assertIn(str(dev.ROOT / "compose.netbox.yaml"), combined)
+        self.assertIn(str(dev.ROOT / "compose.flowintel.yaml"), combined)
+        self.assertEqual(combined[-1], str(dev.ROOT / "compose.sso.yaml"))
+        with self.assertRaises(SystemExit):
+            dev.compose("external", "bearings-test", False, True)
+
+    def test_retained_identity_configuration_refuses_silent_port_repointing(self):
+        from docker.sso.initialize import initialize
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "secrets").mkdir()
+            (root / "secrets/demo_password").write_text("synthetic-password")
+
+            def write(path, content, **kwargs):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+
+            def secret(path, **kwargs):
+                if not path.exists():
+                    write(path, str(uuid.uuid4()))
+                return path.read_text().strip()
+
+            ports = {"sso": 9444, "bearings": 8000, "netbox": 8443}
+            initialize(root, write, secret, ports)
+            saved = (root / "secrets/oidc_client_secret").read_text()
+            identity = (root / "secrets/oidc-lab.json").read_text()
+            initialize(root, write, secret, ports)
+            self.assertEqual((root / "secrets/oidc_client_secret").read_text(), saved)
+            self.assertEqual((root / "secrets/oidc-lab.json").read_text(), identity)
+            self.assertNotEqual((root / "netbox-secrets/oidc_client_secret").read_text(), saved)
+            with self.assertRaises(ValueError):
+                initialize(root, write, secret, {**ports, "sso": 9555})

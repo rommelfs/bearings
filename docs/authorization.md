@@ -20,7 +20,7 @@ SourceRecord `shareable=False` is the conservative default. Participants see nei
 
 Background jobs carry an organization through the asset/source binding; reminders select only that organization's administrators. Jobs have no user-supplied organization IDs or destinations. Future jobs, notifications, search, exports and cache keys must retain this same scope.
 
-Local passwords are a development foundation. Production SSO/MFA, account recovery, session/rate-limit review and delegated providers are backlog items. Public token redemption changes reachability only, checks hashed 256-bit random tokens, expiry and one-use state, and uses CSRF on POST. GET never consumes a token.
+Optional OIDC SSO for Bearings and the bundled NetBox is now available with explicit issuer/subject bindings and independent local roles; see [SSO operation](operations/sso.md). Local passwords remain available. Production MFA/local fallback policy, global session revocation, account recovery, session/rate-limit review and delegated providers are backlog items. Public token redemption changes reachability only, checks hashed 256-bit random tokens, expiry and one-use state, and uses CSRF on POST. GET never consumes a token.
 
 All current contact messages use the development file sink. The UI labels this explicitly; a redeemed local token exercises the confirmation state machine but is not evidence of real-world email delivery. Enabling production contact reachability needs an authorized transport and delivery validation.
 

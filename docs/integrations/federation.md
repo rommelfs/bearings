@@ -1,6 +1,6 @@
 # Independent company instances: bounded read-only pilot
 
-Implemented: explicit company export grants, a versioned bounded complete-snapshot endpoint, operator-configured company readers, retained source reports and a **Company instances** view. This is a first pilot; production delta feeds, partitioning/checkpoints, remote acknowledgments, SSO and outreach from federated data remain future work. Hosted company workspaces continue to use the existing organization model and NetBox instances.
+Implemented: explicit company export grants, a versioned bounded complete-snapshot endpoint, operator-configured company readers, retained source reports and a **Company instances** view. This is a first pilot; production delta feeds, partitioning/checkpoints, remote acknowledgments, federated identity/role lifecycle and outreach from federated data remain future work. Hosted company workspaces continue to use the existing organization model and NetBox instances.
 
 An active company administrator (or trusted platform administrator) grants access for one organization's explicitly shareable, non-operator-only issues. Inventory needs an additional explicit grant. CIRCL group membership alone cannot grant a company's data. Current publisher membership, account, grant expiry, source restrictions and historical Plum scope are checked on each request. Only a token digest is stored. Export identity is a pseudonymous grant UUID, bound to a receiver-generated client UUID and an operator-pinned HTTPS endpoint; it is not a numeric local organization ID.
 

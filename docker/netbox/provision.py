@@ -222,3 +222,5 @@ def main():
 
 
 main()
+if os.getenv("BEARINGS_SSO_LAB") == "1":
+    exec(compile(Path("/sso-provision.py").read_text(), "sso-provision", "exec"))

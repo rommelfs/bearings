@@ -36,13 +36,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        flowintel: [false, true]
+        include:
+          - flowintel: false
+            sso: false
+          - flowintel: true
+            sso: false
+          - flowintel: false
+            sso: true
     steps:
       - uses: actions/checkout@v4
       - name: Start real Bearings and NetBox
-        run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} --timeout 900
+        run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} --timeout 900
       - name: Exercise HTTPS, scoped queries, portal writes and recovery
         run: python3 scripts/dev.py smoke
+      - name: Verify real OIDC and tenant-isolated NetBox access
+        if: matrix.sso
+        run: python3 scripts/dev.py sso-smoke
       - name: Prepare bounded synthetic lifecycle and exposure exercise
         run: python3 scripts/dev.py manage seed_asset_issues --bundled
       - name: Stop without deleting data
@@ -52,16 +61,19 @@ jobs:
           python3 scripts/dev.py up --no-build --timeout 300
           python3 scripts/dev.py query
           python3 scripts/dev.py manage seed_asset_issues --bundled
+      - name: Verify retained SSO realm and account bindings
+        if: matrix.sso
+        run: python3 scripts/dev.py sso-smoke
       - name: Verify retained FlowIntel cases and task identities
         if: matrix.flowintel
         run: python3 scripts/dev.py smoke
       - name: Capture failure logs without credentials
         if: failure()
-        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml -f compose.flowintel.yaml logs --no-color > dev-stack.log
+        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml -f compose.flowintel.yaml -f compose.sso.yaml logs --no-color > dev-stack.log
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: dev-stack-logs-${{ matrix.flowintel }}
+          name: dev-stack-logs-${{ matrix.flowintel }}-${{ matrix.sso }}
           path: dev-stack.log
       - name: Stop test containers
         if: always()

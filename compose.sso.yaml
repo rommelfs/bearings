@@ -1,0 +1,71 @@
+# Optional synthetic OIDC lab. Production should use an independently managed IdP.
+services:
+  dev-init:
+    environment:
+      BEARINGS_SSO_LAB: "1"
+      SSO_PORT: ${SSO_PORT:-9444}
+      BEARINGS_PORT: ${BEARINGS_PORT:-8000}
+      NETBOX_PORT: ${NETBOX_PORT:-8443}
+    volumes:
+      - sso-secrets:/state/sso
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    entrypoint: ["/bin/bash", "/adapter/start.sh"]
+    mem_limit: 768m
+    environment:
+      BEARINGS_SSO_PUBLIC_URL: https://localhost:${SSO_PORT:-9444}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_ACCESS_LOG_ENABLED: "false"
+    volumes:
+      - ./docker/sso/start.sh:/adapter/start.sh:ro
+      - sso-secrets:/run/credentials:ro
+      - sso-secrets:/opt/keycloak/data/import:ro
+      - sso-data:/opt/keycloak/data
+    depends_on:
+      dev-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3; grep -q '200' <&3"]
+      interval: 5s
+      timeout: 5s
+      start_period: 90s
+      retries: 40
+  netbox-tls:
+    volumes:
+      - ./docker/sso/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:${SSO_PORT:-9444}:444"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+  netbox: &sso-netbox
+    environment:
+      BEARINGS_SSO_LAB: "1"
+      SSO_PORT: ${SSO_PORT:-9444}
+      NO_PROXY: localhost,127.0.0.1,netbox.bearings.test
+      GUNICORN_CMD_ARGS: "--access-logformat '%(m)s %(U)s %(s)s'"
+    volumes:
+      - ./config/oidc.py:/opt/netbox/netbox/bearings_oidc.py:ro
+      - dev-trust:/run/bearings/trust:ro
+      - dev-secrets:/run/bearings/secrets:ro
+  netbox-worker:
+    <<: *sso-netbox
+  netbox-provision:
+    environment:
+      BEARINGS_SSO_LAB: "1"
+      SSO_PORT: ${SSO_PORT:-9444}
+    volumes:
+      - ./config/oidc.py:/opt/netbox/netbox/bearings_oidc.py:ro
+      - ./docker/sso/netbox_provision.py:/sso-provision.py:ro
+      - dev-trust:/run/bearings/trust:ro
+  bearings-init: &sso-bearings
+    environment:
+      BEARINGS_SSO_LAB: "1"
+  web:
+    <<: *sso-bearings
+  worker:
+    <<: *sso-bearings
+volumes:
+  sso-secrets:
+  sso-data:

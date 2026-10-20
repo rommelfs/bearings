@@ -32,12 +32,16 @@ def environment():
     return result
 
 
-def compose(mode, project, flowintel=False):
+def compose(mode, project, flowintel=False, sso=False):
+    if sso and mode != "bundled":
+        raise SystemExit("Bundled SSO cannot provision an external environment")
     result = ["docker", "compose", "-p", project, "-f", str(ROOT / "compose.dev.yaml")]
     if mode == "bundled":
         result += ["-f", str(ROOT / "compose.netbox.yaml")]
     if flowintel:
         result += ["-f", str(ROOT / "compose.flowintel.yaml")]
+    if sso:
+        result += ["-f", str(ROOT / "compose.sso.yaml")]
     return result
 
 
@@ -148,6 +152,7 @@ def active():
         else {"mode": "bundled", "project": os.getenv("BEARINGS_DEV_PROJECT", "bearings-dev")}
     )
     state.setdefault("flowintel", False)
+    state.setdefault("sso", False)
     return state
 
 
@@ -212,6 +217,12 @@ def main():
         default=None,
         help="Include optional synthetic FlowIntel (preserved on subsequent up calls)",
     )
+    up.add_argument(
+        "--sso",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Include optional Keycloak SSO for Bearings and bundled NetBox",
+    )
     up.add_argument("--no-build", action="store_true")
     up.add_argument("--timeout", type=int, default=600)
     connect = commands.add_parser("configure", help="Configure an external NetBox without logging its token")
@@ -230,7 +241,7 @@ def main():
     connect.add_argument("--ca-file", help="Additional approved CA certificate for the external instance")
     for name in ["site-id", "role-id", "device-type-id"]:
         connect.add_argument("--" + name, type=int)
-    for name in ["down", "status", "logs", "credentials", "trust", "query", "smoke"]:
+    for name in ["down", "status", "logs", "credentials", "trust", "query", "smoke", "sso-smoke"]:
         commands.add_parser(name)
     example = commands.add_parser(
         "example-exchange", help="Create the synthetic Exchange case and add verified lab IP/DNS/rack context"
@@ -266,6 +277,11 @@ def main():
             if args.flowintel is not None
             else (active()["flowintel"] if active()["mode"] == mode else False)
         )
+        sso = args.sso if args.sso is not None else (active()["sso"] if active()["mode"] == mode else False)
+        if sso and mode != "bundled":
+            raise SystemExit(
+                "Bundled SSO requires bundled mode; configure external IdP connections separately"
+            )
         if flowintel and mode != "bundled":
             raise SystemExit(
                 "The FlowIntel development profile requires bundled mode; external connections can be configured in platform administration"
@@ -277,29 +293,44 @@ def main():
             from scripts.flowintel_source import prepare_source
 
             prepare_source()
-        target = {"mode": mode, "project": project, "flowintel": flowintel}
+        target = {"mode": mode, "project": project, "flowintel": flowintel, "sso": sso}
         if STATE.exists() and active() != target:
             old = active()
-            run(compose(old["mode"], old["project"], old.get("flowintel", False)) + ["down"])
+            run(
+                compose(old["mode"], old["project"], old.get("flowintel", False), old.get("sso", False))
+                + ["down"]
+            )
             print("Previous lab stopped; its volumes and data were retained.")
         private_file(STATE, json.dumps(target))
         options = ["up", "-d", "--wait", "--wait-timeout", str(args.timeout)]
         if not args.no_build:
             options.append("--build")
-        run(compose(mode, project, flowintel) + options)
+        run(compose(mode, project, flowintel, sso) + options)
         if mode == "bundled":
-            run(compose(mode, project, flowintel) + ["exec", "-T", "netbox-tls", "nginx", "-s", "reload"])
+            run(
+                compose(mode, project, flowintel, sso) + ["exec", "-T", "netbox-tls", "nginx", "-s", "reload"]
+            )
         if flowintel:
-            run(compose(mode, project, flowintel) + ["exec", "-T", "flowintel-tls", "nginx", "-s", "reload"])
+            run(
+                compose(mode, project, flowintel, sso)
+                + ["exec", "-T", "flowintel-tls", "nginx", "-s", "reload"]
+            )
         print(
             "Bearings development stack started. Check connection health in the workspace; external availability is independent."
         )
         print("Use 'python3 scripts/dev.py credentials' to display the generated local login password.")
         return
     state = active()
-    base = compose(state["mode"], state["project"], state.get("flowintel", False))
+    base = compose(state["mode"], state["project"], state.get("flowintel", False), state.get("sso", False))
     if args.action == "example-exchange":
         exchange_example(base, state["mode"], inventory_only=args.inventory_only)
+    elif args.action == "sso-smoke":
+        import sys
+
+        sys.path.insert(0, str(ROOT))
+        from scripts.sso_smoke import main as sso_smoke
+
+        sso_smoke()
     elif args.action == "down":
         run(base + ["down"])
         print("Containers stopped; persistent volumes and data retained.")
@@ -349,6 +380,10 @@ def main():
         else:
             run(base + ["exec", "-T", "web", "/app/.venv/bin/python", "docker/dev/entrypoint.py", "smoke"])
     elif args.action == "credentials":
+        if state.get("sso"):
+            print(
+                "Keycloak SSO demo users: company-admin, circl-analyst, unassigned-demo (no app access). Existing IdP passwords are preserved. FlowIntel/RT keep separate sign-in."
+            )
         if state.get("flowintel"):
             print(
                 "Bundled FlowIntel logins: platform-admin@example.com and circl-analyst@example.com. Existing passwords are unchanged."

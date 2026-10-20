@@ -114,6 +114,10 @@
       {
         "title": "Add mandate-aware optional Plum Island scan coordination",
         "body": "Planned phase 5b, separate from existing-data reads. Reuse CIRCL stated Luxembourg scanning mandate through configured operational scope, profiles, exclusions, rate/cadence/budget and audit policy; customer attribution is separately verified. Source-reviewed target bulk_import schedules scanning and Plum-Agent executes jobs, so keep it out of historical read connectors. Verify selected deployed target/profile/job APIs and permissions, duplicate-target and uncertain-write semantics before enabling requests. Import results with job/outcome/coverage and never equate skipped/failed work with closed services. No scans or live target registration performed in planning; no private endpoint/customer data published. See docs/roadmap.md."
+      },
+      {
+        "title": "Add optional OIDC SSO with explicit identities and independent application roles",
+        "body": "Implemented first increment: optional Bearings OIDC and bundled NetBox with Keycloak 26.8.1, distinct clients/secrets, POST/CSRF initiation, authorization code + S256 PKCE, RS256 issuer/audience/azp/expiry/nonce checks, fixed HTTPS backchannels and explicit issuer+subject local account bindings. No automatic account creation, email linking, claim-to-role mapping or token persistence. Local emergency accounts and API keys remain independent. Binding revocation/generation, bounded sessions, retained realm/account policies and strict-compatible CA metadata preserve the existing CA key. Real synthetic one-password two-app login, tenant denial and unapproved identity checks provided by scripts/dev.py sso-smoke. Remaining: FlowIntel/RT identity integration, deployment/version matrix, global/backchannel logout, IdP account lifecycle synchronization, enforced MFA/fallback policy and production operational acceptance. See docs/operations/sso.md and docs/validation.md."
       }
     ]
   },

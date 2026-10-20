@@ -22,11 +22,15 @@ A standalone organization inventory and evidence review portal intended for CIRC
 - [Bulk notifications](docs/user-guide/notifications.md) for CVE and lifecycle/exposure reviews, constrained templates, draft subscriptions, explicit approval, file delivery by default, opt-in TLS SMTP, inbox and acknowledgments.
 - [Read-only company-instance federation pilot](docs/integrations/federation.md): expiring explicit company grants, bounded snapshots, provenance/freshness and retained reports, separate from authoritative local inventory.
 
-**Not yet implemented:** MISP ingestion, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, scan coordination, production bounce/escalation management, resumable/delta federation, SSO/MFA, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
+**Not yet implemented:** MISP ingestion, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, scan coordination, production bounce/escalation management, resumable/delta federation, global SSO logout/MFA enforcement, FlowIntel/RT SSO, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
 
 See [asset location, source-severity filters and linked analyst triage](docs/user-guide/asset-triage.md).
 
 See the [unpatched Exchange example and analyst workflow](docs/user-guide/exchange-example.md) for CVE-2026-70571, possible consequences, in-app review cues and notification limits.
+
+## Optional single sign-on
+
+`python3 scripts/dev.py up --sso` adds a retained Keycloak lab for **Bearings + NetBox**. Their local roles remain independent, accounts are explicitly bound to issuer/subject, and emergency password login remains available. FlowIntel and RT keep their separate sign-in. See [SSO setup, permissions and sign-out behavior](docs/operations/sso.md).
 
 ## Start with bundled NetBox (recommended)
 

@@ -5,7 +5,12 @@ description = "Organization inventory, contact review, and evidence-led threat r
 requires-python = ">=3.12"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
-dependencies = ["Django>=5.2,<5.3", "httpx>=0.28,<0.29", "psycopg[binary]>=3.2,<4"]
+dependencies = [
+    "Django>=5.2,<5.3",
+    "httpx>=0.28,<0.29",
+    "psycopg[binary]>=3.2,<4",
+    "social-auth-app-django>=5.6,<6",
+]
 
 [dependency-groups]
 dev = ["ruff>=0.12,<0.16"]

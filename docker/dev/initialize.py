@@ -6,6 +6,7 @@ import pwd
 import re
 import secrets
 import subprocess
+import sys
 from pathlib import Path
 import certifi
 
@@ -129,6 +130,13 @@ def main():
                 str(cert),
             )
             key.chmod(0o600)
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from docker.sso.trust import ensure_ca_usage
+
+        if ensure_ca_usage(cert, key):
+            print(
+                "Updated the public lab CA certificate for strict verification; the CA private key and existing server identities are retained."
+            )
         openssl("x509", "-in", str(cert), "-noout", "-checkend", "86400")
         server_cert, server_key = ROOT / "tls/netbox.crt", ROOT / "tls/netbox.key"
         renew = not server_cert.exists()
@@ -203,6 +211,25 @@ def main():
         if mode != "bundled":
             raise ValueError("The bundled FlowIntel profile requires the bundled NetBox lab")
         initialize_flowintel()
+    if os.environ.get("BEARINGS_SSO_LAB") == "1":
+        if mode != "bundled":
+            raise ValueError("Bundled SSO requires the isolated NetBox lab")
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from docker.sso.initialize import initialize
+
+        initialize(
+            ROOT,
+            write,
+            secret,
+            {
+                name: int(os.getenv(variable, default))
+                for name, variable, default in [
+                    ("sso", "SSO_PORT", "9444"),
+                    ("bearings", "BEARINGS_PORT", "8000"),
+                    ("netbox", "NETBOX_PORT", "8443"),
+                ]
+            },
+        )
     write(ROOT / "trust/ca-bundle.pem", Path(certifi.where()).read_text() + "\n" + ca.decode(), public=True)
     if ca:
         write(ROOT / "trust/netbox-ca.crt", ca.decode(), public=True)
