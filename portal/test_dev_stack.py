@@ -1,4 +1,5 @@
 import argparse
+import errno
 import io
 import json
 import tempfile
@@ -7,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.management import call_command, CommandError
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from scripts import dev
 from .connectors.http import ConnectorError, validate_base
 from .models import Asset, InventoryWrite, Membership, NetBoxInstance, Organization, Product
@@ -307,3 +308,56 @@ class FlowIntelStarterTests(TestCase):
                     flowintel_source.prepare_source()
                 self.assertEqual(run.call_count, 1)
                 self.assertNotIn("checkout", run.call_args.args[0])
+
+
+class FlowIntelRuntimeDirectoryTests(SimpleTestCase):
+    def test_cross_device_move_preserves_image_tree_and_runtime_data_on_repeat(self):
+        from docker.flowintel.start import link_runtime_directory
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path, target = root / "logs", root / "runtime"
+            path.mkdir()
+            (path / "nested").mkdir()
+            (path / "nested/image.log").write_text("image contents")
+            (path / "alias").symlink_to("nested/image.log")
+            target.mkdir()
+            (target / "retained.log").write_text("existing runtime contents")
+            with patch("os.rename", side_effect=OSError(errno.EXDEV, "Invalid cross-device link")):
+                link_runtime_directory(path, target)
+            self.assertTrue(path.is_symlink())
+            self.assertEqual(path.resolve(), target)
+            backup = root / "logs.image-original"
+            self.assertEqual((backup / "nested/image.log").read_text(), "image contents")
+            self.assertTrue((backup / "alias").is_symlink())
+            link_runtime_directory(path, target)
+            self.assertEqual((path / "retained.log").read_text(), "existing runtime contents")
+            self.assertEqual((backup / "nested/image.log").read_text(), "image contents")
+
+    def test_existing_backup_is_preserved_without_merging_or_removing_source(self):
+        from docker.flowintel.start import link_runtime_directory
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path, target, backup = root / "uploads", root / "runtime", root / "uploads.image-original"
+            for item in [path, target, backup]:
+                item.mkdir()
+            (path / "original").write_text("source")
+            (backup / "retained").write_text("backup")
+            with self.assertRaises(RuntimeError):
+                link_runtime_directory(path, target)
+            self.assertEqual((path / "original").read_text(), "source")
+            self.assertEqual((backup / "retained").read_text(), "backup")
+
+    def test_unexpected_runtime_link_is_preserved(self):
+        from docker.flowintel.start import link_runtime_directory
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path, target, other = root / "history", root / "runtime", root / "other"
+            target.mkdir()
+            other.mkdir()
+            path.symlink_to(other)
+            with self.assertRaises(RuntimeError):
+                link_runtime_directory(path, target)
+            self.assertEqual(path.resolve(), other)

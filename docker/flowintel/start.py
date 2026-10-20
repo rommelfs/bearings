@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 from pathlib import Path
 import sys
 import uuid
@@ -9,6 +10,25 @@ import uuid
 ROOT = Path("/run/flowintel")
 APP = Path("/home/flowintel/app")
 DATA = Path("/var/lib/bearings-flowintel")
+
+
+def link_runtime_directory(path, target):
+    if path.is_dir() and not path.is_symlink():
+        backup = path.with_name(path.name + ".image-original")
+        if backup.exists() or backup.is_symlink():
+            raise RuntimeError(
+                f"Runtime directory backup already exists: {backup}; inspect without deleting data"
+            )
+        # Overlay filesystems can reject a lower-layer directory rename with EXDEV.
+        # shutil.move falls back to preserving the tree by copy and removal.
+        shutil.move(str(path), str(backup))
+    if path.is_symlink():
+        if path.resolve() != target.resolve():
+            raise RuntimeError(f"Unexpected runtime directory link: {path}; existing data preserved")
+    elif not path.exists():
+        path.symlink_to(target)
+    else:
+        raise RuntimeError(f"Unexpected runtime directory entry: {path}; existing data preserved")
 
 
 def environment():
@@ -29,11 +49,7 @@ def environment():
         target.mkdir(exist_ok=True)
         if os.getuid() == 0:
             os.chown(target, 10000, 0)
-        path = APP / name
-        if path.is_dir() and not path.is_symlink():
-            path.rename(APP / (name + ".image-original"))
-        if not path.exists():
-            path.symlink_to(target)
+        link_runtime_directory(APP / name, target)
 
 
 def initialize():

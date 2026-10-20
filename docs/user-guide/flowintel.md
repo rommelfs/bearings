@@ -75,6 +75,19 @@ python3 scripts/dev.py smoke
 
 In the selected FlowIntel profile this runs the original NetBox import/write/recovery proof plus private cases for both synthetic RO/RW organizations, four tasks per case, unrelated-organization access denial, stable repeat identities and GET-only status feedback. It uses explicitly synthetic Log4j review fixtures, not live fetched vulnerability evidence. No real-company data, outgoing notifications, scans or remediation commands are executed.
 
+## Startup fails with “Invalid cross-device link”
+
+A failure in `flowintel-init` while renaming `logs`, `history` or `uploads` is an image-layer filesystem issue in the startup adapter. The corrected adapter preserves the image directory with a copy/remove fallback when a directory rename is unsupported. Existing runtime data and backup directories are not overwritten. Update and retry from your checkout:
+
+```sh
+git pull
+python3 scripts/dev.py down
+python3 scripts/dev.py up --flowintel --no-build
+python3 scripts/dev.py credentials
+```
+
+This fix is in the bind-mounted `docker/flowintel/start.py`, so the already built images can be reused. `down` removes the old containers so their single-file bind mounts cannot retain an older file inode; it preserves all volumes. Keep the volumes; no database/password reset is needed. If initialization still fails, read `docker logs --tail 120 bearings-dev-flowintel-init-1` before making changes. Redact any credentials before sharing logs. A credentials error saying `web` is not running is a consequence of the failed startup.
+
 ## Operator-managed external connections
 
 Platform superusers can configure **FlowIntel instances** in Django administration: approved credential-free HTTPS API/browser bases, an optional Bearings browser base, a `FLOWINTEL_*TOKEN` environment-variable name, the expected service organization ID, private-destination approval and enabled policy. Supply the key only through server-side secret configuration. Use the API user's own organization and an editor role with access to the intended private cases; do not default to an unrestricted admin key. Native/custom workers need the same key/trust configuration.
