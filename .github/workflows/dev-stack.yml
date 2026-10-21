@@ -8,6 +8,8 @@ on:
       - '.dockerignore'
       - 'docker/**'
       - 'scripts/dev.py'
+      - 'scripts/sso_smoke.py'
+      - 'scripts/rt_sso.py'
       - 'scripts/flowintel_source.py'
       - 'portal/**'
       - 'config/**'
@@ -21,6 +23,8 @@ on:
       - '.dockerignore'
       - 'docker/**'
       - 'scripts/dev.py'
+      - 'scripts/sso_smoke.py'
+      - 'scripts/rt_sso.py'
       - 'scripts/flowintel_source.py'
       - 'portal/**'
       - 'config/**'
@@ -43,12 +47,17 @@ jobs:
             sso: false
           - flowintel: false
             sso: true
+          - flowintel: true
+            sso: true
     steps:
       - uses: actions/checkout@v4
       - name: Start real Bearings and NetBox
         run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} --timeout 900
       - name: Exercise HTTPS, scoped queries, portal writes and recovery
         run: python3 scripts/dev.py smoke
+      - name: Verify FlowIntel session isolation and revocation in its pinned runtime
+        if: matrix.flowintel
+        run: docker exec -i bearings-dev-flowintel-1 /home/flowintel/venv/bin/python - < docker/flowintel/test_sso.py
       - name: Verify real OIDC and tenant-isolated NetBox access
         if: matrix.sso
         run: python3 scripts/dev.py sso-smoke
@@ -69,7 +78,7 @@ jobs:
         run: python3 scripts/dev.py smoke
       - name: Capture failure logs without credentials
         if: failure()
-        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml -f compose.flowintel.yaml -f compose.sso.yaml logs --no-color > dev-stack.log
+        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml -f compose.flowintel.yaml -f compose.sso.yaml -f compose.flowintel-sso.yaml logs --no-color > dev-stack.log
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

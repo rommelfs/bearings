@@ -22,7 +22,7 @@ A standalone organization inventory and evidence review portal intended for CIRC
 - [Bulk notifications](docs/user-guide/notifications.md) for CVE and lifecycle/exposure reviews, constrained templates, draft subscriptions, explicit approval, file delivery by default, opt-in TLS SMTP, inbox and acknowledgments.
 - [Read-only company-instance federation pilot](docs/integrations/federation.md): expiring explicit company grants, bounded snapshots, provenance/freshness and retained reports, separate from authoritative local inventory.
 
-**Not yet implemented:** MISP ingestion, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, scan coordination, production bounce/escalation management, resumable/delta federation, global SSO logout/MFA enforcement, FlowIntel/RT SSO, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
+**Not yet implemented:** MISP ingestion, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, scan coordination, production bounce/escalation management, resumable/delta federation, global SSO logout/MFA enforcement, production SSO acceptance, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
 
 See [asset location, source-severity filters and linked analyst triage](docs/user-guide/asset-triage.md).
 
@@ -30,7 +30,18 @@ See the [unpatched Exchange example and analyst workflow](docs/user-guide/exchan
 
 ## Optional single sign-on
 
-`python3 scripts/dev.py up --sso` adds a retained Keycloak lab for **Bearings + NetBox**. Their local roles remain independent, accounts are explicitly bound to issuer/subject, and emergency password login remains available. FlowIntel and RT keep their separate sign-in. See [SSO setup, permissions and sign-out behavior](docs/operations/sso.md).
+Start the complete bundled lab with shared sign-in:
+
+```sh
+python3 scripts/dev.py up --sso --flowintel
+python3 scripts/dev.py trust
+python3 scripts/dev.py credentials
+python3 scripts/dev.py sso-smoke
+```
+
+Import the exported public CA into your browser/OS. **Bearings + NetBox + FlowIntel** use the same retained Keycloak lab with distinct clients and explicitly bound identities. As `circl-analyst`, sign in once and use each application's SSO button; `company-admin` has Bearings/NetBox access and is intentionally denied in the CIRCL FlowIntel workspace. Local roles and emergency password accounts remain independent. The starter provisions the FlowIntel client automatically, including in retained realms. All options are remembered for the next `up`.
+
+For an existing **RT/RTIR 5.x** installation, `python3 scripts/dev.py rt-sso --help` generates a private Apache/OIDC and RT account-mapping bundle; [installation](docs/operations/rt-sso.md) belongs on its authentication/RT execution boundary. RT is not bundled. See [SSO setup, permissions and sign-out behavior](docs/operations/sso.md).
 
 ## Start with bundled NetBox (recommended)
 

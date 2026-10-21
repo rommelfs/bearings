@@ -2,6 +2,7 @@
 
 import json
 import uuid
+from pathlib import Path
 
 NAMESPACE = uuid.UUID("f41faab5-9f09-4640-9809-cbc5e5b6b853")
 
@@ -90,3 +91,26 @@ def initialize(root, write, secret, ports):
         legacy.unlink()
     write(root / "sso/bearings-lab-realm.json", json.dumps(realm))
     (root / "sso/bearings-lab-realm.json").chmod(0o640)
+
+
+def initialize_flowintel(root, write, secret, port):
+    """Separate secrets and immutable callback for the optional third application."""
+    import certifi
+
+    manifest = json.loads((root / "secrets/oidc-lab.json").read_text())
+    target = root / "flowintel-sso"
+    info = {
+        "issuer": manifest["issuer"],
+        "subject": manifest["users"]["circl-analyst"],
+        "callback": f"https://localhost:{port}/bearings-sso/callback",
+    }
+    path = target / "flowintel.json"
+    if path.exists() and json.loads(path.read_text()) != info:
+        raise ValueError("Retained FlowIntel SSO issuer/callback changed; refusing identity repointing")
+    write(path, json.dumps(info), public=True)
+    secret(target / "client_secret")
+    write(
+        target / "ca-bundle.pem",
+        Path(certifi.where()).read_text() + "\n" + (root / "tls/ca.crt").read_text(),
+        public=True,
+    )

@@ -32,6 +32,9 @@ x-flowintel: &flowintel
     - ./docker/flowintel/start.py:/adapter/start.py:ro
     - ./docker/flowintel/config.py:/home/flowintel/app/conf/config.py:ro
     - ./docker/flowintel/config_module.py:/home/flowintel/app/conf/config_module.py:ro
+    - ./docker/flowintel/sso.py:/adapter/flowintel_sso.py:ro
+    - ./docker/flowintel/wsgi.py:/adapter/bearings_flowintel_wsgi.py:ro
+    - ./docker/sso/oidc_client.py:/adapter/oidc_client.py:ro
 services:
   dev-init:
     environment:
@@ -75,6 +78,9 @@ services:
       - ./docker/flowintel/start.py:/adapter/start.py:ro
       - ./docker/flowintel/config.py:/home/flowintel/app/conf/config.py:ro
       - ./docker/flowintel/config_module.py:/home/flowintel/app/conf/config_module.py:ro
+      - ./docker/flowintel/sso.py:/adapter/flowintel_sso.py:ro
+      - ./docker/flowintel/wsgi.py:/adapter/bearings_flowintel_wsgi.py:ro
+      - ./docker/sso/oidc_client.py:/adapter/oidc_client.py:ro
     depends_on:
       flowintel-db:
         condition: service_healthy

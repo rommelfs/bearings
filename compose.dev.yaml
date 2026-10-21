@@ -8,6 +8,8 @@ services:
     environment:
       BEARINGS_NETBOX_MODE: ${BEARINGS_NETBOX_MODE:-external}
     volumes:
+      - ./docker/dev/initialize.py:/app/docker/dev/initialize.py:ro
+      - ./docker/sso:/app/docker/sso:ro
       - dev-secrets:/state/secrets
       - dev-trust:/state/trust
       - ./.local/dev-stack/external:/external:ro

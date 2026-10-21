@@ -155,6 +155,10 @@ def initialize():
             )
         )
         config.chmod(0o644)
+    if os.environ.get("BEARINGS_FLOWINTEL_SSO") == "1":
+        from flowintel_sso import provision
+
+        provision(app)
     for path in [DATA, *DATA.rglob("*")]:
         os.chown(path, 10000, 0, follow_symlinks=False)
     print(
@@ -166,6 +170,13 @@ def main():
     environment()
     if sys.argv[1] == "init":
         initialize()
+    elif sys.argv[1] == "identity":
+        if os.environ.get("BEARINGS_FLOWINTEL_SSO") != "1":
+            raise SystemExit("Start the bundled FlowIntel/SSO profile before managing its demo binding")
+        from app import create_app
+        from flowintel_sso import identity_command
+
+        identity_command(create_app(), sys.argv[2])
     else:
         os.execv(
             "/home/flowintel/venv/bin/gunicorn",
@@ -177,7 +188,11 @@ def main():
                 "2",
                 "--access-logfile",
                 "-",
-                "app:create_app()",
+                "--access-logformat",
+                "%(m)s %(U)s %(s)s",
+                "--pythonpath",
+                "/adapter",
+                "bearings_flowintel_wsgi:create_app()",
             ],
         )
 

@@ -370,7 +370,8 @@ class SSOStarterTests(SimpleTestCase):
         self.assertNotIn(str(dev.ROOT / "compose.sso.yaml"), plain)
         self.assertIn(str(dev.ROOT / "compose.netbox.yaml"), combined)
         self.assertIn(str(dev.ROOT / "compose.flowintel.yaml"), combined)
-        self.assertEqual(combined[-1], str(dev.ROOT / "compose.sso.yaml"))
+        self.assertIn(str(dev.ROOT / "compose.sso.yaml"), combined)
+        self.assertEqual(combined[-1], str(dev.ROOT / "compose.flowintel-sso.yaml"))
         with self.assertRaises(SystemExit):
             dev.compose("external", "bearings-test", False, True)
 

@@ -33,7 +33,8 @@ class LoginForm(HTMLParser):
             or (
                 self.app_form
                 and any(
-                    path in attrs.get("action", "") for path in ["/oauth/begin/oidc/", "/oauth/login/oidc/"]
+                    path in attrs.get("action", "")
+                    for path in ["/oauth/begin/oidc/", "/oauth/login/oidc/", "/bearings-sso/login"]
                 )
             )
         ):
@@ -72,6 +73,19 @@ def main():
     if issuer != f"https://localhost:{ports['sso']}/realms/bearings-lab":
         raise SystemExit("SSO smoke refuses an unrecognized issuer")
     allowed = {(urlsplit(url).scheme, urlsplit(url).netloc) for url in [app, netbox, issuer]}
+    flow = None
+    if state.get("flowintel"):
+        flow = json.loads(read("secrets/flowintel.json"))["browser_url"]
+        parsed = urlsplit(flow)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "localhost"
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise SystemExit("SSO smoke refuses non-local FlowIntel")
+        allowed.add((parsed.scheme, parsed.netloc))
     tls = ssl.create_default_context(cadata=read("trust/netbox-ca.crt"))
     password = read("secrets/demo_password")
 
@@ -122,6 +136,21 @@ def main():
         with browser.open(Request(form.action, data=urlencode(form.fields).encode()), timeout=15) as response:
             return response.url, response.read(2_000_000).decode()
 
+    def flow_sign_in(browser):
+        _, body = get(browser, flow + "/account/login")
+        form = LoginForm(app_form=True)
+        form.feed(body)
+        assert form.action == "/bearings-sso/login"
+        with browser.open(
+            Request(
+                flow + form.action,
+                data=urlencode(form.fields).encode(),
+                headers={"Referer": flow + "/account/login"},
+            ),
+            timeout=15,
+        ) as response:
+            return response.url, response.read(2_000_000).decode()
+
     stage = "company authentication"
     try:
         company = client()
@@ -156,6 +185,17 @@ def main():
         stage = "unapproved identity denial"
         url, body = sign_in(client(), "unassigned-demo")
         assert url.startswith(app + "/accounts/login/") and "SSO sign-in failed" in body
+        if flow:
+            stage = "company FlowIntel denial"
+            url, body = flow_sign_in(company)
+            assert url.startswith(flow + "/account/login") and "SSO sign-in failed" in body
+            stage = "shared CIRCL FlowIntel authentication"
+            circl = client()
+            sign_in(circl, "circl-analyst")
+            url, _ = flow_sign_in(circl)
+            assert url.startswith(flow + "/") and "/account/login" not in url
+            _, body = get(circl, flow + "/account")
+            assert "circl-analyst@example.com" in body
     except Exception:
         raise SystemExit(
             f"SSO smoke failed at {stage}. Check service health and approved local identity bindings; no sensitive response was printed."
@@ -163,3 +203,7 @@ def main():
     print(
         "Verified real Keycloak OIDC login, one company password prompt across Bearings and NetBox, scoped read-only NetBox access, foreign-tenant denial and unapproved identity denial. TLS verified; no API keys used or accounts/roles created by sign-in."
     )
+    if flow:
+        print(
+            "Also verified CIRCL FlowIntel sign-in using the same IdP session without another password prompt, and company FlowIntel denial."
+        )

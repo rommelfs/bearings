@@ -11,6 +11,8 @@ gunicorn==25.3.0
 jsonschema==4.26.0
 matrix-nio==0.25.2
 msal==1.36.0
+# Direct requirements of the approved-identity OIDC adapter (already transitively locked).
+pyjwt[crypto]==2.15.1
 psycopg2-binary==2.9.11
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2

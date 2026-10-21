@@ -230,6 +230,10 @@ def main():
                 ]
             },
         )
+        if os.environ.get("BEARINGS_FLOWINTEL") == "1":
+            from docker.sso.initialize import initialize_flowintel as initialize_flowintel_sso
+
+            initialize_flowintel_sso(ROOT, write, secret, int(os.getenv("FLOWINTEL_PORT", "9443")))
     write(ROOT / "trust/ca-bundle.pem", Path(certifi.where()).read_text() + "\n" + ca.decode(), public=True)
     if ca:
         write(ROOT / "trust/netbox-ca.crt", ca.decode(), public=True)

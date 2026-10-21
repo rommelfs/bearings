@@ -1,22 +1,22 @@
-# Optional SSO: Bearings and NetBox
+# Optional SSO: Bearings, NetBox and FlowIntel
 
-Implemented first increment: OIDC authorization-code sign-in for Bearings and the bundled NetBox, with a shared optional Keycloak lab. Login uses PKCE S256, signed RS256 ID tokens, issuer/audience/expiry/nonce checks and explicit issuer+subject account bindings. Application roles remain local. FlowIntel and RT retain separate sign-in in this increment; their deployment-specific account/role and session integration remains open.
+Implemented first increment: OIDC authorization-code sign-in for Bearings and the bundled NetBox, with a shared optional Keycloak lab. Login uses PKCE S256, signed RS256 ID tokens, issuer/audience/expiry/nonce checks and explicit issuer+subject account bindings. Application roles remain local. The combined lab also supports FlowIntel for the explicitly linked CIRCL human account. An [RT/RTIR deployment bundle](rt-sso.md) configures the same provider at an existing RT Apache execution boundary; no RT service is bundled.
 
 ## Start the synthetic lab
 
 ```sh
 git pull
-python3 scripts/dev.py up --sso
+python3 scripts/dev.py up --sso --flowintel
 python3 scripts/dev.py trust
 python3 scripts/dev.py credentials
 python3 scripts/dev.py sso-smoke
 ```
 
-The starter remembers `--sso` for later `up`, `down`, `status`, `manage` and smoke calls. `--no-sso` stops the optional IdP and retains its data; local Bearings/NetBox authentication remains available. The profile works with `--flowintel`, but does not enable FlowIntel SSO. External NetBox mode never provisions or rewrites an external installation; configure its identity integration separately.
+The starter remembers `--sso` for later `up`, `down`, `status`, `manage` and smoke calls. `--no-sso` stops the optional IdP and retains its data; local Bearings/NetBox authentication remains available. With both `--sso --flowintel`, the starter automatically adds and verifies FlowIntel's separate OIDC client and explicit CIRCL account binding, including in a retained realm created before this increment. Omitting `--flowintel` on a fresh lab starts Bearings/NetBox only. External NetBox mode never provisions or rewrites an external installation; configure its identity integration separately.
 
 The browser issuer is **https://localhost:9444/realms/bearings-lab**, Bearings uses loopback port **8000**, NetBox **8443**. Trust the public lab CA exported by `trust` in your OS/browser before signing in. The gateway reuses the NetBox lab certificate and verifies backchannel TLS; there is no disabled-verification option. Existing legacy lab CA certificates gain the key-usage extension required by Python 3.14, with the existing CA private/public key retained. Re-export the public certificate after updating. No private CA key is exported.
 
-In Bearings choose **Sign in with SSO** and enter the generated demo password once as `company-admin` or `circl-analyst`. Then open NetBox, choose its **OpenID Connect** sign-in button: the same IdP session signs you in without another password prompt. Each application has its own session and client secret.
+In Bearings choose **Sign in with SSO** and enter the generated demo password once as `company-admin` or `circl-analyst`. Then open NetBox, choose its **OpenID Connect** sign-in button: the same IdP session signs you in without another password prompt. Each application has its own session and client secret. As `circl-analyst`, also open FlowIntel at **https://localhost:9443/account/login** and choose **Sign in with SSO**: the existing IdP session signs in to the existing CIRCL case-workflow account. Company and unassigned demo identities are intentionally denied there.
 
 - Bearings maps to the **existing** local company/CIRCL accounts and preserves their memberships, operator policies, passwords and privilege flags.
 - NetBox uses separate `sso-company-admin` / `sso-circl-analyst` human accounts. The company demo has read-only inventory access to the RW lab tenant; CIRCL's demo can read both synthetic tenants. These permissions are explicit NetBox object permissions; the humans do not inherit API service-account keys or write capability.
@@ -65,9 +65,23 @@ For an independently operated NetBox, configure its supported OIDC backend, a di
 
 MFA is controlled by the IdP. Existing local passwords are preserved, so enabling SSO alone does not make MFA mandatory for those local logins. After testing SSO, operators can separately restrict participant password access while retaining audited emergency accounts. An IdP outage does not remove local accounts or data. API connectors continue using their own scoped server-side credentials.
 
-The pinned FlowIntel deployment has an identity/role model that needs additional review and hardening before sharing these login guarantees; its native Keycloak switch remains off. RT/RTIR authentication depends on the selected installation and frontend. Neither is advertised as SSO-enabled here.
+The pinned FlowIntel build uses an adapter with signed JWT verification, fixed verified HTTPS backchannels, S256 PKCE, nonce/state, POST/CSRF initiation, session-ID regeneration and exact issuer/subject bindings. Its upstream native Keycloak switch remains off. The adapter creates no users and changes no roles, organization, password or API key on sign-in. Only the existing synthetic CIRCL human is linked; the API bridge and local platform administrator are not. Bindings live in a separate `bearings_oidc_binding` table in the FlowIntel database, without modifying upstream tables or migration history. Local account deletion and binding revocation invalidate SSO access; the upstream account model has no independent active flag.
 
-The guarded `sso-smoke` uses Python's standard library, private generated credentials in memory and normal CA/hostname verification. It exercises the real IdP/code exchange, a single company password prompt across both apps, permitted/foreign NetBox inventory and unapproved identity denial; it prints no secrets or callback URLs. See [validation](../validation.md).
+The Docker operator can inspect or explicitly revoke/re-enable the synthetic binding:
+
+```sh
+python3 scripts/dev.py flowintel-sso status
+python3 scripts/dev.py flowintel-sso revoke
+python3 scripts/dev.py flowintel-sso enable
+```
+
+Each explicit change rotates the session generation. Startup preserves a revoked binding, and old sessions cannot revive after re-enabling it. FlowIntel SSO sessions have an absolute 30-minute lifetime. Turning off the profile invalidates SSO sessions while retaining local logins and data. Removing an IdP account alone takes effect at reauthentication; shared logout and backchannel revocation remain separate work. The SSO login adapter targets the pinned bundled FlowIntel build; independently installed FlowIntel needs its operator to install/review this adapter and credentials.
+
+The one-off client provisioner alone can read the lab IdP bootstrap credential; running applications do not receive that administrator credential. Existing disabled clients, users and passwords are preserved. A differing retained callback, client policy or secret fails startup without rewriting either side. If the lab IdP administrator password has been deliberately rotated, update its private provisioner input through the operator rather than resetting the realm. Do not copy this lab provisioning credential into a production application.
+
+RT/RTIR uses the [generated Apache/RT deployment bundle](rt-sso.md), with its own client and immutable subject map, without changing queue permissions or enabling user creation. The existing RT installation requires its operator's acceptance; it is not auto-provisioned by `up`.
+
+The guarded `sso-smoke` uses Python's standard library, private generated credentials in memory and normal CA/hostname verification. It exercises the real IdP/code exchange, a single company password prompt across both apps, permitted/foreign NetBox inventory and unapproved identity denial, plus CIRCL FlowIntel sign-in and company denial when enabled; it prints no secrets or callback URLs. See [validation](../validation.md).
 
 ## Synthetic login view
 

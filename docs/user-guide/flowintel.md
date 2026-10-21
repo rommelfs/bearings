@@ -93,3 +93,7 @@ This fix is in the bind-mounted `docker/flowintel/start.py`, so the already buil
 Platform superusers can configure **FlowIntel instances** in Django administration: approved credential-free HTTPS API/browser bases, an optional Bearings browser base, a `FLOWINTEL_*TOKEN` environment-variable name, the expected service organization ID, private-destination approval and enabled policy. Supply the key only through server-side secret configuration. Use the API user's own organization and an editor role with access to the intended private cases; do not default to an unrestricted admin key. Native/custom workers need the same key/trust configuration.
 
 Once a preview exists, API base, credential reference and service organization identity cannot be repointed underneath it. Browser origins can be changed by the operator without sending credentials there. Only fixed case/task creation and read routes are supported. Generic GET crawling is prohibited because some upstream GET routes mutate state. Cases retain their own source-bound identities and are never synchronized into NetBox.
+
+## Shared sign-in
+
+With `python3 scripts/dev.py up --sso --flowintel`, use `circl-analyst` through **Sign in with SSO** in Bearings and FlowIntel. The existing provider session avoids another password prompt; the FlowIntel CIRCL account keeps its current organization and role. Company users cannot enter the CIRCL case workspace. Local emergency login remains available. See [SSO operation](../operations/sso.md) for certificate trust, revocation and session limits.

@@ -42,6 +42,8 @@ def compose(mode, project, flowintel=False, sso=False):
         result += ["-f", str(ROOT / "compose.flowintel.yaml")]
     if sso:
         result += ["-f", str(ROOT / "compose.sso.yaml")]
+    if sso and flowintel:
+        result += ["-f", str(ROOT / "compose.flowintel-sso.yaml")]
     return result
 
 
@@ -207,6 +209,15 @@ def exchange_example(base, mode, *, inventory_only=False):
 
 
 def main():
+    import sys
+
+    # Delegate the independent stdlib generator with its own option/help parser.
+    if len(sys.argv) > 1 and sys.argv[1] == "rt-sso":
+        sys.path.insert(0, str(ROOT))
+        from scripts.rt_sso import main as rt_sso_main
+
+        rt_sso_main(sys.argv[2:])
+        return
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
     up = commands.add_parser("up", help="Start the bundled lab, or use --external for an existing NetBox")
@@ -221,7 +232,7 @@ def main():
         "--sso",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="Include optional Keycloak SSO for Bearings and bundled NetBox",
+        help="Include optional Keycloak SSO for Bearings, bundled NetBox and enabled FlowIntel",
     )
     up.add_argument("--no-build", action="store_true")
     up.add_argument("--timeout", type=int, default=600)
@@ -255,8 +266,16 @@ def main():
         "manage", help="Run a Bearings management command with stack credentials/trust loaded"
     )
     manage.add_argument("arguments", nargs=argparse.REMAINDER)
+    rt_sso = commands.add_parser(
+        "rt-sso", help="Generate private RT 5.x Apache/OIDC configuration; no remote changes", add_help=False
+    )
+    rt_sso.add_argument("arguments", nargs=argparse.REMAINDER)
+    flow_identity = commands.add_parser(
+        "flowintel-sso", help="Inspect/revoke/enable the explicit synthetic CIRCL FlowIntel identity"
+    )
+    flow_identity.add_argument("operation", choices=["status", "revoke", "enable"])
     args = parser.parse_args()
-    if args.action != "configure":
+    if args.action not in {"configure", "rt-sso"}:
         check_docker()
     LOCAL.mkdir(parents=True, exist_ok=True)
     (LOCAL / "external").mkdir(exist_ok=True)
@@ -324,6 +343,21 @@ def main():
     base = compose(state["mode"], state["project"], state.get("flowintel", False), state.get("sso", False))
     if args.action == "example-exchange":
         exchange_example(base, state["mode"], inventory_only=args.inventory_only)
+    elif args.action == "flowintel-sso":
+        if state["mode"] != "bundled" or not state.get("flowintel") or not state.get("sso"):
+            raise SystemExit("Enable the bundled FlowIntel and SSO profiles first")
+        run(
+            base
+            + [
+                "exec",
+                "-T",
+                "flowintel",
+                "/home/flowintel/venv/bin/python",
+                "/adapter/start.py",
+                "identity",
+                args.operation,
+            ]
+        )
     elif args.action == "sso-smoke":
         import sys
 
@@ -382,7 +416,7 @@ def main():
     elif args.action == "credentials":
         if state.get("sso"):
             print(
-                "Keycloak SSO demo users: company-admin, circl-analyst, unassigned-demo (no app access). Existing IdP passwords are preserved. FlowIntel/RT keep separate sign-in."
+                "Keycloak SSO: company-admin (Bearings/NetBox), circl-analyst (also enabled FlowIntel), unassigned-demo (no app access). Existing IdP passwords are preserved. RT uses its own operator-configured SSO frontend."
             )
         if state.get("flowintel"):
             print(
