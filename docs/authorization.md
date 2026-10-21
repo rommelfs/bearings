@@ -39,3 +39,7 @@ The bundled RT lab has explicit company/CIRCL human and service accounts, privat
 ## RTIR coordination
 
 Native RTIR Incidents and Investigations use a separate CIRCL-only connection and API bridge. Each asset issue is independently approved. An Incident aggregate is denied if any linked issue/company is no longer visible to the actor; company membership alone never exposes coordination tickets or lists. Remote RTIR retention and user ACLs remain independent from Bearings visibility. Native ticket closure does not assert remediation. See [RTIR operations](operations/rtir-lab.md).
+
+## Synthetic exploration and removal
+
+The showcase's companies, assets and evidence use normal organization visibility and sharing rules. `/explore/` displays only the caller's visible synthetic organizations and issue counts. Ordinary CIRCL or company accounts cannot inspect the global removal plan or remove the dataset. Platform-only cleanup uses per-object creation provenance, requires a current reviewed fingerprint, locks and rechecks owned rows/references, rejects unowned dependencies, live conversions, real recipients/addresses and exported identities, and retains audit events and a reseeding tombstone. Name matching never grants deletion ownership. No seed creates or resets application/SSO passwords. See [synthetic-data operations](operations/synthetic-data.md).

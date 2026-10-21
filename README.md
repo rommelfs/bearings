@@ -28,6 +28,10 @@ See [asset location, source-severity filters and linked analyst triage](docs/use
 
 See the [unpatched Exchange example and analyst workflow](docs/user-guide/exchange-example.md) for CVE-2026-70571, possible consequences, in-app review cues and notification limits.
 
+## Explore synthetic scenarios
+
+The bundled lab now includes **10 fictional companies, 300 assets, 900 installations, 960 asset issues, six weeks of exposure history and offline response/message previews**. Follow **Explore the scenarios** in the banner. No scans, messages or remote cases are created by this dataset. Platform administrators can preview and safely remove the tracked examples; a retained marker prevents reseeding on restart. See [synthetic data, cleanup and production boundaries](docs/operations/synthetic-data.md).
+
 ## Optional single sign-on
 
 Start the complete bundled lab with shared sign-in:

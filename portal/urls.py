@@ -1,6 +1,7 @@
 from django.urls import path
 from . import (
     views,
+    demo_views,
     intelligence_views,
     notification_views,
     flowintel_views,
@@ -12,6 +13,8 @@ from . import (
 )
 
 urlpatterns = [
+    path("explore/", demo_views.explore, name="demo-explore"),
+    path("administration/synthetic-data/", demo_views.index, name="demo-data"),
     path("api/v1/federation/export/", federation.export, name="federation-export"),
     path("companies/", federation_views.center, name="companies"),
     path(

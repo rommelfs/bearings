@@ -107,3 +107,7 @@ Implemented in the RT/SSO follow-up: `up --sso --flowintel --rt` starts a real p
 ## Native RTIR coordination
 
 Implemented: optional `--rtir`, real RTIR 5.0.10 queues/lifecycles, CIRCL-only coordinating Incidents and separately approved native linked Investigations for multiple assets/companies, source/lifecycle/parent verification, aggregate visibility withdrawal, independent bridge key, retained installation and synthetic example. Company accounts retain ordinary RT queues and cannot read RTIR evidence. Workflow closure remains separate from technical remediation. Independent customer RTIR acceptance, external graph/type import and version upgrades remain open. See [RTIR lab](operations/rtir-lab.md).
+
+## Extensive exploration data and cleanup
+
+Implemented: a default bundled 10-company/300-asset synthetic showcase with software, CVE/lifecycle/risk evidence, 180 historical exposure snapshots, offline case/task previews and rendered outreach drafts; scoped exploration page and visible synthetic banner. Explicit per-object provenance, reviewed removal plans, stale-plan/referral/live-conversion blockers, transactional PostgreSQL locking, audit preservation and a retained removal marker protect real data and stop automatic reseeding. A data readiness command separately reports old unregistered fixtures. Backend lab data/credentials and production deployment acceptance remain separate. See [operations](operations/synthetic-data.md).

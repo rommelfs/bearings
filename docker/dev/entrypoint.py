@@ -60,6 +60,15 @@ def main():
             call_command("setup_rt_lab")
         if os.getenv("BEARINGS_SSO_LAB") == "1":
             call_command("setup_sso_lab")
+        config = json.loads((ROOT / "secrets/connections.json").read_text())
+        if config.get("mode") == "bundled" and os.getenv("BEARINGS_SHOWCASE", "1") == "1":
+            from portal.demo_data import KEY
+            from portal.models import DemoDataset
+
+            if DemoDataset.objects.filter(key=KEY).exists():
+                print("Synthetic showcase state retained; no automatic reseeding or account/policy changes.")
+            else:
+                call_command("seed_showcase")
     elif mode == "smoke":
         from docker.dev.smoke import main as smoke
 

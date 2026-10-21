@@ -132,6 +132,10 @@
       {
         "title": "Add SBOM, endpoint imports and delegated providers",
         "body": "Reuse software identity boundaries and source provenance; scanner/agent/SBOM imports with isolation and explicit grants. Scanning remains separate authorization."
+      },
+      {
+        "title": "Provide extensive synthetic exploration data and provenance-based cleanup",
+        "body": "Implemented default bundled explore-v1 showcase: 10 companies, 300 assets, 900 installations, 960 issues, synthetic CVE/MOSP/lifecycle evidence, 180 weekly exposure snapshots, 60 port-change reviews, offline RTIR/FlowIntel previews and rendered draft notifications. Scoped exploration page, synthetic banner and platform-only removal preview. Creation-only per-object provenance; atomic cleanup protects unowned references, live connector conversions, remote identities and receipt retention, preserves users/passwords/audit, and retains a removal tombstone to prevent reseeding. PostgreSQL FK locking/revalidation and complete default-size cleanup are tested. CLI supports plan/purge/check; non-DEBUG cleanup remains available. Legacy unregistered and backend fixtures require separate review, never name-based adoption/deletion. See docs/operations/synthetic-data.md and docs/validation.md."
       }
     ]
   }

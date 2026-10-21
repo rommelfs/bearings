@@ -38,12 +38,14 @@ services:
     environment: &bearings-env
       DJANGO_DEBUG: "1"
       BEARINGS_DEV_STACK: "1"
+      BEARINGS_SHOWCASE: ${BEARINGS_SHOWCASE:-1}
       DATABASE_URL: postgresql://bearings:local-development-only@${COMPOSE_PROJECT_NAME}-database:5432/bearings
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
       CONNECTOR_PROXY_DNS: "0"
       NO_PROXY: localhost,127.0.0.1,netbox.bearings.test,host.docker.internal
     volumes: &bearings-volumes
       - ./docker/dev:/app/docker/dev:ro
+      - ./portal:/app/portal:ro
       - dev-secrets:/run/bearings/secrets:ro
       - dev-trust:/run/bearings/trust:ro
       - local-data:/app/.local

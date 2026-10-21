@@ -1310,3 +1310,26 @@ class FederatedReport(models.Model):
                 fields=["source", "resource", "remote_id"], name="unique_federated_report"
             )
         ]
+
+
+class DemoDataset(models.Model):
+    """Retained ownership and removal tombstone; never inferred from labels or account names."""
+
+    key = models.SlugField(max_length=80, unique=True)
+    state = models.CharField(
+        max_length=10, default="active", choices=[("active", "Active"), ("removed", "Removed")]
+    )
+    configuration = models.JSONField(default=dict)
+    created_at = models.DateTimeField(default=timezone.now)
+    removed_at = models.DateTimeField(null=True, blank=True)
+
+
+class DemoObject(models.Model):
+    dataset = models.ForeignKey(DemoDataset, on_delete=models.CASCADE, related_name="entries")
+    model_label = models.CharField(max_length=100)
+    object_pk = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["model_label", "object_pk"], name="unique_demo_object_owner")
+        ]
