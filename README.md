@@ -33,15 +33,15 @@ See the [unpatched Exchange example and analyst workflow](docs/user-guide/exchan
 Start the complete bundled lab with shared sign-in:
 
 ```sh
-python3 scripts/dev.py up --sso --flowintel
+python3 scripts/dev.py up --sso --flowintel --rt
 python3 scripts/dev.py trust
 python3 scripts/dev.py credentials
 python3 scripts/dev.py sso-smoke
 ```
 
-Import the exported public CA into your browser/OS. **Bearings + NetBox + FlowIntel** use the same retained Keycloak lab with distinct clients and explicitly bound identities. As `circl-analyst`, sign in once and use each application's SSO button; `company-admin` has Bearings/NetBox access and is intentionally denied in the CIRCL FlowIntel workspace. Local roles and emergency password accounts remain independent. The starter provisions the FlowIntel client automatically, including in retained realms. All options are remembered for the next `up`.
+Import the exported public CA into your browser/OS. **Bearings + NetBox + FlowIntel + RT** use the same retained Keycloak lab with distinct clients and explicitly bound identities. As `circl-analyst`, sign in once and use each application's SSO button; `company-admin` has Bearings/NetBox access and is intentionally denied in the CIRCL FlowIntel workspace. Local roles and emergency password accounts remain independent. The starter provisions the FlowIntel and RT clients automatically, including in retained realms. RT supplies separate company/CIRCL queues, scoped API tokens and local-only mail; [RT lab guide](docs/operations/rt-lab.md). All options are remembered for the next `up`. Allow about 10 GB of Docker memory for all optional services.
 
-For an existing **RT/RTIR 5.x** installation, `python3 scripts/dev.py rt-sso --help` generates a private Apache/OIDC and RT account-mapping bundle; [installation](docs/operations/rt-sso.md) belongs on its authentication/RT execution boundary. RT is not bundled. See [SSO setup, permissions and sign-out behavior](docs/operations/sso.md).
+For an existing **RT/RTIR 5.x** installation, `python3 scripts/dev.py rt-sso --help` generates a private Apache/OIDC and RT account-mapping bundle; [installation](docs/operations/rt-sso.md) belongs on its authentication/RT execution boundary. The optional bundled RT 5 reference is started by `--rt`; RTIR remains an external/deployment-specific follow-up. See [SSO setup, permissions and sign-out behavior](docs/operations/sso.md).
 
 ## Start with bundled NetBox (recommended)
 

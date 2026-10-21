@@ -1,12 +1,12 @@
-# Optional SSO: Bearings, NetBox and FlowIntel
+# Optional SSO: Bearings, NetBox, FlowIntel and RT
 
-Implemented first increment: OIDC authorization-code sign-in for Bearings and the bundled NetBox, with a shared optional Keycloak lab. Login uses PKCE S256, signed RS256 ID tokens, issuer/audience/expiry/nonce checks and explicit issuer+subject account bindings. Application roles remain local. The combined lab also supports FlowIntel for the explicitly linked CIRCL human account. An [RT/RTIR deployment bundle](rt-sso.md) configures the same provider at an existing RT Apache execution boundary; no RT service is bundled.
+Implemented first increment: OIDC authorization-code sign-in for Bearings and the bundled NetBox, with a shared optional Keycloak lab. Login uses PKCE S256, signed RS256 ID tokens, issuer/audience/expiry/nonce checks and explicit issuer+subject account bindings. Application roles remain local. The combined lab also supports FlowIntel for the explicitly linked CIRCL human account. An [RT/RTIR deployment bundle](rt-sso.md) configures the same provider at an existing RT Apache execution boundary; the optional [RT 5 reference lab](rt-lab.md) also provides a running server, scoped queues and automatic client setup.
 
 ## Start the synthetic lab
 
 ```sh
 git pull
-python3 scripts/dev.py up --sso --flowintel
+python3 scripts/dev.py up --sso --flowintel --rt
 python3 scripts/dev.py trust
 python3 scripts/dev.py credentials
 python3 scripts/dev.py sso-smoke
@@ -23,7 +23,7 @@ In Bearings choose **Sign in with SSO** and enter the generated demo password on
 - `unassigned-demo` exists only in Keycloak to test default denial. Its valid IdP login cannot create an application account or grant access.
 - `platform-admin` and `netbox-admin` remain separately managed local emergency accounts; no IdP identity is assigned to them by the fixture.
 
-Keycloak **26.8.1** runs as a local-only development service with a separate persistent H2 data volume, private import/client/bootstrap inputs and a 768 MiB container limit. Realm imports skip existing realms. Password/role changes in a retained realm are preserved. This profile is not a production IdP deployment; use a managed IdP with its own database, backups, availability and MFA policy. Allow additional Docker memory/disk beyond the existing NetBox/FlowIntel lab; 8 GB of Docker memory is recommended for the combined stack.
+Keycloak **26.8.1** runs as a local-only development service with a separate persistent H2 data volume, private import/client/bootstrap inputs and a 768 MiB container limit. Realm imports skip existing realms. Password/role changes in a retained realm are preserved. This profile is not a production IdP deployment; use a managed IdP with its own database, backups, availability and MFA policy. Allow additional Docker memory/disk beyond the existing NetBox/FlowIntel lab; 8 GB of Docker memory is recommended without RT, or about 10 GB with all optional services.
 
 ## Use an operator-managed OIDC provider
 
@@ -79,7 +79,7 @@ Each explicit change rotates the session generation. Startup preserves a revoked
 
 The one-off client provisioner alone can read the lab IdP bootstrap credential; running applications do not receive that administrator credential. Existing disabled clients, users and passwords are preserved. A differing retained callback, client policy or secret fails startup without rewriting either side. If the lab IdP administrator password has been deliberately rotated, update its private provisioner input through the operator rather than resetting the realm. Do not copy this lab provisioning credential into a production application.
 
-RT/RTIR uses the [generated Apache/RT deployment bundle](rt-sso.md), with its own client and immutable subject map, without changing queue permissions or enabling user creation. The existing RT installation requires its operator's acceptance; it is not auto-provisioned by `up`.
+RT/RTIR uses the [generated Apache/RT deployment bundle](rt-sso.md), with its own client and immutable subject map, without changing queue permissions or enabling user creation. The existing RT installation requires its operator's acceptance; external instances are not provisioned by `up`. For a self-contained local reference, add `--rt` and follow the [RT lab guide](rt-lab.md).
 
 The guarded `sso-smoke` uses Python's standard library, private generated credentials in memory and normal CA/hostname verification. It exercises the real IdP/code exchange, a single company password prompt across both apps, permitted/foreign NetBox inventory and unapproved identity denial, plus CIRCL FlowIntel sign-in and company denial when enabled; it prints no secrets or callback URLs. See [validation](../validation.md).
 

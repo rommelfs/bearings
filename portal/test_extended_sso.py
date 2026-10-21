@@ -252,7 +252,7 @@ class RTSSOGeneratorTests(SimpleTestCase):
             self.assertEqual(original, {p.name: p.read_bytes() for p in path.iterdir()})
             self.assertEqual(path.stat().st_mode & 0o777, 0o700)
             self.assertTrue(all(p.stat().st_mode & 0o777 == 0o600 for p in path.iterdir()))
-            code = "package RT::Interface::Web; our $subject; sub RequestENV { $subject }; do $ARGV[0] or die $@; $subject='Subject-CIRCL'; die unless WebCanonicalizeInfo() eq 'analyst'; $subject='subject-circl'; die if defined WebCanonicalizeInfo(); $subject='foreign'; die if defined WebCanonicalizeInfo();"
+            code = "package RT; sub SystemUser {} package RT::User; our $disabled=0; sub new {bless {},shift} sub LoadByCols {$_[0]->{name}=$_[2]} sub Id {42} sub Name {$_[0]->{name}} sub Disabled {$disabled} package RT::Interface::Web; our $subject; sub RequestENV { $subject }; do $ARGV[0] or die $@; $subject='Subject-CIRCL'; die unless WebCanonicalizeInfo() == 42; $RT::User::disabled=1; die if defined WebCanonicalizeInfo(); $RT::User::disabled=0; $subject='subject-circl'; die if defined WebCanonicalizeInfo(); $subject='foreign'; die if defined WebCanonicalizeInfo();"
             subprocess.run(["perl", "-e", code, str(path / "Web_Local.pm")], check=True, capture_output=True)
             apache = (path / "apache-oidc.conf").read_text()
             self.assertIn("OIDCRemoteUserClaim sub", apache)

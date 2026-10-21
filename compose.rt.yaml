@@ -1,0 +1,125 @@
+# Optional real RT 5 lab. No mail leaves the container; both browser listeners are loopback-only.
+x-rt: &rt
+  image: bearings-rt
+  build:
+    context: .
+    dockerfile: docker/rt/Dockerfile
+  environment:
+    BEARINGS_RT_LAB: "1"
+  volumes: &rt-volumes
+    - rt-secrets:/run/rt:ro
+    - rt-tls:/run/tls:ro
+    - rt-data:/var/lib/request-tracker5
+    - rt-cache:/var/cache/request-tracker5
+    - ./docker/rt/start.py:/adapter/start.py:ro
+    - ./docker/rt/RT_SiteConfig.pm:/adapter/RT_SiteConfig.pm:ro
+    - ./docker/rt/apache.conf:/adapter/apache.conf:ro
+    - ./docker/rt/recovery.fcgi:/adapter/recovery.fcgi:ro
+    - ./docker/rt/provision.pl:/adapter/provision.pl:ro
+    - ./docker/rt/smoke.pl:/adapter/smoke.pl:ro
+services:
+  dev-init:
+    environment:
+      BEARINGS_RT: "1"
+      RT_PORT: ${RT_PORT:-9445}
+      RT_RECOVERY_PORT: ${RT_RECOVERY_PORT:-9446}
+    volumes:
+      - rt-secrets:/state/rt-secrets
+      - rt-tls:/state/rt-tls
+      - ./docker/rt:/app/docker/rt:ro
+      - ./scripts:/app/scripts:ro
+  rt-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: rt
+      POSTGRES_DB: rt
+      POSTGRES_PASSWORD_FILE: /run/rt/db_password
+    volumes:
+      - rt-postgres:/var/lib/postgresql/data
+      - rt-secrets:/run/rt:ro
+    networks: [rt-lab]
+    depends_on:
+      dev-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rt -d rt"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  rt-init:
+    <<: *rt
+    command: ["init"]
+    networks: [rt-lab]
+    volumes:
+      - rt-secrets:/run/rt:ro
+      - rt-tls:/run/tls:ro
+      - rt-data:/var/lib/request-tracker5
+      - rt-cache:/var/cache/request-tracker5
+      - ./docker/rt/start.py:/adapter/start.py:ro
+      - ./docker/rt/RT_SiteConfig.pm:/adapter/RT_SiteConfig.pm:ro
+      - ./docker/rt/apache.conf:/adapter/apache.conf:ro
+      - ./docker/rt/recovery.fcgi:/adapter/recovery.fcgi:ro
+      - ./docker/rt/provision.pl:/adapter/provision.pl:ro
+      - ./docker/rt/smoke.pl:/adapter/smoke.pl:ro
+      - dev-secrets:/run/bearings/secrets
+    depends_on:
+      rt-db:
+        condition: service_healthy
+  rt:
+    <<: *rt
+    command: ["web"]
+    networks:
+      rt-lab:
+        aliases: [rt.bearings.test]
+    depends_on:
+      rt-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import ssl,urllib.request; urllib.request.urlopen('https://127.0.0.1:444/NoAuth/Login.html', context=ssl.create_default_context(cafile='/run/tls/ca.crt'), timeout=10)"]
+      interval: 5s
+      timeout: 12s
+      start_period: 45s
+      retries: 40
+  bearings-init:
+    environment:
+      BEARINGS_RT: "1"
+    volumes:
+      - ./portal/rt.py:/app/portal/rt.py:ro
+    depends_on:
+      rt:
+        condition: service_healthy
+  web:
+    environment:
+      BEARINGS_RT: "1"
+    volumes:
+      - ./portal/rt.py:/app/portal/rt.py:ro
+    networks:
+      default: {}
+      rt-lab: {}
+  worker:
+    environment:
+      BEARINGS_RT: "1"
+    volumes:
+      - ./portal/rt.py:/app/portal/rt.py:ro
+    networks:
+      default: {}
+      rt-lab: {}
+  netbox-tls:
+    volumes:
+      - ./docker/rt/gateway.conf:/etc/nginx/conf.d/rt.conf:ro
+      - rt-tls:/etc/nginx/rt:ro
+    ports:
+      - "127.0.0.1:${RT_PORT:-9445}:445"
+      - "127.0.0.1:${RT_RECOVERY_PORT:-9446}:446"
+    networks:
+      rt-lab:
+        aliases: [netbox.bearings.test]
+networks:
+  rt-lab:
+    internal: true
+volumes:
+  rt-secrets:
+  rt-tls:
+  rt-data:
+  rt-cache:
+  rt-postgres:

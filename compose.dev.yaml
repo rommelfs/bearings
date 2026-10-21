@@ -43,6 +43,7 @@ services:
       CONNECTOR_PROXY_DNS: "0"
       NO_PROXY: localhost,127.0.0.1,netbox.bearings.test,host.docker.internal
     volumes: &bearings-volumes
+      - ./docker/dev:/app/docker/dev:ro
       - dev-secrets:/run/bearings/secrets:ro
       - dev-trust:/run/bearings/trust:ro
       - local-data:/app/.local

@@ -1,0 +1,33 @@
+# Applied automatically when both --rt and --sso are selected.
+services:
+  dev-init:
+    volumes:
+      - rt-sso:/state/rt-sso
+  rt-sso-provision:
+    image: bearings-development
+    user: root
+    command: ["/app/.venv/bin/python", "/adapter/provision-client.py"]
+    environment:
+      BEARINGS_SSO_CLIENT: rt
+    volumes:
+      - ./docker/sso/provision_client.py:/adapter/provision-client.py:ro
+      - sso-secrets:/run/idp:ro
+      - rt-sso:/run/rt-sso:ro
+      - rt-secrets:/run/rt:ro
+    depends_on:
+      netbox-tls:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+  rt: &rt-sso
+    environment:
+      BEARINGS_RT_SSO: "1"
+    volumes:
+      - rt-sso:/run/rt-sso:ro
+  rt-init:
+    <<: *rt-sso
+    depends_on:
+      rt-sso-provision:
+        condition: service_completed_successfully
+volumes:
+  rt-sso:

@@ -46,6 +46,8 @@ def main():
             "bearings-flowintel",
             ".",
         ]
+    elif "--rt" in sys.argv:
+        args = args[:-3] + ["-f", "docker/rt/Dockerfile", "-t", "bearings-rt", "."]
     config_path = "/workspace/.cache/docker"
     Path(config_path).mkdir(parents=True, exist_ok=True)
     runenv = dict(os.environ, DOCKER_CONFIG=config_path)

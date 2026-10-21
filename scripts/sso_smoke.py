@@ -4,6 +4,7 @@ No codes, cookies, passwords, tokens or response bodies are printed.
 """
 
 import http.cookiejar
+from html import unescape
 from html.parser import HTMLParser
 import json
 import ssl
@@ -47,11 +48,22 @@ class LoginForm(HTMLParser):
             self.active = False
 
 
+class RTLocalLoginForm(LoginForm):
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        if tag == "form" and "/NoAuth/Login.html" in values.get("action", ""):
+            self.action, self.active = values["action"], True
+        if tag == "input" and self.active and values.get("name") and values.get("type") == "hidden":
+            self.fields[values["name"]] = values.get("value", "")
+
+
 def main():
     state = dev.active()
     if state["mode"] != "bundled" or not state.get("sso"):
         raise SystemExit("SSO smoke is restricted to the explicitly enabled bundled synthetic lab")
-    base = dev.compose(state["mode"], state["project"], state.get("flowintel", False), True)
+    base = dev.compose(
+        state["mode"], state["project"], state.get("flowintel", False), True, state.get("rt", False)
+    )
 
     def read(name):
         return dev.run(
@@ -74,6 +86,24 @@ def main():
         raise SystemExit("SSO smoke refuses an unrecognized issuer")
     allowed = {(urlsplit(url).scheme, urlsplit(url).netloc) for url in [app, netbox, issuer]}
     flow = None
+    rt_lab = None
+    if state.get("rt"):
+        rt_lab = json.loads(read("secrets/rt.json"))
+        parsed = urlsplit(rt_lab["browser_url"])
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "localhost"
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+            or parsed.username
+            or parsed.password
+            or rt_lab["base_url"] != "https://rt.bearings.test"
+        ):
+            raise SystemExit("SSO smoke refuses non-local RT")
+        allowed.add((parsed.scheme, parsed.netloc))
+        recovery = "https://localhost:" + str(rt_lab["recovery_port"])
+        allowed.add(("https", urlsplit(recovery).netloc))
     if state.get("flowintel"):
         flow = json.loads(read("secrets/flowintel.json"))["browser_url"]
         parsed = urlsplit(flow)
@@ -183,8 +213,10 @@ def main():
         except HTTPError as exc:
             assert exc.code in {403, 404}
         stage = "unapproved identity denial"
-        url, body = sign_in(client(), "unassigned-demo")
+        unassigned = client()
+        url, body = sign_in(unassigned, "unassigned-demo")
         assert url.startswith(app + "/accounts/login/") and "SSO sign-in failed" in body
+        circl = None
         if flow:
             stage = "company FlowIntel denial"
             url, body = flow_sign_in(company)
@@ -196,6 +228,60 @@ def main():
             assert url.startswith(flow + "/") and "/account/login" not in url
             _, body = get(circl, flow + "/account")
             assert "circl-analyst@example.com" in body
+        if rt_lab:
+            if circl is None:
+                circl = client()
+                sign_in(circl, "circl-analyst")
+            for kind, browser in [("company", company), ("circl", circl)]:
+                stage = kind + " shared RT authentication and queue access"
+                url, body = get(
+                    browser,
+                    rt_lab["browser_url"] + "/Ticket/Display.html?id=" + str(rt_lab["probe_tickets"][kind]),
+                )
+                assert url.startswith(rt_lab["browser_url"] + "/")
+                assert "Bearings " + kind + " isolation probe (SYNTHETIC)" in unescape(body)
+                other = "circl" if kind == "company" else "company"
+                stage = kind + " RT foreign queue denial"
+                try:
+                    _, body = get(
+                        browser,
+                        rt_lab["browser_url"]
+                        + "/Ticket/Display.html?id="
+                        + str(rt_lab["probe_tickets"][other]),
+                    )
+                    assert "Bearings " + other + " isolation probe (SYNTHETIC)" not in unescape(body)
+                    assert "permission" in body.lower() or "could not" in body.lower()
+                except HTTPError as exc:
+                    assert exc.code in {403, 404}
+            stage = "RT unapproved identity denial"
+            try:
+                get(unassigned, rt_lab["browser_url"] + "/")
+                raise AssertionError("Unapproved RT subject must be denied")
+            except HTTPError as exc:
+                assert exc.code == 403
+            stage = "RT local emergency login"
+            local = client()
+            _, body = get(local, recovery + "/NoAuth/Login.html")
+            form = RTLocalLoginForm()
+            form.feed(body)
+            assert form.action
+            target = urljoin(recovery, form.action)
+            assert urlsplit(target).scheme == "https" and urlsplit(target).netloc == urlsplit(recovery).netloc
+            form.fields.update(user="root", **{"pass": password})
+            with local.open(
+                Request(
+                    target,
+                    data=urlencode(form.fields).encode(),
+                    headers={"Referer": recovery + "/NoAuth/Login.html"},
+                ),
+                timeout=15,
+            ) as response:
+                response.read(2_000_000)
+            url, body = get(local, recovery + "/Admin/Users/index.html")
+            assert "/NoAuth/Login.html" not in urlsplit(url).path and "Enoch Root" in body
+            stage = "RT recovery does not bypass the SSO entry point"
+            _, body = get(local, rt_lab["browser_url"] + "/")
+            assert "kc-form-login" in body
     except Exception:
         raise SystemExit(
             f"SSO smoke failed at {stage}. Check service health and approved local identity bindings; no sensitive response was printed."
@@ -206,4 +292,8 @@ def main():
     if flow:
         print(
             "Also verified CIRCL FlowIntel sign-in using the same IdP session without another password prompt, and company FlowIntel denial."
+        )
+    if rt_lab:
+        print(
+            "Also verified real RT company/CIRCL SSO with existing provider sessions, permitted tickets, foreign-queue/unapproved identity denial and local emergency login."
         )

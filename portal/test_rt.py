@@ -99,6 +99,29 @@ class RTTests(tests.Fixture):
         self.assertEqual(row.ticket_url, "https://rt.example.invalid/Ticket/Display.html?id=7")
         self.assertEqual(row.summary["owner"], "Nobody")
 
+    def test_native_rt_effective_ticket_reference_and_merge_denial(self):
+        original = self.fake
+
+        def native(instance, method, path, **kwargs):
+            data = original(instance, method, path, **kwargs)
+            if method == "GET" and path.startswith("ticket/") and not isinstance(data["EffectiveId"], dict):
+                data["EffectiveId"] = {
+                    "id": data["EffectiveId"],
+                    "type": "ticket",
+                    "_url": "https://untrusted.invalid/ignored",
+                }
+            return data
+
+        with patch("portal.rt.api", side_effect=native):
+            row = self.linked()
+            self.assertEqual(row.state, "linked")
+            self.fake.ticket["EffectiveId"] = {"id": "99", "type": "ticket"}
+            with self.assertRaises(ConnectorError):
+                rt.refresh(row.pk, self.admin)
+            self.fake.ticket["EffectiveId"] = {"id": "7", "type": "queue"}
+            with self.assertRaises(ConnectorError):
+                rt.refresh(row.pk, self.admin)
+
     def test_no_auto_export_reader_restricted_foreign_or_unattested_queue(self):
         for actor in [self.reader]:
             with self.assertRaises(PermissionDenied):

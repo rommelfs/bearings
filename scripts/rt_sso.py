@@ -138,6 +138,17 @@ sub WebCanonicalizeInfo {
 1;
 """
     )
+    legacy_overlay = overlay
+    overlay = overlay.replace(
+        "    return $bearings_approved_subjects{$subject};",
+        """    my $name = $bearings_approved_subjects{$subject};
+    return undef unless defined $name;
+    my $user = RT::User->new(RT->SystemUser);
+    $user->LoadByCols(Name => $name);
+    return undef unless $user->Id && !$user->Disabled && $user->Name eq $name;
+    # Native RT Load() treats numeric strings as IDs; return the verified local ID.
+    return $user->Id;""",
+    )
     site = """# Merge into RT_SiteConfig.pm; keep existing database/queue/mail settings.
 Set($WebRemoteUserAuth, 1);
 Set($WebRemoteUserContinuous, 1);
@@ -175,7 +186,10 @@ Set($AutoLogoff, 30);
     # Check every output before writing anything; retained policy or credentials are never silently reset.
     for name, value in files.items():
         path = directory / name
-        if path.is_symlink() or (path.exists() and path.read_text() != value):
+        known_overlay_upgrade = (
+            name == "Web_Local.pm" and path.exists() and path.read_text() == legacy_overlay
+        )
+        if path.is_symlink() or (path.exists() and path.read_text() != value and not known_overlay_upgrade):
             raise ValueError(
                 "Retained RT SSO bundle differs; choose a new output directory and review changes"
             )

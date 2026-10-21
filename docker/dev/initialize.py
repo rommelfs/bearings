@@ -33,18 +33,18 @@ def openssl(*args):
     subprocess.run(["openssl", *args], check=True, capture_output=True)
 
 
-def initialize_flowintel():
+def initialize_case_service(service):
     """Separate keys and DB credentials; reuse only the public lab CA trust."""
-    directory = ROOT / "flowintel-secrets"
+    directory = ROOT / f"{service}-secrets"
     directory.mkdir(parents=True, exist_ok=True)
     for name in ["db_password", "secret_key"]:
         secret(directory / name)
     if not (directory / "demo_password").exists():
         write(directory / "demo_password", (ROOT / "secrets/demo_password").read_text())
         (directory / "demo_password").chmod(0o640)
-    tls = ROOT / "flowintel-tls"
+    tls = ROOT / f"{service}-tls"
     tls.mkdir(parents=True, exist_ok=True)
-    cert, key = tls / "flowintel.crt", tls / "flowintel.key"
+    cert, key = tls / f"{service}.crt", tls / f"{service}.key"
     ca = ROOT / "tls/ca.crt"
     renew = not cert.exists()
     if not renew:
@@ -53,15 +53,15 @@ def initialize_flowintel():
             for args in [
                 ["x509", "-in", str(cert), "-noout", "-checkend", "1209600"],
                 ["verify", "-CAfile", str(ca), str(cert)],
-                ["x509", "-in", str(cert), "-noout", "-checkhost", "flowintel.bearings.test"],
+                ["x509", "-in", str(cert), "-noout", "-checkhost", f"{service}.bearings.test"],
             ]
         )
     if renew:
-        config = ROOT / "ca-private/flowintel.cnf"
+        config = ROOT / f"ca-private/{service}.cnf"
         config.write_text(
-            "[req]\ndistinguished_name=dn\nprompt=no\n[dn]\nCN=flowintel.bearings.test\n[server]\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:flowintel.bearings.test,DNS:localhost,DNS:host.docker.internal,IP:127.0.0.1,IP:::1\n"
+            f"[req]\ndistinguished_name=dn\nprompt=no\n[dn]\nCN={service}.bearings.test\n[server]\nbasicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:{service}.bearings.test,DNS:localhost,DNS:host.docker.internal,IP:127.0.0.1,IP:::1\n"
         )
-        csr = ROOT / "ca-private/flowintel.csr"
+        csr = ROOT / f"ca-private/{service}.csr"
         openssl(
             "req",
             "-new",
@@ -210,7 +210,11 @@ def main():
     if os.environ.get("BEARINGS_FLOWINTEL") == "1":
         if mode != "bundled":
             raise ValueError("The bundled FlowIntel profile requires the bundled NetBox lab")
-        initialize_flowintel()
+        initialize_case_service("flowintel")
+    if os.environ.get("BEARINGS_RT") == "1":
+        if mode != "bundled":
+            raise ValueError("Bundled RT requires the isolated NetBox lab")
+        initialize_case_service("rt")
     if os.environ.get("BEARINGS_SSO_LAB") == "1":
         if mode != "bundled":
             raise ValueError("Bundled SSO requires the isolated NetBox lab")
@@ -234,6 +238,10 @@ def main():
             from docker.sso.initialize import initialize_flowintel as initialize_flowintel_sso
 
             initialize_flowintel_sso(ROOT, write, secret, int(os.getenv("FLOWINTEL_PORT", "9443")))
+    if os.environ.get("BEARINGS_RT") == "1":
+        from docker.rt.initialize import initialize as initialize_rt
+
+        initialize_rt(ROOT, write, secret, sso=os.environ.get("BEARINGS_SSO_LAB") == "1")
     write(ROOT / "trust/ca-bundle.pem", Path(certifi.where()).read_text() + "\n" + ca.decode(), public=True)
     if ca:
         write(ROOT / "trust/netbox-ca.crt", ca.decode(), public=True)

@@ -150,13 +150,19 @@ def positive_id(value):
 
 def verified_remote(row):
     data = api(row.instance, "GET", f"ticket/{positive_id(row.remote_id)}", params={"fields[Owner]": "Name"})
+    effective = data.get("EffectiveId") if isinstance(data, dict) else None
+    # RT 5 serializes EffectiveId as a typed ticket reference, including for unmerged tickets.
+    if isinstance(effective, dict):
+        if effective.get("type") != "ticket":
+            raise ConnectorError("Invalid RT effective ticket reference")
+        effective = positive_id(effective.get("id"))
     if (
         not isinstance(data, dict)
         or positive_id(data.get("id")) != row.remote_id
         or data.get("Subject") != row.subject
         or not isinstance(data.get("Queue"), dict)
         or positive_id(data["Queue"].get("id")) != row.instance.queue_id
-        or (data.get("EffectiveId") is not None and positive_id(data["EffectiveId"]) != row.remote_id)
+        or (effective is not None and positive_id(effective) != row.remote_id)
     ):
         raise ConnectorError("RT ticket identity, queue, subject or merge state changed")
     return data

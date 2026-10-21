@@ -56,6 +56,8 @@ def main():
         )
         if os.getenv("BEARINGS_FLOWINTEL") == "1":
             call_command("setup_flowintel_lab")
+        if os.getenv("BEARINGS_RT") == "1":
+            call_command("setup_rt_lab")
         if os.getenv("BEARINGS_SSO_LAB") == "1":
             call_command("setup_sso_lab")
     elif mode == "smoke":
@@ -66,6 +68,10 @@ def main():
             from docker.dev.flowintel_smoke import main as flowintel_smoke
 
             flowintel_smoke()
+        if os.getenv("BEARINGS_RT") == "1":
+            from docker.dev.rt_smoke import main as rt_smoke
+
+            rt_smoke()
     elif mode == "worker":
         while True:
             call_command("process_jobs")

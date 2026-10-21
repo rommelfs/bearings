@@ -2,6 +2,7 @@
 
 import hmac
 import json
+import os
 from pathlib import Path
 
 import requests
@@ -36,11 +37,16 @@ def ensure_client(request, desired):
 
 
 def main():
-    config = json.loads(Path("/run/flowintel-sso/flowintel.json").read_text())
+    kind = os.getenv("BEARINGS_SSO_CLIENT", "flowintel")
+    if kind not in {"flowintel", "rt"}:
+        raise ValueError("Unknown bundled client")
+    config = (
+        json.loads(Path("/run/flowintel-sso/flowintel.json").read_text()) if kind == "flowintel" else None
+    )
     root = "https://netbox.bearings.test:444"
     session = requests.Session()
     session.trust_env = False
-    session.verify = "/run/flowintel-sso/ca-bundle.pem"
+    session.verify = "/run/flowintel-sso/ca-bundle.pem" if kind == "flowintel" else "/run/rt/ca-bundle.pem"
 
     def bounded(method, url, **kwargs):
         with session.request(
@@ -74,7 +80,9 @@ def main():
 
     ensure_client(
         request,
-        {
+        json.loads(Path("/run/rt-sso/keycloak-client.json").read_text())
+        if kind == "rt"
+        else {
             "clientId": "flowintel",
             "protocol": "openid-connect",
             "enabled": True,
@@ -90,7 +98,7 @@ def main():
             "attributes": {"pkce.code.challenge.method": "S256"},
         },
     )
-    print("FlowIntel IdP client verified; retained credentials, disabled state and user policies preserved.")
+    print(kind + " IdP client verified; retained credentials, disabled state and user policies preserved.")
 
 
 if __name__ == "__main__":

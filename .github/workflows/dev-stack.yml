@@ -10,6 +10,7 @@ on:
       - 'scripts/dev.py'
       - 'scripts/sso_smoke.py'
       - 'scripts/rt_sso.py'
+      - 'scripts/rt_local_smoke.py'
       - 'scripts/flowintel_source.py'
       - 'portal/**'
       - 'config/**'
@@ -25,6 +26,7 @@ on:
       - 'scripts/dev.py'
       - 'scripts/sso_smoke.py'
       - 'scripts/rt_sso.py'
+      - 'scripts/rt_local_smoke.py'
       - 'scripts/flowintel_source.py'
       - 'portal/**'
       - 'config/**'
@@ -43,24 +45,40 @@ jobs:
         include:
           - flowintel: false
             sso: false
+            rt: false
           - flowintel: true
             sso: false
+            rt: false
           - flowintel: false
             sso: true
+            rt: false
           - flowintel: true
             sso: true
+            rt: false
+          - flowintel: true
+            sso: true
+            rt: true
+          - flowintel: false
+            sso: false
+            rt: true
     steps:
       - uses: actions/checkout@v4
       - name: Start real Bearings and NetBox
-        run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} --timeout 900
+        run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} ${{ matrix.rt && '--rt' || '--no-rt' }} --timeout 900
       - name: Exercise HTTPS, scoped queries, portal writes and recovery
         run: python3 scripts/dev.py smoke
       - name: Verify FlowIntel session isolation and revocation in its pinned runtime
         if: matrix.flowintel
         run: docker exec -i bearings-dev-flowintel-1 /home/flowintel/venv/bin/python - < docker/flowintel/test_sso.py
+      - name: Verify real RT queue permissions and local-only mail
+        if: matrix.rt
+        run: docker exec bearings-dev-rt-1 python3 /adapter/start.py smoke
       - name: Verify real OIDC and tenant-isolated NetBox access
         if: matrix.sso
         run: python3 scripts/dev.py sso-smoke
+      - name: Verify real RT local password path
+        if: matrix.rt && !matrix.sso
+        run: python3 scripts/dev.py rt-local-smoke
       - name: Prepare bounded synthetic lifecycle and exposure exercise
         run: python3 scripts/dev.py manage seed_asset_issues --bundled
       - name: Stop without deleting data
@@ -73,16 +91,22 @@ jobs:
       - name: Verify retained SSO realm and account bindings
         if: matrix.sso
         run: python3 scripts/dev.py sso-smoke
+      - name: Verify retained RT local login
+        if: matrix.rt && !matrix.sso
+        run: python3 scripts/dev.py rt-local-smoke
+      - name: Verify retained RT hand-off identities
+        if: matrix.rt
+        run: python3 scripts/dev.py smoke
       - name: Verify retained FlowIntel cases and task identities
         if: matrix.flowintel
         run: python3 scripts/dev.py smoke
       - name: Capture failure logs without credentials
         if: failure()
-        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml -f compose.flowintel.yaml -f compose.sso.yaml -f compose.flowintel-sso.yaml logs --no-color > dev-stack.log
+        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml -f compose.flowintel.yaml -f compose.sso.yaml -f compose.flowintel-sso.yaml -f compose.rt.yaml -f compose.rt-sso.yaml logs --no-color > dev-stack.log
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: dev-stack-logs-${{ matrix.flowintel }}-${{ matrix.sso }}
+          name: dev-stack-logs-${{ matrix.flowintel }}-${{ matrix.sso }}-${{ matrix.rt }}
           path: dev-stack.log
       - name: Stop test containers
         if: always()
