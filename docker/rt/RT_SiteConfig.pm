@@ -36,4 +36,6 @@ Set($LogToSyslog, undef);
 Set($LogToFile, undef);
 Set($RestrictReferrer, 1);
 Set(@ReferrerWhitelist, 'localhost:' . $lab->{port}, 'localhost:' . $lab->{recovery_port});
+# Once installed, RTIR must remain loaded with its retained database and lifecycles.
+Plugin('RT::IR') if $ENV{BEARINGS_RTIR} || -e '/var/lib/request-tracker5/bearings-rtir.json' || -e '/var/lib/request-tracker5/.rtir-installing';
 1;

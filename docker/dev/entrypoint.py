@@ -72,6 +72,10 @@ def main():
             from docker.dev.rt_smoke import main as rt_smoke
 
             rt_smoke()
+        if os.getenv("BEARINGS_RTIR") == "1":
+            from docker.dev.rtir_smoke import main as rtir_smoke
+
+            rtir_smoke()
     elif mode == "worker":
         while True:
             call_command("process_jobs")

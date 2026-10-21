@@ -975,6 +975,7 @@ class RTInstance(models.Model):
     token_env_var = models.CharField(max_length=100)
     queue_id = models.PositiveIntegerField()
     product = models.CharField(max_length=10, default="rt", choices=[("rt", "RT"), ("rtir", "RTIR queue")])
+    incident_queue_id = models.PositiveIntegerField(null=True, blank=True)
     custom_fields = models.JSONField(
         default=dict, blank=True, help_text="Operator-approved numeric custom-field IDs to fixed text values"
     )
@@ -1010,16 +1011,39 @@ class RTInstance(models.Model):
             raise ValidationError(
                 "Custom fields must be at most 20 numeric IDs with bounded fixed text values"
             )
+        if self.product == "rtir" and (
+            self.organization_id or not self.incident_queue_id or self.incident_queue_id == self.queue_id
+        ):
+            raise ValidationError(
+                "RTIR coordination requires CIRCL-only, distinct Incident and Investigation queues"
+            )
+        if self.product != "rtir" and self.incident_queue_id:
+            raise ValidationError("An Incident queue requires an RTIR connection")
         if self.pk and RTTicket.objects.filter(instance_id=self.pk).exists():
             old = RTInstance.objects.get(pk=self.pk)
             if any(
                 getattr(old, field) != getattr(self, field)
-                for field in ["base_url", "token_env_var", "queue_id", "organization_id", "product"]
+                for field in [
+                    "base_url",
+                    "token_env_var",
+                    "queue_id",
+                    "incident_queue_id",
+                    "organization_id",
+                    "product",
+                ]
             ):
                 raise ValidationError("An RT connection with hand-offs cannot be repointed")
 
 
 class RTTicket(models.Model):
+    role = models.CharField(
+        max_length=20,
+        default="ticket",
+        choices=[("ticket", "Ticket"), ("incident", "Incident"), ("investigation", "Investigation")],
+    )
+    incident = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="investigations"
+    )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     instance = models.ForeignKey(RTInstance, on_delete=models.PROTECT)
     issue = models.ForeignKey(AssetIssue, on_delete=models.PROTECT, related_name="rt_tickets")
@@ -1039,20 +1063,68 @@ class RTTicket(models.Model):
     error = models.CharField(max_length=250, blank=True)
     summary = models.JSONField(default=dict, blank=True)
 
+    def clean(self):
+        if self.instance.product == "rtir":
+            if self.role not in {"incident", "investigation"}:
+                raise ValidationError("RTIR hand-offs require an explicit Incident or Investigation role")
+        elif self.role != "ticket":
+            raise ValidationError("Incident and Investigation lifecycles require RTIR")
+        if self.role == "investigation":
+            if (
+                not self.incident_id
+                or self.incident_id == self.pk
+                or self.incident.role != "incident"
+                or self.incident.instance_id != self.instance_id
+            ):
+                raise ValidationError("An Investigation requires an Incident on the same RTIR connection")
+        elif self.incident_id:
+            raise ValidationError("Only an Investigation may have a parent Incident")
+        old = type(self).objects.filter(pk=self.pk).first()
+        if (
+            old
+            and old.attempted_at
+            and any(
+                getattr(old, field) != getattr(self, field)
+                for field in [
+                    "instance_id",
+                    "issue_id",
+                    "role",
+                    "incident_id",
+                    "subject",
+                    "content",
+                    "fingerprint",
+                    "reason",
+                    "creator_id",
+                ]
+            )
+        ):
+            raise ValidationError("An attempted RT export and its approved relationships are immutable")
+
+    def __str__(self):
+        return self.subject or str(self.pk)
+
     @property
     def ticket_url(self):
         if not self.remote_id or not self.last_success:
             return ""
         from .connectors.http import validate_base
 
-        return (
-            validate_base(self.instance.browser_url or self.instance.base_url).geturl().rstrip("/")
-            + f"/Ticket/Display.html?id={self.remote_id}"
+        return validate_base(self.instance.browser_url or self.instance.base_url).geturl().rstrip("/") + (
+            f"/RTIR/Display.html?id={self.remote_id}"
+            if self.instance.product == "rtir"
+            else f"/Ticket/Display.html?id={self.remote_id}"
         )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["instance", "issue"], name="unique_rt_issue"),
+            models.UniqueConstraint(fields=["instance", "issue", "role"], name="unique_rt_issue_role"),
+            models.CheckConstraint(
+                condition=(
+                    Q(role="investigation", incident__isnull=False)
+                    | Q(role__in=["ticket", "incident"], incident__isnull=True)
+                ),
+                name="rt_role_parent_consistent",
+            ),
             models.UniqueConstraint(
                 fields=["instance", "remote_id"],
                 condition=Q(remote_id__isnull=False),

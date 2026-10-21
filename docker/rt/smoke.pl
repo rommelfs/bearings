@@ -16,3 +16,19 @@ for my $kind ('company','circl') {
     die "Foreign probe visible" if $foreign->CurrentUserHasRight('ShowTicket');
 }
 print "Verified real RT scoped human queue access, foreign-queue denial and local-only mbox mail.\n";
+
+if (-e '/var/lib/request-tracker5/bearings-rtir.json') {
+    open my $rf,'<','/var/lib/request-tracker5/bearings-rtir.json' or die;my $rtir=decode_json(<$rf>);close $rf;
+    die 'Expected RTIR version' unless $rtir->{version} eq '5.0.10';
+    my $company=RT::CurrentUser->new;$company->Load($data->{users}{company});
+    my $circl=RT::CurrentUser->new;$circl->Load($data->{users}{circl});
+    for my $kind (keys %{$rtir->{queues}}) {
+        my $q=RT::Queue->new($company);$q->Load($rtir->{queues}{$kind});
+        for my $right (qw(SeeQueue ShowTicket CreateTicket ReplyToTicket)) {
+            die 'Company has RTIR rights' if $company->HasRight(Object=>$q,Right=>$right);
+        }
+        my $cq=RT::Queue->new($circl);$cq->Load($rtir->{queues}{$kind});
+        die 'CIRCL RTIR queue access denied' unless $circl->HasRight(Object=>$cq,Right=>'SeeQueue');
+    }
+    print "Verified native RTIR 5.0.10 CIRCL queue rights and company denial across all four lifecycles.\n";
+}

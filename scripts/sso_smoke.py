@@ -62,7 +62,12 @@ def main():
     if state["mode"] != "bundled" or not state.get("sso"):
         raise SystemExit("SSO smoke is restricted to the explicitly enabled bundled synthetic lab")
     base = dev.compose(
-        state["mode"], state["project"], state.get("flowintel", False), True, state.get("rt", False)
+        state["mode"],
+        state["project"],
+        state.get("flowintel", False),
+        True,
+        state.get("rt", False),
+        state.get("rtir", False),
     )
 
     def read(name):
@@ -253,6 +258,54 @@ def main():
                     assert "permission" in body.lower() or "could not" in body.lower()
                 except HTTPError as exc:
                     assert exc.code in {403, 404}
+            if state.get("rtir"):
+                stage = "native RTIR synthetic fixture verification"
+                code = "from portal.models import RTTicket; import json; print(json.dumps(list(RTTicket.objects.filter(instance__name='bundled-rtir-circl', issue__source_label='Synthetic RTIR exercise', state='linked').values('id','role','remote_id','subject','issue__organization__slug')),default=str))"
+                result = dev.run(
+                    base
+                    + [
+                        "exec",
+                        "-T",
+                        "web",
+                        "/app/.venv/bin/python",
+                        "docker/dev/entrypoint.py",
+                        "manage",
+                        "shell",
+                        "--no-imports",
+                        "-c",
+                        code,
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                rows = json.loads(result.stdout)
+                assert len(rows) == 4 and sum(row["role"] == "incident" for row in rows) == 1
+                for row in rows:
+                    stage = "CIRCL native RTIR SSO ticket access"
+                    _, body = get(
+                        circl, rt_lab["browser_url"] + "/RTIR/Display.html?id=" + str(row["remote_id"])
+                    )
+                    assert row["subject"] in unescape(body)
+                    stage = "company native RTIR ticket denial"
+                    try:
+                        _, body = get(
+                            company, rt_lab["browser_url"] + "/RTIR/Display.html?id=" + str(row["remote_id"])
+                        )
+                        assert row["subject"] not in unescape(body)
+                        assert "permission" in body.lower() or "could not" in body.lower()
+                    except HTTPError as exc:
+                        assert exc.code in {403, 404}
+                parent = next(row for row in rows if row["role"] == "incident")
+                stage = "CIRCL Bearings Incident view"
+                path = "/organizations/" + parent["issue__organization__slug"] + "/rt/" + parent["id"] + "/"
+                _, body = get(circl, app + path)
+                assert "Investigations by company and asset" in body
+                stage = "company Bearings Incident denial"
+                try:
+                    get(company, app + path)
+                    raise AssertionError("Company must not read aggregate")
+                except HTTPError as exc:
+                    assert exc.code == 404
             stage = "RT unapproved identity denial"
             try:
                 get(unassigned, rt_lab["browser_url"] + "/")
@@ -296,4 +349,9 @@ def main():
     if rt_lab:
         print(
             "Also verified real RT company/CIRCL SSO with existing provider sessions, permitted tickets, foreign-queue/unapproved identity denial and local emergency login."
+        )
+
+    if state.get("rtir"):
+        print(
+            "Also verified CIRCL native RTIR Incident/Investigation browser access through shared SSO and company denial in RTIR and Bearings."
         )

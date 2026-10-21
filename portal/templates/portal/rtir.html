@@ -1,0 +1,6 @@
+{% extends 'portal/base.html' %}{% block content %}
+<p class="eyebrow">CIRCL RESPONSE COORDINATION</p><h1>Incidents & Investigations</h1>
+<p>Explicit analyst escalation from an asset issue. One native RTIR Incident can coordinate multiple Investigations across approved companies and assets. RTIR workflow closure does not establish technical remediation.</p>
+<p><a class="button primary" href="{% url 'issues' %}">Choose an asset issue to escalate →</a></p>
+<table><thead><tr><th>Incident</th><th>Starting company / asset</th><th>Export</th><th>RTIR lifecycle status</th></tr></thead><tbody>{% for row in incidents %}<tr><td><a href="{% url 'rt-ticket' row.issue.organization.slug row.pk %}">{{ row.subject }}</a></td><td>{{ row.issue.organization.name }} · {{ row.issue.asset.name }}</td><td>{{ row.state }}</td><td>{{ row.summary.status|default:'Not verified' }}</td></tr>{% empty %}<tr><td colspan="4">No visible Incidents. Enable the optional RTIR lab with <code>python3 scripts/dev.py up --rtir</code>, then prepare and approve an RTIR hand-off from an asset issue.</td></tr>{% endfor %}</tbody></table>
+{% endblock %}

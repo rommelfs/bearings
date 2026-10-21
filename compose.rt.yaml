@@ -12,6 +12,7 @@ x-rt: &rt
     - rt-data:/var/lib/request-tracker5
     - rt-cache:/var/cache/request-tracker5
     - ./docker/rt/start.py:/adapter/start.py:ro
+    - ./docker/rt/provision_rtir.pl:/adapter/provision_rtir.pl:ro
     - ./docker/rt/RT_SiteConfig.pm:/adapter/RT_SiteConfig.pm:ro
     - ./docker/rt/apache.conf:/adapter/apache.conf:ro
     - ./docker/rt/recovery.fcgi:/adapter/recovery.fcgi:ro
@@ -56,6 +57,7 @@ services:
       - rt-data:/var/lib/request-tracker5
       - rt-cache:/var/cache/request-tracker5
       - ./docker/rt/start.py:/adapter/start.py:ro
+      - ./docker/rt/provision_rtir.pl:/adapter/provision_rtir.pl:ro
       - ./docker/rt/RT_SiteConfig.pm:/adapter/RT_SiteConfig.pm:ro
       - ./docker/rt/apache.conf:/adapter/apache.conf:ro
       - ./docker/rt/recovery.fcgi:/adapter/recovery.fcgi:ro
@@ -84,7 +86,7 @@ services:
     environment:
       BEARINGS_RT: "1"
     volumes:
-      - ./portal/rt.py:/app/portal/rt.py:ro
+      - ./portal:/app/portal:ro
     depends_on:
       rt:
         condition: service_healthy
@@ -92,7 +94,7 @@ services:
     environment:
       BEARINGS_RT: "1"
     volumes:
-      - ./portal/rt.py:/app/portal/rt.py:ro
+      - ./portal:/app/portal:ro
     networks:
       default: {}
       rt-lab: {}
@@ -100,7 +102,7 @@ services:
     environment:
       BEARINGS_RT: "1"
     volumes:
-      - ./portal/rt.py:/app/portal/rt.py:ro
+      - ./portal:/app/portal:ro
     networks:
       default: {}
       rt-lab: {}

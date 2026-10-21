@@ -61,10 +61,14 @@ jobs:
           - flowintel: false
             sso: false
             rt: true
+          - flowintel: true
+            sso: true
+            rt: true
+            rtir: true
     steps:
       - uses: actions/checkout@v4
       - name: Start real Bearings and NetBox
-        run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} ${{ matrix.rt && '--rt' || '--no-rt' }} --timeout 900
+        run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} ${{ matrix.rt && '--rt' || '--no-rt' }} ${{ matrix.rtir && '--rtir' || '' }} --timeout 900
       - name: Exercise HTTPS, scoped queries, portal writes and recovery
         run: python3 scripts/dev.py smoke
       - name: Verify FlowIntel session isolation and revocation in its pinned runtime
@@ -102,11 +106,11 @@ jobs:
         run: python3 scripts/dev.py smoke
       - name: Capture failure logs without credentials
         if: failure()
-        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml -f compose.flowintel.yaml -f compose.sso.yaml -f compose.flowintel-sso.yaml -f compose.rt.yaml -f compose.rt-sso.yaml logs --no-color > dev-stack.log
+        run: docker compose -p bearings-dev -f compose.dev.yaml -f compose.netbox.yaml -f compose.flowintel.yaml -f compose.sso.yaml -f compose.flowintel-sso.yaml -f compose.rt.yaml -f compose.rt-sso.yaml -f compose.rtir.yaml logs --no-color > dev-stack.log
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: dev-stack-logs-${{ matrix.flowintel }}-${{ matrix.sso }}-${{ matrix.rt }}
+          name: dev-stack-logs-${{ matrix.flowintel }}-${{ matrix.sso }}-${{ matrix.rt }}-${{ matrix.rtir }}
           path: dev-stack.log
       - name: Stop test containers
         if: always()

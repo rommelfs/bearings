@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from . import rt
-from .access import can_operator_review
+from .access import can_operator_review, is_analyst, require, audit
 from .connectors.http import ConnectorError
 from .issue_views import scoped
 from .models import RTInstance, RTTicket
@@ -23,11 +23,20 @@ def instances(actor, issue):
 
 class HandoffForm(forms.Form):
     instance = forms.ModelChoiceField(queryset=RTInstance.objects.none())
+    incident = forms.ModelChoiceField(
+        queryset=RTTicket.objects.none(),
+        required=False,
+        help_text="RTIR only: leave blank to prepare a new coordinating Incident, or select an existing Incident to prepare an Investigation for this asset issue.",
+    )
     reason = forms.CharField(max_length=3000, widget=forms.Textarea(attrs={"rows": 3}))
 
     def __init__(self, *args, actor, issue, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["instance"].queryset = instances(actor, issue)
+        visible = [row.pk for row in rt.visible_incidents(actor) if row.state == "linked"]
+        self.fields["incident"].queryset = RTTicket.objects.filter(pk__in=visible)
+        if not self.fields["instance"].queryset.filter(product="rtir").exists():
+            self.fields.pop("incident")
 
 
 @login_required
@@ -54,9 +63,9 @@ def new(request, slug, pk):
 
 def binding(request, slug, pk):
     candidate = get_object_or_404(RTTicket, pk=pk, issue__organization__slug=slug)
-    issue = scoped(request, slug, candidate.issue_id)
+    scoped(request, slug, candidate.issue_id)
     row = rt.load(candidate.pk)
-    if not rt.can_read(request.user, issue, row.instance):
+    if not rt.can_read_ticket(request.user, row):
         from django.http import Http404
 
         raise Http404
@@ -66,11 +75,15 @@ def binding(request, slug, pk):
 @login_required
 def detail(request, slug, pk):
     row = binding(request, slug, pk)
+    audit(request.user, row.issue.organization, "rt.viewed", row.pk)
     return render(
         request,
         "portal/rt_ticket.html",
         {
             "ticket": row,
+            "investigations": row.investigations.select_related(
+                "issue__asset", "issue__organization", "instance"
+            ),
             "org": row.issue.organization,
             "can_approve": row.state == "draft"
             and row.creator_id == request.user.pk
@@ -100,3 +113,12 @@ def action(request, slug, pk):
     except (ValidationError, ConnectorError) as exc:
         messages.error(request, "; ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc))
     return redirect("rt-ticket", slug=slug, pk=pk)
+
+
+@login_required
+def incidents(request):
+    require(request.user.is_superuser or is_analyst(request.user))
+    rows = rt.visible_incidents(request.user)
+    for row in rows:
+        audit(request.user, row.issue.organization, "rt.incident_listed", row.pk)
+    return render(request, "portal/rtir.html", {"incidents": rows})

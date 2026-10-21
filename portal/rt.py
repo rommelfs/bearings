@@ -7,7 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from . import issues
-from .access import audit, can_operator_review, require
+from .access import audit, can_operator_review, is_analyst, require
 from .asset_context import asset_context
 from .connectors.http import ConnectorError
 from .connectors.rt import api
@@ -39,6 +39,45 @@ def can_write(actor, issue, instance):
     )
 
 
+def queue_for(row):
+    return row.instance.incident_queue_id if row.role == "incident" else row.instance.queue_id
+
+
+def can_read_ticket(actor, row):
+    if not can_read(actor, row.issue, row.instance):
+        return False
+    if row.instance.product != "rtir":
+        return True
+    if row.instance.organization_id or not can_operator_review(actor, row.issue.organization):
+        return False
+    parent = row.incident if row.incident_id else row
+    if parent.role != "incident" or not can_read(actor, parent.issue, parent.instance):
+        return False
+    # An aggregate cannot retain visibility after one of its companies withdraws sharing.
+    children = parent.investigations.all()
+    return not (
+        children.exclude(issue_id__in=issues.visible_issues(actor).values("pk")).exists()
+        or children.filter(issue__organization__operator_visibility=False).exists()
+        or children.exclude(instance_id=parent.instance_id).exists()
+    )
+
+
+def visible_incidents(actor):
+    if not actor.is_active or not (actor.is_superuser or is_analyst(actor)):
+        return []
+    rows = (
+        RTTicket.objects.filter(
+            role="incident",
+            instance__organization__isnull=True,
+            issue_id__in=issues.visible_issues(actor).values("pk"),
+            issue__organization__operator_visibility=True,
+        )
+        .select_related("issue__organization", "instance")
+        .order_by("-created_at")
+    )
+    return [row for row in rows if can_read_ticket(actor, row)]
+
+
 def load(pk):
     row = RTTicket.objects.select_related("instance", "creator").get(pk=pk)
     row.issue = AssetIssue.objects.select_related(
@@ -47,7 +86,7 @@ def load(pk):
     return row
 
 
-def snapshot(issue, instance, reason):
+def snapshot(issue, instance, reason, role="ticket", incident=None):
     data = {
         "issue": issues.data_for(issue),
         "asset": {
@@ -59,7 +98,9 @@ def snapshot(issue, instance, reason):
             "lifecycle": issue.asset.lifecycle,
         },
         "organization": issue.organization.name,
-        "queue": instance.queue_id,
+        "queue": instance.incident_queue_id if role == "incident" else instance.queue_id,
+        "role": role,
+        "incident": {"binding": str(incident.pk), "remote_id": incident.remote_id} if incident else None,
         "custom_fields": instance.custom_fields,
         "reason": reason,
         "risks": list(
@@ -81,16 +122,37 @@ def snapshot(issue, instance, reason):
 
 
 @transaction.atomic
-def preview(actor, issue, instance, reason):
+def preview(actor, issue, instance, reason, incident=None):
     issue = issues.visible_issues(actor).select_for_update(of=("self",)).get(pk=issue.pk)
     instance = RTInstance.objects.get(pk=instance.pk)
     require(can_write(actor, issue, instance))
     require(bool(reason.strip()) and len(reason) <= 3000)
     instance.full_clean()
+    role = "ticket"
+    if instance.product == "rtir":
+        require(instance.organization_id is None and can_operator_review(actor, issue.organization))
+        role = "investigation" if incident else "incident"
+        if incident:
+            incident = (
+                RTTicket.objects.select_for_update()
+                .select_related("instance", "issue__organization")
+                .get(pk=incident.pk)
+            )
+            require(
+                incident.role == "incident"
+                and incident.instance_id == instance.pk
+                and incident.state == "linked"
+                and incident.remote_id
+                and can_read_ticket(actor, incident)
+            )
+    elif incident:
+        raise ValidationError("Only RTIR Investigations can be linked to an Incident")
     row, created = RTTicket.objects.get_or_create(
         issue=issue,
         instance=instance,
+        role=role,
         defaults={
+            "incident": incident,
             "creator": actor,
             "snapshot": {},
             "fingerprint": "",
@@ -100,11 +162,15 @@ def preview(actor, issue, instance, reason):
         },
     )
     row = RTTicket.objects.select_for_update().get(pk=row.pk)
-    if not created and row.state not in {"draft", "blocked"} or row.attempted_at:
+    if not created and row.incident_id != (incident.pk if incident else None):
+        raise ValidationError("An existing Investigation cannot be moved to another Incident")
+    if (not created and row.state not in {"draft", "blocked"}) or row.attempted_at:
+        require(can_read_ticket(actor, load(row.pk)))
         return row
-    data = snapshot(issue, instance, reason.strip())
+    row.incident = incident
+    data = snapshot(issue, instance, reason.strip(), role, incident)
     label = re.sub(r"[^A-Za-z0-9 ._-]", "-", issue.asset.name)[:65]
-    row.subject = f"Bearings {issue.kind}: {label} [{row.pk}]"
+    row.subject = f"Bearings {role} {issue.kind}: {label} [{row.pk}]"
     row.content = (
         "Bearings asset issue. Source CVSS, organizational priority and possible consequences are distinct.\n"
         "Ticket workflow completion does not establish remediation.\n\n"
@@ -118,14 +184,18 @@ def preview(actor, issue, instance, reason):
         "draft",
         "",
     )
+    row.full_clean()
     row.save()
     audit(actor, issue.organization, "rt.preview", row.pk, instance=str(instance.pk))
     return row
 
 
 def require_current(row):
-    require(can_write(row.creator, row.issue, row.instance))
-    if digest(snapshot(row.issue, row.instance, row.reason)) != row.fingerprint:
+    row.full_clean()
+    require(can_write(row.creator, row.issue, row.instance) and can_read_ticket(row.creator, row))
+    if row.incident_id:
+        require(row.incident.state == "linked" and bool(row.incident.remote_id))
+    if digest(snapshot(row.issue, row.instance, row.reason, row.role, row.incident)) != row.fingerprint:
         raise ValidationError("Issue, inventory, evidence or destination changed; review before export")
 
 
@@ -149,7 +219,10 @@ def positive_id(value):
 
 
 def verified_remote(row):
-    data = api(row.instance, "GET", f"ticket/{positive_id(row.remote_id)}", params={"fields[Owner]": "Name"})
+    fields = {"fields[Owner]": "Name"}
+    if row.instance.product == "rtir":
+        fields["fields[Queue]"] = "Lifecycle"
+    data = api(row.instance, "GET", f"ticket/{positive_id(row.remote_id)}", params=fields)
     effective = data.get("EffectiveId") if isinstance(data, dict) else None
     # RT 5 serializes EffectiveId as a typed ticket reference, including for unmerged tickets.
     if isinstance(effective, dict):
@@ -161,10 +234,29 @@ def verified_remote(row):
         or positive_id(data.get("id")) != row.remote_id
         or data.get("Subject") != row.subject
         or not isinstance(data.get("Queue"), dict)
-        or positive_id(data["Queue"].get("id")) != row.instance.queue_id
+        or positive_id(data["Queue"].get("id")) != queue_for(row)
         or (effective is not None and positive_id(effective) != row.remote_id)
     ):
         raise ConnectorError("RT ticket identity, queue, subject or merge state changed")
+    if row.instance.product == "rtir" and data["Queue"].get("Lifecycle") != (
+        "incidents" if row.role == "incident" else "investigations"
+    ):
+        raise ConnectorError("RTIR queue lifecycle changed or is unavailable")
+    if row.role == "investigation":
+        # Native REST2 exposes MemberOf as typed parent hyperlinks, not an inline field.
+        # Read IDs only; never follow the response-supplied URL.
+        hyperlinks = data.get("_hyperlinks")
+        if not isinstance(hyperlinks, list) or any(not isinstance(item, dict) for item in hyperlinks):
+            raise ConnectorError("Invalid RTIR relationship references")
+        links = [item for item in hyperlinks if item.get("ref") == "parent"]
+        if (
+            not isinstance(links, list)
+            or len(links) != 1
+            or not isinstance(links[0], dict)
+            or links[0].get("type") != "ticket"
+            or positive_id(links[0].get("id")) != row.incident.remote_id
+        ):
+            raise ConnectorError("RTIR Investigation parent changed or is unavailable")
     return data
 
 
@@ -193,18 +285,33 @@ def process(pk):
     if not claim(pk):
         return
     row = load(pk)
+    posted = False
     try:
         require_current(row)
+        if row.instance.product == "rtir":
+            queue = api(row.instance, "GET", f"queue/{positive_id(queue_for(row))}")
+            expected = "incidents" if row.role == "incident" else "investigations"
+            if (
+                not isinstance(queue, dict)
+                or positive_id(queue.get("id")) != queue_for(row)
+                or queue.get("Lifecycle") != expected
+                or queue.get("Disabled") not in (False, 0, "0")
+            ):
+                raise ConnectorError("RTIR destination is not an enabled native lifecycle queue")
         payload = {
-            "Queue": row.instance.queue_id,
+            "Queue": queue_for(row),
             "Subject": row.subject,
             "Content": row.content,
             "ContentType": "text/plain",
         }
+        if row.role == "investigation":
+            verified_remote(row.incident)
+            payload["MemberOf"] = [row.incident.remote_id]
         if row.instance.custom_fields:
             payload["CustomFields"] = row.instance.custom_fields
         if row.issue.action_due:
             payload["Due"] = row.issue.action_due.isoformat() + " 17:00:00 UTC"
+        posted = True
         response = api(row.instance, "POST", "ticket", payload=payload)
         if not isinstance(response, dict) or response.get("type") != "ticket":
             raise ConnectorError("Invalid RT creation acknowledgment")
@@ -214,11 +321,18 @@ def process(pk):
         verified_remote(row)
         row.state, row.error, row.last_success = "linked", "", timezone.now()
     except (ConnectorError, PermissionDenied, ValidationError, IntegrityError):
-        row.state, row.error = (
-            "uncertain",
-            "Ticket creation outcome is uncertain; reconcile through reads. POST will not be retried.",
-        )
-    row.save(update_fields=["state", "error", "last_success"])
+        if posted:
+            row.state, row.error = (
+                "uncertain",
+                "Ticket creation outcome is uncertain; reconcile through reads. POST will not be retried.",
+            )
+        else:
+            row.state, row.attempted_at, row.error = (
+                "blocked",
+                None,
+                "Preflight failed before any ticket POST; review access, native queue and parent, then prepare a new preview.",
+            )
+    row.save(update_fields=["state", "attempted_at", "error", "last_success"])
     audit(row.creator, row.issue.organization, "rt.write_result", pk, state=row.state)
     if row.state == "linked":
         refresh(pk)
@@ -227,7 +341,7 @@ def process(pk):
 def refresh(pk, actor=None):
     row = load(pk)
     actor = actor or row.creator
-    require(can_read(actor, row.issue, row.instance) and row.instance.enabled)
+    require(can_read_ticket(actor, row) and row.instance.enabled)
     RTTicket.objects.filter(pk=pk).update(last_attempt=timezone.now())
     try:
         data = verified_remote(row)
@@ -241,7 +355,7 @@ def refresh(pk, actor=None):
         )
         summary = {"status": data["Status"][:80], "owner": owner_name, "due": str(data.get("Due") or "")[:80]}
         current = load(pk)
-        require(can_read(actor, current.issue, current.instance) and current.instance.enabled)
+        require(can_read_ticket(actor, current) and current.instance.enabled)
         RTTicket.objects.filter(pk=pk).update(summary=summary, last_success=timezone.now(), error="")
         audit(actor, row.issue.organization, "rt.refreshed", pk)
     except ConnectorError:
@@ -254,7 +368,7 @@ def refresh(pk, actor=None):
 def reconcile(pk, actor=None):
     row = load(pk)
     actor = actor or row.creator
-    require(can_read(actor, row.issue, row.instance) and row.instance.enabled)
+    require(can_read_ticket(actor, row) and row.instance.enabled)
     if not row.attempted_at:
         raise ValidationError("There is no attempted ticket creation to reconcile")
     if (
@@ -270,7 +384,7 @@ def reconcile(pk, actor=None):
             "GET",
             "tickets",
             params={
-                "query": f"Queue = {row.instance.queue_id} AND Subject = '{row.subject}'",
+                "query": f"Queue = {queue_for(row)} AND Subject = '{row.subject}'",
                 "per_page": 100,
                 "page": 1,
             },
@@ -292,7 +406,7 @@ def reconcile(pk, actor=None):
     with transaction.atomic():
         current = RTTicket.objects.select_for_update().get(pk=pk)
         fresh = load(pk)
-        require(can_read(actor, fresh.issue, fresh.instance) and fresh.instance.enabled)
+        require(can_read_ticket(actor, fresh) and fresh.instance.enabled)
         if current.state == "creating" and current.last_attempt > timezone.now() - timedelta(minutes=2):
             raise ValidationError("Ticket creation is still in flight")
         current.remote_id, current.state, current.error = row.remote_id, "linked", ""

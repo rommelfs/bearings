@@ -25,7 +25,7 @@ Import the exported **public** lab CA into the browser/OS. If it is already trus
 
 ## What is configured automatically
 
-The pinned reference is **Debian RT 5.0.7+dfsg-4+deb13u3** (including Debian security fixes), Apache with FastCGI and mod_auth_openidc, and a separate PostgreSQL 17 database. RT keeps its own GPL notices under `/usr/share/doc/request-tracker5/copyright`; the distribution's source package is available from [Debian](https://tracker.debian.org/pkg/request-tracker5). RTIR is not installed in this increment.
+The pinned reference is **Debian RT 5.0.7+dfsg-4+deb13u3** (including Debian security fixes), Apache with FastCGI and mod_auth_openidc, and a separate PostgreSQL 17 database. RT keeps its own GPL notices under `/usr/share/doc/request-tracker5/copyright`; the distribution's source package is available from [Debian](https://tracker.debian.org/pkg/request-tracker5). Add `--rtir` to install native RTIR 5.0.10, retained CIRCL-only Incidents and linked Investigations; see the [RTIR lab](rtir-lab.md). Plain `--rt` leaves the extension inactive until explicitly installed.
 
 The starter creates a distinct confidential Keycloak client in the retained lab realm, an exact HTTPS callback, PKCE and fixed certificate-verified internal endpoints. Explicit immutable subjects bind to the existing `company-admin` and `circl-analyst` RT accounts. Unknown subjects, email/group matches and disabled local RT accounts do not gain access. RT application accounts resolve to their verified local numeric ID, avoiding RT's ambiguous handling of all-numeric username strings. No claim grants an RT role.
 
@@ -66,4 +66,4 @@ RT is restarted after a successful `up` so new generated subject-map/active-acco
 
 The first install initializes an empty database once. Existing schemas are retained; this pinned increment does not perform automatic major/version migrations. If initialization fails, inspect `python3 scripts/dev.py logs` and private configuration/DB health without posting credentials or raw provider responses. A deliberately rotated IdP operator credential must be updated in its private provisioner input rather than resetting the realm. Another service occupying the chosen host ports needs a deliberate isolated configuration, not disabled TLS checks.
 
-For a separately operated RT/RTIR use the [external deployment bundle](rt-sso.md) and [RT connector guide](../integrations/rt-rtir.md). The bundled RT proof does not certify RTIR incident types, customer-specific overlays, queues or mail scrips. See [validation](../validation.md) for exact live outcomes.
+For a separately operated RT/RTIR use the [external deployment bundle](rt-sso.md) and [RT connector guide](../integrations/rt-rtir.md). The optional RTIR lab covers native Incident/Investigation lifecycles and relationships; customer-specific overlays, queues and mail scrips still need acceptance. See [validation](../validation.md) for exact live outcomes.

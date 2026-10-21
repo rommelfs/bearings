@@ -130,9 +130,7 @@ def detail(request, slug, pk):
     from .rt_views import instances
 
     rt_rows = [
-        row
-        for row in issue.rt_tickets.select_related("instance")
-        if rt.can_read(request.user, issue, row.instance)
+        row for row in issue.rt_tickets.select_related("instance") if rt.can_read_ticket(request.user, row)
     ]
     can_rt_export = any(
         rt.can_write(request.user, issue, instance) for instance in instances(request.user, issue)

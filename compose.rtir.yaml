@@ -1,0 +1,17 @@
+# Optional native RTIR installation. Existing RT queues and local accounts are retained.
+services:
+  rt-init:
+    environment:
+      BEARINGS_RTIR: "1"
+  rt:
+    environment:
+      BEARINGS_RTIR: "1"
+  bearings-init:
+    environment:
+      BEARINGS_RTIR: "1"
+  web:
+    environment:
+      BEARINGS_RTIR: "1"
+  worker:
+    environment:
+      BEARINGS_RTIR: "1"

@@ -52,8 +52,41 @@ def main():
                 check=True,
                 capture_output=True,
             )
+        rtir_marker = Path("/var/lib/request-tracker5/bearings-rtir.json")
+        pending = Path("/var/lib/request-tracker5/.rtir-installing")
+        if pending.exists() and pending.read_text() != "provisioning":
+            raise RuntimeError(
+                "Incomplete RTIR installation requires operator recovery; no automatic reinsertion"
+            )
+        if os.getenv("BEARINGS_RTIR") == "1" and not rtir_marker.exists() and not pending.exists():
+            PHASE = "first RTIR installation (retained RT data preserved)"
+            perl(
+                "-MRT",
+                "-e",
+                "RT->LoadConfig; RT->Init; for my $n ('Incidents','Investigations','Incident Reports','Countermeasures') { my $q=RT::Queue->new(RT->SystemUser);$q->Load($n);die 'Existing RTIR queue requires explicit adoption' if $q->Id; }",
+            )
+            pending.touch(mode=0o600)
+            subprocess.run(
+                [
+                    "/usr/sbin/rt-setup-database-5",
+                    "--action",
+                    "insert",
+                    "--datafile",
+                    "/usr/local/share/request-tracker5/plugins/RT-IR/etc/initialdata",
+                    "--dba",
+                    "rt",
+                ],
+                check=True,
+                capture_output=True,
+                env=dict(os.environ, RT_DBA_PASSWORD=Path("/run/rt/db_password").read_text().strip()),
+            )
+            pending.write_text("provisioning")
         PHASE = "retained account, queue and credential checks"
         perl("/adapter/provision.pl")
+        if os.getenv("BEARINGS_RTIR") == "1" or rtir_marker.exists():
+            PHASE = "RTIR scoped identities and queue lifecycle checks"
+            perl("/adapter/provision_rtir.pl")
+            pending.unlink(missing_ok=True)
         print(
             "RT synthetic queues, scoped accounts and retained credentials verified; mail stays in local mbox files."
         )

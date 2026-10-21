@@ -43,6 +43,31 @@ class RTStarterTests(SimpleTestCase):
         with self.assertRaises(SystemExit):
             dev.compose("external", "test", False, False, True)
 
+    def test_retained_rtir_selection_does_not_restart_explicitly_stopped_rt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.json"
+            state = {
+                "mode": "bundled",
+                "project": "test",
+                "flowintel": False,
+                "sso": False,
+                "rt": False,
+                "rtir": True,
+            }
+            path.write_text(json.dumps(state))
+            with (
+                patch.object(dev, "STATE", path),
+                patch("sys.argv", ["dev.py", "up", "--no-build"]),
+                patch.object(dev, "check_docker"),
+                patch.object(dev, "run") as run,
+            ):
+                dev.main()
+            self.assertFalse(json.loads(path.read_text())["rt"])
+            self.assertTrue(json.loads(path.read_text())["rtir"])
+            self.assertTrue(
+                all(str(dev.ROOT / "compose.rtir.yaml") not in call.args[0] for call in run.call_args_list)
+            )
+
     def test_old_state_defaults_rt_off_without_rewriting_it(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "state.json"

@@ -86,3 +86,5 @@ The guarded `sso-smoke` uses Python's standard library, private generated creden
 ## Synthetic login view
 
 ![Bearings optional SSO and local sign-in](../images/sso-login.png)
+
+The optional [native RTIR lab](rtir-lab.md) uses `up --sso --flowintel --rtir` and the existing RT OIDC boundary. CIRCL can coordinate Incidents and Investigations; company RT identities keep their ordinary private queues without RTIR access.

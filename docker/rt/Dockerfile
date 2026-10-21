@@ -1,4 +1,4 @@
-# Debian-maintained RT 5 with security patches; native amd64/arm64 packages.
+# Debian-maintained RT 5 with security patches and optional RTIR 5.0.10; native amd64/arm64.
 FROM python:3.12-slim-trixie
 ARG RT_VERSION=5.0.7+dfsg-4+deb13u3
 RUN --mount=type=secret,id=cloud-ca,mode=0444 \
@@ -11,14 +11,20 @@ RUN --mount=type=secret,id=cloud-ca,mode=0444 \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       dbconfig-no-thanks msmtp-mta apache2 libapache2-mod-fcgid libapache2-mod-auth-openidc \
       "rt5-apache2=$RT_VERSION" "rt5-fcgi=$RT_VERSION" "rt5-db-postgresql=$RT_VERSION" \
-      "request-tracker5=$RT_VERSION" ca-certificates; \
+      "request-tracker5=$RT_VERSION" ca-certificates make gcc libnet-domain-tld-perl; \
     a2enmod ssl headers auth_openidc fcgid; a2dissite 000-default; \
     rm -rf /var/lib/apt/lists/* /tmp/cloud-apt.conf; \
     mkdir -p /usr/local/share/request-tracker5/lib/RT/Interface /run/rt-config; \
     printf 'account default\nhost 127.0.0.1\nport 1\n' > /etc/msmtprc
+COPY docker/rt/install_rtir.py /tmp/install_rtir.py
+RUN --mount=type=secret,id=cloud-ca,mode=0444 \
+    python3 /tmp/install_rtir.py && \
+    mkdir -p /usr/local/share/bearings/rtir-source && \
+    cp /tmp/rtir.tar.gz /usr/local/share/bearings/rtir-source/RT-IR-5.0.10.tar.gz && \
+    rm -rf /tmp/rtir-source /tmp/rtir.tar.gz /tmp/install_rtir.py
 LABEL org.opencontainers.image.source="https://github.com/rommelfs/bearings" \
-      org.opencontainers.image.licenses="GPL-2.0-or-later AND AGPL-3.0-or-later" \
-      org.opencontainers.image.description="Synthetic Debian RT 5.0.7 security-patched lab; mail stays in local mbox files"
+      org.opencontainers.image.licenses="GPL-2.0-or-later AND GPL-2.0-only AND AGPL-3.0-or-later" \
+      org.opencontainers.image.description="Synthetic Debian RT 5.0.7 security-patched lab with optional native RTIR 5.0.10; local mbox mail"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 RT_SITE_CONFIG=/adapter/RT_SiteConfig.pm
 EXPOSE 443 444
 ENTRYPOINT ["python3", "/adapter/start.py"]

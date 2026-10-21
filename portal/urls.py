@@ -24,6 +24,7 @@ urlpatterns = [
     path("organizations/<slug:slug>/exposure/<uuid:pk>/", plum_views.detail, name="plum-snapshot"),
     path("organizations/<slug:slug>/exposure/<uuid:pk>/review/", plum_views.review, name="plum-review"),
     path("api/v1/organizations/<slug:slug>/exposure/<uuid:pk>/", plum_views.evidence, name="plum-evidence"),
+    path("response/rtir/", rt_views.incidents, name="rtir"),
     path("organizations/<slug:slug>/issues/<uuid:pk>/rt/new/", rt_views.new, name="rt-new"),
     path("organizations/<slug:slug>/rt/<uuid:pk>/", rt_views.detail, name="rt-ticket"),
     path("organizations/<slug:slug>/rt/<uuid:pk>/action/", rt_views.action, name="rt-action"),

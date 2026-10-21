@@ -11,7 +11,7 @@ def api(instance, method, path, *, payload=None, params=None):
     instance.full_clean()
     if not (
         (method == "POST" and path == "ticket")
-        or (method == "GET" and re.fullmatch(r"tickets|ticket/[1-9][0-9]*", path))
+        or (method == "GET" and re.fullmatch(r"tickets|(?:ticket|queue)/[1-9][0-9]*", path))
     ):
         raise ConnectorError("Unsupported RT operation")
     token = os.getenv(instance.token_env_var, "").strip()

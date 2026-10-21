@@ -35,3 +35,7 @@ Only current authorized CIRCL reviewers/platform administrators can prepare a ha
 ## Optional RT reference identity boundary
 
 The bundled RT lab has explicit company/CIRCL human and service accounts, private per-queue permissions and separate scoped tokens. Its OIDC overlay resolves exact immutable subjects to an existing active local account and returns the verified numeric RT ID; numeric username strings cannot become another account ID. Unknown/disabled accounts are denied and no claim creates users or grants queue rights. The loopback recovery entrance uses a separate FastCGI pool/cookie and local passwords; it does not authenticate the SSO entrance. RT and its database have no Internet route and mail stays in local mbox files. Bootstrap preserves ACL/account/credential/disabled state and refuses identity conflicts rather than recreating accounts or restoring removed rights. See [RT lab](operations/rt-lab.md).
+
+## RTIR coordination
+
+Native RTIR Incidents and Investigations use a separate CIRCL-only connection and API bridge. Each asset issue is independently approved. An Incident aggregate is denied if any linked issue/company is no longer visible to the actor; company membership alone never exposes coordination tickets or lists. Remote RTIR retention and user ACLs remain independent from Bearings visibility. Native ticket closure does not assert remediation. See [RTIR operations](operations/rtir-lab.md).

@@ -32,7 +32,7 @@ def environment():
     return result
 
 
-def compose(mode, project, flowintel=False, sso=False, rt=False):
+def compose(mode, project, flowintel=False, sso=False, rt=False, rtir=False):
     if (sso or rt) and mode != "bundled":
         raise SystemExit("Bundled SSO cannot provision an external environment")
     result = ["docker", "compose", "-p", project, "-f", str(ROOT / "compose.dev.yaml")]
@@ -48,6 +48,8 @@ def compose(mode, project, flowintel=False, sso=False, rt=False):
         result += ["-f", str(ROOT / "compose.rt.yaml")]
     if rt and sso:
         result += ["-f", str(ROOT / "compose.rt-sso.yaml")]
+    if rtir and rt:
+        result += ["-f", str(ROOT / "compose.rtir.yaml")]
     return result
 
 
@@ -160,6 +162,7 @@ def active():
     state.setdefault("flowintel", False)
     state.setdefault("sso", False)
     state.setdefault("rt", False)
+    state.setdefault("rtir", False)
     return state
 
 
@@ -245,6 +248,11 @@ def main():
         default=None,
         help="Include retained RT 5 lab with scoped queues and local-only mail",
     )
+    up.add_argument(
+        "--rtir",
+        action="store_true",
+        help="Install native RTIR with CIRCL-only Incidents and Investigations; implies --rt",
+    )
     up.add_argument("--no-build", action="store_true")
     up.add_argument("--timeout", type=int, default=600)
     connect = commands.add_parser("configure", help="Configure an external NetBox without logging its token")
@@ -319,6 +327,11 @@ def main():
         )
         sso = args.sso if args.sso is not None else (active()["sso"] if active()["mode"] == mode else False)
         rt = args.rt if args.rt is not None else (active()["rt"] if active()["mode"] == mode else False)
+        rtir = args.rtir or (active()["rtir"] if active()["mode"] == mode else False)
+        if args.rtir:
+            rt = True
+        if args.rtir and args.rt is False:
+            raise SystemExit("--rtir cannot be combined with --no-rt")
         if rt and mode != "bundled":
             raise SystemExit("Bundled RT requires the isolated NetBox lab")
         if sso and mode != "bundled":
@@ -336,7 +349,14 @@ def main():
             from scripts.flowintel_source import prepare_source
 
             prepare_source()
-        target = {"mode": mode, "project": project, "flowintel": flowintel, "sso": sso, "rt": rt}
+        target = {
+            "mode": mode,
+            "project": project,
+            "flowintel": flowintel,
+            "sso": sso,
+            "rt": rt,
+            "rtir": rtir,
+        }
         if STATE.exists() and active() != target:
             old = active()
             run(
@@ -346,6 +366,7 @@ def main():
                     old.get("flowintel", False),
                     old.get("sso", False),
                     old.get("rt", False),
+                    old.get("rtir", False),
                 )
                 + ["down"]
             )
@@ -354,21 +375,21 @@ def main():
         options = ["up", "-d", "--wait", "--wait-timeout", str(args.timeout)]
         if not args.no_build:
             options.append("--build")
-        run(compose(mode, project, flowintel, sso, rt) + options)
+        run(compose(mode, project, flowintel, sso, rt, rtir) + options)
         if rt:
             # RT reads the generated account overlay once per FastCGI process.
             # Re-read it on update even when its image/Compose configuration did not change.
-            rt_base = compose(mode, project, flowintel, sso, rt)
+            rt_base = compose(mode, project, flowintel, sso, rt, rtir)
             run(rt_base + ["restart", "rt"])
             run(rt_base + ["up", "-d", "--wait", "--wait-timeout", str(args.timeout), "--no-deps", "rt"])
         if mode == "bundled":
             run(
-                compose(mode, project, flowintel, sso, rt)
+                compose(mode, project, flowintel, sso, rt, rtir)
                 + ["exec", "-T", "netbox-tls", "nginx", "-s", "reload"]
             )
         if flowintel:
             run(
-                compose(mode, project, flowintel, sso, rt)
+                compose(mode, project, flowintel, sso, rt, rtir)
                 + ["exec", "-T", "flowintel-tls", "nginx", "-s", "reload"]
             )
         print(
@@ -391,6 +412,7 @@ def main():
         state.get("flowintel", False),
         state.get("sso", False),
         state.get("rt", False),
+        state.get("rtir", False),
     )
     if args.action == "example-exchange":
         exchange_example(base, state["mode"], inventory_only=args.inventory_only)
