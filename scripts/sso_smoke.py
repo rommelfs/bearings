@@ -173,6 +173,8 @@ def main():
 
     def flow_sign_in(browser):
         _, body = get(browser, flow + "/account/login")
+        assert "Single sign-on" in body and "Local account / administrator recovery" in body
+        assert body.index("Sign in with SSO") < body.index("<details")
         form = LoginForm(app_form=True)
         form.feed(body)
         assert form.action == "/bearings-sso/login"

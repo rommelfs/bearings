@@ -388,6 +388,14 @@ def main():
                 + ["exec", "-T", "netbox-tls", "nginx", "-s", "reload"]
             )
         if flowintel:
+            # The adapter is bind-mounted. Compose does not recreate unchanged services
+            # when only its Python source changes; reload Gunicorn on every explicit up.
+            flow_base = compose(mode, project, flowintel, sso, rt, rtir)
+            run(flow_base + ["restart", "flowintel"])
+            run(
+                flow_base
+                + ["up", "-d", "--wait", "--wait-timeout", str(args.timeout), "--no-deps", "flowintel"]
+            )
             run(
                 compose(mode, project, flowintel, sso, rt, rtir)
                 + ["exec", "-T", "flowintel-tls", "nginx", "-s", "reload"]
@@ -395,6 +403,16 @@ def main():
         print(
             "Bearings development stack started. Check connection health in the workspace; external availability is independent."
         )
+        if flowintel:
+            print(
+                "FlowIntel: https://localhost:"
+                + os.getenv("FLOWINTEL_PORT", "9443")
+                + (
+                    "/account/login — choose Sign in with SSO as circl-analyst."
+                    if sso
+                    else "/account/login — local login; add --sso to enable shared sign-in."
+                )
+            )
         if rt:
             print(
                 "RT: https://localhost:"

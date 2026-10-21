@@ -111,3 +111,7 @@ Implemented: optional `--rtir`, real RTIR 5.0.10 queues/lifecycles, CIRCL-only c
 ## Extensive exploration data and cleanup
 
 Implemented: a default bundled 10-company/300-asset synthetic showcase with software, CVE/lifecycle/risk evidence, 180 historical exposure snapshots, offline case/task previews and rendered outreach drafts; scoped exploration page and visible synthetic banner. Explicit per-object provenance, reviewed removal plans, stale-plan/referral/live-conversion blockers, transactional PostgreSQL locking, audit preservation and a retained removal marker protect real data and stop automatic reseeding. A data readiness command separately reports old unregistered fixtures. Backend lab data/credentials and production deployment acceptance remain separate. See [operations](operations/synthetic-data.md).
+
+## FlowIntel SSO discoverability and retained updates
+
+Implemented: a primary visible SSO login card with separate expandable local recovery; `up` reloads the bind-mounted FlowIntel adapter and reports SSO mode. The actual pinned upstream login template is tested for independent CSRF forms, and the shared Keycloak browser flow is exercised against the full lab. Only explicitly linked CIRCL identities enter the CIRCL workspace. See [SSO troubleshooting](operations/sso.md#flowintel-still-shows-a-password-login).

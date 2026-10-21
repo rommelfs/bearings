@@ -12,12 +12,12 @@ from unittest.mock import patch
 
 sys.path[:0] = ["/adapter", "/home/flowintel/app"]
 
-from flask import Flask, jsonify, render_template_string
+from flask import Flask, jsonify, render_template
 from flask_login import current_user
 from flask_session import Session
 from cachelib import FileSystemCache
 from flask_wtf import CSRFProtect
-from jinja2 import DictLoader
+from jinja2 import FileSystemLoader
 
 from app.extensions import db, login_manager
 from app.db_class.db import Org, Role, User
@@ -36,9 +36,7 @@ class FlowSessionTests(unittest.TestCase):
             SESSION_CACHELIB=FileSystemCache(self.temp.name),
             WTF_CSRF_ENABLED=True,
         )
-        self.app.jinja_env.loader = DictLoader(
-            {"account/login.html": "{% if config.KEYCLOAK_ENABLED %}{% endif %}<form></form>"}
-        )
+        self.app.jinja_env.loader = FileSystemLoader("/home/flowintel/app/app/templates")
         Session(self.app)
         CSRFProtect(self.app)
         db.init_app(self.app)
@@ -73,7 +71,17 @@ class FlowSessionTests(unittest.TestCase):
 
         @self.app.get("/account/login")
         def login():
-            return render_template_string('<input name="csrf_token" value="{{ csrf_token() }}">')
+            # Render the actual pinned upstream template, including its page/card layout.
+            from flask_wtf import FlaskForm
+            from wtforms import BooleanField, PasswordField, StringField, SubmitField
+
+            class LoginForm(FlaskForm):
+                email = StringField("Email")
+                password = PasswordField("Password")
+                remember_me = BooleanField("Remember me")
+                submit = SubmitField("Sign in")
+
+            return render_template("account/login.html", form=LoginForm())
 
         config = {
             "issuer": "https://idp.example/realm",
@@ -124,6 +132,35 @@ class FlowSessionTests(unittest.TestCase):
         with self.browser.session_transaction() as saved:
             self.assertNotIn("private-code", json.dumps(dict(saved)))
             self.assertNotIn("access_token", saved)
+
+    def test_sso_is_primary_and_local_recovery_has_an_independent_csrf_form(self):
+        from html.parser import HTMLParser
+
+        forms = []
+
+        class Forms(HTMLParser):
+            def handle_starttag(parser, tag, attrs):
+                attrs = dict(attrs)
+                if tag == "form":
+                    self.assertFalse(getattr(parser, "inside", False), "Nested login form")
+                    parser.inside = True
+                    forms.append({"attrs": attrs, "csrf": False})
+                if tag == "input" and attrs.get("name") == "csrf_token":
+                    forms[-1]["csrf"] = bool(attrs.get("value"))
+
+            def handle_endtag(parser, tag):
+                if tag == "form":
+                    parser.inside = False
+
+        html = self.browser.get("/account/login").get_data(as_text=True)
+        Forms().feed(html)
+        self.assertEqual(len(forms), 2)
+        self.assertEqual(forms[0]["attrs"]["action"], "/bearings-sso/login")
+        self.assertIn("form-signin", forms[0]["attrs"]["class"])
+        self.assertEqual(forms[1]["attrs"]["action"], "")
+        self.assertTrue(all(form["csrf"] for form in forms))
+        self.assertLess(html.index("Sign in with SSO"), html.index("<details"))
+        self.assertIn("Local account / administrator recovery", html)
 
     def test_revocation_and_reenable_cannot_revive_old_session(self):
         self.login()

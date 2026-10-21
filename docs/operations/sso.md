@@ -16,7 +16,7 @@ The starter remembers `--sso` for later `up`, `down`, `status`, `manage` and smo
 
 The browser issuer is **https://localhost:9444/realms/bearings-lab**, Bearings uses loopback port **8000**, NetBox **8443**. Trust the public lab CA exported by `trust` in your OS/browser before signing in. The gateway reuses the NetBox lab certificate and verifies backchannel TLS; there is no disabled-verification option. Existing legacy lab CA certificates gain the key-usage extension required by Python 3.14, with the existing CA private/public key retained. Re-export the public certificate after updating. No private CA key is exported.
 
-In Bearings choose **Sign in with SSO** and enter the generated demo password once as `company-admin` or `circl-analyst`. Then open NetBox, choose its **OpenID Connect** sign-in button: the same IdP session signs you in without another password prompt. Each application has its own session and client secret. As `circl-analyst`, also open FlowIntel at **https://localhost:9443/account/login** and choose **Sign in with SSO**: the existing IdP session signs in to the existing CIRCL case-workflow account. Company and unassigned demo identities are intentionally denied there.
+In Bearings choose **Sign in with SSO** and enter the generated demo password once as `company-admin` or `circl-analyst`. Then open NetBox, choose its **OpenID Connect** sign-in button: the same IdP session signs you in without another password prompt. Each application has its own session and client secret. As `circl-analyst`, also open FlowIntel at **https://localhost:9443/account/login** and choose the prominent **Sign in with SSO** button: the existing IdP session signs in to the existing CIRCL case-workflow account. Company and unassigned demo identities are intentionally denied there.
 
 - Bearings maps to the **existing** local company/CIRCL accounts and preserves their memberships, operator policies, passwords and privilege flags.
 - NetBox uses separate `sso-company-admin` / `sso-circl-analyst` human accounts. The company demo has read-only inventory access to the RW lab tenant; CIRCL's demo can read both synthetic tenants. These permissions are explicit NetBox object permissions; the humans do not inherit API service-account keys or write capability.
@@ -88,3 +88,20 @@ The guarded `sso-smoke` uses Python's standard library, private generated creden
 ![Bearings optional SSO and local sign-in](../images/sso-login.png)
 
 The optional [native RTIR lab](rtir-lab.md) uses `up --sso --flowintel --rtir` and the existing RT OIDC boundary. CIRCL can coordinate Incidents and Investigations; company RT identities keep their ordinary private queues without RTIR access.
+
+## FlowIntel still shows a password login
+
+Update and explicitly enable both profiles (including a previously installed lab):
+
+```sh
+git pull
+python3 scripts/dev.py up --sso --flowintel --rtir
+python3 scripts/dev.py flowintel-sso status
+python3 scripts/dev.py sso-smoke
+```
+
+Open **https://localhost:9443/account/login**. The primary blue SSO card appears above the expandable **Local account / administrator recovery** form. Use **circl-analyst** at Keycloak; an existing session for that account avoids a second password prompt. A local Bearings `platform-admin` login does not establish a Keycloak session. If Keycloak already has a company identity signed in, sign out there before switching to CIRCL; company accounts have no access to the shared CIRCL FlowIntel workspace.
+
+Earlier adapters rendered a light SSO button on the light page background, making it difficult to see. Also, Compose does not reload bind-mounted Python changes in existing Gunicorn processes. The starter now restarts FlowIntel on each explicit `up` and waits for health before returning. It reports whether shared sign-in is enabled. It preserves existing users, passwords, client policies and revoked bindings. A reported revoked binding needs an explicit operator decision; startup does not re-enable it.
+
+The upstream `KEYCLOAK_ENABLED=False` setting is intentional: the Bearings adapter handles OIDC. Turning on FlowIntel's separate native switch is not required. For independently installed FlowIntel, this bundled adapter is not installed by the starter.

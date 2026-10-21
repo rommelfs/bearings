@@ -117,17 +117,25 @@ def install(app):
     client = Client(settings())
     source = app.jinja_env.loader.get_source(app.jinja_env, "account/login.html")[0]
     marker = "{% if config.KEYCLOAK_ENABLED %}"
-    if source.count(marker) != 1:
+    local_form = '<form action="" method="post" class="form-signin">'
+    if source.count(marker) != 1 or source.count(local_form) != 1 or source.count("</form>") != 1:
         raise RuntimeError("Upstream login template changed; refusing unsafe SSO injection")
-    # The upstream login is already inside a CSRF-protected form. Use a separate, non-nested form.
+    # Keep separate CSRF-protected forms. SSO must be visible on the light page background;
+    # the upstream outline-light button was previously injected outside its dark card.
+    source = source.replace("</form>", "</form></details>", 1)
     source = source.replace(
-        "</form>",
-        """</form>
-        <form method="post" action="/bearings-sso/login" class="mt-3">
+        local_form,
+        """<form method="post" action="/bearings-sso/login" class="form-signin mb-3">
+          <h1 class="h4 text-white">Single sign-on</h1>
+          <p class="text-white">Use your Bearings / CIRCL identity. An existing Keycloak session needs no additional password.</p>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-outline-light w-100">Sign in with SSO</button>
-          <p class="text-light small mt-2">CIRCL case-workflow accounts only. Application permissions remain local.</p>
-        </form>""",
+          <button type="submit" class="btn btn-light w-100">Sign in with SSO</button>
+          <p class="text-white small mt-2 mb-0">Lab account: circl-analyst. Company accounts are not linked to this CIRCL workspace.</p>
+        </form>
+        <details class="w-100">
+          <summary class="text-dark mb-3">Local account / administrator recovery</summary>
+        """
+        + local_form,
         1,
     )
     app.jinja_env.loader = ChoiceLoader([DictLoader({"account/login.html": source}), app.jinja_env.loader])
