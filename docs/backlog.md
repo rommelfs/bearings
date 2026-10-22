@@ -127,3 +127,7 @@ Implemented: scoped application directory, sandboxed NetBox/FlowIntel/RT/RTIR vi
 ## CIRCL multi-constituent campaigns
 
 Implemented: [One reviewed CIRCL campaign across all matching constituents](user-guide/notifications.md#circl--organizations): all/selected audiences, complete readiness and explicit exclusions, grouped private previews, single bulk approval and bounded background dispatch. Company isolation, consent rechecks and uncertain-attempt retention remain enforced.
+
+## Named MONARC scenario selection
+
+Implemented: integrated local search, human-readable threat/asset/weakness preview, automatic identifiers and justified confirmation of the exact reviewed catalog revision. Upstream changes require re-review; outages preserve existing mappings. Automatic relevance recommendations and impact scoring remain separate work. See the [scenario selection guide](user-guide/risk-scenarios.md).

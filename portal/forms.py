@@ -123,8 +123,9 @@ class MissingReviewForm(forms.Form):
 
 
 class RiskLinkForm(forms.Form):
-    source = forms.ModelChoiceField(queryset=MOSPSource.objects.none(), label="Approved MOSP catalog")
-    risk_uuid = forms.UUIDField(label="MONARC risk UUID")
+    source = forms.ModelChoiceField(queryset=MOSPSource.objects.none(), widget=forms.HiddenInput)
+    risk_uuid = forms.UUIDField(widget=forms.HiddenInput)
+    reviewed_revision = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
     reason = forms.CharField(
         max_length=4000,
         widget=forms.Textarea,

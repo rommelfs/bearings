@@ -26,6 +26,8 @@ A standalone organization inventory and evidence review portal intended for CIRC
 
 See [asset location, source-severity filters and linked analyst triage](docs/user-guide/asset-triage.md).
 
+[Choose MOSP/MONARC risk scenarios](docs/user-guide/risk-scenarios.md) by name with integrated search and preview; no manual UUID entry is needed.
+
 See the [unpatched Exchange example and analyst workflow](docs/user-guide/exchange-example.md) for CVE-2026-70571, possible consequences, in-app review cues and notification limits.
 
 ## Explore synthetic scenarios

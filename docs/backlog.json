@@ -130,6 +130,10 @@
       {
         "title": "Deliver one reviewed CIRCL campaign across all matching constituents",
         "body": "Implemented explicit all/selected/single constituent audiences, complete readiness counts beyond review pagination, pinned exclusions with deliberate missing-contact handling, organization-grouped private previews and one-action whole-campaign approval. Committed PostgreSQL-safe bounded background dispatch rechecks active creator, scope, consent, evidence and pinned transport; uncertain attempts are never automatically retried. Configurable bounded campaigns reject overflow atomically; company inbox isolation and draft-only subscriptions remain. Includes tracked opt-in three-company synthetic exercise and removal safety. Validation and operational limits: docs/user-guide/notifications.md and docs/validation.md. No production notifications or automatic CVE discovery."
+      },
+      {
+        "title": "Replace manual MONARC UUID entry with integrated scenario search and preview",
+        "body": "Implemented in CVE risk mapping: searchable named cached scenarios, source/language filter, bounded pagination, threat/asset/general-weakness preview, automatic internal IDs and explicit justified confirmation. Missing detail hydration only on explicit preview; disabled/missing entries rejected, cached metadata retained on outages. Confirmation verifies the exact reviewed immutable revision; changed upstream content requires re-review with justification preserved. Search terms, asset names and justification stay local. No automatic risk/applicability scoring or recommendations; existing lifecycle/exposure named selector unchanged. Includes permission, escaping, no-write GET, outage, revision-change and browser desktop/mobile coverage. See docs/user-guide/risk-scenarios.md and docs/validation.md."
       }
     ]
   },

@@ -4,6 +4,7 @@ import hashlib
 import json
 from datetime import timedelta
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from .access import audit, can_edit, can_operator_review, require, visible_findings
@@ -112,10 +113,12 @@ def authorize_link(user, finding):
     return org
 
 
-def link_risk(user, finding, source_id, risk_uuid, reason):
+def link_risk(user, finding, source_id, risk_uuid, reason, *, expected_revision=None):
     require(bool(reason.strip()) and len(reason) <= 4000)
     authorize_link(user, finding)
     revision = resolve_risk(source_id, risk_uuid)
+    if expected_revision is not None and revision.pk != expected_revision:
+        raise ValidationError("The catalog scenario changed. Review the updated preview before confirming.")
     with transaction.atomic():
         finding = Finding.objects.select_for_update().get(pk=finding.pk)
         org = authorize_link(user, finding)

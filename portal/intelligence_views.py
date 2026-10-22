@@ -1,4 +1,5 @@
 from urllib.parse import quote
+from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -9,7 +10,7 @@ from django.views.decorators.http import require_POST
 from .access import can_edit, can_operator_review, require, visible_findings
 from .connectors.http import ConnectorError, validate_base
 from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
-from .intelligence import link_risk, link_state, visible_links, withdraw_link
+from .intelligence import link_risk, link_state, visible_links, withdraw_link, resolve_risk
 from .models import MOSPRisk, MOSPSource, RiskLink
 from .views import organization
 from .presentation import decorate_finding
@@ -101,36 +102,128 @@ def risk_catalog(request, slug):
     )
 
 
+def selectable_risks():
+    return (
+        MOSPRisk.objects.filter(source__enabled=True, missing_since__isnull=True)
+        .select_related("source", "current_revision")
+        .order_by("description", "pk")
+    )
+
+
+def search_scenarios(risks, query):
+    if not query:
+        return risks
+    match = Q(description__icontains=query)
+    for kind in ("asset", "threat", "vulnerability"):
+        for field in ("name", "description"):
+            match |= Q(**{f"current_revision__payload__{kind}__{field}__icontains": query})
+        match |= Q(**{f"current_revision__payload__{kind}__data__label__icontains": query})
+    return risks.filter(match)
+
+
 @login_required
 def create_risk_link(request, slug, pk):
     org = organization(request, slug)
     require(can_edit(request.user, org) or can_operator_review(request.user, org))
     finding = get_object_or_404(visible_findings(request.user, org), pk=pk)
-    form = RiskLinkForm(
-        request.POST or None,
-        initial={"source": request.GET.get("source"), "risk_uuid": request.GET.get("risk_uuid")},
-    )
-    if request.method == "POST" and form.is_valid():
+    risks = selectable_risks()
+    query = request.GET.get("q", "")[:200]
+    catalog = request.GET.get("catalog", "")
+    sources = MOSPSource.objects.filter(enabled=True).order_by("name")
+    if catalog:
         try:
-            link_risk(
-                request.user,
-                finding,
-                form.cleaned_data["source"].pk,
-                form.cleaned_data["risk_uuid"],
-                form.cleaned_data["reason"],
+            catalog = int(catalog)
+        except ValueError:
+            raise Http404 from None
+        get_object_or_404(sources, pk=catalog)
+    selected = None
+    form = RiskLinkForm(request.POST or None)
+    if request.method == "POST":
+        valid = form.is_valid()
+        source = form.cleaned_data.get("source")
+        uid = form.cleaned_data.get("risk_uuid")
+        if source and uid:
+            selected = risks.filter(source=source, uuid=uid).first()
+            if selected is None:
+                form.add_error(None, "Choose an available catalog scenario and review its preview.")
+                valid = False
+        if valid and selected:
+            try:
+                link_risk(
+                    request.user,
+                    finding,
+                    selected.source_id,
+                    selected.uuid,
+                    form.cleaned_data["reason"],
+                    expected_revision=form.cleaned_data["reviewed_revision"],
+                )
+            except (ConnectorError, ValidationError) as exc:
+                form.add_error(
+                    None,
+                    " ".join(exc.messages)
+                    if isinstance(exc, ValidationError)
+                    else "The catalog reference could not be verified. Your justification is retained; retry after checking catalog health.",
+                )
+                selected.refresh_from_db()
+            else:
+                messages.success(
+                    request,
+                    "Scenario linked with pinned evidence. Applicability and organizational risk remain unassessed.",
+                )
+                return redirect("intelligence", slug=slug)
+    else:
+        try:
+            if request.GET.get("risk"):
+                selected = get_object_or_404(risks, pk=int(request.GET["risk"]))
+            elif request.GET.get("source") and request.GET.get("risk_uuid"):
+                # Retained catalog bookmarks resolve internally, without an editable UUID field.
+                selected = get_object_or_404(
+                    risks, source_id=int(request.GET["source"]), uuid=request.GET["risk_uuid"]
+                )
+        except (ValueError, ValidationError):
+            raise Http404 from None
+        if selected and not selected.current_revision_id:
+            try:
+                resolve_risk(selected.source_id, selected.uuid)
+                selected.refresh_from_db()
+            except ConnectorError:
+                messages.error(
+                    request,
+                    "Scenario details are unavailable. Catalog search remains available; no mapping was created.",
+                )
+        if selected:
+            form = RiskLinkForm(
+                initial={
+                    "source": selected.source_id,
+                    "risk_uuid": selected.uuid,
+                    "reviewed_revision": selected.current_revision_id,
+                }
             )
-        except ConnectorError:
-            messages.error(
-                request,
-                "MOSP reference could not be verified. Existing mappings retained; check source, UUID, language and CC0 licensing.",
-            )
-        else:
-            messages.success(
-                request,
-                "Risk scenario reference recorded with pinned evidence. Applicability and organizational risk remain unassessed.",
-            )
-            return redirect("intelligence", slug=slug)
-    return render(request, "portal/risk_link_form.html", {"org": org, "finding": finding, "form": form})
+    # After a changed upstream revision, require a fresh explicit confirmation and
+    # retain the analyst's text. Never silently pin a revision absent from the preview.
+    if selected and form.is_bound:
+        form.data = form.data.copy()
+        form.data["reviewed_revision"] = selected.current_revision_id or ""
+    if catalog:
+        risks = risks.filter(source_id=catalog)
+    results = search_scenarios(risks, query)
+    return render(
+        request,
+        "portal/risk_link_form.html",
+        {
+            "org": org,
+            "finding": finding,
+            "form": form,
+            "selected": selected,
+            "scenario": selected.current_revision.payload
+            if selected and selected.current_revision_id
+            else None,
+            "query": query,
+            "catalog": catalog,
+            "sources": sources,
+            "page": Paginator(results, 12).get_page(request.GET.get("page")),
+        },
+    )
 
 
 @login_required

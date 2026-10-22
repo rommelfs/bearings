@@ -1703,3 +1703,34 @@ input:focus-visible {
     padding: 18px;
   }
 }
+
+.scenario-search {
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.scenario-search > div {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.scenario-results,
+.scenario-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 1rem;
+}
+.scenario-card,
+.scenario-facts article {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.scenario-preview {
+  border-top: 4px solid var(--brand);
+}
+.scenario-confirm {
+  margin-top: 1.5rem;
+}
+.scenario-confirm textarea {
+  min-height: 8rem;
+}
