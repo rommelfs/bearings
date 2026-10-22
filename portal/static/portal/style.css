@@ -1734,3 +1734,30 @@ input:focus-visible {
 .scenario-confirm textarea {
   min-height: 8rem;
 }
+
+.case-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1.5rem 0;
+}
+.case-steps a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.case-steps a.selected {
+  border-color: var(--brand);
+  background: #e6f3ef;
+  font-weight: 700;
+}
+.case-steps span {
+  font-weight: 700;
+}
+.case-controls {
+  margin-top: 1.5rem;
+}

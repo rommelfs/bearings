@@ -42,6 +42,13 @@ class ScenarioPickerTests(tests.Fixture):
         self.assertFalse(RiskLink.objects.exists())
         self.network.assert_not_called()
 
+    def test_guided_case_context_survives_search_preview_and_confirmation(self):
+        response = self.client.get(self.path, {"risk": self.risk.pk, "return": "guide"})
+        self.assertContains(response, "Return to the guided case")
+        self.assertContains(response, 'name="return" value="guide"')
+        response = self.client.post(self.path + "?return=guide", self.confirmation())
+        self.assertRedirects(response, self.url("case-guide", pk=self.finding.pk) + "?step=action")
+
     def test_searches_related_threat_and_empty_search_has_clear_state(self):
         response = self.client.get(self.path, {"q": "Synthetic threat"})
         self.assertContains(response, "Synthetic risk")

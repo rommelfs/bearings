@@ -131,3 +131,7 @@ Implemented: [One reviewed CIRCL campaign across all matching constituents](user
 ## Named MONARC scenario selection
 
 Implemented: integrated local search, human-readable threat/asset/weakness preview, automatic identifiers and justified confirmation of the exact reviewed catalog revision. Upstream changes require re-review; outages preserve existing mappings. Automatic relevance recommendations and impact scoring remain separate work. See the [scenario selection guide](user-guide/risk-scenarios.md).
+
+## Guided entry and interchangeable examples
+
+Implemented first CVE-case guide with Start here, searchable product/CVE/machine examples, five decisions and context-preserving risk selection. The PHP exercise uses two genuine public CVEs on one assumed installation. Known NetBox inventory references open exact objects in the canvas with scoped return links. Full onboarding, other issue domains and comprehensive follow-up remain separate work. See [guided cases](user-guide/guided-cases.md).

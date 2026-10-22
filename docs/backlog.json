@@ -134,6 +134,10 @@
       {
         "title": "Replace manual MONARC UUID entry with integrated scenario search and preview",
         "body": "Implemented in CVE risk mapping: searchable named cached scenarios, source/language filter, bounded pagination, threat/asset/general-weakness preview, automatic internal IDs and explicit justified confirmation. Missing detail hydration only on explicit preview; disabled/missing entries rejected, cached metadata retained on outages. Confirmation verifies the exact reviewed immutable revision; changed upstream content requires re-review with justification preserved. Search terms, asset names and justification stay local. No automatic risk/applicability scoring or recommendations; existing lifecycle/exposure named selector unchanged. Includes permission, escaping, no-write GET, outage, revision-change and browser desktop/mobile coverage. See docs/user-guide/risk-scenarios.md and docs/validation.md."
+      },
+      {
+        "title": "Introduce product-independent guided cases and exact NetBox source references",
+        "body": "Implemented first guided CVE-review slice: persistent Start here entry, searchable case selector, five question-led steps (asset/evidence/risk/action/follow-up), scoped audited assessment, named risk-picker return context, related CVEs on the same host and explicit non-completion semantics. Exact stored NetBox site/location/rack/primary IP/DNS/VRF references open the authorized instance in the canvas with validated case/asset return and existing frame/SSO policy; UI links are excluded from persisted content fingerprints. Opt-in tracked synthetic PHP 8.4.26 installation uses genuine published CVE-2026-109618 and CVE-2026-109619 evidence, no inferred applicability or NetBox writes; idempotency/cleanup protected. Full onboarding/provisioning, guided lifecycle/exposure cases, comprehensive cross-product deep links, consolidated follow-up and usability acceptance remain future work. See docs/user-guide/guided-cases.md and docs/validation.md."
       }
     ]
   },

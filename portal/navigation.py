@@ -4,6 +4,7 @@ from django.urls import reverse
 
 
 AREAS = {
+    "start": ("Start here", "getting-started", ""),
     "inventory": ("Inventory & organizations", "inventory", "inventory"),
     "review": ("Vulnerability review", "home", "assess"),
     "issues": ("Asset issues & lifecycle", "issues", "assess"),
@@ -18,7 +19,8 @@ AREAS = {
 }
 
 ROUTES = {
-    "applications": {"applications", "application"},
+    "start": {"getting-started"},
+    "applications": {"applications", "application", "source-reference"},
     "inventory": {
         "inventory",
         "organization",
@@ -30,7 +32,15 @@ ROUTES = {
         "create-asset",
         "create-installation",
     },
-    "review": {"home", "intelligence", "risk-catalog", "create-risk-link", "flowintel-new", "flowintel-case"},
+    "review": {
+        "home",
+        "case-guide",
+        "intelligence",
+        "risk-catalog",
+        "create-risk-link",
+        "flowintel-new",
+        "flowintel-case",
+    },
     "issues": {"issues", "issue", "issue-new", "issue-edit", "issue-risk-add"},
     "exposure": {"plum", "plum-import", "plum-snapshot"},
     "notifications": {"notifications", "notification-batch"},
@@ -52,6 +62,7 @@ def workspace(request):
     if route in {"flowintel-new", "flowintel-case"}:
         stage = "respond"
     sections = [
+        ("Start", ["start"]),
         ("Understand", ["inventory", "review", "issues", "exposure"]),
         (
             "Act",

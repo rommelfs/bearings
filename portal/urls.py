@@ -11,9 +11,17 @@ from . import (
     federation,
     federation_views,
     application_views,
+    guide_views,
 )
 
 urlpatterns = [
+    path("start/", guide_views.start, name="getting-started"),
+    path("organizations/<slug:slug>/findings/<int:pk>/guide/", guide_views.case, name="case-guide"),
+    path(
+        "organizations/<slug:slug>/assets/<uuid:pk>/source/<slug:reference>/",
+        application_views.source_reference,
+        name="source-reference",
+    ),
     path("applications/", application_views.canvas, name="applications"),
     path("applications/<slug:key>/", application_views.canvas, name="application"),
     path("inventory/", views.inventory, name="inventory"),

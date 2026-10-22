@@ -126,6 +126,7 @@ def create_risk_link(request, slug, pk):
     org = organization(request, slug)
     require(can_edit(request.user, org) or can_operator_review(request.user, org))
     finding = get_object_or_404(visible_findings(request.user, org), pk=pk)
+    guided = request.GET.get("return") == "guide"
     risks = selectable_risks()
     query = request.GET.get("q", "")[:200]
     catalog = request.GET.get("catalog", "")
@@ -170,6 +171,10 @@ def create_risk_link(request, slug, pk):
                     request,
                     "Scenario linked with pinned evidence. Applicability and organizational risk remain unassessed.",
                 )
+                if guided:
+                    from django.urls import reverse
+
+                    return redirect(reverse("case-guide", args=[slug, pk]) + "?step=action")
                 return redirect("intelligence", slug=slug)
     else:
         try:
@@ -215,6 +220,7 @@ def create_risk_link(request, slug, pk):
             "finding": finding,
             "form": form,
             "selected": selected,
+            "guided": guided,
             "scenario": selected.current_revision.payload
             if selected and selected.current_revision_id
             else None,

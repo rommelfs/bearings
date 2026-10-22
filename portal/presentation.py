@@ -68,5 +68,5 @@ def decorate_finding(finding):
         if finding.analyst_applicability in {"affected", "potential", "not_affected"}
         else "unknown"
     )
-    finding.asset_context = asset_context(finding.installation.asset)
+    finding.asset_context = asset_context(finding.installation.asset, workspace=True, case_id=finding.pk)
     return finding

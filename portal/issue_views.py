@@ -24,7 +24,7 @@ def scoped(request, slug, pk):
 
 
 def decorate(issue):
-    issue.facts = asset_context(issue.asset)
+    issue.facts = asset_context(issue.asset, workspace=True)
     issue.source_summary = vulnerability_summary(issue.finding.record.payload) if issue.finding_id else None
     return issue
 

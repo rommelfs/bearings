@@ -385,6 +385,10 @@ def finding_review(request, slug, pk):
         transition_finding(request.user, finding, **form.cleaned_data)
     else:
         messages.error(request, "Choose a workflow state and record a reason.")
+    if request.GET.get("return") == "guide":
+        from django.urls import reverse
+
+        return redirect(reverse("case-guide", args=[slug, pk]) + "?step=risk")
     if request.GET.get("return") == "intelligence":
         from django.urls import reverse
 
@@ -538,7 +542,7 @@ def asset_detail(request, slug, pk):
         {
             "org": org,
             "asset": asset,
-            "facts": asset_context(asset),
+            "facts": asset_context(asset, workspace=True),
             "page": page,
             "editable": can_edit(request.user, org),
         },

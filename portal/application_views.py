@@ -93,10 +93,17 @@ def canvas(request, key=None):
     selected = next((entry for entry in entries if entry["key"] == key), None)
     if key and selected is None:
         raise Http404
+    return render_workspace(request, entries, selected)
+
+
+def render_workspace(request, entries, selected, *, open_frame=False):
     # Host + scheme both matter for SameSite cookies. The target is operator-owned,
     # never taken from next/url/query parameters or an upstream response.
     if settings.CANVAS_ORIGIN and request.build_absolute_uri("/").rstrip("/") != settings.CANVAS_ORIGIN:
-        return redirect(settings.CANVAS_ORIGIN + request.path)
+        return redirect(
+            settings.CANVAS_ORIGIN
+            + (selected.get("canonical_url", request.path) if selected else request.path)
+        )
     if selected:
         for org in selected["organizations"]:
             audit_operator_access(request.user, org)
@@ -114,7 +121,9 @@ def canvas(request, key=None):
         {
             "applications": entries,
             "selected": selected,
-            "show_frame": bool(selected and selected["embeddable"] and request.GET.get("show") == "1"),
+            "show_frame": bool(
+                selected and selected["embeddable"] and (open_frame or request.GET.get("show") == "1")
+            ),
         },
     )
     allowed = selected["origin"] if selected and selected["embeddable"] else "'none'"
@@ -125,3 +134,50 @@ def canvas(request, key=None):
     response["Cache-Control"] = "no-store"
     response["Referrer-Policy"] = "no-referrer"
     return response
+
+
+@login_required
+@require_GET
+def source_reference(request, slug, pk, reference):
+    from django.shortcuts import get_object_or_404
+    from .views import organization
+    from .models import Asset
+    from .asset_context import asset_context
+
+    org = organization(request, slug)
+    asset = get_object_or_404(Asset.objects.select_related("source__instance"), pk=pk, organization=org)
+    entries = applications(request.user)
+    entry = next((e for e in entries if e["key"] == f"netbox-{asset.source.instance_id}"), None)
+    if entry is None:
+        raise Http404
+    facts = asset_context(asset)
+    targets = {r["field"]: r["url"] for r in facts["references"]}
+    targets["asset"] = asset.source_url
+    for ip in facts["addresses"]:
+        if ip.get("version"):
+            targets[f"ip{ip['version']}"] = ip["url"]
+            targets[f"vrf{ip['version']}"] = ip.get("vrf", {}).get("url", "")
+    target = targets.get(reference)
+    if not target or origin("https://" + urlsplit(target).netloc) != entry["origin"]:
+        raise Http404
+    selected = {
+        **entry,
+        "url": target,
+        "name": f"{entry['name']} · {asset.name} · {reference}",
+        "return_url": reverse("asset", args=[slug, pk]),
+        "reference": reference,
+    }
+    if request.GET.get("case"):
+        from .access import visible_findings
+
+        try:
+            finding_id = int(request.GET["case"])
+        except ValueError:
+            raise Http404 from None
+        finding = get_object_or_404(
+            visible_findings(request.user, org), pk=finding_id, installation__asset=asset
+        )
+        selected["return_url"] = reverse("case-guide", args=[slug, finding.pk])
+        selected["return_label"] = "Return to the Bearings case"
+        selected["canonical_url"] = request.path + f"?case={finding.pk}"
+    return render_workspace(request, entries, selected, open_frame=True)
