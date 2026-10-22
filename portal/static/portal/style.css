@@ -1648,3 +1648,58 @@ input:focus-visible {
     min-height: 650px;
   }
 }
+
+/* One CIRCL campaign, many private constituent messages. */
+.campaign-entry {
+  background: #edf3fa;
+  border-left: 3px solid #6078ae;
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+}
+.campaign-entry .muted {
+  display: block;
+  margin-top: 4px;
+}
+.campaign-approval {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  border: 1px solid #a8c9c3;
+  background: #edf7f3;
+  padding: 24px;
+  border-radius: 12px;
+  margin: 24px 0;
+}
+.campaign-approval h2 {
+  font-size: 19px;
+  margin-bottom: 8px;
+}
+.campaign-approval p {
+  margin-bottom: 0;
+  max-width: 72ch;
+  font-size: 12px;
+}
+.campaign-approval button {
+  flex-shrink: 0;
+}
+.campaign-company {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.campaign-company > .row {
+  margin-bottom: 14px;
+}
+.campaign-statuses {
+  margin: 18px 0;
+}
+.campaign-metrics strong {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .campaign-approval {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 18px;
+  }
+}

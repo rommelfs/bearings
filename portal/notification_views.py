@@ -25,9 +25,12 @@ from .notifications import (
     approve_local,
     authorized_delivery,
     candidates,
-    eligible_contacts,
     preview_batch,
     scoped_organizations,
+    campaign_audience,
+    authorized_audience,
+    campaign_limits,
+    queue_campaign,
 )
 
 
@@ -41,6 +44,8 @@ def center(request):
         "sort": "severity",
         "subject_template": DEFAULT_SUBJECT,
         "body_template": DEFAULT_BODY,
+        "audience_scope": "single" if request.GET.get("organization") else "all",
+        "missing_contacts": "block",
     }
     if not operator:
         org = (
@@ -56,11 +61,20 @@ def center(request):
         else {
             **defaults,
             **{
-                k: request.GET[k]
+                k: request.GET.getlist(k) if k == "organizations" else request.GET[k]
                 for k in request.GET
                 if k in defaults
                 or k
-                in ["organization", "product", "cve", "assessment", "domain", "kind", "subscription_name"]
+                in [
+                    "organization",
+                    "organizations",
+                    "product",
+                    "cve",
+                    "assessment",
+                    "domain",
+                    "kind",
+                    "subscription_name",
+                ]
             },
         }
     )
@@ -84,18 +98,24 @@ def center(request):
             "Please acknowledge receipt in Bearings. This message does not assert compromise.",
         )
     form = NotificationForm(request.user, data)
-    matches, groups, total = [], [], 0
+    matches, groups, total, audience = [], [], 0, None
     if form.is_valid():
         filters, mode = form.filters(), form.cleaned_data["mode"]
         qs = candidates(request.user, mode, filters)
         total = qs.count()
         matches = list(qs[:100])
-        seen = set()
-        for f in matches:
-            if f.organization_id not in seen:
-                seen.add(f.organization_id)
-                audit_operator_access(request.user, f.organization)
-                groups.append({"org": f.organization, "ready": eligible_contacts(f.organization).count()})
+        audience = campaign_audience(request.user, mode, filters)
+        audience_orgs = {
+            org.pk: org
+            for org in scoped_organizations(request.user, mode).filter(
+                pk__in=[row["organization_id"] for row in audience["rows"]]
+            )
+        }
+        for row in audience["rows"]:
+            org = audience_orgs.get(row["organization_id"])
+            if org:
+                audit_operator_access(request.user, org)
+                groups.append({"org": org, "ready": row["recipients"], "matches": row["matches"]})
         if request.method == "POST" and request.POST.get("action") == "subscribe":
             from . import subscriptions
 
@@ -153,8 +173,11 @@ def center(request):
         .order_by("-created_at")[:10]
     ):
         deliveries = list(batch.deliveries.all())
-        if all(authorized_delivery(request.user, d) for d in deliveries):
+        if authorized_audience(request.user, batch) and all(
+            authorized_delivery(request.user, d) for d in deliveries
+        ):
             batch.recipient_count = len(deliveries)
+            batch.company_count = len({d.organization_id for d in deliveries})
             recent_batches.append(batch)
     subscriptions = [
         row
@@ -175,6 +198,18 @@ def center(request):
             "matches": matches,
             "total": total,
             "groups": groups,
+            "audience": audience,
+            "campaign_review_limit": campaign_limits(
+                form.cleaned_data.get("mode", "company"), form.filters()
+            )[0]
+            if form.is_valid()
+            else 500,
+            "campaign_recipient_limit": campaign_limits(
+                form.cleaned_data.get("mode", "company"), form.filters()
+            )[1]
+            if form.is_valid()
+            else 100,
+            "operator": operator,
             "inbox": inbox,
             "inbox_page": inbox_page,
             "recent_batches": recent_batches,
@@ -186,6 +221,8 @@ def center(request):
 
 def own_batch(request, pk):
     batch = get_object_or_404(NotificationBatch, pk=pk, creator=request.user)
+    if not authorized_audience(request.user, batch):
+        raise Http404
     deliveries = list(
         batch.deliveries.select_related("organization", "contact").order_by(
             "organization__name", "contact__escalation_order", "pk"
@@ -193,6 +230,10 @@ def own_batch(request, pk):
     )
     if any(not authorized_delivery(request.user, d) for d in deliveries):
         raise Http404
+    delivery_orgs = {d.organization_id for d in deliveries}
+    report_orgs = {row["organization_id"] for row in batch.audience_report.get("rows", [])}
+    for org in scoped_organizations(request.user, batch.mode).filter(pk__in=report_orgs - delivery_orgs):
+        audit_operator_access(request.user, org)
     for d in deliveries:
         audit_operator_access(request.user, d.organization)
         d.previously_attempted = NotificationReceipt.objects.filter(fingerprint=d.fingerprint).exists()
@@ -202,12 +243,24 @@ def own_batch(request, pk):
 @login_required
 def batch_detail(request, pk):
     batch, deliveries = own_batch(request, pk)
+    organization_groups = {}
+    for delivery in deliveries:
+        organization_groups.setdefault(
+            delivery.organization_id, {"org": delivery.organization, "deliveries": []}
+        )["deliveries"].append(delivery)
+    status_counts = {}
+    for delivery in deliveries:
+        status_counts[delivery.status] = status_counts.get(delivery.status, 0) + 1
     return render(
         request,
         "portal/notification_batch.html",
         {
             "batch": batch,
             "deliveries": deliveries,
+            "organization_groups": list(organization_groups.values()),
+            "company_count": len(organization_groups),
+            "recipient_count": len(deliveries),
+            "status_counts": status_counts,
             "can_approve": any(not d.previously_attempted for d in deliveries),
         },
     )
@@ -216,14 +269,29 @@ def batch_detail(request, pk):
 @login_required
 @require_POST
 def approve(request, pk):
-    batch, _ = own_batch(request, pk)
+    batch, deliveries = own_batch(request, pk)
     try:
-        selected = {int(v) for v in request.POST.getlist("delivery")}
-        approve_local(request.user, batch.pk, selected)
-        messages.success(
-            request,
-            "Approval recorded. Filed means local file; accepted means the SMTP relay accepted the message, not confirmed delivery. Uncertain attempts require investigation and are not retried.",
+        selected = (
+            {d.pk for d in deliveries if not d.previously_attempted}
+            if request.POST.get("selection") == "all"
+            else {int(v) for v in request.POST.getlist("delivery")}
         )
+        if (
+            batch.mode == "circl"
+            and batch.filters.get("audience_scope")
+            and request.POST.get("selection") in {"all", "checked"}
+        ):
+            queue_campaign(request.user, batch.pk, selected)
+            messages.success(
+                request,
+                "Campaign approved across all selected constituents. Messages are queued for the worker; no delivery is claimed until an outcome is recorded.",
+            )
+        else:
+            approve_local(request.user, batch.pk, selected)
+            messages.success(
+                request,
+                "Approval recorded. Filed means local file; accepted means the SMTP relay accepted the message, not confirmed delivery. Uncertain attempts require investigation and are not retried.",
+            )
     except (ValidationError, ValueError) as exc:
         messages.error(
             request,

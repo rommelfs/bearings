@@ -103,6 +103,9 @@ def main():
             call_command("process_flowintel", all=True, due=True)
             call_command("process_rt_tickets", all=True, due=True)
             call_command("prepare_notifications", due=True)
+            Path("/tmp/bearings-worker-heartbeat").touch()
+            call_command("process_notifications", limit=5)
+            Path("/tmp/bearings-worker-heartbeat").touch()
             from django.core.management import CommandError
 
             try:

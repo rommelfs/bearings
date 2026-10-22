@@ -123,3 +123,7 @@ Implemented after a running-lab UX review: grouped active navigation, mobile men
 ## Connected application canvas
 
 Implemented: scoped application directory, sandboxed NetBox/FlowIntel/RT/RTIR views with Bearings navigation, top-level SSO/reconnect, explicit native framing policy and separate-tab fallback. The SSO lab supplies a trusted HTTPS Bearings entry without resetting retained clients/identities. Real Chromium verifies one IdP password prompt and native framing/denial; API credentials and application permissions remain separate. External acceptance, cross-site cookie limitations, deep links/draft continuity, global logout and complete native accessibility acceptance remain follow-ups. See [setup and screenshots](user-guide/applications.md).
+
+## CIRCL multi-constituent campaigns
+
+Implemented: [One reviewed CIRCL campaign across all matching constituents](user-guide/notifications.md#circl--organizations): all/selected audiences, complete readiness and explicit exclusions, grouped private previews, single bulk approval and bounded background dispatch. Company isolation, consent rechecks and uncertain-attempt retention remain enforced.

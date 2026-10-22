@@ -14,6 +14,8 @@ from .notifications import (
     preview_batch,
     scoped_organizations,
     transport_configuration,
+    campaign_audience,
+    campaign_limits,
 )
 
 
@@ -59,9 +61,10 @@ def prepare(pk, due=False):
         require(scoped_organizations(row.creator, row.mode).filter(pk=row.organization_id).exists())
     else:
         require(row.mode == "circl" and scoped_organizations(row.creator, row.mode).exists())
-    current = list(candidates(row.creator, row.mode, row.filters)[:501])
-    if len(current) > 500:
-        raise ValidationError("Subscription matches more than 500 reviews; narrow filters")
+    review_limit, recipient_limit = campaign_limits(row.mode, row.filters)
+    current = list(candidates(row.creator, row.mode, row.filters)[: review_limit + 1])
+    if len(current) > review_limit:
+        raise ValidationError(f"Subscription matches more than {review_limit} reviews; narrow filters")
     if not current:
         row.error = "No currently eligible reviews; no new draft prepared."
         row.save(update_fields=["error"])
@@ -73,16 +76,25 @@ def prepare(pk, due=False):
     for group in groups.values():
         contacts = list(eligible_contacts(group[0].organization))
         if not contacts:
+            if row.mode == "circl" and row.filters.get("missing_contacts") == "exclude":
+                continue
             raise ValidationError("A matching organization has no currently eligible contacts")
         for contact in contacts:
             fingerprints.append(
                 message_snapshot(row.mode, contact, group, row.subject_template, row.body_template)[1]
             )
-            if len(fingerprints) > 100:
-                raise ValidationError("Subscription matches more than 100 recipients; narrow filters")
+            if len(fingerprints) > recipient_limit:
+                raise ValidationError(
+                    f"Subscription matches more than {recipient_limit} recipients; narrow filters"
+                )
     transport, transport_signature = transport_configuration()
     signature = digest(
-        {"messages": sorted(fingerprints), "transport": transport, "configuration": transport_signature}
+        {
+            "messages": sorted(fingerprints),
+            "transport": transport,
+            "configuration": transport_signature,
+            "audience": campaign_audience(row.creator, row.mode, row.filters),
+        }
     )
     if row.last_fingerprint == signature:
         row.error = ""

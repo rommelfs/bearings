@@ -86,6 +86,10 @@ EMAIL_FILE_PATH = LOCAL_DIR / "mail"
 DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "bearings@example.invalid")
 # Reviewed outreach has its own explicit transport switch; other application mail stays local.
 NOTIFICATION_TRANSPORT = os.getenv("BEARINGS_NOTIFICATION_TRANSPORT", "file")
+CIRCL_CAMPAIGN_MAX_REVIEWS = int(os.getenv("BEARINGS_CIRCL_CAMPAIGN_MAX_REVIEWS", "10000"))
+CIRCL_CAMPAIGN_MAX_RECIPIENTS = int(os.getenv("BEARINGS_CIRCL_CAMPAIGN_MAX_RECIPIENTS", "2000"))
+if not 1 <= CIRCL_CAMPAIGN_MAX_REVIEWS <= 50000 or not 1 <= CIRCL_CAMPAIGN_MAX_RECIPIENTS <= 10000:
+    raise ValueError("Campaign limits must be 1–50000 reviews and 1–10000 recipients")
 EMAIL_HOST = os.getenv("SMTP_HOST", "")
 EMAIL_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("SMTP_USER", "")

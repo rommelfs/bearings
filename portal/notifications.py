@@ -12,7 +12,7 @@ from django.core.mail.backends.filebased import EmailBackend
 from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, Count, IntegerField, Value, When
 from django.template import Context, Engine
 from django.urls import reverse
 from django.utils import timezone
@@ -117,6 +117,30 @@ def render_text(template, values):
 
 
 class NotificationForm(forms.Form):
+    audience_scope = forms.ChoiceField(
+        required=False,
+        choices=[
+            ("all", "All matching constituents"),
+            ("selected", "Selected constituents"),
+            ("single", "One organization"),
+        ],
+        label="CIRCL campaign audience",
+    )
+    organizations = forms.ModelMultipleChoiceField(
+        queryset=Contact.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple(attrs={"size": 6}),
+        label="Selected constituents",
+        help_text="Choose several companies for one campaign; used only for Selected constituents.",
+    )
+    missing_contacts = forms.ChoiceField(
+        required=False,
+        choices=[
+            ("block", "Require ready contacts for every matching constituent"),
+            ("exclude", "Prepare ready constituents and document blocked constituents"),
+        ],
+        label="Constituents without eligible contacts",
+    )
     subscription_name = forms.CharField(
         max_length=120, required=False, label="Subscription name (draft preparation only)"
     )
@@ -172,11 +196,24 @@ class NotificationForm(forms.Form):
         self.user = user
         mode = self.data.get("mode", "company") if self.is_bound else self.initial.get("mode", "company")
         self.fields["organization"].queryset = scoped_organizations(user, mode)
+        self.fields["organization"].empty_label = (
+            "Choose a company" if mode == "company" else "All matching constituents (CIRCL)"
+        )
+        self.fields["organizations"].queryset = scoped_organizations(user, mode).order_by("name")
+        if mode != "circl":
+            self.fields["organizations"].queryset = scoped_organizations(user, mode).none()
         if not (user.is_superuser or is_analyst(user)):
             self.fields["mode"].choices = [("company", "Company → internal contacts")]
 
     def clean(self):
         data = super().clean()
+        if data.get("mode") == "circl":
+            scope = data.get("audience_scope") or ("single" if data.get("organization") else "all")
+            data["audience_scope"] = scope
+            if scope == "single" and not data.get("organization"):
+                self.add_error("organization", "Choose one organization or use All matching constituents.")
+            if scope == "selected" and not data.get("organizations"):
+                self.add_error("organizations", "Choose at least one constituent for this campaign.")
         if data.get("mode") == "company" and not data.get("organization"):
             self.add_error("organization", "Choose your company workspace.")
         for field in ["subject_template", "body_template"]:
@@ -190,7 +227,7 @@ class NotificationForm(forms.Form):
         return data
 
     def filters(self):
-        return {
+        result = {
             k: (
                 self.cleaned_data[k].pk
                 if k == "organization" and self.cleaned_data[k]
@@ -198,6 +235,16 @@ class NotificationForm(forms.Form):
             )
             for k in ["organization", "product", "cve", "severity", "assessment", "sort", "domain", "kind"]
         }
+        if self.cleaned_data["mode"] == "circl":
+            scope = self.cleaned_data["audience_scope"]
+            if scope != "single":
+                result["organization"] = None
+            result["organizations"] = (
+                sorted(org.pk for org in self.cleaned_data["organizations"]) if scope == "selected" else []
+            )
+            result["audience_scope"] = scope
+            result["missing_contacts"] = self.cleaned_data.get("missing_contacts") or "block"
+        return result
 
 
 def candidates(user, mode, filters):
@@ -219,6 +266,8 @@ def candidates(user, mode, filters):
             return qs.none()
         if filters.get("organization"):
             qs = qs.filter(organization_id=filters["organization"])
+        if filters.get("organizations"):
+            qs = qs.filter(organization_id__in=filters["organizations"])
         if filters.get("kind"):
             qs = qs.filter(kind=filters["kind"])
         if filters.get("product"):
@@ -250,6 +299,8 @@ def candidates(user, mode, filters):
     )
     if filters.get("organization"):
         qs = qs.filter(organization_id=filters["organization"])
+    if filters.get("organizations"):
+        qs = qs.filter(organization_id__in=filters["organizations"])
     if mode == "company" and not filters.get("organization"):
         return qs.none()
     for key, field in [
@@ -282,15 +333,95 @@ def candidates(user, mode, filters):
     )
 
 
-def eligible_contacts(org):
-    return Contact.objects.filter(
-        organization=org,
+def contact_policy():
+    return dict(
         notification_enabled=True,
         invalid_delivery=False,
         reachable_at__isnull=False,
         reviewed_at__isnull=False,
         next_review__gt=timezone.localdate(),
-    ).order_by("escalation_order", "pk")
+    )
+
+
+def eligible_contacts(org):
+    return Contact.objects.filter(organization=org, **contact_policy()).order_by("escalation_order", "pk")
+
+
+def campaign_audience(user, mode, filters, *, reviews=None, recipient_counts=None):
+    """Complete scoped readiness, or the exact materialized preview set."""
+    if reviews is None:
+        rows = list(
+            candidates(user, mode, filters)
+            .order_by()
+            .values("organization_id", "organization__name", "organization__slug")
+            .annotate(matches=Count("pk"))
+            .order_by("organization__name", "organization_id")
+        )
+    else:
+        grouped = {}
+        for review in reviews:
+            org = review.organization
+            row = grouped.setdefault(
+                org.pk,
+                {
+                    "organization_id": org.pk,
+                    "organization__name": org.name,
+                    "organization__slug": org.slug,
+                    "matches": 0,
+                },
+            )
+            row["matches"] += 1
+        rows = sorted(grouped.values(), key=lambda row: (row["organization__name"], row["organization_id"]))
+    contacts = recipient_counts
+    if contacts is None:
+        contacts = dict(
+            Contact.objects.filter(
+                organization_id__in=[row["organization_id"] for row in rows], **contact_policy()
+            )
+            .values("organization_id")
+            .annotate(total=Count("pk"))
+            .values_list("organization_id", "total")
+        )
+    for row in rows:
+        row["recipients"] = contacts.get(row["organization_id"], 0)
+        row["included"] = bool(row["recipients"])
+        row["reason"] = (
+            "" if row["included"] else "No opted-in contact with verified email and current role review"
+        )
+    return {
+        "rows": rows,
+        "organizations": len(rows),
+        "matches": sum(row["matches"] for row in rows),
+        "ready_organizations": sum(row["included"] for row in rows),
+        "blocked_organizations": sum(not row["included"] for row in rows),
+        "recipients": sum(row["recipients"] for row in rows),
+        "exclusion_policy": filters.get("missing_contacts", "block"),
+        "scope": filters.get("audience_scope", "single" if filters.get("organization") else "all"),
+    }
+
+
+def authorized_audience(user, batch):
+    ids = {row["organization_id"] for row in batch.audience_report.get("rows", [])}
+    if ids and scoped_organizations(user, batch.mode).filter(pk__in=ids).count() != len(ids):
+        return False
+    # Counts for excluded constituents are derived intelligence too: withdraw historical
+    # audience reports when the pinned evidence loses redistribution permission.
+    evidence = batch.audience_report.get("excluded_evidence", [])
+    if not evidence:
+        return True
+    if batch.filters.get("domain") == "asset_issues":
+        from .issues import exportable_issues
+
+        permitted = exportable_issues(user).filter(shareable=True, operator_only=False)
+    else:
+        permitted = visible_findings_for(user).filter(record__shareable=True)
+    return permitted.filter(pk__in=evidence, organization_id__in=ids).count() == len(evidence)
+
+
+def campaign_limits(mode, filters):
+    if mode == "circl" and filters.get("audience_scope"):
+        return settings.CIRCL_CAMPAIGN_MAX_REVIEWS, settings.CIRCL_CAMPAIGN_MAX_RECIPIENTS
+    return 500, 100
 
 
 def finding_snapshot(f):
@@ -416,11 +547,35 @@ def message_snapshot(mode, contact, findings, subject_template, body_template):
 def preview_batch(user, mode, filters, subject_template, body_template):
     require(user.is_active and mode in {"circl", "company"})
     transport, transport_signature = transport_configuration()
-    findings = list(candidates(user, mode, filters)[:501])
+    review_limit, recipient_limit = campaign_limits(mode, filters)
+    findings = list(candidates(user, mode, filters)[: review_limit + 1])
     if not findings:
         raise ValidationError("No active, redistributable findings match these filters.")
-    if len(findings) > 500:
-        raise ValidationError("More than 500 reviews match. Narrow the filters before previewing.")
+    if len(findings) > review_limit:
+        raise ValidationError(
+            f"More than {review_limit} reviews match. Narrow the filters before previewing."
+        )
+    contacts_by_org = {}
+    for contact in (
+        Contact.objects.filter(organization_id__in={f.organization_id for f in findings}, **contact_policy())
+        .select_related("organization")
+        .order_by("escalation_order", "pk")
+    ):
+        contacts_by_org.setdefault(contact.organization_id, []).append(contact)
+    report = campaign_audience(
+        user,
+        mode,
+        filters,
+        reviews=findings,
+        recipient_counts={pk: len(contacts) for pk, contacts in contacts_by_org.items()},
+    )
+    blocked = {row["organization_id"] for row in report["rows"] if not row["included"]}
+    report["excluded_evidence"] = [str(f.pk) for f in findings if f.organization_id in blocked]
+    if report["blocked_organizations"] and filters.get("missing_contacts") != "exclude":
+        raise ValidationError(
+            "A matching organization has no opted-in contacts with verified email and a current role review. "
+            "Update contacts, select constituents, or explicitly document blocked constituents and prepare the ready audience."
+        )
     grouped = {}
     for f in findings:
         grouped.setdefault(f.organization_id, []).append(f)
@@ -431,6 +586,7 @@ def preview_batch(user, mode, filters, subject_template, body_template):
         transport_fingerprint=transport_signature,
         organization_id=filters.get("organization"),
         filters=filters,
+        audience_report=report,
         subject_template=subject_template,
         body_template=body_template,
     )
@@ -445,15 +601,25 @@ def preview_batch(user, mode, filters, subject_template, body_template):
             batch.pk,
             finding_ids=[str(f.pk) if isinstance(f, AssetIssue) else f.pk for f in group],
         )
-        contacts = list(eligible_contacts(org))
+        contacts = contacts_by_org.get(org.pk, [])
         if not contacts:
+            if filters.get("missing_contacts") == "exclude" and mode == "circl":
+                audit(
+                    user,
+                    org,
+                    "notification.campaign_excluded",
+                    batch.pk,
+                    reason="Contact readiness",
+                    matches=len(group),
+                )
+                continue
             raise ValidationError(
                 "A matching organization has no opted-in contacts with verified email and a current role review. Update contacts or narrow the organization filter; no recipients were silently skipped."
             )
         for contact in contacts:
             count += 1
-            if count > 100:
-                raise ValidationError("More than 100 recipients match. Narrow the filters.")
+            if count > recipient_limit:
+                raise ValidationError(f"More than {recipient_limit} recipients match. Narrow the filters.")
             snapshot, fingerprint, subject, body = message_snapshot(
                 mode, contact, group, subject_template, body_template
             )
@@ -495,9 +661,10 @@ def authorized_delivery(user, delivery):
 
 
 @transaction.atomic
-def claim_batch(user, batch_id, selected):
+def claim_batch(user, batch_id, selected, *, queued=False):
     batch = NotificationBatch.objects.select_for_update().get(pk=batch_id)
     require(batch.creator_id == user.pk and user.is_active)
+    require(authorized_audience(user, batch))
     require_transport(batch)
     if batch.status != "draft":
         raise ValidationError("This batch was already approved. Create a new preview for further messages.")
@@ -531,25 +698,59 @@ def claim_batch(user, batch_id, selected):
         try:
             with transaction.atomic():
                 NotificationReceipt.objects.create(fingerprint=d.fingerprint, delivery=d)
-            d.status = "filing"
+            d.status = "queued" if queued else "filing"
         except IntegrityError:
             d.status = "duplicate"
         d.save(update_fields=["status"])
         audit(user, d.organization, "notification.approved", d.pk, status=d.status, batch=str(batch.pk))
     batch.deliveries.exclude(pk__in=selected).update(status="excluded")
-    return [d.pk for d in deliveries if d.status == "filing"]
+    return [d.pk for d in deliveries if d.status == ("queued" if queued else "filing")]
 
 
 def approve_local(user, batch_id, selected):
     ids = claim_batch(user, batch_id, selected)
+    deliver_claimed(ids)
+    return NotificationBatch.objects.get(pk=batch_id)
+
+
+def queue_campaign(user, batch_id, selected):
+    claim_batch(user, batch_id, selected, queued=True)
+
+
+def process_queued_notifications(limit=25):
+    count = 0
+    for _ in range(limit):
+        with transaction.atomic():
+            delivery = (
+                NotificationDelivery.objects.select_for_update(skip_locked=True)
+                .filter(status="queued")
+                .order_by("pk")
+                .first()
+            )
+            if delivery is None:
+                break
+            delivery.status = "filing"
+            delivery.save(update_fields=["status"])
+            pk = delivery.pk
+        # A committed claim is never automatically retried after an interrupted I/O.
+        deliver_claimed([pk])
+        count += 1
+    return count
+
+
+def deliver_claimed(ids):
     # Separate committed attempt from file I/O. A crash leaves an explicit uncertain state;
     # the unique receipt prevents a second file from an automatic retry.
     for pk in ids:
-        d = NotificationDelivery.objects.select_related("organization", "contact", "batch").get(pk=pk)
+        d = NotificationDelivery.objects.select_related("organization", "contact", "batch__creator").get(
+            pk=pk
+        )
+        user = d.batch.creator
         # Recheck immediately before the only I/O. Policy edits can invalidate a claimed preview.
         try:
             if (
-                not authorized_delivery(user, d)
+                not user.is_active
+                or not authorized_delivery(user, d)
                 or not scoped_organizations(user, d.batch.mode).filter(pk=d.organization_id).exists()
             ):
                 raise ValidationError("Current visibility no longer permits this message.")
@@ -596,4 +797,3 @@ def approve_local(user, batch_id, selected):
             d.pk,
             status=d.status,
         )
-    return NotificationBatch.objects.get(pk=batch_id)

@@ -577,6 +577,9 @@ class NotificationBatch(models.Model):
     )
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT, null=True, blank=True)
     filters = models.JSONField(default=dict)
+    audience_report = models.JSONField(
+        default=dict, help_text="Pinned campaign audience and explicit exclusions"
+    )
     transport = models.CharField(
         max_length=10, default="file", choices=[("file", "Local file"), ("smtp", "SMTP acceptance")]
     )

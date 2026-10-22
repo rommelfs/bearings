@@ -35,6 +35,8 @@ from .notifications import (
     claim_batch,
     eligible_contacts,
     preview_batch,
+    queue_campaign,
+    process_queued_notifications,
     render_text,
 )
 
@@ -461,3 +463,21 @@ class ConcurrentNotificationTests(TransactionTestCase):
         self.assertEqual(sum(len(result) for result in results), 1)
         self.assertEqual(NotificationReceipt.objects.count(), 1)
         self.assertEqual(NotificationDelivery.objects.filter(status="duplicate").count(), 1)
+
+        # Independently running workers claim an approved queued delivery only once.
+        queued = preview_batch(user, "company", filters, DEFAULT_SUBJECT, DEFAULT_BODY + " Worker exercise.")
+        queue_campaign(user, queued.pk, set(queued.deliveries.values_list("pk", flat=True)))
+
+        def dispatch():
+            close_old_connections()
+            try:
+                return process_queued_notifications(1)
+            finally:
+                connections.close_all()
+
+        with tempfile.TemporaryDirectory() as directory, override_settings(EMAIL_FILE_PATH=directory):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(dispatch) for _ in range(2)]
+                self.assertEqual(sum(f.result(timeout=10) for f in futures), 1)
+            self.assertEqual(queued.deliveries.get().status, "filed")
+            self.assertEqual(len(list(Path(directory).iterdir())), 1)
