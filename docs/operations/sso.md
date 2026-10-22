@@ -105,3 +105,7 @@ Open **https://localhost:9443/account/login**. The primary blue SSO card appears
 Earlier adapters rendered a light SSO button on the light page background, making it difficult to see. Also, Compose does not reload bind-mounted Python changes in existing Gunicorn processes. The starter now restarts FlowIntel on each explicit `up` and waits for health before returning. It reports whether shared sign-in is enabled. It preserves existing users, passwords, client policies and revoked bindings. A reported revoked binding needs an explicit operator decision; startup does not re-enable it.
 
 The upstream `KEYCLOAK_ENABLED=False` setting is intentional: the Bearings adapter handles OIDC. Turning on FlowIntel's separate native switch is not required. For independently installed FlowIntel, this bundled adapter is not installed by the starter.
+
+## Connected application canvas
+
+The SSO lab now starts a verified HTTPS Bearings entry at **https://localhost:9441/applications/** automatically. Use **Applications** to choose visible NetBox, FlowIntel or RT/RTIR connections; authenticate in a top-level tab, then show the native interface inside the Bearings frame. Existing application permissions and separate recovery/session boundaries remain intact. The starter supports `BEARINGS_CANVAS_PORT` without changing the retained OIDC client callbacks. See [setup, external acceptance and screenshots](../user-guide/applications.md).

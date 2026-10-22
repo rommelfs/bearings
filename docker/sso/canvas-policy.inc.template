@@ -1,0 +1,9 @@
+# Only this SSO lab edge permits framing. Authentication stays top-level.
+map $uri $netbox_frame_ancestors {
+    default "frame-ancestors 'self' https://localhost:${BEARINGS_CANVAS_PORT}";
+    ~^/(login|logout|oauth)(/|$) "frame-ancestors 'none'";
+}
+map $uri $netbox_frame_options {
+    default "";
+    ~^/(login|logout|oauth)(/|$) "DENY";
+}

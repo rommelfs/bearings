@@ -14,9 +14,11 @@ AREAS = {
     "explore": ("Explore scenarios", "demo-explore", ""),
     "administration": ("Synthetic data", "demo-data", ""),
     "platform": ("Platform administration", "admin:index", ""),
+    "applications": ("Applications", "applications", ""),
 }
 
 ROUTES = {
+    "applications": {"applications", "application"},
     "inventory": {
         "inventory",
         "organization",
@@ -56,7 +58,7 @@ def workspace(request):
             ["notifications"]
             + (["response"] if request.user.is_superuser or is_analyst(request.user) else []),
         ),
-        ("Workspace", ["companies", "explore"]),
+        ("Workspace", ["applications", "companies", "explore"]),
     ]
     if request.user.is_superuser:
         sections.append(("Administration", ["platform", "administration"]))

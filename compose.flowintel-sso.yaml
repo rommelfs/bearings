@@ -21,6 +21,7 @@ services:
   flowintel-init: &sso-flowintel
     environment:
       BEARINGS_FLOWINTEL_SSO: "1"
+      BEARINGS_CANVAS_PORT: ${BEARINGS_CANVAS_PORT:-9441}
       SSO_PORT: ${SSO_PORT:-9444}
       NO_PROXY: localhost,127.0.0.1,netbox.bearings.test
     volumes:

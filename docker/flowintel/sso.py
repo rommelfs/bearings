@@ -115,6 +115,24 @@ def install(app):
 
         return app
     client = Client(settings())
+    canvas_port = int(os.getenv("BEARINGS_CANVAS_PORT", "9441"))
+
+    def canvas_headers(response):
+        # Keep every native directive; replace only the known frame-ancestor rule.
+        auth_page = request.path.startswith(("/account/", "/bearings-sso/", "/api/"))
+        policy = response.headers.get("Content-Security-Policy", "")
+        ancestor = "'none'" if auth_page else f"'self' https://localhost:{canvas_port}"
+        directives = [part.strip() for part in policy.split(";") if part.strip()]
+        current = [part for part in directives if part.startswith("frame-ancestors ")]
+        # An unexpected upstream policy fails closed; never silently widen it.
+        if current != ["frame-ancestors 'self'"]:
+            ancestor = "'none'"
+        directives = [part for part in directives if not part.startswith("frame-ancestors ")]
+        response.headers["Content-Security-Policy"] = "; ".join(directives + [f"frame-ancestors {ancestor}"])
+        return response
+
+    # Flask runs these in reverse order: adjust after the upstream policy has been set.
+    app.after_request_funcs.setdefault(None, []).insert(0, canvas_headers)
     source = app.jinja_env.loader.get_source(app.jinja_env, "account/login.html")[0]
     marker = "{% if config.KEYCLOAK_ENABLED %}"
     local_form = '<form action="" method="post" class="form-signin">'

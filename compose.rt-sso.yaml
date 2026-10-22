@@ -22,6 +22,7 @@ services:
   rt: &rt-sso
     environment:
       BEARINGS_RT_SSO: "1"
+      BEARINGS_CANVAS_PORT: ${BEARINGS_CANVAS_PORT:-9441}
     volumes:
       - rt-sso:/run/rt-sso:ro
   rt-init:

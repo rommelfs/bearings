@@ -413,6 +413,12 @@ def main():
                     else "/account/login — local login; add --sso to enable shared sign-in."
                 )
             )
+        if sso:
+            print(
+                "Integrated workspace: https://localhost:"
+                + os.getenv("BEARINGS_CANVAS_PORT", "9441")
+                + "/applications/ (trust the lab CA first)."
+            )
         if rt:
             print(
                 "RT: https://localhost:"

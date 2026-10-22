@@ -21,6 +21,26 @@ def identity_uid(issuer, subject):
 
 
 class ApprovedOpenIdConnect(OpenIdConnectAuth):
+    def get_redirect_uri(self, state=None):
+        # A second HTTPS lab entry reuses the original loopback callback and host cookie.
+        # Independently deployed clients and NetBox have no such override.
+        current = urlsplit(super().get_redirect_uri(state))
+        fixed = self.setting("LAB_CALLBACK", "")
+        if fixed and current.scheme == "https" and current.hostname in {"localhost", "127.0.0.1"}:
+            target = urlsplit(fixed)
+            if (
+                target.scheme != "http"
+                or target.hostname != "localhost"
+                or not target.port
+                or target.path != "/oauth/complete/oidc/"
+                or target.query
+                or target.fragment
+                or target.username
+            ):
+                raise AuthForbidden(self)
+            return target._replace(netloc=f"{current.hostname}:{target.port}").geturl()
+        return super().get_redirect_uri(state)
+
     def validate_claims(self, id_token):
         client, _ = self.get_key_and_secret()
         aud = id_token.get("aud")

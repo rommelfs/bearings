@@ -28,6 +28,7 @@ Set(%WebRemoteUserAdditionalMapping, ());
 Set($WebSecureCookies, 1);
 Set($WebHttpOnlyCookies, 1);
 Set($WebSameSiteCookies, 'Lax');
+Set($Framebusting, 0) if $ENV{BEARINGS_RT_CANVAS} && $ENV{BEARINGS_RT_SSO} && !$recovery;
 Set($AutoLogoff, 30);
 # RT's documented local-only mail mode; the installed MTA has no remote destination.
 Set($MailCommand, 'mbox');

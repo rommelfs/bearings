@@ -1568,3 +1568,83 @@ input:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* Native application workspace: the child keeps its own identity and permissions. */
+.area-applications {
+  --area: #41778b;
+}
+.application-canvas main {
+  max-width: none;
+}
+.application-cards article {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.application-cards .badge {
+  align-self: flex-start;
+}
+.application-cards h2,
+.application-cards p {
+  overflow-wrap: anywhere;
+  margin-bottom: 0;
+}
+.application-cards .actions {
+  margin-top: auto;
+  padding-top: 15px;
+}
+.canvas-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  background: #fff;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px 10px 0 0;
+}
+.canvas-toolbar > div:first-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.canvas-help {
+  font-size: 11px;
+  color: #50697f;
+  padding: 10px 15px;
+  background: #eaf1f8;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-top: 0;
+}
+.application-frame {
+  display: block;
+  width: 100%;
+  min-height: 720px;
+  height: calc(100vh - 315px);
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  background: #fff;
+}
+.canvas-welcome {
+  padding: 36px;
+  border-radius: 0 0 10px 10px;
+  border-top: 0;
+}
+.canvas-welcome p {
+  max-width: 78ch;
+}
+@media (max-width: 700px) {
+  .canvas-toolbar {
+    padding: 15px;
+  }
+  .canvas-welcome {
+    padding: 20px;
+  }
+  .application-frame {
+    min-height: 650px;
+  }
+}

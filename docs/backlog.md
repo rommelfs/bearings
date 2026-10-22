@@ -119,3 +119,7 @@ Implemented: a primary visible SSO login card with separate expandable local rec
 ## Workspace structure and visual hierarchy
 
 Implemented after a running-lab UX review: grouped active navigation, mobile menu, direct scoped inventory entry, inventory-first company workspaces, Locate/Assess/Respond orientation, machine-first scan cards, consistent semantic risk colors and clearer outreach filters. Browser checks cover platform/company/CIRCL roles and 320–1440 px screens; new aggregate/visibility tests preserve access boundaries. Task-based user acceptance, consolidated response worklists and complete accessibility certification remain follow-ups. See the [review and screenshots](reviews/workspace-ux.md).
+
+## Connected application canvas
+
+Implemented: scoped application directory, sandboxed NetBox/FlowIntel/RT/RTIR views with Bearings navigation, top-level SSO/reconnect, explicit native framing policy and separate-tab fallback. The SSO lab supplies a trusted HTTPS Bearings entry without resetting retained clients/identities. Real Chromium verifies one IdP password prompt and native framing/denial; API credentials and application permissions remain separate. External acceptance, cross-site cookie limitations, deep links/draft continuity, global logout and complete native accessibility acceptance remain follow-ups. See [setup and screenshots](user-guide/applications.md).

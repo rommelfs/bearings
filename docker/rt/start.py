@@ -104,8 +104,16 @@ def main():
     config.mkdir(exist_ok=True)
     source = Path("/adapter/apache.conf").read_text()
     if os.getenv("BEARINGS_RT_SSO") == "1":
-        source = source.replace("# SSO_INCLUDE", "Include /run/rt-sso/apache-lab.conf")
-        source = "FcgidInitialEnv BEARINGS_RT_SSO 1\n" + source
+        canvas_port = int(os.getenv("BEARINGS_CANVAS_PORT", "9441"))
+        # Replace native frame-killing only on this SSO listener with an exact CSP ancestor.
+        headers = (
+            f"Header always set Content-Security-Policy \"frame-ancestors 'self' https://localhost:{canvas_port}\"\n"
+            '<LocationMatch "^/NoAuth(?:/|$)">\n'
+            "Header always set Content-Security-Policy \"frame-ancestors 'none'\"\n"
+            "</LocationMatch>\n"
+        )
+        source = source.replace("# SSO_INCLUDE", "Include /run/rt-sso/apache-lab.conf\n" + headers)
+        source = "FcgidInitialEnv BEARINGS_RT_SSO 1\nFcgidInitialEnv BEARINGS_RT_CANVAS 1\n" + source
         overlay = Path("/usr/local/share/request-tracker5/lib/RT/Interface/Web_Local.pm")
         overlay.write_text(Path("/run/rt-sso/Web_Local.pm").read_text())
         overlay.chmod(0o644)

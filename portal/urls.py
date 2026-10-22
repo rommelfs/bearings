@@ -10,9 +10,12 @@ from . import (
     plum_views,
     federation,
     federation_views,
+    application_views,
 )
 
 urlpatterns = [
+    path("applications/", application_views.canvas, name="applications"),
+    path("applications/<slug:key>/", application_views.canvas, name="application"),
     path("inventory/", views.inventory, name="inventory"),
     path("explore/", demo_views.explore, name="demo-explore"),
     path("administration/synthetic-data/", demo_views.index, name="demo-data"),

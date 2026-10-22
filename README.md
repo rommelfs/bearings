@@ -146,6 +146,10 @@ Tests use isolated databases and synthetic service responses. For PostgreSQL, ru
 
 Live vulnerability retrieval is opt-in through the inventory UI: select an installation and a CVE ID. The adapter fetches the CVE JSON 5 record from Vulnerability-Lookup and persists a review relationship. It **does not claim the product is affected**. Network access to `vulnerability.circl.lu` is required; live retrieval was validated in this instance. Cloud proxy-only DNS additionally needs `CONNECTOR_PROXY_DNS=1` (see the integration document). No key is required for this public read. The demo finding uses `fixture://...`, never a fabricated live response.
 
+## Connected application workspace
+
+With `up --sso --flowintel --rtir`, open **https://localhost:9441/applications/** after trusting the public lab CA. NetBox, FlowIntel and RT/RTIR can run inside Bearings navigation. Sign into each native app in its separate SSO tab once, return and select **Show in workspace**; existing IdP sessions avoid another password prompt. Native roles/sessions remain independent; company accounts do not gain CIRCL case access. External destinations need explicit operator embedding approval or use their separate-tab view. See [setup, browser policies and screenshots](docs/user-guide/applications.md).
+
 ## Documentation
 
 - [Architecture](docs/architecture.md), [data model](docs/data-model.md), [authorization](docs/authorization.md), [correlation](docs/correlation.md)

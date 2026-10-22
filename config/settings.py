@@ -1,6 +1,8 @@
 import os
+import json
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
+from portal.browser_policy import origin as canvas_origin
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOCAL_DIR = BASE_DIR / ".local"
@@ -99,6 +101,18 @@ CSRF_COOKIE_SECURE = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
+# Browser workspaces never proxy credentials or relax an external application's policy.
+CANVAS_ORIGIN = os.getenv("BEARINGS_CANVAS_ORIGIN", "").rstrip("/")
+CANVAS_FRAME_ORIGINS = json.loads(os.getenv("BEARINGS_CANVAS_FRAME_ORIGINS", "[]"))
+if CANVAS_ORIGIN:
+    CANVAS_ORIGIN = canvas_origin(CANVAS_ORIGIN)
+if not isinstance(CANVAS_FRAME_ORIGINS, list) or len(CANVAS_FRAME_ORIGINS) > 50:
+    raise ValueError("Configure at most 50 explicit canvas frame origins")
+CANVAS_FRAME_ORIGINS = [canvas_origin(value) for value in CANVAS_FRAME_ORIGINS]
+if os.getenv("DJANGO_TRUST_PROXY_SSL") == "1":
+    # Enable only behind an edge which overwrites this header and blocks direct upstream access.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Opt-in for environments whose approved HTTPS proxy resolves external DNS.
 CONNECTOR_PROXY_DNS = os.getenv("CONNECTOR_PROXY_DNS", "0") == "1"
 CONNECTOR_ALLOWED_HOSTS = [
@@ -142,6 +156,11 @@ SOCIAL_AUTH_OIDC_JWT_DECODE_OPTIONS = {"require": ["iss", "sub", "aud", "exp", "
 SOCIAL_AUTH_OIDC_TOKEN_ENDPOINT_AUTH_METHOD = "client_secret_basic"
 SOCIAL_AUTH_OIDC_ID_TOKEN_ISSUER = SSO_ISSUER
 SOCIAL_AUTH_OIDC_KEY = os.getenv("OIDC_CLIENT_ID", "bearings")
+SOCIAL_AUTH_OIDC_LAB_CALLBACK = (
+    os.getenv("OIDC_LAB_CALLBACK", "")
+    if DEBUG and os.getenv("BEARINGS_DEV_STACK") == "1" and os.getenv("BEARINGS_SSO_LAB") == "1"
+    else ""
+)
 SOCIAL_AUTH_OIDC_SECRET = os.getenv("OIDC_CLIENT_SECRET", "")
 SOCIAL_AUTH_OIDC_VERIFY_SSL = os.getenv("OIDC_CA_BUNDLE") or True
 SOCIAL_AUTH_OIDC_AUTHORIZATION_URL = os.getenv("OIDC_AUTHORIZATION_URL", "")

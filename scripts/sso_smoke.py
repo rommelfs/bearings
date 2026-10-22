@@ -7,6 +7,7 @@ import http.cookiejar
 from html import unescape
 from html.parser import HTMLParser
 import json
+import re
 import ssl
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit, urljoin
@@ -55,6 +56,20 @@ class RTLocalLoginForm(LoginForm):
             self.action, self.active = values["action"], True
         if tag == "input" and self.active and values.get("name") and values.get("type") == "hidden":
             self.fields[values["name"]] = values.get("value", "")
+
+
+class CanvasLinks(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.links, self.frames = {}, []
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        match = re.fullmatch(r"/applications/(netbox|flowintel|rt|rtir)-[a-f0-9-]+/", values.get("href", ""))
+        if tag == "a" and match:
+            self.links.setdefault(match[1], values["href"])
+        if tag == "iframe":
+            self.frames.append(values)
 
 
 def main():
@@ -122,6 +137,13 @@ def main():
             raise SystemExit("SSO smoke refuses non-local FlowIntel")
         allowed.add((parsed.scheme, parsed.netloc))
     tls = ssl.create_default_context(cadata=read("trust/netbox-ca.crt"))
+    canvas_port = int(
+        dev.run(
+            base + ["exec", "-T", "web", "printenv", "BEARINGS_CANVAS_PORT"], capture_output=True, text=True
+        ).stdout.strip()
+    )
+    canvas = f"https://localhost:{canvas_port}"
+    allowed.add(("https", urlsplit(canvas).netloc))
     password = read("secrets/demo_password")
 
     class LocalRedirect(HTTPRedirectHandler):
@@ -337,6 +359,42 @@ def main():
             stage = "RT recovery does not bypass the SSO entry point"
             _, body = get(local, rt_lab["browser_url"] + "/")
             assert "kc-form-login" in body
+        stage = "HTTPS application canvas and scoped directory"
+        for role, browser in [("company", company)] + ([("circl", circl)] if circl else []):
+            _, body = get(browser, canvas + "/applications/")
+            links = CanvasLinks()
+            links.feed(body)
+            assert "netbox" in links.links
+            if role == "company":
+                assert not {"flowintel", "rtir"}.intersection(links.links)
+            for kind, path in links.links.items():
+                stage = role + " " + kind + " canvas policy"
+                with browser.open(canvas + path + "?show=1", timeout=15) as response:
+                    parser = CanvasLinks()
+                    parser.feed(response.read(2_000_000).decode())
+                    assert len(parser.frames) == 1
+                    frame = parser.frames[0]
+                    expected = {
+                        "netbox": netbox,
+                        "flowintel": flow,
+                        "rt": rt_lab["browser_url"] if rt_lab else None,
+                        "rtir": rt_lab["browser_url"] if rt_lab else None,
+                    }[kind]
+                    assert frame["src"] == expected + ("/RTIR/" if kind == "rtir" else "/")
+                    assert (
+                        frame["sandbox"]
+                        == "allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+                    )
+                    assert frame["referrerpolicy"] == "no-referrer"
+                    assert "frame-src " + expected + ";" in response.headers["Content-Security-Policy"]
+                    assert response.headers["X-Frame-Options"] == "DENY"
+                # NetBox requires its explicit SSO button; only the company has used it above.
+                if kind != "netbox" or role == "company":
+                    with browser.open(frame["src"], timeout=15) as response:
+                        response.read(2_000_000)
+                        assert (
+                            "frame-ancestors 'self' " + canvas in response.headers["Content-Security-Policy"]
+                        )
     except Exception:
         raise SystemExit(
             f"SSO smoke failed at {stage}. Check service health and approved local identity bindings; no sensitive response was printed."
@@ -357,3 +415,6 @@ def main():
         print(
             "Also verified CIRCL native RTIR Incident/Investigation browser access through shared SSO and company denial in RTIR and Bearings."
         )
+    print(
+        "Also verified the HTTPS canvas, company/CIRCL application directory, sandboxed frame destinations and exact native embedding policy; no credentials proxied to the browser."
+    )

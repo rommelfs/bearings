@@ -40,6 +40,14 @@ class FlowSessionTests(unittest.TestCase):
         Session(self.app)
         CSRFProtect(self.app)
         db.init_app(self.app)
+
+        @self.app.after_request
+        def upstream_headers(response):
+            response.headers["Content-Security-Policy"] = getattr(
+                self, "upstream_policy", "form-action 'self'; frame-ancestors 'self'; object-src 'none'"
+            )
+            return response
+
         login_manager.init_app(self.app)
         with self.app.app_context():
             db.create_all()
@@ -161,6 +169,22 @@ class FlowSessionTests(unittest.TestCase):
         self.assertTrue(all(form["csrf"] for form in forms))
         self.assertLess(html.index("Sign in with SSO"), html.index("<details"))
         self.assertIn("Local account / administrator recovery", html)
+
+    def test_only_the_canvas_can_frame_native_pages_and_authentication_cannot_be_framed(self):
+        native = self.browser.get("/").headers["Content-Security-Policy"]
+        self.assertIn("frame-ancestors 'self' https://localhost:9441", native)
+        self.assertIn("form-action 'self'", native)
+        self.assertIn("object-src 'none'", native)
+        auth = self.browser.get("/account/login").headers["Content-Security-Policy"]
+        self.assertIn("frame-ancestors 'none'", auth)
+        self.assertNotIn("https://localhost:9441", auth)
+
+    def test_unexpected_upstream_policy_fails_closed_preserving_other_directives(self):
+        self.upstream_policy = "form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+        response = self.browser.get("/")
+        self.assertIn("frame-ancestors 'none'", response.headers["Content-Security-Policy"])
+        self.assertNotIn("https://localhost:9441", response.headers["Content-Security-Policy"])
+        self.assertIn("object-src 'none'", response.headers["Content-Security-Policy"])
 
     def test_revocation_and_reenable_cannot_revive_old_session(self):
         self.login()

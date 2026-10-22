@@ -23,6 +23,18 @@ def environment():
         os.environ["OIDC_ISSUER"] = manifest["issuer"]
         os.environ["OIDC_CLIENT_SECRET"] = (ROOT / "secrets/oidc_client_secret").read_text().strip()
         os.environ["OIDC_CA_BUNDLE"] = str(ROOT / "trust/ca-bundle.pem")
+        canvas_port = int(os.getenv("BEARINGS_CANVAS_PORT", "9441"))
+        os.environ["BEARINGS_CANVAS_ORIGIN"] = f"https://localhost:{canvas_port}"
+        os.environ["DJANGO_TRUST_PROXY_SSL"] = "1"
+        # Preserve the retained client's existing callback; no IdP policy migration is needed.
+        os.environ["OIDC_LAB_CALLBACK"] = (
+            f"http://localhost:{manifest['ports']['bearings']}/oauth/complete/oidc/"
+        )
+        frame_origins = [f"https://localhost:{manifest['ports']['netbox']}"]
+        for flag, filename in [("BEARINGS_FLOWINTEL", "flowintel.json"), ("BEARINGS_RT", "rt.json")]:
+            if os.getenv(flag) == "1":
+                frame_origins.append(json.loads((ROOT / "secrets" / filename).read_text())["browser_url"])
+        os.environ["BEARINGS_CANVAS_FRAME_ORIGINS"] = json.dumps(frame_origins)
         public = manifest["issuer"] + "/protocol/openid-connect/"
         internal = "https://netbox.bearings.test:444/realms/bearings-lab/protocol/openid-connect/"
         for name, value in {

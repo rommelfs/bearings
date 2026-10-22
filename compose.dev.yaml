@@ -46,6 +46,7 @@ services:
     volumes: &bearings-volumes
       - ./docker/dev:/app/docker/dev:ro
       - ./portal:/app/portal:ro
+      - ./config:/app/config:ro
       - dev-secrets:/run/bearings/secrets:ro
       - dev-trust:/run/bearings/trust:ro
       - local-data:/app/.local
