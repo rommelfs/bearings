@@ -13,6 +13,7 @@ from . import (
 )
 
 urlpatterns = [
+    path("inventory/", views.inventory, name="inventory"),
     path("explore/", demo_views.explore, name="demo-explore"),
     path("administration/synthetic-data/", demo_views.index, name="demo-data"),
     path("api/v1/federation/export/", federation.export, name="federation-export"),

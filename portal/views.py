@@ -52,6 +52,25 @@ def organization(request, slug):
 
 
 @login_required
+def inventory(request):
+    query = request.GET.get("q", "")[:160].strip()
+    orgs = organizations_for(request.user).order_by("name", "pk")
+    if query:
+        orgs = orgs.filter(Q(name__icontains=query) | Q(slug__icontains=query))
+    page = Paginator(
+        orgs.prefetch_related("contacts", "inventory_source__instance").annotate(
+            asset_count=Count("assets", distinct=True)
+        ),
+        24,
+    ).get_page(request.GET.get("page"))
+    for org in page:
+        audit_operator_access(request.user, org)
+        org.overdue_count = sum(contact.overdue for contact in org.contacts.all())
+        org.finding_count = visible_findings(request.user, org).filter(status__in=ACTIVE_REVIEWS).count()
+    return render(request, "portal/inventory.html", {"page": page, "query": query})
+
+
+@login_required
 def home(request):
     orgs = list(
         organizations_for(request.user).prefetch_related("contacts", "assets", "inventory_source__instance")

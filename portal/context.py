@@ -4,8 +4,10 @@ from django.conf import settings
 
 def deployment(request):
     from .models import DemoDataset
+    from .navigation import workspace
 
     return {
+        **workspace(request),
         "synthetic_showcase_active": DemoDataset.objects.filter(state="active").exists(),
         "development_environment": settings.DEBUG,
         "sso_enabled": settings.SSO_ENABLED,

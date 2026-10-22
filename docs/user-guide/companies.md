@@ -1,6 +1,6 @@
 # Company workflow
 
-A platform administrator creates your organization, maps its inventory source, and grants membership. Your account can belong to several organizations with different roles; the home page shows only your permitted organizations.
+A platform administrator creates your organization, maps its inventory source, and grants membership. Your account can belong to several organizations with different roles; **Inventory & organizations** shows only your permitted organizations. Search for your company and choose **Open inventory**; the company workspace starts with inventory and software. The **Locate → Assess → Respond** bar keeps the next activity visible.
 
 1. Review the visible CIRCL analyst access policy at the top of the workspace. Only the platform operator can change it.
 2. An organization administrator records emergency contacts, scope/language/availability, and escalation order. Review role/details, confirm declared emergency arrangements, and verify channel reachability separately. Prepared email messages are local development files, not real delivery. Changing an email invalidates previous reachability; changing details makes substantive review due.

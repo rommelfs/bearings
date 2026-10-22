@@ -115,3 +115,7 @@ Implemented: a default bundled 10-company/300-asset synthetic showcase with soft
 ## FlowIntel SSO discoverability and retained updates
 
 Implemented: a primary visible SSO login card with separate expandable local recovery; `up` reloads the bind-mounted FlowIntel adapter and reports SSO mode. The actual pinned upstream login template is tested for independent CSRF forms, and the shared Keycloak browser flow is exercised against the full lab. Only explicitly linked CIRCL identities enter the CIRCL workspace. See [SSO troubleshooting](operations/sso.md#flowintel-still-shows-a-password-login).
+
+## Workspace structure and visual hierarchy
+
+Implemented after a running-lab UX review: grouped active navigation, mobile menu, direct scoped inventory entry, inventory-first company workspaces, Locate/Assess/Respond orientation, machine-first scan cards, consistent semantic risk colors and clearer outreach filters. Browser checks cover platform/company/CIRCL roles and 320–1440 px screens; new aggregate/visibility tests preserve access boundaries. Task-based user acceptance, consolidated response worklists and complete accessibility certification remain follow-ups. See the [review and screenshots](reviews/workspace-ux.md).

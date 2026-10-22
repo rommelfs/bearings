@@ -1,0 +1,5 @@
+<nav class="workflow-path" aria-label="Investigation workflow">
+<a href="{% if org %}{% url 'organization' org.slug %}#inventory{% else %}{% url 'inventory' %}{% endif %}"{% if workflow_stage == 'inventory' %} aria-current="step"{% endif %}><span>01</span><div><strong>Locate</strong><small>Assets & ownership</small></div></a>
+<a href="{% if org %}{% if workspace_area == 'issues' %}{% url 'issues' %}?organization={{ org.slug }}{% else %}{% url 'intelligence' org.slug %}{% endif %}{% else %}{% url 'home' %}{% endif %}"{% if workflow_stage == 'assess' %} aria-current="step"{% endif %}><span>02</span><div><strong>Assess</strong><small>Evidence & consequences</small></div></a>
+<a href="{% url 'notifications' %}{% if org %}?organization={{ org.pk }}{% endif %}"{% if workflow_stage == 'respond' %} aria-current="step"{% endif %}><span>03</span><div><strong>Respond</strong><small>Notify & coordinate</small></div></a>
+</nav>

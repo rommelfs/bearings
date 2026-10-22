@@ -1,0 +1,4 @@
+{% for group in navigation_groups %}
+<div class="nav-group"><p class="nav-group-label">{{ group.label }}</p>
+{% for item in group.items %}<a class="workspace-link area-{{ item.key }}{% if item.active %} is-active{% endif %}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}><span class="nav-marker" aria-hidden="true"></span>{{ item.label }}</a>{% endfor %}
+</div>{% endfor %}

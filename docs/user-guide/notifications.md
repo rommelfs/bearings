@@ -1,6 +1,6 @@
 # Reviewed notifications: CIRCL and company workflow
 
-This increment implements filtered bulk previews, a constrained message template engine, explicit approval, a **default local file outbox**, an explicitly configured SMTP option, a company inbox and acknowledgment. The development stack never sends SMTP outreach. Open **Notifications** in the header or **Prepare notifications** on Security review.
+This increment implements filtered bulk previews, a constrained message template engine, explicit approval, a **default local file outbox**, an explicitly configured SMTP option, a company inbox and acknowledgment. The development stack never sends SMTP outreach. Open **Notifications** under **Act** in the workspace navigation, or choose **Respond** in the workflow bar. Choose the audience first, then filter evidence and create a bulk preview. Optional draft subscriptions are under **Automatically prepare future drafts**.
 
 ## Run the synthetic exercise
 
