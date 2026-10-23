@@ -144,6 +144,7 @@ def main():
     )
     canvas = f"https://localhost:{canvas_port}"
     allowed.add(("https", urlsplit(canvas).netloc))
+    app = canvas  # Exercise the fully HTTPS browser flow; no HTTP callback downgrade.
     password = read("secrets/demo_password")
 
     class LocalRedirect(HTTPRedirectHandler):

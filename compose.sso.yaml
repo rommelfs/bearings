@@ -4,6 +4,7 @@ services:
     environment:
       BEARINGS_SSO_LAB: "1"
       SSO_PORT: ${SSO_PORT:-9444}
+      BEARINGS_CANVAS_PORT: ${BEARINGS_CANVAS_PORT:-9441}
       BEARINGS_PORT: ${BEARINGS_PORT:-8000}
       NETBOX_PORT: ${NETBOX_PORT:-8443}
     volumes:
@@ -62,12 +63,33 @@ services:
       - ./config/oidc.py:/opt/netbox/netbox/bearings_oidc.py:ro
       - ./docker/sso/netbox_provision.py:/sso-provision.py:ro
       - dev-trust:/run/bearings/trust:ro
-  bearings-init: &sso-bearings
+  bearings-sso-provision:
+    image: bearings-development
+    user: root
+    command: ["/app/.venv/bin/python", "/adapter/provision-client.py"]
+    environment:
+      BEARINGS_SSO_CLIENT: bearings
+    volumes:
+      - ./docker/sso/provision_client.py:/adapter/provision-client.py:ro
+      - sso-secrets:/run/idp:ro
+      - dev-secrets:/run/bearings/secrets:ro
+      - dev-trust:/run/bearings/trust:ro
+    depends_on:
+      netbox-tls:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+  bearings-init:
+    depends_on:
+      bearings-sso-provision:
+        condition: service_completed_successfully
     environment:
       BEARINGS_SSO_LAB: "1"
       BEARINGS_CANVAS_PORT: ${BEARINGS_CANVAS_PORT:-9441}
-  web:
-    <<: *sso-bearings
+  web: &sso-bearings
+    environment:
+      BEARINGS_SSO_LAB: "1"
+      BEARINGS_CANVAS_PORT: ${BEARINGS_CANVAS_PORT:-9441}
   worker:
     <<: *sso-bearings
   bearings-tls:

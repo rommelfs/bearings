@@ -138,6 +138,10 @@
       {
         "title": "Introduce product-independent guided cases and exact NetBox source references",
         "body": "Implemented first guided CVE-review slice: persistent Start here entry, searchable case selector, five question-led steps (asset/evidence/risk/action/follow-up), scoped audited assessment, named risk-picker return context, related CVEs on the same host and explicit non-completion semantics. Exact stored NetBox site/location/rack/primary IP/DNS/VRF references open the authorized instance in the canvas with validated case/asset return and existing frame/SSO policy; UI links are excluded from persisted content fingerprints. Opt-in tracked synthetic PHP 8.4.26 installation uses genuine published CVE-2026-109618 and CVE-2026-109619 evidence, no inferred applicability or NetBox writes; idempotency/cleanup protected. Full onboarding/provisioning, guided lifecycle/exposure cases, comprehensive cross-product deep links, consolidated follow-up and usability acceptance remain future work. See docs/user-guide/guided-cases.md and docs/validation.md."
+      },
+      {
+        "title": "Keep local SSO callbacks on HTTPS to avoid Safari localhost HSTS failures",
+        "body": "Implemented: Bearings lab callbacks always use the HTTPS workspace port for localhost and 127.0.0.1, including HTTP-origin login. Exact legacy Keycloak HTTP callback lists migrate after retained policy/PKCE/secret validation; existing users, grants, secrets, disabled state and custom client fields remain. Nonstandard policies fail closed; separate client-provisioning dependency and explicit app/worker reload cover retained images. Provisioning inputs remain outside realm-import directory. No HSTS/TLS bypass, permissive redirects or external IdP changes. Regression tests and real retained-volume startup/SSO/full-stack validation: docs/operations/sso.md and docs/validation.md."
       }
     ]
   },

@@ -7,7 +7,9 @@ from pathlib import Path
 NAMESPACE = uuid.UUID("f41faab5-9f09-4640-9809-cbc5e5b6b853")
 
 
-def initialize(root, write, secret, ports):
+def initialize(root, write, secret, ports, *, canvas_port=9441):
+    if type(canvas_port) is not int or not 1 <= canvas_port <= 65535:
+        raise ValueError("Invalid HTTPS workspace port")
     issuer = f"https://localhost:{ports['sso']}/realms/bearings-lab"
     users = {
         name: str(uuid.uuid5(NAMESPACE, name))
@@ -29,10 +31,7 @@ def initialize(root, write, secret, ports):
         (
             "bearings",
             app_secret,
-            [
-                f"http://{host}:{ports['bearings']}/oauth/complete/oidc/"
-                for host in ["localhost", "127.0.0.1"]
-            ],
+            [f"https://{host}:{canvas_port}/oauth/complete/oidc/" for host in ["localhost", "127.0.0.1"]],
         ),
         (
             "netbox",
@@ -57,6 +56,18 @@ def initialize(root, write, secret, ports):
                 "attributes": {"pkce.code.challenge.method": "S256"},
             }
         )
+    write(
+        root / "secrets/oidc-bearings-client.json",
+        json.dumps(
+            {
+                "client": clients[0],
+                "legacy_redirects": [
+                    f"http://{host}:{ports['bearings']}/oauth/complete/oidc/"
+                    for host in ["localhost", "127.0.0.1"]
+                ],
+            }
+        ),
+    )
     realm = {
         "realm": "bearings-lab",
         "enabled": True,

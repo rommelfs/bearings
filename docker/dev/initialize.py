@@ -233,6 +233,7 @@ def main():
                     ("netbox", "NETBOX_PORT", "8443"),
                 ]
             },
+            canvas_port=int(os.getenv("BEARINGS_CANVAS_PORT", "9441")),
         )
         if os.environ.get("BEARINGS_FLOWINTEL") == "1":
             from docker.sso.initialize import initialize_flowintel as initialize_flowintel_sso

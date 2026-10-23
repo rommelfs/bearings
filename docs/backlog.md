@@ -135,3 +135,7 @@ Implemented: integrated local search, human-readable threat/asset/weakness previ
 ## Guided entry and interchangeable examples
 
 Implemented first CVE-case guide with Start here, searchable product/CVE/machine examples, five decisions and context-preserving risk selection. The PHP exercise uses two genuine public CVEs on one assumed installation. Known NetBox inventory references open exact objects in the canvas with scoped return links. Full onboarding, other issue domains and comprehensive follow-up remain separate work. See [guided cases](user-guide/guided-cases.md).
+
+## HTTPS-only bundled SSO callback
+
+Implemented: local Bearings sign-in returns to HTTPS on the workspace port, avoiding browser upgrades of HTTP localhost:8000 callbacks. A narrow retained-client migration preserves identities, credentials and native authorization; custom client policies are not overwritten. See [Safari callback troubleshooting](operations/sso.md#safari-cannot-open-the-callback-on-https-port-8000).

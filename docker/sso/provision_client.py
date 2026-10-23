@@ -8,7 +8,7 @@ from pathlib import Path
 import requests
 
 
-def ensure_client(request, desired):
+def ensure_client(request, desired, *, legacy_redirects=None):
     clients = request("GET", "clients", params={"clientId": desired["clientId"]})
     if not clients:
         request("POST", "clients", json=desired)
@@ -16,6 +16,11 @@ def ensure_client(request, desired):
     if len(clients) != 1:
         raise RuntimeError("Ambiguous retained IdP client")
     current = request("GET", "clients/" + clients[0]["id"])
+    migrate = (
+        desired["clientId"] == "bearings"
+        and legacy_redirects is not None
+        and current.get("redirectUris") == legacy_redirects
+    )
     for name in [
         "clientId",
         "protocol",
@@ -27,18 +32,22 @@ def ensure_client(request, desired):
         "fullScopeAllowed",
         "redirectUris",
     ]:
-        if current.get(name) != desired[name]:
+        if current.get(name) != desired[name] and not (migrate and name == "redirectUris"):
             raise RuntimeError("Retained IdP client policy differs; preserved without automatic changes")
     if current.get("attributes", {}).get("pkce.code.challenge.method") != "S256":
         raise RuntimeError("Retained IdP client PKCE differs; preserved")
     saved = request("GET", "clients/" + clients[0]["id"] + "/client-secret")["value"]
     if not hmac.compare_digest(saved, desired["secret"]):
         raise RuntimeError("Retained IdP client secret differs; neither copy was replaced")
+    if migrate:
+        # Only the exact generated legacy allowlist is migrated, after all policy and
+        # secret checks. Keep disabled state, accounts, grants and custom fields intact.
+        request("PUT", "clients/" + clients[0]["id"], json={"redirectUris": desired["redirectUris"]})
 
 
 def main():
     kind = os.getenv("BEARINGS_SSO_CLIENT", "flowintel")
-    if kind not in {"flowintel", "rt"}:
+    if kind not in {"flowintel", "rt", "bearings"}:
         raise ValueError("Unknown bundled client")
     config = (
         json.loads(Path("/run/flowintel-sso/flowintel.json").read_text()) if kind == "flowintel" else None
@@ -46,7 +55,11 @@ def main():
     root = "https://netbox.bearings.test:444"
     session = requests.Session()
     session.trust_env = False
-    session.verify = "/run/flowintel-sso/ca-bundle.pem" if kind == "flowintel" else "/run/rt/ca-bundle.pem"
+    session.verify = {
+        "flowintel": "/run/flowintel-sso/ca-bundle.pem",
+        "rt": "/run/rt/ca-bundle.pem",
+        "bearings": "/run/bearings/trust/ca-bundle.pem",
+    }[kind]
 
     def bounded(method, url, **kwargs):
         with session.request(
@@ -78,26 +91,30 @@ def main():
     def request(method, path, **kwargs):
         return bounded(method, root + "/admin/realms/bearings-lab/" + path, **kwargs)
 
-    ensure_client(
-        request,
-        json.loads(Path("/run/rt-sso/keycloak-client.json").read_text())
-        if kind == "rt"
-        else {
-            "clientId": "flowintel",
-            "protocol": "openid-connect",
-            "enabled": True,
-            "publicClient": False,
-            "secret": Path("/run/flowintel-sso/client_secret").read_text().strip(),
-            "standardFlowEnabled": True,
-            "implicitFlowEnabled": False,
-            "directAccessGrantsEnabled": False,
-            "serviceAccountsEnabled": False,
-            "fullScopeAllowed": False,
-            "redirectUris": [config["callback"]],
-            "defaultClientScopes": ["profile"],
-            "attributes": {"pkce.code.challenge.method": "S256"},
-        },
-    )
+    if kind == "bearings":
+        saved = json.loads(Path("/run/bearings/secrets/oidc-bearings-client.json").read_text())
+        ensure_client(request, saved["client"], legacy_redirects=saved["legacy_redirects"])
+    else:
+        ensure_client(
+            request,
+            json.loads(Path("/run/rt-sso/keycloak-client.json").read_text())
+            if kind == "rt"
+            else {
+                "clientId": "flowintel",
+                "protocol": "openid-connect",
+                "enabled": True,
+                "publicClient": False,
+                "secret": Path("/run/flowintel-sso/client_secret").read_text().strip(),
+                "standardFlowEnabled": True,
+                "implicitFlowEnabled": False,
+                "directAccessGrantsEnabled": False,
+                "serviceAccountsEnabled": False,
+                "fullScopeAllowed": False,
+                "redirectUris": [config["callback"]],
+                "defaultClientScopes": ["profile"],
+                "attributes": {"pkce.code.challenge.method": "S256"},
+            },
+        )
     print(kind + " IdP client verified; retained credentials, disabled state and user policies preserved.")
 
 

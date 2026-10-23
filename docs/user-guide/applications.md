@@ -10,7 +10,7 @@ python3 scripts/dev.py up --sso --flowintel --rtir
 python3 scripts/dev.py trust
 ```
 
-Trust the exported **public** lab CA in your OS/browser, then open **https://localhost:9441/applications/**. This HTTPS entry is started automatically by `--sso`, including when only Bearings/NetBox are selected. `BEARINGS_CANVAS_PORT` optionally changes its loopback port. The original HTTP entry remains available; the application directory redirects to the configured HTTPS workspace. The same generated lab CA covers this entry; private keys are not exported.
+Trust the exported **public** lab CA in your OS/browser, then open **https://localhost:9441/applications/**. This HTTPS entry is started automatically by `--sso`, including when only Bearings/NetBox are selected. `BEARINGS_CANVAS_PORT` optionally changes its loopback port. The original HTTP entry remains available for development, but SSO returns to the HTTPS workspace on the same loopback hostname. Use HTTPS port 9441 for browser sign-in; port 8000 is HTTP-only. The exact generated legacy client callback is migrated on update without resetting identities or secrets. The same generated lab CA covers this entry; private keys are not exported.
 
 Sign in to Bearings using SSO. `circl-analyst` can use the CIRCL FlowIntel and RTIR workspaces as well as visible NetBox/RT connections. `company-admin` sees its visible NetBox and company RT destinations; CIRCL FlowIntel/RTIR entries are omitted. Native application permissions still decide what the person can read or change. Bearings cannot redact the native interface by its own organization policies; accept embedding only when the native account's object/tenant permissions match its intended access. A read/write API connector does not grant that capability to the human browser account. The local `platform-admin` remains a separately managed recovery account, without an automatic native SSO binding.
 
@@ -19,7 +19,7 @@ Sign in to Bearings using SSO. `circl-analyst` can use the CIRCL FlowIntel and R
 3. Return to Bearings and choose **Show in workspace**. Existing native sessions can be shown immediately.
 4. Use **Reload application** after reconnecting. **Open in own tab** remains available for a larger workspace or native features requiring their own window.
 
-Asset records also link to the NetBox workspace; FlowIntel case and RT/RTIR ticket pages link to their corresponding workspaces. The original links to exact native records are retained. Workspace launch currently opens the application's home, not the exact record or a remembered native navigation position. Switching workspaces recreates the frame: save native forms before leaving. Bearings cannot inspect a cross-origin application's unsaved changes, current route, login result or health. A workspace approval label is not a live availability check.
+Asset records also link to the NetBox workspace; FlowIntel case and RT/RTIR ticket pages link to their corresponding workspaces. The original links to exact native records are retained. General application-directory launch opens the application's home. Supported NetBox inventory references open the exact object and retain a validated return to the originating case or asset; other native routes are not automatically remembered. Switching workspaces recreates the frame: save native forms before leaving. Bearings cannot inspect a cross-origin application's unsaved changes, current route, login result or health. A workspace approval label is not a live availability check.
 
 ## Browser and security boundaries
 

@@ -14,7 +14,7 @@ python3 scripts/dev.py sso-smoke
 
 The starter remembers `--sso` for later `up`, `down`, `status`, `manage` and smoke calls. `--no-sso` stops the optional IdP and retains its data; local Bearings/NetBox authentication remains available. With both `--sso --flowintel`, the starter automatically adds and verifies FlowIntel's separate OIDC client and explicit CIRCL account binding, including in a retained realm created before this increment. Omitting `--flowintel` on a fresh lab starts Bearings/NetBox only. External NetBox mode never provisions or rewrites an external installation; configure its identity integration separately.
 
-The browser issuer is **https://localhost:9444/realms/bearings-lab**, Bearings uses loopback port **8000**, NetBox **8443**. Trust the public lab CA exported by `trust` in your OS/browser before signing in. The gateway reuses the NetBox lab certificate and verifies backchannel TLS; there is no disabled-verification option. Existing legacy lab CA certificates gain the key-usage extension required by Python 3.14, with the existing CA private/public key retained. Re-export the public certificate after updating. No private CA key is exported.
+The browser issuer is **https://localhost:9444/realms/bearings-lab**, Bearings SSO uses **https://localhost:9441/**, NetBox **8443**. Port **8000** remains an HTTP development listener, not an HTTPS endpoint. Trust the public lab CA exported by `trust` in your OS/browser before signing in. The gateway reuses the NetBox lab certificate and verifies backchannel TLS; there is no disabled-verification option. Existing legacy lab CA certificates gain the key-usage extension required by Python 3.14, with the existing CA private/public key retained. Re-export the public certificate after updating. No private CA key is exported.
 
 In Bearings choose **Sign in with SSO** and enter the generated demo password once as `company-admin` or `circl-analyst`. Then open NetBox, choose its **OpenID Connect** sign-in button: the same IdP session signs you in without another password prompt. Each application has its own session and client secret. As `circl-analyst`, also open FlowIntel at **https://localhost:9443/account/login** and choose the prominent **Sign in with SSO** button: the existing IdP session signs in to the existing CIRCL case-workflow account. Company and unassigned demo identities are intentionally denied there.
 
@@ -41,7 +41,7 @@ OIDC_JWKS_URL=https://idp.example.org/realms/example/protocol/openid-connect/cer
 OIDC_SESSION_SECONDS=1800
 ```
 
-The explicit endpoints are Keycloak examples; other OIDC providers can supply different approved HTTPS paths. Runtime requests use only configured endpoints, reject redirects and bound responses to 1 MB with a ten-second timeout. Optional `OIDC_CA_BUNDLE` selects an approved CA file; TLS verification remains enabled. Production callbacks use HTTPS. Register the exact Bearings `/oauth/complete/oidc/` URL; no wildcard redirects, implicit flow or password grant is needed. Local HTTP callbacks are confined to the DEBUG development lab. Enabling the bundled profile overrides its app endpoints with guarded lab settings; it does not change external IdP configuration.
+The explicit endpoints are Keycloak examples; other OIDC providers can supply different approved HTTPS paths. Runtime requests use only configured endpoints, reject redirects and bound responses to 1 MB with a ten-second timeout. Optional `OIDC_CA_BUNDLE` selects an approved CA file; TLS verification remains enabled. Production callbacks use HTTPS. Register the exact Bearings `/oauth/complete/oidc/` URL; no wildcard redirects, implicit flow or password grant is needed. The bundled lab uses exact HTTPS callbacks on the configured workspace port, including for logins initiated from its HTTP development entry. Enabling the bundled profile overrides its app endpoints with guarded lab settings; it does not change external IdP configuration.
 
 A platform administrator explicitly links a verified immutable subject to an existing local account:
 
@@ -108,4 +108,20 @@ The upstream `KEYCLOAK_ENABLED=False` setting is intentional: the Bearings adapt
 
 ## Connected application canvas
 
-The SSO lab now starts a verified HTTPS Bearings entry at **https://localhost:9441/applications/** automatically. Use **Applications** to choose visible NetBox, FlowIntel or RT/RTIR connections; authenticate in a top-level tab, then show the native interface inside the Bearings frame. Existing application permissions and separate recovery/session boundaries remain intact. The starter supports `BEARINGS_CANVAS_PORT` without changing the retained OIDC client callbacks. See [setup, external acceptance and screenshots](../user-guide/applications.md).
+The SSO lab now starts a verified HTTPS Bearings entry at **https://localhost:9441/applications/** automatically. Use **Applications** to choose visible NetBox, FlowIntel or RT/RTIR connections; authenticate in a top-level tab, then show the native interface inside the Bearings frame. Existing application permissions and separate recovery/session boundaries remain intact. The starter supports `BEARINGS_CANVAS_PORT` with an exact HTTPS callback for the Bearings client. See [setup, external acceptance and screenshots](../user-guide/applications.md).
+
+
+## Safari cannot open the callback on HTTPS port 8000
+
+`https://localhost:8000/oauth/complete/oidc/` uses TLS against a plaintext HTTP listener. A running service there still cannot answer that request. The former lab callback returned to HTTP localhost:8000; browsers with localhost HSTS or HTTPS upgrade policies can upgrade it to HTTPS, because HSTS is scoped to the hostname across ports.
+
+Update and start the existing lab:
+
+```sh
+git pull
+python3 scripts/dev.py up --sso
+```
+
+Then start a **new** login at **https://localhost:9441/accounts/login/**. The old authorization response is tied to the previous redirect URI; do not edit or replay it. The callback now remains on **https://localhost:9441/oauth/complete/oidc/** (or the configured `BEARINGS_CANVAS_PORT`). No browser TLS/HSTS setting needs to be disabled.
+
+Startup creates/verifies the separate Bearings client-provisioning job before app initialization. It narrowly migrates the exact generated legacy HTTP callback list to the exact HTTPS localhost/127.0.0.1 workspace callbacks, after checking retained client policy, PKCE and secret. Disabled state, users, roles, credentials and custom client fields are preserved. Modified callback lists, authentication policy or mismatched secrets fail closed for operator review rather than being reset. The generated private provisioning file lives in the Bearings secrets volume, outside Keycloak's realm-import directory. App/worker processes restart on explicit SSO startup so retained images load the updated callback too. Independently operated IdPs and NetBox callbacks are unchanged.

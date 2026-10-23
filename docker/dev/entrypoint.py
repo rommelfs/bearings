@@ -26,10 +26,8 @@ def environment():
         canvas_port = int(os.getenv("BEARINGS_CANVAS_PORT", "9441"))
         os.environ["BEARINGS_CANVAS_ORIGIN"] = f"https://localhost:{canvas_port}"
         os.environ["DJANGO_TRUST_PROXY_SSL"] = "1"
-        # Preserve the retained client's existing callback; no IdP policy migration is needed.
-        os.environ["OIDC_LAB_CALLBACK"] = (
-            f"http://localhost:{manifest['ports']['bearings']}/oauth/complete/oidc/"
-        )
+        # The retained lab client is narrowly migrated to this HTTPS callback during startup.
+        os.environ["OIDC_LAB_CALLBACK"] = f"https://localhost:{canvas_port}/oauth/complete/oidc/"
         frame_origins = [f"https://localhost:{manifest['ports']['netbox']}"]
         for flag, filename in [("BEARINGS_FLOWINTEL", "flowintel.json"), ("BEARINGS_RT", "rt.json")]:
             if os.getenv(flag) == "1":

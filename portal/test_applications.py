@@ -168,20 +168,27 @@ class ApplicationWorkspaceTests(Fixture):
                 origin(value)
         self.assertEqual(browser_base("https://netbox.invalid/prefix/"), "https://netbox.invalid/prefix")
 
-    def test_https_lab_reuses_its_retained_callback_without_changing_http_or_external_clients(self):
+    def test_lab_always_returns_to_https_without_changing_external_clients(self):
         backend = ApprovedOpenIdConnect.__new__(ApprovedOpenIdConnect)
         backend.setting = lambda name, default=None: (
-            "http://localhost:8000/oauth/complete/oidc/" if name == "LAB_CALLBACK" else default
+            "https://localhost:9441/oauth/complete/oidc/" if name == "LAB_CALLBACK" else default
         )
         for current, expected in [
-            ("https://localhost:9441/oauth/complete/oidc/", "http://localhost:8000/oauth/complete/oidc/"),
-            ("http://127.0.0.1:8000/oauth/complete/oidc/", "http://127.0.0.1:8000/oauth/complete/oidc/"),
-            ("https://127.0.0.1:9441/oauth/complete/oidc/", "http://127.0.0.1:8000/oauth/complete/oidc/"),
+            ("http://localhost:8000/oauth/complete/oidc/", "https://localhost:9441/oauth/complete/oidc/"),
+            ("https://localhost:8000/oauth/complete/oidc/", "https://localhost:9441/oauth/complete/oidc/"),
+            ("https://localhost:9441/oauth/complete/oidc/", "https://localhost:9441/oauth/complete/oidc/"),
+            ("http://127.0.0.1:8000/oauth/complete/oidc/", "https://127.0.0.1:9441/oauth/complete/oidc/"),
+            ("https://127.0.0.1:9441/oauth/complete/oidc/", "https://127.0.0.1:9441/oauth/complete/oidc/"),
             ("https://company.invalid/oauth/complete/oidc/", "https://company.invalid/oauth/complete/oidc/"),
         ]:
             backend.redirect_uri = current
             self.assertEqual(backend.get_redirect_uri(), expected)
         backend.redirect_uri = "https://localhost:9441/oauth/complete/oidc/"
-        backend.setting = lambda name, default=None: "https://evil.invalid/callback"
-        with self.assertRaises(AuthForbidden):
-            backend.get_redirect_uri()
+        for invalid in [
+            "https://evil.invalid/callback",
+            "http://localhost:8000/oauth/complete/oidc/",
+            "https://:password@localhost:9441/oauth/complete/oidc/",
+        ]:
+            backend.setting = lambda name, default=None: invalid
+            with self.assertRaises(AuthForbidden):
+                backend.get_redirect_uri()

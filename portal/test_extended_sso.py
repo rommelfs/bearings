@@ -205,6 +205,40 @@ class RetainedOIDCClientTests(SimpleTestCase):
                     ensure_client(request, desired)
             self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
 
+    def test_bearings_migrates_only_exact_generated_legacy_callbacks_after_policy_and_secret_checks(self):
+        desired = {
+            "clientId": "bearings",
+            "protocol": "openid-connect",
+            "secret": "synthetic-secret",
+            "publicClient": False,
+            "standardFlowEnabled": True,
+            "implicitFlowEnabled": False,
+            "directAccessGrantsEnabled": False,
+            "serviceAccountsEnabled": False,
+            "fullScopeAllowed": False,
+            "redirectUris": [
+                "https://localhost:9441/oauth/complete/oidc/",
+                "https://127.0.0.1:9441/oauth/complete/oidc/",
+            ],
+            "attributes": {"pkce.code.challenge.method": "S256"},
+        }
+        legacy = ["http://localhost:8000/oauth/complete/oidc/", "http://127.0.0.1:8000/oauth/complete/oidc/"]
+        current = {**desired, "enabled": False, "redirectUris": legacy, "operator_note": "retain"}
+        request = MagicMock(side_effect=[[{"id": "one"}], current, {"value": "synthetic-secret"}, None])
+        ensure_client(request, desired, legacy_redirects=legacy)
+        self.assertEqual(request.call_args.args, ("PUT", "clients/one"))
+        changed = request.call_args.kwargs["json"]
+        self.assertEqual(changed, {"redirectUris": desired["redirectUris"]})
+        for update, secret in [
+            ({"redirectUris": ["https://operator.invalid/callback"]}, "synthetic-secret"),
+            ({"publicClient": True}, "synthetic-secret"),
+            ({}, "rotated-secret"),
+        ]:
+            request = MagicMock(side_effect=[[{"id": "one"}], {**current, **update}, {"value": secret}])
+            with self.assertRaises(RuntimeError):
+                ensure_client(request, desired, legacy_redirects=legacy)
+            self.assertTrue(all(call.args[0] == "GET" for call in request.call_args_list))
+
 
 class RTSSOGeneratorTests(SimpleTestCase):
     def test_simple_cli_generates_private_credential_and_reuses_it_without_docker(self):

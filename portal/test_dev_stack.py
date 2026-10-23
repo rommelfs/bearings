@@ -394,6 +394,18 @@ class SSOStarterTests(SimpleTestCase):
 
             ports = {"sso": 9444, "bearings": 8000, "netbox": 8443}
             initialize(root, write, secret, ports)
+            client = json.loads((root / "secrets/oidc-bearings-client.json").read_text())
+            self.assertEqual(
+                client["client"]["redirectUris"],
+                [
+                    "https://localhost:9441/oauth/complete/oidc/",
+                    "https://127.0.0.1:9441/oauth/complete/oidc/",
+                ],
+            )
+            self.assertEqual(
+                client["legacy_redirects"],
+                ["http://localhost:8000/oauth/complete/oidc/", "http://127.0.0.1:8000/oauth/complete/oidc/"],
+            )
             saved = (root / "secrets/oidc_client_secret").read_text()
             identity = (root / "secrets/oidc-lab.json").read_text()
             initialize(root, write, secret, ports)

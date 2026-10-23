@@ -376,6 +376,24 @@ def main():
         if not args.no_build:
             options.append("--build")
         run(compose(mode, project, flowintel, sso, rt, rtir) + options)
+        if sso:
+            # Bind-mounted OIDC/runtime changes must also apply to retained images.
+            sso_base = compose(mode, project, flowintel, sso, rt, rtir)
+            run(sso_base + ["restart", "web", "worker"])
+            run(
+                sso_base
+                + [
+                    "up",
+                    "-d",
+                    "--wait",
+                    "--wait-timeout",
+                    str(args.timeout),
+                    "--no-deps",
+                    "web",
+                    "worker",
+                    "bearings-tls",
+                ]
+            )
         if rt:
             # RT reads the generated account overlay once per FastCGI process.
             # Re-read it on update even when its image/Compose configuration did not change.

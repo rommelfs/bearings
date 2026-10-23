@@ -22,20 +22,21 @@ def identity_uid(issuer, subject):
 
 class ApprovedOpenIdConnect(OpenIdConnectAuth):
     def get_redirect_uri(self, state=None):
-        # A second HTTPS lab entry reuses the original loopback callback and host cookie.
+        # The local SSO callback must remain HTTPS: localhost HSTS applies across ports.
         # Independently deployed clients and NetBox have no such override.
         current = urlsplit(super().get_redirect_uri(state))
         fixed = self.setting("LAB_CALLBACK", "")
-        if fixed and current.scheme == "https" and current.hostname in {"localhost", "127.0.0.1"}:
+        if fixed and current.scheme in {"http", "https"} and current.hostname in {"localhost", "127.0.0.1"}:
             target = urlsplit(fixed)
             if (
-                target.scheme != "http"
+                target.scheme != "https"
                 or target.hostname != "localhost"
                 or not target.port
                 or target.path != "/oauth/complete/oidc/"
                 or target.query
                 or target.fragment
-                or target.username
+                or target.username is not None
+                or target.password is not None
             ):
                 raise AuthForbidden(self)
             return target._replace(netloc=f"{current.hostname}:{target.port}").geturl()
