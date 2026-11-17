@@ -9,7 +9,7 @@ git pull
 python3 scripts/dev.py up
 ```
 
-The starter applies migrations and runs the worker. Retained inventories, identities, passwords, source policies and existing findings remain intact. New product watches and outreach policies require explicit configuration; an update does not enroll every product or enable external mail. Existing contact records migrate to the Security function, retaining their descriptive role. There is no guess that an existing role string means DPO or Management.
+The starter applies migrations and runs the worker. Retained inventories, identities, passwords, source policies and existing findings remain intact. Recognized installed products now enroll active watches automatically during bundled initialization and the vulnerability worker. Unknown/conflicting identities remain visible setup gaps. Existing explicitly paused/configured watches and outreach policies are preserved; an update does not enable external mail. Existing contact records migrate to the Security function, retaining their descriptive role. There is no guess that an existing role string means DPO or Management.
 
 Without Docker, use the existing native environment:
 
@@ -27,8 +27,8 @@ Those native commands run once; the deployment operator must schedule them repea
 ## 1. Automatically discover CVEs for installed software
 
 1. Record the installed product, version, edition/build when known. Open the asset's **Installed software → Configure automatic CVE discovery**, or the navigation entry **Automatic CVE discovery**.
-2. Supply exact public Vulnerability-Lookup vendor/product keys, for example `apache` / `log4j`. This is an explicit product identity assertion, not a name similarity search. A CPE 2.3 or exact package URL on the product can substantiate a source's differently worded affected-product entry.
-3. Enable the watch and choose its interval (minimum 15 minutes, default 60). Saving queues a refresh. **Refresh CVEs** queues an earlier refresh; pausing stops future reads. Source URLs remain operator-owned and pinned.
+2. Known products are prefilled; recognized installed products are enrolled automatically with auto-refresh enabled. For an unknown product, use **Find manufacturer**, then **Find product** and select the exact result. You can also supply public Vulnerability-Lookup keys directly, for example `apache` / `log4j`. This is an explicit product identity assertion, not a name similarity search. A CPE 2.3 or exact package URL on the product can substantiate a source's differently worded affected-product entry.
+3. Auto-refresh is enabled by default. Choose its interval (minimum 15 minutes, default 60). Saving queues a refresh. **Refresh CVEs** queues an earlier refresh; pausing stops future reads. Source URLs remain operator-owned and pinned.
 4. Review the last attempt, last complete success, errors, freshness and new/changed **visible** reviews. Missing configuration and stale/failed coverage are explicit. Ordinary inventory imports alone do not identify software or enroll watches.
 5. Open the changed-review link. Review applicability with a reason. Automated match inputs, source evidence revisions and explanations are preserved separately from analyst decisions.
 
@@ -87,3 +87,5 @@ These screenshots show a fictional company, `.invalid` contacts and a synthetic 
 ![Company impact, controls, residual estimate and accountable contact](../images/continuous-review-risk.png)
 
 ![Private DPO and technical-contact message previews](../images/continuous-review-dpo.png)
+
+The [infrastructure overview](infrastructure-overview.md) is now the login landing page. The vulnerability review queue remains available at `/reviews/`.

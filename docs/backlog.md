@@ -147,3 +147,11 @@ Implemented the three requested core gaps; [user guide](user-guide/continuous-re
 Remaining boundaries: broader ecosystem version/backport/configuration support and aliases; large-product incremental scalability; confirmed delivery/bounce ingestion/automatic escalation delivery; production scheduler/acceptance; native MONARC scoring/import/export. Existing analyst decisions, raw/derived source visibility and file-only development delivery remain preserved. The canonical definitions above are updated in backlog.json; external issue publication depends on available GitHub API access.
 
 Company-risk tracking: [#36](https://github.com/rommelfs/bearings/issues/36).
+
+## Automatic product setup and infrastructure entry
+
+Implemented recognized-name/CPE/package mapping candidates and enabled-by-default watch enrollment during software creation, bundled initialization and the scheduled vulnerability worker. Exact known-name aliases cover Log4j, Exchange and FortiOS; conflicting identities wait for selection and existing pauses/sources/custom mappings remain intact. Unknown products use an authenticated scoped, bounded public manufacturer/product picker with explicit search and retained inputs on outages.
+
+The login landing page now summarizes permitted companies and prioritized assets with action/review/coverage states, monitoring freshness/setup gaps, concrete next actions, overdue deadlines and current contact links. Automatic page refresh runs every 60 seconds and defers during text entry. The prior technical review queue remains at `/reviews/`; existing scope/redistribution protections also govern overview counts and priorities. See [guide](user-guide/infrastructure-overview.md).
+
+Tracking: [#38](https://github.com/rommelfs/bearings/issues/38).

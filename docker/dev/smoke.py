@@ -150,7 +150,10 @@ def main():
             },
         )
         assert response.status_code == 200 and response.url.path == "/", "Bearings login failed"
-        assert "<h1>Vulnerability review</h1>" in response.text and "company-admin" in response.text
+        assert "<h1>Infrastructure overview</h1>" in response.text and "company-admin" in response.text
+        assert "data-overview-refresh checked" in response.text
+        response = client.get(base + "/reviews/")
+        assert "<h1>Vulnerability review</h1>" in response.text
         assert 'id="review-heading"' in response.text and 'class="severity-filters"' in response.text
         located = rw.asset_set.filter(
             object_type="dcim.device", state="synced", missing_since__isnull=True

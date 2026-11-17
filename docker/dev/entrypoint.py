@@ -79,6 +79,9 @@ def main():
                 print("Synthetic showcase state retained; no automatic reseeding or account/policy changes.")
             else:
                 call_command("seed_showcase")
+        from portal.product_matching import enroll_products
+
+        print(f"Auto-enabled {enroll_products()} recognized product watches; existing settings retained.")
     elif mode == "smoke":
         from docker.dev.smoke import main as smoke
 

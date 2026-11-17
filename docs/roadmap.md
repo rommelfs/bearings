@@ -67,3 +67,7 @@ Native RTIR coordination is now delivered as an optional reference: `up --rtir`,
 ## Continuous-review delivery
 
 The three core gaps now have bounded implementations: explicit product watches discover new/changed CVEs and evaluate conservative exact/SemVer rules; structured contact functions and accountable asset owners support optional DPO inclusion and timed approval-required reminder/escalation drafts; company-local MOSP-linked assessments record likelihood, impact, controls, residual estimates, ownership and expiring acceptance with immutable revision history. The CIRCL/company risk register shows the latest currently visible assessment per issue. See [workflow and boundaries](user-guide/continuous-review.md). Broader version ecosystems/backports, production bounce handling/automatic delivery, a production scheduler and native MONARC assessment synchronization remain separate.
+
+## Infrastructure entry and automatic setup
+
+Delivered: recognized installed products enroll active watches automatically; unknown/conflicting identities use an integrated bounded public catalog picker. The company/CIRCL infrastructure overview is now the post-login landing page with separate action/review/coverage states, prioritized servers, next actions, deadlines and current monitoring. Page refresh is enabled every 60 seconds and defers while typing. Explicit pauses and existing mappings are preserved. [Guide](user-guide/infrastructure-overview.md).

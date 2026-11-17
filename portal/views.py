@@ -347,6 +347,15 @@ def create_installation(request, slug, pk):
             installation.full_clean()
             installation.save()
             from .models import ProductWatch
+            from .product_matching import ensure_watch
+            from django.core.exceptions import ValidationError
+
+            try:
+                ensure_watch(product, request.user)
+            except ValidationError:
+                messages.warning(
+                    request, "Software saved. Automatic monitoring needs an operator-approved source."
+                )
 
             ProductWatch.objects.filter(product=product).update(requested=True)
             audit(request.user, org, "software.installed", installation.pk)

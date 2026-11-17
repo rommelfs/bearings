@@ -15,9 +15,16 @@ from . import (
     discovery_views,
     outreach_views,
     business_risk_views,
+    overview_views,
 )
 
 urlpatterns = [
+    path("", overview_views.overview, name="overview"),
+    path(
+        "organizations/<slug:slug>/products/<int:pk>/catalog/",
+        discovery_views.search_catalog,
+        name="discovery-catalog-search",
+    ),
     path("risks/", business_risk_views.register, name="risk-register"),
     path("discovery/", discovery_views.center, name="discovery"),
     path(
@@ -135,7 +142,7 @@ urlpatterns = [
         intelligence_views.risk_link_evidence,
         name="risk-link-evidence",
     ),
-    path("", views.home, name="home"),
+    path("reviews/", views.home, name="home"),
     path("organizations/<slug:slug>/contacts/<int:pk>/edit/", views.edit_contact, name="edit-contact"),
     path(
         "api/v1/organizations/<slug:slug>/findings/<int:pk>/evidence/",

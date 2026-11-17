@@ -21,3 +21,5 @@ Open **Notifications → Start a campaign across all constituents** to notify al
 The optional [FlowIntel workflow](flowintel.md) adds a reviewed private case, follow-up tasks and status feedback for the existing finding. It does not resolve findings or send notifications automatically.
 
 The [continuous-review workflow](continuous-review.md) adds explicit product-watch coverage/changed-evidence cues and a cross-company **Company risk register**. New DPO/Management recipient functions and timed follow-up drafts respect each company policy and existing source visibility. CIRCL analyst rights permit review in authorized companies; they do not permit accepting a company risk without company-administrator membership.
+
+The login landing page is now **Infrastructure overview**. It shows permitted companies with separate action/review/coverage states, prioritized assets, current monitoring and overdue actions. The original technical review queue remains at **Vulnerability review** (`/reviews/`). All derived counters and priority lists use current organization/source visibility.

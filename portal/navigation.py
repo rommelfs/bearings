@@ -4,6 +4,7 @@ from django.urls import reverse
 
 
 AREAS = {
+    "overview": ("Infrastructure overview", "overview", ""),
     "start": ("Start here", "getting-started", ""),
     "inventory": ("Inventory & organizations", "inventory", "inventory"),
     "review": ("Vulnerability review", "home", "assess"),
@@ -21,6 +22,7 @@ AREAS = {
 }
 
 ROUTES = {
+    "overview": {"overview"},
     "risks": {"risk-register", "business-risk"},
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
     "start": {"getting-started"},
@@ -66,7 +68,7 @@ def workspace(request):
     if route in {"flowintel-new", "flowintel-case"}:
         stage = "respond"
     sections = [
-        ("Start", ["start"]),
+        ("Start", ["overview", "start"]),
         ("Understand", ["inventory", "discovery", "review", "issues", "risks", "exposure"]),
         (
             "Act",

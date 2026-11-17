@@ -14,3 +14,5 @@ Readers cannot mutate data. Editors cannot change contacts or memberships. Organ
 See the [notification workflow](notifications.md) for product/severity filters, templates, reviewed bulk preparation, local mail output and company acknowledgment.
 
 For scheduled CVE discovery, direct accountable contacts, optional DPO notifications, timed follow-up drafts and business-risk decisions, follow [continuous review](continuous-review.md). New watches/policies require explicit configuration; uncertain matches stay review items.
+
+After sign-in, **Infrastructure overview** summarizes your permitted companies and prioritized servers/actions. Recognized software starts automatic monitoring without manually entering catalog keys; unknown products offer an integrated public manufacturer/product search. See [overview and automatic setup](infrastructure-overview.md).

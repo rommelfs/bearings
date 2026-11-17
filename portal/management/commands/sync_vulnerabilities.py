@@ -16,6 +16,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not 1 <= options["limit"] <= 100:
             raise CommandError("Use --limit between 1 and 100")
+        if not options["watch"]:
+            from portal.product_matching import enroll_products
+
+            enroll_products()
         qs = ProductWatch.objects.filter(enabled=True)
         if options["watch"]:
             qs = qs.filter(pk=options["watch"])

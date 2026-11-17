@@ -5,10 +5,14 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .access import audit, can_edit, organizations_for, require, audit_operator_access, visible_findings
 from .models import Product, ProductWatch, Installation
 from .views import organization
+from .product_matching import suggestions
+from .connectors.vulnerability_lookup import browse_products
+from .connectors.http import ConnectorError
 
 
 class WatchForm(forms.ModelForm):
@@ -52,7 +56,13 @@ def configure(request, slug, pk):
     watch = ProductWatch.objects.filter(product=product).first() or ProductWatch(
         product=product, source_url=settings.VULNERABILITY_LOOKUP_URL.rstrip("/")
     )
-    form = WatchForm(request.POST or None, instance=watch)
+    matches = suggestions(product) if not watch.pk else []
+    initial = (
+        {"vendor": matches[0]["vendor"], "product_key": matches[0]["product_key"], "enabled": True}
+        if len(matches) == 1
+        else {}
+    )
+    form = WatchForm(request.POST if request.method == "POST" else None, instance=watch, initial=initial)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             Product.objects.select_for_update().get(pk=product.pk)
@@ -88,9 +98,45 @@ def configure(request, slug, pk):
         return redirect("discovery")
     return render(
         request,
-        "portal/form.html",
-        {"form": form, "org": org, "title": f"Automatic CVE discovery · {product.name}"},
+        "portal/watch_form.html",
+        {
+            "form": form,
+            "org": org,
+            "product": product,
+            "suggestions": matches,
+            "saved_watch": bool(watch.pk),
+            "title": f"Automatic CVE discovery · {product.name}",
+        },
     )
+
+
+@login_required
+@require_POST
+def search_catalog(request, slug, pk):
+    org = organization(request, slug)
+    require(can_edit(request.user, org))
+    product = get_object_or_404(Product, pk=pk, organization=org)
+    watch = ProductWatch.objects.filter(product=product).first()
+    # A saved watch retains its source even if the operator changes the default.
+    source = watch.source_url if watch else settings.VULNERABILITY_LOOKUP_URL
+    try:
+        page = int(request.POST.get("page", "1"))
+        result = browse_products(
+            source,
+            kind=request.POST.get("kind", "vendors"),
+            query=request.POST.get("q", ""),
+            vendor=request.POST.get("vendor", ""),
+            page=page,
+        )
+    except (ConnectorError, ValueError):
+        return JsonResponse(
+            {
+                "error": "Product catalog unavailable or search invalid. Your entered values are retained; retry or use the keys directly."
+            },
+            status=400,
+        )
+    audit(request.user, org, "vulnerability.catalog_searched", product.pk)
+    return JsonResponse(result)
 
 
 @login_required

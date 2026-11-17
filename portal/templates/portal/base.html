@@ -3,7 +3,7 @@
 <title>{% block title %}{% if org %}{{ org.name }} · {% endif %}{{ workspace_label|default:'CIRCL' }} · Bearings{% endblock %}</title><link rel="stylesheet" href="{% static 'portal/style.css' %}"></head>
 <body class="{% if user.is_authenticated %}workspace{% else %}public-page{% endif %} area-{{ workspace_area|default:'review' }} {% block bodyclass %}{% endblock %}">
 <a class="skip-link" href="#main-content">Skip to content</a>
-<header class="app-header"><a class="brand" href="{% url 'home' %}"><span class="brand-symbol" aria-hidden="true">◈</span> BEARINGS <span class="brand-caption">CIRCL · Infrastructure & intelligence</span></a>
+<header class="app-header"><a class="brand" href="{% url 'overview' %}"><span class="brand-symbol" aria-hidden="true">◈</span> BEARINGS <span class="brand-caption">CIRCL · Infrastructure & intelligence</span></a>
 {% if user.is_authenticated %}<div class="account-menu"><span class="account-name">{{ user.username }}</span><form class="inline" method="post" action="{% url 'logout' %}">{% csrf_token %}<button>{% if sso_session %}Sign out here{% else %}Sign out{% endif %}</button></form></div>{% endif %}</header>
 {% if user.is_authenticated %}<aside class="app-sidebar"><nav aria-label="Workspace">{% include 'portal/navigation.html' %}</nav><p class="sidebar-note">Locate the asset.<br>Understand the evidence.<br>Coordinate a response.</p></aside>
 <details class="mobile-menu"><summary>Workspace menu <span>{{ workspace_label }}</span></summary><nav aria-label="Mobile workspace">{% include 'portal/navigation.html' %}</nav></details>{% endif %}

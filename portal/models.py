@@ -402,11 +402,11 @@ class ProductWatch(models.Model):
         ]
 
     def clean(self):
-        import re
+        from .product_matching import valid_key
         from .connectors.http import validate_base, ConnectorError
 
         for field in ("vendor", "product_key"):
-            if not re.fullmatch(r"[a-z0-9][a-z0-9_.+-]{0,119}", getattr(self, field)):
+            if not valid_key(getattr(self, field)):
                 raise ValidationError({field: "Use the exact lowercase public vendor/product key"})
         try:
             self.source_url = validate_base(self.source_url).geturl().rstrip("/")
