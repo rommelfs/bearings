@@ -163,3 +163,8 @@ Delivered exact asset/attention filters and direct linked problem titles, dates,
 Tracking: [#39](https://github.com/rommelfs/bearings/issues/39).
 
 Severity-first ordering now also applies consistently to organization findings, asset detail and joined intelligence views before pagination: Critical/High precede Medium/Low/None, and Unknown is last. Current evidence visibility is preserved.
+
+
+## Infrastructure overview query performance
+
+Delivered page-wide grouped counters, eager inventory source loading and bounded problem windows for the twelve displayed priority assets. Operator membership checks are batched while individual sensitive-read audit events remain intact. A query-budget regression verifies that adding companies/assets does not add per-row queries; current visibility and local source freshness remain evaluated on every request. No shared authorization/response cache or schema change is introduced.

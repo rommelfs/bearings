@@ -1,12 +1,13 @@
 """Current scoped infrastructure state; missing evidence is never a clean bill of health."""
 
-from django.db.models import Case, Count, F, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.db.models import Case, Count, F, IntegerField, OuterRef, Q, Subquery, Value, When, Window
+from django.db.models.functions import RowNumber
 from django.urls import reverse
 from urllib.parse import urlencode
 from django.utils import timezone
 from .access import visible_findings_for
 from .issues import visible_issues, active_filter
-from .models import Asset, BusinessRiskRevision, Installation, Product, ProductWatch
+from .models import Asset, BusinessRiskRevision, Contact, Installation, ProductWatch
 from .notifications import contact_policy
 from .presentation import ACTIVE_REVIEWS
 
@@ -19,24 +20,95 @@ def reviews_for(user):
     )
 
 
-def company_state(user, org):
-    assets = Asset.objects.filter(organization=org, source__organization=org, lifecycle="active")
-    installations = Installation.objects.filter(asset__in=assets, product__organization=org)
-    products = Product.objects.filter(installation__in=installations).distinct()
-    watches = list(ProductWatch.objects.filter(product__in=products))
-    reviews = reviews_for(user).filter(organization=org)
+def company_states(user, orgs):
+    """Aggregate once per visible page, without joining independent count dimensions."""
+    ids = [org.pk for org in orgs]
+    assets = Asset.objects.filter(
+        organization_id__in=ids, source__organization_id=F("organization_id"), lifecycle="active"
+    )
+    installations = Installation.objects.filter(
+        asset__in=assets, product__organization_id=F("asset__organization_id")
+    )
+    reviews = reviews_for(user).filter(organization_id__in=ids)
+    visible = visible_issues(user).filter(organization_id__in=ids)
     issues = (
-        visible_issues(user)
-        .filter(organization=org, asset__in=assets)
+        visible.filter(asset__in=assets)
         .filter(active_filter())
         .exclude(finding__analyst_applicability="not_affected")
     )
     latest = (
-        BusinessRiskRevision.objects.filter(issue_id=OuterRef("issue_id")).values("pk").order_by("-pk")[:1]
+        BusinessRiskRevision.objects.filter(issue_id=OuterRef("issue_id")).order_by("-pk").values("pk")[:1]
     )
-    risks = BusinessRiskRevision.objects.filter(
-        issue__in=visible_issues(user).filter(organization=org), pk=Subquery(latest)
+    risks = BusinessRiskRevision.objects.filter(issue__in=visible, pk=Subquery(latest))
+
+    def grouped(qs, field="organization_id", **counts):
+        return {row.pop(field): row for row in qs.order_by().values(field).annotate(**counts)}
+
+    asset_counts = grouped(
+        assets,
+        assets=Count("pk", distinct=True),
+        without_software=Count("pk", distinct=True, filter=Q(installations__isnull=True)),
+        missing_assets=Count("pk", distinct=True, filter=Q(missing_since__isnull=False)),
     )
+    installation_counts = grouped(
+        installations,
+        "asset__organization_id",
+        installations=Count("pk"),
+        unknown_versions=Count("pk", filter=Q(version="")),
+        products=Count("product_id", distinct=True),
+    )
+    review_counts = grouped(
+        reviews,
+        reviews=Count("pk"),
+        affected=Count("pk", filter=Q(analyst_applicability="affected")),
+        critical=Count("pk", filter=Q(record__source_severity="critical")),
+        high=Count("pk", filter=Q(record__source_severity="high")),
+        unknown_severity=Count("pk", filter=Q(record__source_severity="unknown")),
+    )
+    issue_counts = grouped(
+        issues, issues=Count("pk"), overdue=Count("pk", filter=Q(action_due__lt=timezone.localdate()))
+    )
+    risk_counts = grouped(
+        risks,
+        "issue__organization_id",
+        risk_assessments=Count("pk"),
+        expired_acceptance=Count(
+            "pk",
+            filter=Q(
+                snapshot__decision="accept", snapshot__acceptance_until__lt=timezone.localdate().isoformat()
+            ),
+        ),
+    )
+    contact_counts = grouped(
+        Contact.objects.filter(organization_id__in=ids, **contact_policy()).exclude(function="dpo"),
+        response_contacts=Count("pk"),
+    )
+    watches = {}
+    for watch in ProductWatch.objects.filter(
+        product_id__in=installations.values("product_id")
+    ).select_related("product"):
+        watches.setdefault(watch.product.organization_id, []).append(watch)
+    return [
+        _company_state(
+            org,
+            watches.get(org.pk, []),
+            [
+                counts.get(org.pk, {})
+                for counts in [
+                    asset_counts,
+                    installation_counts,
+                    review_counts,
+                    issue_counts,
+                    risk_counts,
+                    contact_counts,
+                ]
+            ],
+        )
+        for org in orgs
+    ]
+
+
+def _company_state(org, watches, counts):
     source = getattr(org, "inventory_source", None)
     source_stale = (
         source is None
@@ -45,30 +117,12 @@ def company_state(user, org):
     )
     state = {
         "org": org,
-        "assets": assets.count(),
-        "without_software": assets.filter(installations__isnull=True).count(),
-        "missing_assets": assets.filter(missing_since__isnull=False).count(),
-        "installations": installations.count(),
-        "unknown_versions": installations.filter(version="").count(),
-        "products": products.count(),
         "configured": len(watches),
         "fresh": sum(w.enabled and not w.stale for w in watches),
         "paused": sum(not w.enabled for w in watches),
         "queued": sum(w.enabled and w.requested for w in watches),
         "watch_errors": sum(bool(w.error) for w in watches),
         "stale_watches": sum(w.enabled and w.stale for w in watches),
-        "reviews": reviews.count(),
-        "affected": reviews.filter(analyst_applicability="affected").count(),
-        "critical": reviews.filter(record__source_severity="critical").count(),
-        "high": reviews.filter(record__source_severity="high").count(),
-        "unknown_severity": reviews.filter(record__source_severity="unknown").count(),
-        "overdue": issues.filter(action_due__lt=timezone.localdate()).count(),
-        "issues": issues.count(),
-        "risk_assessments": risks.count(),
-        "expired_acceptance": risks.filter(
-            snapshot__decision="accept", snapshot__acceptance_until__lt=timezone.localdate().isoformat()
-        ).count(),
-        "response_contacts": org.contacts.filter(**contact_policy()).exclude(function="dpo").count(),
         "source_stale": source_stale,
         "synthetic": source is not None and source.mode == "development",
         "inventory_success": source.last_import_success if source else None,
@@ -76,6 +130,30 @@ def company_state(user, org):
             (w.last_success for w in watches if w.enabled and w.last_success), default=None
         ),
     }
+    defaults = dict.fromkeys(
+        [
+            "assets",
+            "without_software",
+            "missing_assets",
+            "installations",
+            "unknown_versions",
+            "products",
+            "reviews",
+            "affected",
+            "critical",
+            "high",
+            "unknown_severity",
+            "overdue",
+            "issues",
+            "risk_assessments",
+            "expired_acceptance",
+            "response_contacts",
+        ],
+        0,
+    )
+    for values in counts:
+        defaults.update(values)
+    state.update(defaults)
     state["unmapped"] = state["products"] - state["configured"]
     state["coverage_gaps"] = bool(
         source_stale
@@ -168,7 +246,55 @@ def priority_assets(user, orgs):
         by_asset[counts.pop("asset_id")].update(counts)
     assets = Asset.objects.filter(
         pk__in=by_asset, organization__in=orgs, source__organization_id=F("organization_id")
-    ).select_related("organization", "responsible_contact")
+    ).select_related("organization", "responsible_contact", "source__instance")
+    assets = sorted(
+        assets,
+        key=lambda asset: (
+            -by_asset[asset.pk]["overdue"],
+            -by_asset[asset.pk]["affected"],
+            -by_asset[asset.pk]["lifecycle"],
+            -by_asset[asset.pk]["critical"],
+            -by_asset[asset.pk]["reviews"],
+            asset.name,
+        ),
+    )[:12]
+    ids = [asset.pk for asset in assets]
+    ranked_issues = (
+        issues.filter(asset_id__in=ids)
+        .annotate(
+            urgent_order=Case(
+                When(action_due__lt=timezone.localdate(), then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            ),
+        )
+        .annotate(
+            position=Window(
+                expression=RowNumber(),
+                partition_by=[F("asset_id")],
+                order_by=[F("urgent_order").asc(), F("action_due").asc(nulls_last=True), F("pk").asc()],
+            )
+        )
+        .filter(position__lte=4)
+        .order_by("asset_id", "position")
+    )
+    shown_by_asset = {}
+    for issue in ranked_issues:
+        shown_by_asset.setdefault(issue.asset_id, []).append(issue)
+    legacy_by_asset = {}
+    legacy = (
+        reviews.filter(installation__asset_id__in=ids)
+        .exclude(pk__in=issues.filter(finding_id__isnull=False).values("finding_id"))
+        .annotate(
+            position=Window(
+                expression=RowNumber(), partition_by=[F("installation__asset_id")], order_by=F("pk").asc()
+            )
+        )
+        .filter(position__lte=4)
+        .order_by("installation__asset_id", "position")
+    )
+    for finding in legacy:
+        legacy_by_asset.setdefault(finding.installation.asset_id, []).append(finding)
     result = []
     for asset in assets:
         from .asset_context import asset_context
@@ -194,16 +320,7 @@ def priority_assets(user, orgs):
                 + "?"
                 + urlencode({"asset": str(asset.pk), "attention": attention})
             )
-        asset_issues = issues.filter(asset=asset)
-        shown = list(
-            asset_issues.annotate(
-                urgent_order=Case(
-                    When(action_due__lt=timezone.localdate(), then=Value(0)),
-                    default=Value(1),
-                    output_field=IntegerField(),
-                )
-            ).order_by("urgent_order", F("action_due").asc(nulls_last=True), "pk")[:4]
-        )
+        shown = shown_by_asset.get(asset.pk, [])
         from .scenario_suggestions import draft_scenario
 
         row["problems"] = [
@@ -219,11 +336,7 @@ def priority_assets(user, orgs):
             for issue in shown
         ]
         # Old findings may predate the common issue model; keep an exact CVE deep link.
-        for finding in (
-            reviews.filter(installation__asset=asset)
-            .exclude(pk__in=asset_issues.values("finding_id").filter(finding_id__isnull=False))
-            .order_by("pk")[: max(0, 4 - len(shown))]
-        ):
+        for finding in legacy_by_asset.get(asset.pk, [])[: max(0, 4 - len(shown))]:
             row["problems"].append(
                 {
                     "title": finding.record.external_id,
@@ -233,17 +346,6 @@ def priority_assets(user, orgs):
                     "next_action": "Review applicability and vendor fixes",
                 }
             )
-        row["problem_count"] = asset_issues.count()
         row["actions"] = [problem["next_action"] for problem in row["problems"] if problem.get("next_action")]
         result.append(row)
-    return sorted(
-        result,
-        key=lambda row: (
-            -row["overdue"],
-            -row["affected"],
-            -row["lifecycle"],
-            -row["critical"],
-            -row["reviews"],
-            row["asset"].name,
-        ),
-    )[:12]
+    return result

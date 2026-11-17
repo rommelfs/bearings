@@ -6,6 +6,7 @@ from unittest.mock import patch
 from unittest import skipUnless
 from concurrent.futures import ThreadPoolExecutor
 from django.core.management import call_command
+from django.test.utils import CaptureQueriesContext
 from django.test import Client
 from django.test import TransactionTestCase
 from django.db import connection, connections, close_old_connections
@@ -188,6 +189,103 @@ class ProductSetupTests(Fixture):
 
 
 class InfrastructureOverviewTests(Fixture):
+    def test_overview_query_budget_stays_bounded_across_twelve_companies(self):
+        from .models import Asset, InventorySource, Organization
+
+        def add_issue(org, source, name):
+            asset = Asset.objects.create(organization=org, source=source, name=name, kind="server")
+            AssetIssue.objects.create(
+                organization=org,
+                asset=asset,
+                kind="eol",
+                priority="high",
+                title=f"Upgrade {name}",
+                next_action="Test vendor update",
+            )
+
+        add_issue(self.a, self.sa, "first")
+        self.login()
+        with CaptureQueriesContext(connection) as small:
+            self.assertEqual(self.client.get("/").status_code, 200)
+        for number in range(11):
+            org = Organization.objects.create(name=f"Company {number}", slug=f"performance-{number}")
+            source = InventorySource.objects.create(organization=org, mode="development")
+            Membership.objects.create(organization=org, user=self.admin, role="admin")
+            for asset_number in range(3):
+                add_issue(org, source, f"server-{number}-{asset_number}")
+        with CaptureQueriesContext(connection) as large:
+            response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["companies"]), 12)
+        self.assertEqual(len(response.context["priority_assets"]), 12)
+        self.assertLessEqual(len(large), len(small) + 2)
+        self.assertLessEqual(len(large), 40)
+        for row in response.context["priority_assets"]:
+            self.assertEqual(row["lifecycle"], 1)
+            self.assertEqual(len(row["problems"]), 1)
+            self.assertEqual(row["problems"][0]["scenario"]["profile"], "support")
+
+    def test_bulk_counts_keep_product_identity_and_latest_visible_risk_revision(self):
+        from .models import Asset, Installation, BusinessRiskRevision
+
+        another = Asset.objects.create(organization=self.a, source=self.sa, name="Second server")
+        Installation.objects.create(asset=another, product=self.product, version="1.0")
+        ProductWatch.objects.create(
+            product=self.product,
+            vendor="example",
+            product_key="server",
+            source_url="https://vulnerability.circl.lu",
+            last_success=timezone.now(),
+        )
+        visible = ensure_vulnerability_issue(self.record_finding())
+        visible.finding.record.external_id = "CVE-2026-00001"
+        visible.finding.record.save()
+        hidden = ensure_vulnerability_issue(self.record_finding(shareable=False))
+        expired = {
+            "decision": "accept",
+            "acceptance_until": (timezone.localdate() - timedelta(days=1)).isoformat(),
+        }
+        for issue in [visible, hidden]:
+            BusinessRiskRevision.objects.create(
+                issue=issue, actor=self.admin, snapshot=expired, evidence_hash="synthetic"
+            )
+        BusinessRiskRevision.objects.create(
+            issue=visible, actor=self.admin, snapshot={"decision": "mitigate"}, evidence_hash="synthetic"
+        )
+        self.login()
+        state = self.client.get("/").context["companies"][0]
+        self.assertEqual((state["assets"], state["installations"], state["unknown_versions"]), (2, 2, 1))
+        self.assertEqual((state["products"], state["configured"], state["fresh"]), (1, 1, 1))
+        self.assertEqual((state["risk_assessments"], state["expired_acceptance"]), (1, 0))
+        self.login(self.analyst)
+        state = self.client.get("/").context["companies"][0]
+        self.assertEqual((state["risk_assessments"], state["expired_acceptance"]), (2, 1))
+
+    def test_problem_limit_and_deadline_order_apply_to_each_asset(self):
+        from .models import Asset
+
+        second = Asset.objects.create(organization=self.a, source=self.sa, name="Second server")
+        expected = {}
+        for asset in [self.asset, second]:
+            issues = []
+            for offset in [None, 2, -1, -3, -2, 1]:
+                issues.append(
+                    AssetIssue.objects.create(
+                        organization=self.a,
+                        asset=asset,
+                        kind="eol",
+                        title=f"Lifecycle {offset}",
+                        priority="high",
+                        action_due=None if offset is None else timezone.localdate() + timedelta(days=offset),
+                    )
+                )
+            expected[asset.pk] = [issues[index].title for index in [3, 4, 2, 5]]
+        self.login()
+        for row in self.client.get("/").context["priority_assets"]:
+            self.assertEqual([problem["title"] for problem in row["problems"]], expected[row["asset"].pk])
+            self.assertEqual(row["lifecycle"], 6)
+            self.assertEqual(row["overdue"], 3)
+
     def test_high_priority_lifecycle_issue_is_visible_before_its_deadline(self):
         AssetIssue.objects.create(
             organization=self.a,
