@@ -346,6 +346,9 @@ def create_installation(request, slug, pk):
             installation.asset, installation.product = asset, product
             installation.full_clean()
             installation.save()
+            from .models import ProductWatch
+
+            ProductWatch.objects.filter(product=product).update(requested=True)
             audit(request.user, org, "software.installed", installation.pk)
         return redirect("organization", slug=slug)
     return render(
@@ -499,7 +502,7 @@ def edit_contact(request, slug, pk):
                 ContactToken.objects.filter(contact=contact, used_at__isnull=True).update(
                     used_at=timezone.now()
                 )
-            if set(changed) & {"availability", "time_zone", "phone", "emergency_phone", "role"}:
+            if set(changed) & {"availability", "time_zone", "phone", "emergency_phone", "role", "function"}:
                 contact.availability_confirmed_at = None
             form.save()
             audit(request.user, org, "contact.updated", contact.pk, fields=changed)

@@ -7,6 +7,8 @@ AREAS = {
     "start": ("Start here", "getting-started", ""),
     "inventory": ("Inventory & organizations", "inventory", "inventory"),
     "review": ("Vulnerability review", "home", "assess"),
+    "discovery": ("Automatic CVE discovery", "discovery", "assess"),
+    "risks": ("Company risk register", "risk-register", "assess"),
     "issues": ("Asset issues & lifecycle", "issues", "assess"),
     "exposure": ("Exposure history", "plum", "assess"),
     "notifications": ("Notifications", "notifications", "respond"),
@@ -19,6 +21,8 @@ AREAS = {
 }
 
 ROUTES = {
+    "risks": {"risk-register", "business-risk"},
+    "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
     "start": {"getting-started"},
     "applications": {"applications", "application", "source-reference"},
     "inventory": {
@@ -43,7 +47,7 @@ ROUTES = {
     },
     "issues": {"issues", "issue", "issue-new", "issue-edit", "issue-risk-add"},
     "exposure": {"plum", "plum-import", "plum-snapshot"},
-    "notifications": {"notifications", "notification-batch"},
+    "notifications": {"notifications", "notification-batch", "outreach-policy"},
     "response": {"rtir", "rt-new", "rt-ticket"},
     "companies": {"companies"},
     "explore": {"demo-explore"},
@@ -63,7 +67,7 @@ def workspace(request):
         stage = "respond"
     sections = [
         ("Start", ["start"]),
-        ("Understand", ["inventory", "review", "issues", "exposure"]),
+        ("Understand", ["inventory", "discovery", "review", "issues", "risks", "exposure"]),
         (
             "Act",
             ["notifications"]

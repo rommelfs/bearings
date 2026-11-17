@@ -74,14 +74,16 @@ def prepare(pk, due=False):
         groups.setdefault(item.organization_id, []).append(item)
     fingerprints = []
     for group in groups.values():
-        contacts = list(eligible_contacts(group[0].organization))
+        contacts = list(eligible_contacts(group[0].organization, row.filters))
         if not contacts:
             if row.mode == "circl" and row.filters.get("missing_contacts") == "exclude":
                 continue
             raise ValidationError("A matching organization has no currently eligible contacts")
         for contact in contacts:
             fingerprints.append(
-                message_snapshot(row.mode, contact, group, row.subject_template, row.body_template)[1]
+                message_snapshot(
+                    row.mode, contact, group, row.subject_template, row.body_template, row.filters
+                )[1]
             )
             if len(fingerprints) > recipient_limit:
                 raise ValidationError(

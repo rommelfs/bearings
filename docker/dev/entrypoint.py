@@ -101,6 +101,7 @@ def main():
             call_command("process_flowintel", all=True, due=True)
             call_command("process_rt_tickets", all=True, due=True)
             call_command("prepare_notifications", due=True)
+            call_command("prepare_followups", limit=25)
             Path("/tmp/bearings-worker-heartbeat").touch()
             call_command("process_notifications", limit=5)
             Path("/tmp/bearings-worker-heartbeat").touch()
@@ -114,6 +115,11 @@ def main():
             Path("/tmp/bearings-worker-heartbeat").touch()
             try:
                 call_command("sync_mosp", all=True, due=True)
+            except CommandError:
+                pass
+            Path("/tmp/bearings-worker-heartbeat").touch()
+            try:
+                call_command("sync_vulnerabilities", due=True, limit=2)
             except CommandError:
                 pass
             Path("/tmp/bearings-worker-heartbeat").touch()

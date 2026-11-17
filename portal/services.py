@@ -202,4 +202,7 @@ def transition_finding(user, finding, status, reason, assessment=""):
         finding.analyst_applicability = assessment
     finding.status = status
     finding.save(update_fields=["status", "analyst_applicability"])
+    from .models import DiscoveryMatch
+
+    DiscoveryMatch.objects.filter(finding=finding).update(review_required=False)
     audit(user, finding.organization, "finding.status_changed", finding.pk, status=status)

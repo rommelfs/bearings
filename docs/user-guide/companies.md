@@ -12,3 +12,5 @@ A platform administrator creates your organization, maps its inventory source, a
 Readers cannot mutate data. Editors cannot change contacts or memberships. Organization administrators manage contacts but cannot self-verify infrastructure authority or modify operator policy. Missing/stale inventory and absent findings are coverage gaps, not a safe result.
 
 See the [notification workflow](notifications.md) for product/severity filters, templates, reviewed bulk preparation, local mail output and company acknowledgment.
+
+For scheduled CVE discovery, direct accountable contacts, optional DPO notifications, timed follow-up drafts and business-risk decisions, follow [continuous review](continuous-review.md). New watches/policies require explicit configuration; uncertain matches stay review items.

@@ -12,9 +12,35 @@ from . import (
     federation_views,
     application_views,
     guide_views,
+    discovery_views,
+    outreach_views,
+    business_risk_views,
 )
 
 urlpatterns = [
+    path("risks/", business_risk_views.register, name="risk-register"),
+    path("discovery/", discovery_views.center, name="discovery"),
+    path(
+        "organizations/<slug:slug>/products/<int:pk>/watch/",
+        discovery_views.configure,
+        name="discovery-configure",
+    ),
+    path(
+        "organizations/<slug:slug>/watches/<int:pk>/refresh/",
+        discovery_views.refresh,
+        name="discovery-refresh",
+    ),
+    path(
+        "organizations/<slug:slug>/software/<int:pk>/version/",
+        discovery_views.version,
+        name="installation-version",
+    ),
+    path("organizations/<slug:slug>/outreach-policy/", outreach_views.policy, name="outreach-policy"),
+    path(
+        "organizations/<slug:slug>/issues/<uuid:pk>/business-risk/",
+        business_risk_views.assessment,
+        name="business-risk",
+    ),
     path("start/", guide_views.start, name="getting-started"),
     path("organizations/<slug:slug>/findings/<int:pk>/guide/", guide_views.case, name="case-guide"),
     path(

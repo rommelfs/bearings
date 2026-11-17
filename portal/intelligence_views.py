@@ -39,6 +39,8 @@ def finding_page(request, org):
             raise Http404 from None
         get_object_or_404(findings, pk=finding_id)
         findings = findings.filter(pk=finding_id)
+    if request.GET.get("changed") == "1":
+        findings = findings.filter(discovery__review_required=True)
     page = Paginator(findings, 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)

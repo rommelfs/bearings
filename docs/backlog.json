@@ -43,7 +43,7 @@
       },
       {
         "title": "Implement explicit product/version applicability",
-        "body": "Use supported structured source capabilities; preserve unknown versions, vendor fixes, backports and configuration requirements. Keep severity, EPSS, catalog membership, exploitation sightings and applicability distinct. Notification acceptance: a new/changed Vulnerability-Lookup revision must correlate canonical product identifiers to registered installations, retain potential/unknown for unsupported builds/backports/configuration, preserve revision/match reason, and create scoped CIRCL/company review cues. A product-only match must never become confirmed affectedness. Idempotent revision handling and redistribution/freshness tests precede event-driven notification subscriptions (#10)."
+        "body": "Implemented bounded scheduled explicit vendor/product watches, pinned operator sources, strict live-envelope/legacy pagination and CVE JSON 5 identities, atomic retained failures, exact/CPE/package identity and conservative exact/release-SemVer rules, deduplicated findings and immutable discovery explanations/input revisions. Manual finding IDs, analyst decisions and restricted source policy survive updates; closed findings receive separate changed-evidence cues. Broader ecosystems/prereleases/backports/configuration, aliases, source-version acceptance and large-product delta scalability remain open. See docs/user-guide/continuous-review.md."
       },
       {
         "title": "Implement MISP ingestion with redistribution policy",
@@ -64,6 +64,10 @@
       {
         "title": "Compare Plum Island exposure observations over time with explicit coverage",
         "body": "Implemented source/customer/IP/asset window comparisons preserving protocol/port/requested hostname. Shows newly/still observed, changed evidence, missing observations, unknown/filtered and explicit scan closure only. Earlier out-of-window first_seen withheld; co-observed tags never prove malware. Current scope/source revocation hides raw/derived evidence/counts. Mapped observations can create one durable reviewed exposure issue; no automatic affectedness, priority, outreach or scan. Synthetic real-browser example and contract tests; live national corpus and coverage certification remain open. Synthetic seed feedback now reports skip reasons, retained/visible snapshot counts and exact windows without resetting source or scope policy."
+      },
+      {
+        "title": "Assess company risk with accountable treatment and expiring acceptance",
+        "body": "Implemented issue-scoped MOSP-linked business consequences, qualitative likelihood/impact, existing/planned measures, residual estimates/rationale, company contact, action/review deadline and admin-only expiring risk acceptance. Pinned issue/CVE/catalog context and immutable assessment revisions; optimistic stale-edit rejection; current-evidence/expiry review flags and scoped latest-assessment CIRCL/company register. The local documented 5x5 matrix is separate from CVSS and native MONARC scoring. Full MONARC assessment synchronization and production methodology acceptance remain open. See docs/user-guide/continuous-review.md."
       }
     ]
   },
@@ -73,7 +77,7 @@
     "issues": [
       {
         "title": "Deliver controlled notification and escalation workflow",
-        "body": "Implemented CVE and lifecycle/exposure filtered bulk previews, constrained templates, contact eligibility, creator approval, transport-bound idempotency, current sharing checks, company inbox/acknowledgment, changed-content subscriptions that prepare drafts only, and explicit non-development TLS SMTP alongside default local files. Relay acceptance is not confirmed delivery; uncertain attempts are retained without blind retry. SMTP validated with mocked transport only, no operational messages. Production bounce monitoring, reminders, escalation/routing and operational acceptance remain open; docs/user-guide/notifications.md."
+        "body": "Implemented structured Security/Technical/Management/DPO contact functions, organization-scoped accountable asset contacts, optional/organization-default DPO inclusion with explicit readiness blockers, opt-in management audience and timed reminder/management-escalation drafts. Current evidence, creator access, consent, role, policy and acknowledgment are revalidated before approval/I/O. Each original receives at most one reminder and one escalation; drafts never automatically approve/send. Default file delivery retained. Existing reviewed CVE/lifecycle campaigns/subscriptions/opt-in TLS SMTP remain. Production bounce ingestion, automatic escalation delivery, repeated ladders and operational acceptance remain open. See docs/user-guide/continuous-review.md."
       },
       {
         "title": "Complete organization remediation and CIRCL triage",

@@ -60,6 +60,10 @@ See [Plum Island contract research](integrations/plum-island.md), [RT/RTIR desig
 
 ## Delivered first increments
 
-See [asset issues and the repeatable example](user-guide/asset-issues.md), [RT 5.x contract and hand-off](integrations/rt-rtir.md), [notification subscriptions/SMTP](user-guide/notifications.md), [company snapshot federation](integrations/federation.md) and [Plum import/comparison](integrations/plum-island.md). These guides define the implemented boundaries. No active scan coordination, automatic CVE discovery, remote MONARC assessment synchronization or operational delivery acceptance is implied.
+See [asset issues and the repeatable example](user-guide/asset-issues.md), [RT 5.x contract and hand-off](integrations/rt-rtir.md), [notification subscriptions/SMTP](user-guide/notifications.md), [company snapshot federation](integrations/federation.md) and [Plum import/comparison](integrations/plum-island.md). These guides define the implemented boundaries. No active scan coordination, remote MONARC assessment synchronization or operational delivery acceptance is implied. Product-watch discovery is separately delivered below.
 
 Native RTIR coordination is now delivered as an optional reference: `up --rtir`, CIRCL-only Incidents with multiple separately approved company/asset Investigations, native lifecycles/parent links, retained setup and shared SSO. See [RTIR deployment and workflow](operations/rtir-lab.md). External customer RTIR acceptance and broader graph/type synchronization remain separate.
+
+## Continuous-review delivery
+
+The three core gaps now have bounded implementations: explicit product watches discover new/changed CVEs and evaluate conservative exact/SemVer rules; structured contact functions and accountable asset owners support optional DPO inclusion and timed approval-required reminder/escalation drafts; company-local MOSP-linked assessments record likelihood, impact, controls, residual estimates, ownership and expiring acceptance with immutable revision history. The CIRCL/company risk register shows the latest currently visible assessment per issue. See [workflow and boundaries](user-guide/continuous-review.md). Broader version ecosystems/backports, production bounce handling/automatic delivery, a production scheduler and native MONARC assessment synchronization remain separate.

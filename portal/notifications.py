@@ -26,7 +26,14 @@ from .access import (
     visible_findings_for,
 )
 from .asset_context import asset_context
-from .models import AssetIssue, Contact, NotificationBatch, NotificationDelivery, NotificationReceipt
+from .models import (
+    AssetIssue,
+    Contact,
+    NotificationBatch,
+    NotificationDelivery,
+    NotificationReceipt,
+    OutreachPolicy,
+)
 from .presentation import ACTIVE_REVIEWS
 
 SEVERITIES = ["critical", "high", "medium", "low", "none", "unknown"]
@@ -117,6 +124,16 @@ def render_text(template, values):
 
 
 class NotificationForm(forms.Form):
+    include_management = forms.BooleanField(
+        required=False,
+        label="Also notify management now",
+        help_text="Management otherwise receives separately reviewed escalation drafts.",
+    )
+    include_dpo = forms.BooleanField(
+        required=False,
+        label="Also notify the DPO",
+        help_text="Adds opted-in, reachable and reviewed DPO contacts. Company policy may already require DPO inclusion.",
+    )
     audience_scope = forms.ChoiceField(
         required=False,
         choices=[
@@ -233,7 +250,18 @@ class NotificationForm(forms.Form):
                 if k == "organization" and self.cleaned_data[k]
                 else self.cleaned_data[k]
             )
-            for k in ["organization", "product", "cve", "severity", "assessment", "sort", "domain", "kind"]
+            for k in [
+                "organization",
+                "product",
+                "cve",
+                "severity",
+                "assessment",
+                "sort",
+                "domain",
+                "kind",
+                "include_dpo",
+                "include_management",
+            ]
         }
         if self.cleaned_data["mode"] == "circl":
             scope = self.cleaned_data["audience_scope"]
@@ -248,6 +276,29 @@ class NotificationForm(forms.Form):
 
 
 def candidates(user, mode, filters):
+    followup = filters.get("followup_delivery")
+    if followup:
+        original = NotificationDelivery.objects.filter(
+            pk=followup, acknowledged_at__isnull=True, status__in=["filed", "accepted"]
+        ).first()
+        if original is None or not authorized_delivery(user, original):
+            return (
+                AssetIssue.objects.none()
+                if filters.get("domain") == "asset_issues"
+                else visible_findings_for(user).none()
+            )
+        from datetime import timedelta
+
+        policy = OutreachPolicy.objects.filter(organization=original.organization).first()
+        days = getattr(
+            policy, "reminder_days" if filters.get("followup_kind") == "reminder" else "escalation_days", 0
+        )
+        if not days or not original.filed_at or original.filed_at + timedelta(days=days) > timezone.now():
+            return (
+                AssetIssue.objects.none()
+                if filters.get("domain") == "asset_issues"
+                else visible_findings_for(user).none()
+            )
     if filters.get("domain") == "asset_issues":
         from .issues import exportable_issues, active_filter
 
@@ -285,6 +336,8 @@ def candidates(user, mode, filters):
             "organization": ["organization__name", "asset__name"],
             "product": ["installation__product__name", "organization__name"],
         }.get(filters.get("sort"), ["notification_priority", "organization__name"])
+        if filters.get("review_ids") is not None:
+            qs = qs.filter(pk__in=filters["review_ids"])
         return qs.order_by(*order, "asset__name", "pk")
     # Operator-only evidence can be investigated, but cannot be redistributed to companies.
     qs = (
@@ -328,6 +381,8 @@ def candidates(user, mode, filters):
         "organization": ["organization__name", "installation__product__name"],
         "product": ["installation__product__name", "organization__name"],
     }
+    if filters.get("review_ids") is not None:
+        qs = qs.filter(pk__in=filters["review_ids"])
     return qs.order_by(
         *orders.get(filters.get("sort"), orders["severity"]), "installation__asset__name", "pk"
     )
@@ -343,8 +398,38 @@ def contact_policy():
     )
 
 
-def eligible_contacts(org):
-    return Contact.objects.filter(organization=org, **contact_policy()).order_by("escalation_order", "pk")
+def dpo_required(org, filters=None):
+    return bool(
+        (filters or {}).get("include_dpo")
+        or OutreachPolicy.objects.filter(organization=org, include_dpo=True).exists()
+    )
+
+
+def eligible_contacts(org, filters=None):
+    filters = filters or {}
+    qs = Contact.objects.filter(organization=org, **contact_policy())
+    if not dpo_required(org, filters):
+        qs = qs.exclude(function="dpo")
+    if not filters.get("escalation_only") and not filters.get("include_management"):
+        qs = qs.exclude(function="management")
+    if filters.get("recipient_contact"):
+        qs = qs.filter(pk=filters["recipient_contact"])
+    if filters.get("escalation_only"):
+        qs = qs.filter(function="management", escalation_order__gt=filters.get("after_order", 0))
+    return qs.order_by("escalation_order", "pk")
+
+
+def recipient_blocker(org, filters):
+    contacts = eligible_contacts(org, filters)
+    if not contacts.exists():
+        return "No opted-in contact with verified email and current role review"
+    if (
+        dpo_required(org, filters)
+        and not filters.get("followup_delivery")
+        and not contacts.filter(function="dpo").exists()
+    ):
+        return "DPO notification requested, but no opted-in DPO has verified email and a current role review"
+    return ""
 
 
 def campaign_audience(user, mode, filters, *, reviews=None, recipient_counts=None):
@@ -374,20 +459,21 @@ def campaign_audience(user, mode, filters, *, reviews=None, recipient_counts=Non
         rows = sorted(grouped.values(), key=lambda row: (row["organization__name"], row["organization_id"]))
     contacts = recipient_counts
     if contacts is None:
-        contacts = dict(
-            Contact.objects.filter(
-                organization_id__in=[row["organization_id"] for row in rows], **contact_policy()
+        contacts = {
+            org.pk: eligible_contacts(org, filters).count()
+            for org in scoped_organizations(user, mode).filter(
+                pk__in=[row["organization_id"] for row in rows]
             )
-            .values("organization_id")
-            .annotate(total=Count("pk"))
-            .values_list("organization_id", "total")
-        )
+        }
+    orgs = {
+        org.pk: org
+        for org in scoped_organizations(user, mode).filter(pk__in=[row["organization_id"] for row in rows])
+    }
     for row in rows:
         row["recipients"] = contacts.get(row["organization_id"], 0)
-        row["included"] = bool(row["recipients"])
-        row["reason"] = (
-            "" if row["included"] else "No opted-in contact with verified email and current role review"
-        )
+        org = orgs.get(row["organization_id"])
+        row["reason"] = recipient_blocker(org, filters) if org else "Current company access unavailable"
+        row["included"] = not row["reason"]
     return {
         "rows": rows,
         "organizations": len(rows),
@@ -505,7 +591,7 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=True).encode()).hexdigest()
 
 
-def message_snapshot(mode, contact, findings, subject_template, body_template):
+def message_snapshot(mode, contact, findings, subject_template, body_template, filters=None):
     snapshots = [finding_snapshot(f) for f in findings]
     issue_domain = bool(findings and getattr(findings[0], "kind", None))
     values = {
@@ -535,11 +621,25 @@ def message_snapshot(mode, contact, findings, subject_template, body_template):
         "findings": snapshots,
         "subject": subject,
         "body": body,
+        "recipient_policy": {
+            "dpo": dpo_required(contact.organization, filters),
+            "management": bool((filters or {}).get("include_management")),
+            "escalation": bool((filters or {}).get("escalation_only")),
+        },
     }
     if settings.NOTIFICATION_TRANSPORT == "smtp":
         snapshot["transport"], snapshot["transport_configuration"] = transport_configuration()
     if issue_domain:
         snapshot["domain"] = "asset_issues"
+    if filters and filters.get("followup_delivery"):
+        snapshot["followup_delivery"] = filters["followup_delivery"]
+        snapshot["followup_kind"] = filters["followup_kind"]
+    # Pin role routing and responsibility even when a template omits these fields.
+    snapshot["contact_function"] = contact.function
+    snapshot["responsible_contacts"] = [
+        str((f.asset if isinstance(f, AssetIssue) else f.installation.asset).responsible_contact_id or "")
+        for f in findings
+    ]
     return snapshot, digest(snapshot), subject, body
 
 
@@ -556,12 +656,8 @@ def preview_batch(user, mode, filters, subject_template, body_template):
             f"More than {review_limit} reviews match. Narrow the filters before previewing."
         )
     contacts_by_org = {}
-    for contact in (
-        Contact.objects.filter(organization_id__in={f.organization_id for f in findings}, **contact_policy())
-        .select_related("organization")
-        .order_by("escalation_order", "pk")
-    ):
-        contacts_by_org.setdefault(contact.organization_id, []).append(contact)
+    for org in {f.organization_id: f.organization for f in findings}.values():
+        contacts_by_org[org.pk] = list(eligible_contacts(org, filters).select_related("organization"))
     report = campaign_audience(
         user,
         mode,
@@ -602,7 +698,7 @@ def preview_batch(user, mode, filters, subject_template, body_template):
             finding_ids=[str(f.pk) if isinstance(f, AssetIssue) else f.pk for f in group],
         )
         contacts = contacts_by_org.get(org.pk, [])
-        if not contacts:
+        if org.pk in blocked:
             if filters.get("missing_contacts") == "exclude" and mode == "circl":
                 audit(
                     user,
@@ -621,7 +717,7 @@ def preview_batch(user, mode, filters, subject_template, body_template):
             if count > recipient_limit:
                 raise ValidationError(f"More than {recipient_limit} recipients match. Narrow the filters.")
             snapshot, fingerprint, subject, body = message_snapshot(
-                mode, contact, group, subject_template, body_template
+                mode, contact, group, subject_template, body_template, filters
             )
             delivery = NotificationDelivery.objects.create(
                 batch=batch,
@@ -647,6 +743,12 @@ def authorized_delivery(user, delivery):
     org = delivery.organization
     if not organizations_for(user).filter(pk=org.pk).exists():
         return False
+    if delivery.snapshot.get("followup_delivery"):
+        parent = NotificationDelivery.objects.filter(
+            pk=delivery.snapshot["followup_delivery"], organization=org
+        ).first()
+        if parent is None or not authorized_delivery(user, parent):
+            return False
     ids = [f["id"] for f in delivery.snapshot["findings"]]
     if delivery.snapshot.get("domain") == "asset_issues":
         from .issues import exportable_issues
@@ -679,14 +781,18 @@ def claim_batch(user, batch_id, selected, *, queued=False):
     for d in deliveries:
         require(authorized_delivery(user, d))
         require(scoped_organizations(user, batch.mode).filter(pk=d.organization_id).exists())
-        contact = eligible_contacts(d.organization).filter(pk=d.contact_id).first()
+        contact = eligible_contacts(d.organization, batch.filters).filter(pk=d.contact_id).first()
+        if recipient_blocker(d.organization, batch.filters):
+            raise ValidationError("Recipient policy is no longer ready; create a new preview")
         if contact is None:
             raise ValidationError("Recipient review or consent changed. Create a new preview.")
         ids = [f["id"] for f in d.snapshot["findings"]]
         current = list(candidates(user, batch.mode, batch.filters).filter(pk__in=ids))
         if (
             len(current) != len(ids)
-            or message_snapshot(batch.mode, contact, current, batch.subject_template, batch.body_template)[1]
+            or message_snapshot(
+                batch.mode, contact, current, batch.subject_template, batch.body_template, batch.filters
+            )[1]
             != d.fingerprint
         ):
             raise ValidationError(
@@ -754,7 +860,7 @@ def deliver_claimed(ids):
                 or not scoped_organizations(user, d.batch.mode).filter(pk=d.organization_id).exists()
             ):
                 raise ValidationError("Current visibility no longer permits this message.")
-            contact = eligible_contacts(d.organization).filter(pk=d.contact_id).first()
+            contact = eligible_contacts(d.organization, d.batch.filters).filter(pk=d.contact_id).first()
             current = list(
                 candidates(user, d.batch.mode, d.batch.filters).filter(
                     pk__in=[f["id"] for f in d.snapshot["findings"]]
@@ -762,8 +868,14 @@ def deliver_claimed(ids):
             )
             if (
                 contact is None
+                or bool(recipient_blocker(d.organization, d.batch.filters))
                 or message_snapshot(
-                    d.batch.mode, contact, current, d.batch.subject_template, d.batch.body_template
+                    d.batch.mode,
+                    contact,
+                    current,
+                    d.batch.subject_template,
+                    d.batch.body_template,
+                    d.batch.filters,
                 )[1]
                 != d.fingerprint
             ):

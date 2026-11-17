@@ -40,6 +40,16 @@ class Contact(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="contacts")
     name = models.CharField(max_length=180)
     role = models.CharField(max_length=120, default="Primary security contact")
+    function = models.CharField(
+        max_length=12,
+        default="security",
+        choices=[
+            ("security", "Security"),
+            ("technical", "Technical owner"),
+            ("management", "Management / escalation"),
+            ("dpo", "Data protection officer"),
+        ],
+    )
     email = models.EmailField()
     phone = models.CharField(max_length=80, blank=True)
     emergency_phone = models.CharField(max_length=80, blank=True)
@@ -62,6 +72,9 @@ class Contact(models.Model):
     )
     next_review = models.DateField(null=True, blank=True)
     availability_confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.name} · {self.get_function_display()} · {self.email}"
 
     @property
     def overdue(self):
@@ -290,6 +303,9 @@ class Asset(models.Model):
         max_length=20, default="active", choices=[("active", "Active"), ("retired", "Retired")]
     )
     responsible_team = models.CharField(max_length=180, blank=True)
+    responsible_contact = models.ForeignKey(
+        Contact, on_delete=models.PROTECT, null=True, blank=True, related_name="owned_assets"
+    )
     object_type = models.CharField(max_length=60, default="dcim.device")
     external_id = models.CharField(max_length=100, blank=True)
     state = models.CharField(
@@ -337,6 +353,8 @@ class Asset(models.Model):
     def clean(self):
         if self.source_id and self.organization_id != self.source.organization_id:
             raise ValidationError("Asset and source must belong to the same organization")
+        if self.responsible_contact_id and self.responsible_contact.organization_id != self.organization_id:
+            raise ValidationError("Responsible contact must belong to the asset organization")
 
 
 class InventoryWrite(models.Model):
@@ -362,6 +380,136 @@ class Product(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["organization", "name", "identifier"], name="unique_product")
+        ]
+
+
+class ProductWatch(models.Model):
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="watch")
+    vendor = models.CharField(max_length=120)
+    product_key = models.CharField(max_length=120)
+    source_url = models.URLField(max_length=250)
+    enabled = models.BooleanField(default=True)
+    interval_minutes = models.PositiveIntegerField(default=60)
+    requested = models.BooleanField(default=True)
+    last_attempt = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=250, blank=True)
+    summary = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(interval_minutes__gte=15), name="watch_interval_min")
+        ]
+
+    def clean(self):
+        import re
+        from .connectors.http import validate_base, ConnectorError
+
+        for field in ("vendor", "product_key"):
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_.+-]{0,119}", getattr(self, field)):
+                raise ValidationError({field: "Use the exact lowercase public vendor/product key"})
+        try:
+            self.source_url = validate_base(self.source_url).geturl().rstrip("/")
+        except ConnectorError as exc:
+            raise ValidationError({"source_url": str(exc)}) from None
+        if self.interval_minutes < 15:
+            raise ValidationError("The minimum refresh interval is 15 minutes")
+        old = type(self).objects.filter(pk=self.pk).first()
+        if old and old.source_url != self.source_url:
+            raise ValidationError("An existing watch source cannot be repointed")
+
+    @property
+    def stale(self):
+        from datetime import timedelta
+
+        return bool(
+            self.error
+            or not self.last_success
+            or timezone.now() - self.last_success > timedelta(minutes=self.interval_minutes * 2)
+        )
+
+
+class DiscoveryMatch(models.Model):
+    watch = models.ForeignKey(ProductWatch, on_delete=models.PROTECT)
+    finding = models.OneToOneField("Finding", on_delete=models.PROTECT, related_name="discovery")
+    evidence_revision = models.ForeignKey("SourceRecordRevision", on_delete=models.PROTECT)
+    input_hash = models.CharField(max_length=64)
+    explanation = models.TextField()
+    result = models.CharField(max_length=20)
+    evaluated_at = models.DateTimeField(default=timezone.now)
+    review_required = models.BooleanField(default=True)
+
+    @property
+    def inputs_changed(self):
+        from .intelligence import digest
+
+        installation = self.finding.installation
+        return self.input_hash != digest(
+            [
+                digest(self.finding.record.payload),
+                self.watch.vendor,
+                self.watch.product_key,
+                installation.product.identifier,
+                installation.version,
+                installation.build,
+                installation.edition,
+            ]
+        )
+
+
+class DiscoveryRevision(models.Model):
+    match = models.ForeignKey(DiscoveryMatch, on_delete=models.PROTECT, related_name="history")
+    fingerprint = models.CharField(max_length=64)
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["match", "fingerprint"], name="unique_discovery_revision")
+        ]
+
+
+class BusinessRiskRevision(models.Model):
+    issue = models.ForeignKey("AssetIssue", on_delete=models.PROTECT, related_name="business_risks")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(default=timezone.now)
+    snapshot = models.JSONField()
+    evidence_hash = models.CharField(max_length=64)
+    previous = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True)
+
+    class Meta:
+        ordering = ["-pk"]
+
+
+class OutreachPolicy(models.Model):
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="outreach_policy"
+    )
+    include_dpo = models.BooleanField(
+        default=False, help_text="Include opted-in DPOs in new previews by default"
+    )
+    reminder_days = models.PositiveSmallIntegerField(default=0, help_text="0 disables timed reminder drafts")
+    escalation_days = models.PositiveSmallIntegerField(
+        default=0, help_text="0 disables management escalation drafts"
+    )
+
+    def clean(self):
+        if self.escalation_days and self.reminder_days and self.escalation_days <= self.reminder_days:
+            raise ValidationError("Escalation must follow the reminder")
+
+
+class NotificationFollowup(models.Model):
+    delivery = models.ForeignKey("NotificationDelivery", on_delete=models.PROTECT, related_name="followups")
+    kind = models.CharField(max_length=12, choices=[("reminder", "Reminder"), ("escalation", "Escalation")])
+    batch = models.OneToOneField(
+        "NotificationBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="followup"
+    )
+    error = models.CharField(max_length=250, blank=True)
+    checked_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["delivery", "kind"], name="unique_notification_followup")
         ]
 
 
@@ -604,6 +752,7 @@ class NotificationDelivery(models.Model):
     status = models.CharField(max_length=20, default="draft")
     filed_at = models.DateTimeField(null=True)
     acknowledged_at = models.DateTimeField(null=True)
+    followup_checked_at = models.DateTimeField(null=True, blank=True)
     acknowledged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
 
 
