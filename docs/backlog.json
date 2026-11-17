@@ -154,6 +154,10 @@
       {
         "title": "Link infrastructure problems directly and draft contextual risk scenarios",
         "body": "Implemented exact organization/asset/attention issue filters and asset-scoped CVE queues with preserved filters/pagination; infrastructure badges and named problem/action links open the actual evidence, including legacy reviews. Generate conditional local risk drafts from issue type and bounded CVE weakness/text without asserting applicability, compromise or flawed processes. Recommend up to three compatible enabled public MONARC/EN/CC0 cached templates with explained asset/topic ranking; exclude withdrawn mappings for unchanged evidence and mark current links. Explicit preview/confirmation hydrates/verifies catalog revisions, checks issue/source/product fingerprints and pins ordinary protected evidence links with editable prefilled justification. Business context is prefilled, numeric likelihood/impact choices remain unselected. No automatic risk acceptance, production notification, scan or upstream write. See docs/user-guide/automatic-scenarios.md."
+      },
+      {
+        "title": "Provide a CIRCL national overview and confidential no-CVE inventory research",
+        "body": "Implemented operator-only /circl/ entry with current permitted-company denominator, unresolved/confirmed/accepted-risk review indicators, prioritized record drilldowns, version prevalence, coverage/contact gaps and recorded first-evidence/resolution trends. Add local transient CSRF-protected POST product/version research without a CVE, exact vendor-version and bounded plain SemVer ranges, separate unknown/non-comparable buckets, paginated company/asset/contact links and no upstream lookup or saved advisory/query. Audit operator reads without criteria; private/no-store responses, same-origin referrer policy and redacted CIRCL query logs. No automatic affectedness, patch verification, notification or TLP redistribution rights. Historical inventory adoption/complete TLP case handling and population-wide reporting remain separate. See docs/user-guide/circl-overview.md."
       }
     ]
   },

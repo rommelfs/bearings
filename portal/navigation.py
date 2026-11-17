@@ -4,6 +4,7 @@ from django.urls import reverse
 
 
 AREAS = {
+    "national": ("National overview", "circl-overview", ""),
     "overview": ("Infrastructure overview", "overview", ""),
     "start": ("Start here", "getting-started", ""),
     "inventory": ("Inventory & organizations", "inventory", "inventory"),
@@ -22,6 +23,7 @@ AREAS = {
 }
 
 ROUTES = {
+    "national": {"circl-overview", "circl-research", "circl-findings"},
     "overview": {"overview"},
     "risks": {"risk-register", "business-risk", "automatic-scenario"},
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
@@ -62,24 +64,25 @@ def workspace(request):
         return {}
     from .access import is_analyst
 
+    operator = request.user.is_superuser or is_analyst(request.user)
     route = request.resolver_match.url_name if request.resolver_match else ""
     area = next((key for key, names in ROUTES.items() if route in names), "review")
     label, target, stage = AREAS[area]
     if route in {"flowintel-new", "flowintel-case"}:
         stage = "respond"
     sections = [
-        ("Start", ["overview", "start"]),
+        ("Start", (["national"] if operator else []) + ["overview", "start"]),
         ("Understand", ["inventory", "discovery", "review", "issues", "risks", "exposure"]),
         (
             "Act",
-            ["notifications"]
-            + (["response"] if request.user.is_superuser or is_analyst(request.user) else []),
+            ["notifications"] + (["response"] if operator else []),
         ),
         ("Workspace", ["applications", "companies", "explore"]),
     ]
     if request.user.is_superuser:
         sections.append(("Administration", ["platform", "administration"]))
     return {
+        "workspace_home_url": reverse("circl-overview" if operator else "overview"),
         "workspace_area": area,
         "workspace_label": label,
         "workspace_url": reverse(target),

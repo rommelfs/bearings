@@ -17,9 +17,13 @@ from . import (
     business_risk_views,
     overview_views,
     scenario_views,
+    circl_views,
 )
 
 urlpatterns = [
+    path("circl/", circl_views.overview, name="circl-overview"),
+    path("circl/findings/", circl_views.findings, name="circl-findings"),
+    path("circl/research/", circl_views.inventory_research, name="circl-research"),
     path(
         "organizations/<slug:slug>/issues/<uuid:pk>/scenario/",
         scenario_views.automatic,

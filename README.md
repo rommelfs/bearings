@@ -4,6 +4,8 @@ A standalone organization inventory and evidence review portal intended for CIRC
 
 **Status: first runnable development increment, not production-ready.** No operational data is included. The existing repository is `rommelfs/bearings`; no additional repository is needed. This is a public open-source project licensed under [GNU AGPL v3.0 or later](LICENSE) (`AGPL-3.0-or-later`).
 
+CIRCL analysts also have a **[National overview](docs/user-guide/circl-overview.md)** at `/circl/`: outstanding vulnerability reach, software-version prevalence, recorded review activity and local confidential version research before a CVE exists. It uses permitted reporting inventory; it does not claim complete national coverage or verified patch installation.
+
 ## Implemented
 
 - [Direct problem links and automatic risk scenarios](docs/user-guide/automatic-scenarios.md): server badges open exact problem sets; individual problem titles, actions and drafts link directly to their evidence. Local evidence-based scenario drafts recommend compatible public MOSP templates with prefilled justification and reviewed confirmation.

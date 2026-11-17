@@ -1794,3 +1794,17 @@ input:focus-visible {
 .overview-problems h4 { margin: 0 0 .4rem; font-size: 1rem; }
 .overview-problems p { margin: .4rem 0; }
 .automatic-scenario-summary { padding: 1.25rem; border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: var(--radius); background: var(--surface); margin: 1.25rem 0; }
+
+/* CIRCL coordination: bounded aggregates and local private research. */
+.national-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .85rem; margin: 1.3rem 0; }
+.national-metrics > * { display: block; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); text-decoration: none; min-width: 0; }
+.national-metrics strong { display: block; font-size: 2rem; color: var(--brand); }
+.national-metrics span { display: block; font-size: .88rem; margin-top: .4rem; }
+.national-panel { margin: 1.4rem 0; padding: 1.3rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; overflow-wrap: anywhere; }
+.national-panel h2 { margin-top: 0; }
+.table-scroll { overflow-x: auto; max-width: 100%; }
+.table-scroll table { min-width: 650px; }
+.national-trend { display: block; width: 100%; max-height: 230px; }
+.research-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.research-fields input, .research-fields select { width: 100%; min-width: 0; }
+@media (max-width: 750px) { .national-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .research-fields { grid-template-columns: 1fr; } }

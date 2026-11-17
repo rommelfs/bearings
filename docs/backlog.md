@@ -193,3 +193,8 @@ The post-JIT user measurements still spend 8.4–9.1 seconds in priorities, with
 ## Reduce remaining counter and preview work
 
 Delivered one inventory-hierarchy aggregate, request-local reuse of lazy scoped evidence querysets, correlated latest-risk visibility and bounded field loading for watches/scenario previews. No cross-request data or authorization cache. Paired local comparison reduces company-admin GET database executes from 40 to 33 and CIRCL from 52 to 45, preserving current policy, complete scenario output and counts. Absolute timing gains vary; the company-admin gain is modest locally. New regressions cover twelve complete CVE scenario previews without per-preview queries and dense installations with missing/retired/foreign-source assets.
+
+
+## CIRCL national coordination overview and private inventory research
+
+Delivered an operator-only national entry with permission-scoped outstanding/affected/accepted-risk reviews, exact cross-company evidence links, version prevalence, coverage and contact gaps, and genuine first automated evidence/resolution activity. Add transient local POST product/version investigation without a CVE, exact/custom-version and bounded release SemVer rules, unknown/non-comparable groups, pagination and assigned contact links. Criteria are not saved in advisories/audits/sessions or sent upstream; CSRF, private/no-store, same-origin referrer policy and CIRCL query-log redaction protect the flow. Every count/result remains under current source/company policy. Registered inventory is not a complete national census; missing remediation records are not verified unpatched systems. Historical version adoption and full TLP advisory/recipient lifecycle remain separate. [Guide](user-guide/circl-overview.md).
