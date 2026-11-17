@@ -308,6 +308,9 @@ class InfrastructureOverviewTests(Fixture):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Infrastructure overview")
+        timing = response.headers["Server-Timing"]
+        self.assertTrue(timing.startswith("overview;dur="))
+        self.assertGreaterEqual(float(timing.split("=", 1)[1]), 0)
         self.assertContains(response, "data-overview-refresh checked")
         self.assertEqual([s["org"].pk for s in response.context["companies"]], [self.a.pk])
         self.assertNotContains(response, self.b.name)

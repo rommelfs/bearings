@@ -168,3 +168,8 @@ Severity-first ordering now also applies consistently to organization findings, 
 ## Infrastructure overview query performance
 
 Delivered page-wide grouped counters, eager inventory source loading and bounded problem windows for the twelve displayed priority assets. Operator membership checks are batched while individual sensitive-read audit events remain intact. A query-budget regression verifies that adding companies/assets does not add per-row queries; current visibility and local source freshness remain evaluated on every request. No shared authorization/response cache or schema change is introduced.
+
+
+## Verify overview performance through the running web process
+
+Delivered unconditional web/worker restart plus health wait on explicit local starter `up`, including cached images without SSO. Overview responses now report local overview processing milliseconds through `Server-Timing`; the bundled smoke requires this marker so a successful new-process unit benchmark cannot stand in for verification of the retained server. Actual HTTP and HTTPS Chromium checks distinguish server processing, TTFB and full load. Local improvement is verified; the reported user-machine six-second delay still requires measurements from that machine.

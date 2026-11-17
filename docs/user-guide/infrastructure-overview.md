@@ -68,3 +68,12 @@ Screenshots use a fictional company, real public CVE/catalog reads and synthetic
 Every server card now includes linked problem titles, their dates and individual next actions. Identical action text remains attached to distinct named problems. Overdue badges filter **action deadlines** exactly; expiry/EOL dates remain separate. CVE/confirmed/critical counters open the scoped vulnerability queue; lifecycle counters open the scoped issue list. All-problem links use an exact asset ID, not a potentially ambiguous server-name search. Asset/attention filters survive subsequent filtering and pagination.
 
 Each issue also receives an automatic conditional risk-scenario draft derived from current source weakness/text or issue type. Follow its link to review compatible cached MONARC scenarios, preview a selected template and confirm a prefilled justification with pinned evidence. This prepares business consequences and treatment context without guessing likelihood/impact or accepting company risk. [Workflow and boundaries](automatic-scenarios.md).
+
+
+## Check loading time in the running application
+
+After `git pull`, run `python3 scripts/dev.py up --no-build` to restart the web and worker processes with the bind-mounted Python code. This now applies in bundled and external modes, with or without SSO. Dependency/image changes still require a build. A matching Git commit alone does not establish which Python code an already running process has imported.
+
+For an authenticated overview request, the HTTP response includes `Server-Timing: overview;dur=123.4`. The duration is milliseconds spent building the overview, including scoped database reads, access audits and template rendering. It excludes earlier middleware/authentication, TLS/network transfer and browser rendering; it does not disclose query contents or company data. In browser developer tools, open **Network**, reload, select the document request for `/` (or `/?organization=…`) and inspect **Response Headers** and **Timing**. Compare `overview;dur` with waiting/TTFB and the total page-load duration. A missing header after updating is a reason to check the actual web process/port/container rather than assuming the source checkout is already serving traffic.
+
+The regression tests enforce bounded queries rather than a hardware-dependent time limit. Local browser benchmark results are documented in [validation](../validation.md); they do not establish another machine's latency.

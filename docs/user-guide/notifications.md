@@ -21,7 +21,7 @@ Native fallback: `DJANGO_DEBUG=1 uv run python manage.py seed_notification_examp
 
 ## Screenshot data missing after an update
 
-Screenshots show a separately populated test database. `git pull` updates source files; it does not copy that database, create optional scenarios or approve messages. Docker runs the packaged application image, so run `python3 scripts/dev.py up` after pulling; restarting an old image alone does not install new application code.
+Screenshots show a separately populated test database. `git pull` updates source files; it does not copy that database, create optional scenarios or approve messages. The local starter bind-mounts application Python code; run `python3 scripts/dev.py up --no-build` after pulling so web and worker processes reload it. Dependency or image changes require `python3 scripts/dev.py up` with its default rebuild.
 
 The commands above rebuild/start the bundled application, immediately import current NetBox facts and explicitly add the notification exercise. Without the explicit import, an existing projection can retain old fields until the next scheduled refresh (15 minutes by default). Check the organization's inventory import health if the command reports a failed source; failures retain last-known data.
 

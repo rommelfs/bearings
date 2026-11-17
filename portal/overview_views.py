@@ -1,3 +1,4 @@
+from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
@@ -9,6 +10,7 @@ from .overview import company_states, priority_assets
 
 @login_required
 def overview(request):
+    started = perf_counter()
     orgs = organizations_for(request.user).order_by("name", "pk")
     selected = request.GET.get("organization", "")
     if selected:
@@ -33,7 +35,7 @@ def overview(request):
     for org in audited_orgs:
         audit(request.user, org, "operator.access")
     companies = company_states(request.user, page.object_list)
-    return render(
+    response = render(
         request,
         "portal/overview.html",
         {
@@ -47,3 +49,5 @@ def overview(request):
             "selected": selected,
         },
     )
+    response["Server-Timing"] = f"overview;dur={(perf_counter() - started) * 1000:.1f}"
+    return response
