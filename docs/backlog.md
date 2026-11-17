@@ -178,3 +178,8 @@ Delivered unconditional web/worker restart plus health wait on explicit local st
 ## Isolate persistent SSO navigation latency
 
 Added per-response SSO session/Django timings and a bundled-only `web-timing` command using real Keycloak login, current running HTTP/HTTPS services and existing synthetic identities. Output is sanitized numeric timing/status information, with no credentials or page contents. Both overview and Applications are measured, including a request after the proxy DNS cache expires. Existing revocation/expiry checks remain current, with no IdP request on normal navigation. Local SSO navigation is verified; the user-reported delay remains open pending measurements from that machine.
+
+
+## Avoid overview query compilation stalls
+
+User-provided measurements now locate the observed 9.5–9.7-second delay inside overview processing, with approximately 9 ms session checks and fast HTTP/HTTPS/Application responses. A local session-scoped PostgreSQL stress reproduction spent 11.5 seconds in the existing complex ORM queries under aggressive JIT thresholds. The overview now disables JIT only in its local transaction, restores the previous setting and measures individual view phases plus total/maximum database execute duration. Current source/organization/evidence policy is unchanged, and no authorization/response cache is introduced. The stress case falls from 11.7 to 0.68 seconds locally; the user's actual improvement still requires a post-update measurement.

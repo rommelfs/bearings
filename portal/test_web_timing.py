@@ -44,7 +44,9 @@ class WebTimingTests(SimpleTestCase):
         response = SimpleNamespace(
             status=200,
             url="https://localhost:9441/?secret=synthetic-code",
-            headers={"Server-Timing": "overview;dur=17.5, session;dur=2.0, django;dur=20, secret;dur=123"},
+            headers={
+                "Server-Timing": "overview;dur=17.5, session;dur=2.0, django;dur=20, database;dur=10, dbmax;dur=4, companies;dur=5, priority;dur=6, render;dur=3, scope;dur=1, secret;dur=123"
+            },
             read=Mock(return_value=b"synthetic private body"),
         )
         browser = Mock()
@@ -58,7 +60,17 @@ class WebTimingTests(SimpleTestCase):
                 "status": 200,
                 "ttfb_ms": 30.0,
                 "total_ms": 40.0,
-                "server_ms": {"overview": 17.5, "session": 2.0, "django": 20.0},
+                "server_ms": {
+                    "overview": 17.5,
+                    "session": 2.0,
+                    "django": 20.0,
+                    "database": 10.0,
+                    "dbmax": 4.0,
+                    "companies": 5.0,
+                    "priority": 6.0,
+                    "render": 3.0,
+                    "scope": 1.0,
+                },
             },
         )
         self.assertNotIn("synthetic", json.dumps(metrics))

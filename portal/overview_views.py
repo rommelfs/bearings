@@ -6,10 +6,23 @@ from django.utils import timezone
 from .access import audit, is_analyst, organizations_for
 from .models import Membership
 from .overview import company_states, priority_assets
+from .overview_queries import overview_queries
 
 
 @login_required
 def overview(request):
+    started = perf_counter()
+    with overview_queries() as database:
+        response = _overview_response(request)
+    response["Server-Timing"] = (
+        f"overview;dur={(perf_counter() - started) * 1000:.1f}, "
+        f"database;dur={database.seconds * 1000:.1f}, "
+        f"dbmax;dur={database.slowest * 1000:.1f}, " + response["Server-Timing"]
+    )
+    return response
+
+
+def _overview_response(request):
     started = perf_counter()
     orgs = organizations_for(request.user).order_by("name", "pk")
     selected = request.GET.get("organization", "")
@@ -34,20 +47,27 @@ def overview(request):
         audited_orgs = []
     for org in audited_orgs:
         audit(request.user, org, "operator.access")
+    scoped = perf_counter()
     companies = company_states(request.user, page.object_list)
+    aggregated = perf_counter()
+    assets = priority_assets(request.user, orgs.filter(pk__in=[s["org"].pk for s in companies]))
+    prioritized = perf_counter()
     response = render(
         request,
         "portal/overview.html",
         {
             "companies": companies,
             "page": page,
-            "priority_assets": priority_assets(
-                request.user, orgs.filter(pk__in=[s["org"].pk for s in companies])
-            ),
+            "priority_assets": assets,
             "updated_at": timezone.now(),
             "query": query,
             "selected": selected,
         },
     )
-    response["Server-Timing"] = f"overview;dur={(perf_counter() - started) * 1000:.1f}"
+    response["Server-Timing"] = (
+        f"scope;dur={(scoped - started) * 1000:.1f}, "
+        f"companies;dur={(aggregated - scoped) * 1000:.1f}, "
+        f"priority;dur={(prioritized - aggregated) * 1000:.1f}, "
+        f"render;dur={(perf_counter() - prioritized) * 1000:.1f}"
+    )
     return response

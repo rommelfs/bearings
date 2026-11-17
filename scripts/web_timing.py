@@ -56,7 +56,18 @@ def fetch(browser, request):
             for name, duration in re.findall(
                 r"([a-z]+);dur=(\d+(?:\.\d+)?)", response.headers.get("Server-Timing", "")
             )
-            if name in {"overview", "session", "django"}
+            if name
+            in {
+                "overview",
+                "session",
+                "django",
+                "database",
+                "dbmax",
+                "scope",
+                "companies",
+                "priority",
+                "render",
+            }
         }
         return (
             body.decode(),

@@ -219,7 +219,7 @@ class InfrastructureOverviewTests(Fixture):
         self.assertEqual(len(response.context["companies"]), 12)
         self.assertEqual(len(response.context["priority_assets"]), 12)
         self.assertLessEqual(len(large), len(small) + 2)
-        self.assertLessEqual(len(large), 40)
+        self.assertLessEqual(len(large), 45)  # PostgreSQL adds local JIT settings/savepoint bookkeeping.
         for row in response.context["priority_assets"]:
             self.assertEqual(row["lifecycle"], 1)
             self.assertEqual(len(row["problems"]), 1)
@@ -310,7 +310,7 @@ class InfrastructureOverviewTests(Fixture):
         self.assertContains(response, "Infrastructure overview")
         timing = response.headers["Server-Timing"]
         self.assertTrue(timing.startswith("overview;dur="))
-        self.assertGreaterEqual(float(timing.split("=", 1)[1]), 0)
+        self.assertGreaterEqual(float(timing.split(",", 1)[0].split("=", 1)[1]), 0)
         self.assertContains(response, "data-overview-refresh checked")
         self.assertEqual([s["org"].pk for s in response.context["companies"]], [self.a.pk])
         self.assertNotContains(response, self.b.name)
