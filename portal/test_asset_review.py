@@ -259,3 +259,42 @@ class AssetReviewTests(Fixture):
         )
         expected = self.url("intelligence") + f"?finding={self.finding.pk}#finding-{self.finding.pk}"
         self.assertRedirects(response, expected)
+
+
+class CompanyFindingOrderTests(Fixture):
+    def add_review(self, number, score=None, shareable=True):
+        payload = (
+            {}
+            if score is None
+            else {"containers": {"cna": {"metrics": [{"cvssV3_1": {"version": "3.1", "baseScore": score}}]}}}
+        )
+        finding = persist_lookup(
+            self.admin, self.installation, "fixture://severity-order", f"CVE-2026-{10000 + number}", payload
+        )
+        finding.record.shareable = shareable
+        finding.record.save()
+        return finding
+
+    def test_company_asset_and_intelligence_put_critical_first_unknown_last(self):
+        reviews = [self.add_review(i, score) for i, score in enumerate([None, 2.0, 5.0, 8.0, 10.0, 0.0])]
+        expected = [reviews[i].pk for i in [4, 3, 2, 1, 5, 0]]
+        self.login()
+        company = self.client.get(self.url("organization"))
+        self.assertEqual([f.pk for f in company.context["findings"]], expected)
+        for name, kwargs in [("asset", {"pk": self.asset.pk}), ("intelligence", {})]:
+            response = self.client.get(self.url(name, **kwargs))
+            self.assertEqual([f.pk for f in response.context["page"]], expected)
+
+    def test_sorting_applies_before_pagination_and_preserves_evidence_visibility(self):
+        critical = self.add_review(1, 10.0)
+        restricted = self.add_review(2, 10.0, shareable=False)
+        for i in range(3, 33):
+            self.add_review(i)
+        self.login(self.reader)
+        for name, kwargs in [("asset", {"pk": self.asset.pk}), ("intelligence", {})]:
+            response = self.client.get(self.url(name, **kwargs))
+            self.assertEqual(response.context["page"][0].pk, critical.pk)
+            self.assertEqual(response.context["page"].paginator.count, 31)
+            self.assertNotIn(restricted.pk, [f.pk for f in response.context["page"]])
+            second = self.client.get(self.url(name, **kwargs), {"page": 2})
+            self.assertEqual(len(second.context["page"]), 6)

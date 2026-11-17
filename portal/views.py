@@ -32,7 +32,7 @@ from .forms import (
     MissingReviewForm,
     VulnerabilityForm,
 )
-from .presentation import ACTIVE_REVIEWS, decorate_finding
+from .presentation import ACTIVE_REVIEWS, decorate_finding, severity_first
 from .asset_context import asset_context
 from .models import Asset, Contact, ContactToken, InfrastructureClaim, Installation, Product
 from .services import (
@@ -163,7 +163,7 @@ def detail(request, slug):
             and org.inventory_source.can_write,
             "contact_reviewer": can_review_contact(request.user, org),
             "operator_reviewer": can_operator_review(request.user, org),
-            "findings": visible_findings(request.user, org),
+            "findings": severity_first(visible_findings(request.user, org)),
             "claim_review_form": ClaimReviewForm(),
             "finding_review_form": FindingReviewForm(),
             "lookup_form": VulnerabilityForm(),
@@ -545,7 +545,7 @@ def asset_detail(request, slug, pk):
         .filter(installation__asset=asset)
         .order_by("-evaluated_at", "pk")
     )
-    page = Paginator(findings, 25).get_page(request.GET.get("page"))
+    page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
     return render(

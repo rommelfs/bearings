@@ -85,7 +85,7 @@
       },
       {
         "title": "Complete organization remediation and CIRCL triage",
-        "body": "Implemented first in-app cross-organization active-review queue, source CNA title/description and CVSS severity, asset criticality/build/team, source-scoped direct links and a repeatable synthetic Exchange CVE-2026-70571 example with justified MOSP mapping. Current visibility applies to all cues/counts. Remaining: richer filters, assignment/acknowledgment/corrections, deadlines/escalation, freshness coverage and operational notification delivery. Inventory import alone does not discover applicable CVEs."
+        "body": "Implemented first in-app cross-organization active-review queue, source CNA title/description and CVSS severity, asset criticality/build/team, source-scoped direct links and a repeatable synthetic Exchange CVE-2026-70571 example with justified MOSP mapping. Current visibility applies to all cues/counts. Remaining: richer filters, assignment/acknowledgment/corrections, deadlines/escalation, freshness coverage and operational notification delivery. Inventory import alone does not discover applicable CVEs. Implemented consistent Critical → High → Medium → Low → None → Unknown default ordering in organization/asset/intelligence finding views before pagination, with source visibility retained."
       },
       {
         "title": "Security and recovery gate before deployment",

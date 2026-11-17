@@ -13,7 +13,7 @@ from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link, resolve_risk
 from .models import MOSPRisk, MOSPSource, RiskLink
 from .views import organization
-from .presentation import decorate_finding
+from .presentation import decorate_finding, severity_first
 
 
 def vulnerability_url(finding):
@@ -61,7 +61,7 @@ def finding_page(request, org):
         findings = findings.filter(pk=finding_id)
     if request.GET.get("changed") == "1":
         findings = findings.filter(discovery__review_required=True)
-    page = Paginator(findings, 25).get_page(request.GET.get("page"))
+    page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
         from .flowintel_views import decorate

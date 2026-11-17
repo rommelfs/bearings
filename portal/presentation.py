@@ -3,6 +3,20 @@
 import math
 
 ACTIVE_REVIEWS = ["new", "under_review", "confirmed"]
+SEVERITY_ORDER = ["critical", "high", "medium", "low", "none", "unknown"]
+
+
+def severity_first(findings):
+    """Order the authorized query before pagination; unknown severity always follows known values."""
+    from django.db.models import Case, IntegerField, Value, When
+
+    return findings.annotate(
+        source_severity_order=Case(
+            *[When(record__source_severity=key, then=Value(i)) for i, key in enumerate(SEVERITY_ORDER)],
+            default=Value(len(SEVERITY_ORDER)),
+            output_field=IntegerField(),
+        ),
+    ).order_by("source_severity_order", "-evaluated_at", "pk")
 
 
 def vulnerability_summary(payload):
