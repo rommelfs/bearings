@@ -50,7 +50,10 @@ def _overview_response(request):
     scoped = perf_counter()
     companies = company_states(request.user, page.object_list)
     aggregated = perf_counter()
-    assets = priority_assets(request.user, orgs.filter(pk__in=[s["org"].pk for s in companies]))
+    priority_timings = {}
+    assets = priority_assets(
+        request.user, orgs.filter(pk__in=[s["org"].pk for s in companies]), timings=priority_timings
+    )
     prioritized = perf_counter()
     response = render(
         request,
@@ -69,5 +72,8 @@ def _overview_response(request):
         f"companies;dur={(aggregated - scoped) * 1000:.1f}, "
         f"priority;dur={(prioritized - aggregated) * 1000:.1f}, "
         f"render;dur={(perf_counter() - prioritized) * 1000:.1f}"
+    )
+    response["Server-Timing"] += "".join(
+        f", {name};dur={duration:.1f}" for name, duration in priority_timings.items()
     )
     return response

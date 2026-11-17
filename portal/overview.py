@@ -1,6 +1,7 @@
 """Current scoped infrastructure state; missing evidence is never a clean bill of health."""
 
-from django.db.models import Case, Count, F, IntegerField, OuterRef, Q, Subquery, Value, When, Window
+from time import perf_counter
+from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Subquery, Value, When, Window
 from django.db.models.functions import RowNumber
 from django.urls import reverse
 from urllib.parse import urlencode
@@ -177,7 +178,9 @@ def _company_state(org, watches, counts):
     return state
 
 
-def priority_assets(user, orgs):
+def priority_assets(user, orgs, *, timings=None):
+    timings = {} if timings is None else timings
+    started = perf_counter()
     reviews = reviews_for(user).filter(organization__in=orgs)
     rows = list(
         reviews.values("installation__asset_id")
@@ -259,6 +262,8 @@ def priority_assets(user, orgs):
         ),
     )[:12]
     ids = [asset.pk for asset in assets]
+    ranked = perf_counter()
+    timings["ranking"] = (ranked - started) * 1000
     ranked_issues = (
         issues.filter(asset_id__in=ids)
         .annotate(
@@ -277,14 +282,23 @@ def priority_assets(user, orgs):
         )
         .filter(position__lte=4)
         .order_by("asset_id", "position")
+        .values("pk", "asset_id")
     )
+    # Rank identifiers, then hydrate only the displayed rows. Joining all preview
+    # relations into the window makes PostgreSQL plan/sort a much wider query.
+    ranked_rows = list(ranked_issues)
+    shown_issues = {issue.pk: issue for issue in issues.filter(pk__in=[row["pk"] for row in ranked_rows])}
     shown_by_asset = {}
-    for issue in ranked_issues:
-        shown_by_asset.setdefault(issue.asset_id, []).append(issue)
+    for row in ranked_rows:
+        if issue := shown_issues.get(row["pk"]):
+            shown_by_asset.setdefault(row["asset_id"], []).append(issue)
+    previews = perf_counter()
+    timings["issuepreviews"] = (previews - ranked) * 1000
     legacy_by_asset = {}
+    needs_legacy = [asset.pk for asset in assets if len(shown_by_asset.get(asset.pk, [])) < 4]
     legacy = (
-        reviews.filter(installation__asset_id__in=ids)
-        .exclude(pk__in=issues.filter(finding_id__isnull=False).values("finding_id"))
+        reviews.filter(installation__asset_id__in=needs_legacy)
+        .filter(~Exists(issues.filter(finding_id=OuterRef("pk"))))
         .annotate(
             position=Window(
                 expression=RowNumber(), partition_by=[F("installation__asset_id")], order_by=F("pk").asc()
@@ -292,9 +306,16 @@ def priority_assets(user, orgs):
         )
         .filter(position__lte=4)
         .order_by("installation__asset_id", "position")
+        .values("pk", "installation__asset_id")
     )
-    for finding in legacy:
-        legacy_by_asset.setdefault(finding.installation.asset_id, []).append(finding)
+    legacy_rows = list(legacy)
+    legacy_findings = {
+        finding.pk: finding for finding in reviews.filter(pk__in=[row["pk"] for row in legacy_rows])
+    }
+    for row in legacy_rows:
+        if finding := legacy_findings.get(row["pk"]):
+            legacy_by_asset.setdefault(row["installation__asset_id"], []).append(finding)
+    timings["legacypreviews"] = (perf_counter() - previews) * 1000
     result = []
     for asset in assets:
         from .asset_context import asset_context

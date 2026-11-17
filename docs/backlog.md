@@ -183,3 +183,8 @@ Added per-response SSO session/Django timings and a bundled-only `web-timing` co
 ## Avoid overview query compilation stalls
 
 User-provided measurements now locate the observed 9.5–9.7-second delay inside overview processing, with approximately 9 ms session checks and fast HTTP/HTTPS/Application responses. A local session-scoped PostgreSQL stress reproduction spent 11.5 seconds in the existing complex ORM queries under aggressive JIT thresholds. The overview now disables JIT only in its local transaction, restores the previous setting and measures individual view phases plus total/maximum database execute duration. Current source/organization/evidence policy is unchanged, and no authorization/response cache is introduced. The stress case falls from 11.7 to 0.68 seconds locally; the user's actual improvement still requires a post-update measurement.
+
+
+## Narrow priority queries and avoid redundant legacy lookups
+
+The post-JIT user measurements still spend 8.4–9.1 seconds in priorities, with one SQL execute taking 6.7–7.3 seconds. Reworked the query shape: rank narrow IDs, hydrate only bounded scoped previews, skip legacy lookup for full cards and use indexed correlated existence checks for common-issue and exposure visibility. Added ranking/issue/legacy preview timing ranges. Private common issues do not suppress public legacy CVE links; revoked exposure grants hide those issues while ordinary issues remain visible. A separate 90-asset/27,000-finding fixture shows an improvement for full cards; mixed legacy benchmarks overlap and do not establish the user-machine result.

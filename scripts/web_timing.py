@@ -67,6 +67,9 @@ def fetch(browser, request):
                 "companies",
                 "priority",
                 "render",
+                "ranking",
+                "issuepreviews",
+                "legacypreviews",
             }
         }
         return (

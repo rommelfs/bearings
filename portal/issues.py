@@ -4,10 +4,10 @@ import hashlib
 import json
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import Exists, F, OuterRef, Q
 from django.utils import timezone
 from .access import audit, can_edit, can_operator_review, is_analyst, organizations_for, require
-from .models import AssetIssue, IssueHistory, IssueRevision, IssueRiskLink
+from .models import AssetIssue, ExposureReview, IssueHistory, IssueRevision, IssueRiskLink
 
 ACTIVE = ["new", "under_review", "confirmed"]
 FACT_FIELDS = [
@@ -71,9 +71,13 @@ def visible_issues(user):
         issues = issues.filter(allowed)
     from .plum import visible_snapshots
 
-    return issues.exclude(
-        Q(exposure_review__isnull=False) & ~Q(exposure_review__observation__in=visible_snapshots(user))
+    # Probe the one-to-one issue index instead of joining every exposure review
+    # into polymorphic issue/window queries. An absent review stays visible;
+    # a linked observation must still pass the complete current snapshot policy.
+    invalid_exposure = ExposureReview.objects.filter(issue_id=OuterRef("pk")).exclude(
+        observation__in=visible_snapshots(user)
     )
+    return issues.filter(~Exists(invalid_exposure))
 
 
 def exportable_issues(user):

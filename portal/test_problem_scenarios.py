@@ -10,6 +10,8 @@ from .tests import Fixture
 from .models import (
     Asset,
     AssetIssue,
+    Finding,
+    SourceRecord,
     MOSPRisk,
     MOSPRiskRevision,
     MOSPSource,
@@ -93,6 +95,42 @@ class ProblemNavigationTests(Fixture):
         self.assertContains(response, f"?finding={self.finding.pk}#finding-{self.finding.pk}")
         row = response.context["priority_assets"][0]
         self.assertEqual(self.client.get(row["links"]["reviews"]).context["page"].paginator.count, 1)
+
+    def test_legacy_slots_use_visible_findings_when_their_common_issue_is_private(self):
+        def finding(external_id):
+            record = SourceRecord.objects.create(
+                organization=self.a,
+                source="fixture://legacy",
+                external_id=external_id,
+                shareable=True,
+                payload={},
+            )
+            return Finding.objects.create(
+                organization=self.a,
+                installation=self.installation,
+                record=record,
+                explanation="Synthetic legacy evidence",
+            )
+
+        public = finding("CVE-SYNTHETIC-PUBLIC-LEGACY")
+        hidden_issue = ensure_vulnerability_issue(public)
+        hidden_issue.operator_only = True
+        hidden_issue.title = "Restricted common issue title"
+        hidden_issue.save()
+        next_public = finding("CVE-SYNTHETIC-NEXT-LEGACY")
+        response = self.client.get(reverse("overview"))
+        row = response.context["priority_assets"][0]
+        self.assertEqual(len(row["problems"]), 4)
+        self.assertEqual(row["reviews"], 3)
+        self.assertContains(response, f"?finding={public.pk}#finding-{public.pk}")
+        self.assertNotContains(response, hidden_issue.title)
+        self.assertNotContains(response, self.url("automatic-scenario", pk=hidden_issue.pk))
+        public.record.shareable = False
+        public.record.save()
+        response = self.client.get(reverse("overview"))
+        self.assertContains(response, f"?finding={next_public.pk}#finding-{next_public.pk}")
+        self.assertNotContains(response, public.record.external_id)
+        self.assertEqual(response.context["priority_assets"][0]["reviews"], 2)
 
     def test_restricted_problem_does_not_leak_through_links_scenarios_or_lists(self):
         self.finding.record.shareable = False
