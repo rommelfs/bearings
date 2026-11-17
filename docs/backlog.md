@@ -188,3 +188,8 @@ User-provided measurements now locate the observed 9.5–9.7-second delay inside
 ## Narrow priority queries and avoid redundant legacy lookups
 
 The post-JIT user measurements still spend 8.4–9.1 seconds in priorities, with one SQL execute taking 6.7–7.3 seconds. Reworked the query shape: rank narrow IDs, hydrate only bounded scoped previews, skip legacy lookup for full cards and use indexed correlated existence checks for common-issue and exposure visibility. Added ranking/issue/legacy preview timing ranges. Private common issues do not suppress public legacy CVE links; revoked exposure grants hide those issues while ordinary issues remain visible. A separate 90-asset/27,000-finding fixture shows an improvement for full cards; mixed legacy benchmarks overlap and do not establish the user-machine result.
+
+
+## Reduce remaining counter and preview work
+
+Delivered one inventory-hierarchy aggregate, request-local reuse of lazy scoped evidence querysets, correlated latest-risk visibility and bounded field loading for watches/scenario previews. No cross-request data or authorization cache. Paired local comparison reduces company-admin GET database executes from 40 to 33 and CIRCL from 52 to 45, preserving current policy, complete scenario output and counts. Absolute timing gains vary; the company-admin gain is modest locally. New regressions cover twelve complete CVE scenario previews without per-preview queries and dense installations with missing/retired/foreign-source assets.

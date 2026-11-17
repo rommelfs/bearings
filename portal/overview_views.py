@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from .access import audit, is_analyst, organizations_for
 from .models import Membership
-from .overview import company_states, priority_assets
+from .overview import OverviewEvidence, company_states, priority_assets
 from .overview_queries import overview_queries
 
 
@@ -48,11 +48,15 @@ def _overview_response(request):
     for org in audited_orgs:
         audit(request.user, org, "operator.access")
     scoped = perf_counter()
-    companies = company_states(request.user, page.object_list)
+    evidence = OverviewEvidence.for_page(request.user, page.object_list)
+    companies = company_states(request.user, page.object_list, evidence=evidence)
     aggregated = perf_counter()
     priority_timings = {}
     assets = priority_assets(
-        request.user, orgs.filter(pk__in=[s["org"].pk for s in companies]), timings=priority_timings
+        request.user,
+        orgs.filter(pk__in=[s["org"].pk for s in companies]),
+        timings=priority_timings,
+        evidence=evidence,
     )
     prioritized = perf_counter()
     response = render(

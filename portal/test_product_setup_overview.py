@@ -225,6 +225,71 @@ class InfrastructureOverviewTests(Fixture):
             self.assertEqual(len(row["problems"]), 1)
             self.assertEqual(row["problems"][0]["scenario"]["profile"], "support")
 
+    def test_twelve_cve_previews_keep_full_scenarios_without_per_preview_queries(self):
+        from .models import Asset, Finding, Installation
+        from .issues import visible_issues
+        from .scenario_suggestions import draft_scenario
+
+        finding = self.record_finding()
+        finding.record.payload = {
+            "containers": {
+                "cna": {"descriptions": [{"lang": "en", "value": "Synthetic remote code execution"}]}
+            }
+        }
+        finding.record.save()
+        finding.analyst_applicability = "affected"
+        finding.save()
+        issue = ensure_vulnerability_issue(finding)
+        for number in range(11):
+            asset = Asset.objects.create(
+                organization=self.a, source=self.sa, name=f"CVE server {number}", kind="server"
+            )
+            installation = Installation.objects.create(
+                asset=asset,
+                product=self.product,
+                version="1.2.3",
+                build="synthetic-build",
+                edition="synthetic-edition",
+            )
+            another = Finding.objects.create(
+                organization=self.a,
+                installation=installation,
+                record=finding.record,
+                analyst_applicability="affected",
+                explanation="Synthetic evidence",
+            )
+            ensure_vulnerability_issue(another)
+        self.login()
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get("/")
+        self.assertEqual(len(response.context["priority_assets"]), 12)
+        self.assertLessEqual(len(queries), 40)
+        for row in response.context["priority_assets"]:
+            scenario = row["problems"][0]["scenario"]
+            self.assertEqual(scenario["profile"], "execution")
+            self.assertTrue(scenario["fingerprint"])
+        original = next(
+            row for row in response.context["priority_assets"] if row["asset"].pk == self.asset.pk
+        )
+        self.assertEqual(
+            original["problems"][0]["scenario"], draft_scenario(visible_issues(self.admin).get(pk=issue.pk))
+        )
+
+    def test_inventory_counts_do_not_multiply_versions_or_include_retired_and_foreign_sources(self):
+        from .models import Asset, Installation
+
+        self.asset.missing_since = timezone.now()
+        self.asset.save()
+        for number in range(5):
+            Installation.objects.create(asset=self.asset, product=self.product, version=str(number))
+        Asset.objects.create(organization=self.a, source=self.sa, name="No software")
+        Asset.objects.create(organization=self.a, source=self.sa, name="Retired", lifecycle="retired")
+        Asset.objects.create(organization=self.a, source=self.sb, name="Wrong source")
+        self.login()
+        state = self.client.get("/").context["companies"][0]
+        self.assertEqual((state["assets"], state["without_software"], state["missing_assets"]), (2, 1, 1))
+        self.assertEqual((state["installations"], state["products"], state["unknown_versions"]), (6, 1, 1))
+
     def test_bulk_counts_keep_product_identity_and_latest_visible_risk_revision(self):
         from .models import Asset, Installation, BusinessRiskRevision
 

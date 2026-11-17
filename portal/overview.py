@@ -1,13 +1,15 @@
 """Current scoped infrastructure state; missing evidence is never a clean bill of health."""
 
+from dataclasses import dataclass
 from time import perf_counter
 from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Subquery, Value, When, Window
+from django.db.models import QuerySet
 from django.db.models.functions import RowNumber
 from django.urls import reverse
 from urllib.parse import urlencode
 from django.utils import timezone
 from .access import visible_findings_for
-from .issues import visible_issues, active_filter
+from .issues import FACT_FIELDS, visible_issues, active_filter
 from .models import Asset, BusinessRiskRevision, Contact, Installation, ProductWatch
 from .notifications import contact_policy
 from .presentation import ACTIVE_REVIEWS
@@ -21,7 +23,23 @@ def reviews_for(user):
     )
 
 
-def company_states(user, orgs):
+@dataclass(frozen=True)
+class OverviewEvidence:
+    """Lazy scoped querysets shared only within one overview request."""
+
+    reviews: QuerySet
+    issues: QuerySet
+
+    @classmethod
+    def for_page(cls, user, orgs):
+        ids = [org.pk for org in orgs]
+        return cls(
+            reviews_for(user).filter(organization_id__in=ids),
+            visible_issues(user).filter(organization_id__in=ids),
+        )
+
+
+def company_states(user, orgs, *, evidence=None):
     """Aggregate once per visible page, without joining independent count dimensions."""
     ids = [org.pk for org in orgs]
     assets = Asset.objects.filter(
@@ -30,8 +48,9 @@ def company_states(user, orgs):
     installations = Installation.objects.filter(
         asset__in=assets, product__organization_id=F("asset__organization_id")
     )
-    reviews = reviews_for(user).filter(organization_id__in=ids)
-    visible = visible_issues(user).filter(organization_id__in=ids)
+    evidence = evidence or OverviewEvidence.for_page(user, orgs)
+    reviews = evidence.reviews
+    visible = evidence.issues
     issues = (
         visible.filter(asset__in=assets)
         .filter(active_filter())
@@ -40,23 +59,25 @@ def company_states(user, orgs):
     latest = (
         BusinessRiskRevision.objects.filter(issue_id=OuterRef("issue_id")).order_by("-pk").values("pk")[:1]
     )
-    risks = BusinessRiskRevision.objects.filter(issue__in=visible, pk=Subquery(latest))
+    risks = BusinessRiskRevision.objects.filter(issue__organization_id__in=ids, pk=Subquery(latest)).filter(
+        Exists(visible.filter(pk=OuterRef("issue_id")))
+    )
 
     def grouped(qs, field="organization_id", **counts):
         return {row.pop(field): row for row in qs.order_by().values(field).annotate(**counts)}
 
+    # Inventory has one asset -> installation hierarchy. Count it in one pass;
+    # unrelated reviews/issues/contacts remain separate to avoid multiplication.
+    owned_product = Q(installations__product__organization_id=F("organization_id"))
     asset_counts = grouped(
         assets,
         assets=Count("pk", distinct=True),
         without_software=Count("pk", distinct=True, filter=Q(installations__isnull=True)),
         missing_assets=Count("pk", distinct=True, filter=Q(missing_since__isnull=False)),
-    )
-    installation_counts = grouped(
-        installations,
-        "asset__organization_id",
-        installations=Count("pk"),
-        unknown_versions=Count("pk", filter=Q(version="")),
-        products=Count("product_id", distinct=True),
+        unknown_versions=Count("installations", filter=owned_product & Q(installations__version="")),
+        products=Count("installations__product_id", distinct=True, filter=owned_product),
+        # Define this alias last: it shares the reverse relation name used above.
+        installations=Count("installations", filter=owned_product),
     )
     review_counts = grouped(
         reviews,
@@ -85,9 +106,11 @@ def company_states(user, orgs):
         response_contacts=Count("pk"),
     )
     watches = {}
-    for watch in ProductWatch.objects.filter(
-        product_id__in=installations.values("product_id")
-    ).select_related("product"):
+    for watch in (
+        ProductWatch.objects.filter(product_id__in=installations.values("product_id"))
+        .select_related("product")
+        .only("product__organization_id", "enabled", "requested", "error", "last_success", "interval_minutes")
+    ):
         watches.setdefault(watch.product.organization_id, []).append(watch)
     return [
         _company_state(
@@ -97,7 +120,6 @@ def company_states(user, orgs):
                 counts.get(org.pk, {})
                 for counts in [
                     asset_counts,
-                    installation_counts,
                     review_counts,
                     issue_counts,
                     risk_counts,
@@ -178,10 +200,11 @@ def _company_state(org, watches, counts):
     return state
 
 
-def priority_assets(user, orgs, *, timings=None):
+def priority_assets(user, orgs, *, timings=None, evidence=None):
     timings = {} if timings is None else timings
     started = perf_counter()
-    reviews = reviews_for(user).filter(organization__in=orgs)
+    evidence = evidence or OverviewEvidence.for_page(user, orgs)
+    reviews = evidence.reviews
     rows = list(
         reviews.values("installation__asset_id")
         .annotate(
@@ -202,8 +225,7 @@ def priority_assets(user, orgs, *, timings=None):
         for row in rows
     }
     issues = (
-        visible_issues(user)
-        .filter(organization__in=orgs, asset__lifecycle="active")
+        evidence.issues.filter(asset__lifecycle="active")
         .filter(active_filter())
         .exclude(finding__analyst_applicability="not_affected")
     )
@@ -287,7 +309,31 @@ def priority_assets(user, orgs, *, timings=None):
     # Rank identifiers, then hydrate only the displayed rows. Joining all preview
     # relations into the window makes PostgreSQL plan/sort a much wider query.
     ranked_rows = list(ranked_issues)
-    shown_issues = {issue.pk: issue for issue in issues.filter(pk__in=[row["pk"] for row in ranked_rows])}
+    # Scenario drafts require issue facts and the linked evidence, not the
+    # organization's/source's entire inventory configuration and duplicate products.
+    previews = (
+        issues.filter(pk__in=[row["pk"] for row in ranked_rows])
+        .select_related(None)
+        .select_related("asset", "finding__record", "finding__installation__product")
+        .only(
+            *FACT_FIELDS,
+            "asset_id",
+            "installation_id",
+            "finding_id",
+            "asset__kind",
+            "asset__criticality",
+            "finding__status",
+            "finding__analyst_applicability",
+            "finding__record__external_id",
+            "finding__record__payload",
+            "finding__installation__version",
+            "finding__installation__build",
+            "finding__installation__edition",
+            "finding__installation__product__name",
+            "finding__installation__product__identifier",
+        )
+    )
+    shown_issues = {issue.pk: issue for issue in previews}
     shown_by_asset = {}
     for row in ranked_rows:
         if issue := shown_issues.get(row["pk"]):
