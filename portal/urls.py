@@ -18,9 +18,25 @@ from . import (
     overview_views,
     scenario_views,
     circl_views,
+    registration_views,
+    inventory_review_views,
 )
 
 urlpatterns = [
+    path(
+        "organizations/<slug:slug>/scope/<int:pk>/correct/",
+        registration_views.correct_scope,
+        name="correct-scope",
+    ),
+    path("register/", registration_views.register, name="registration"),
+    path("register/sent/", registration_views.sent, name="registration-sent"),
+    path("register/verify/", registration_views.verify, name="registration-verify"),
+    path("register/resend/", registration_views.resend, name="registration-resend"),
+    path("operator/registrations/", registration_views.applications, name="registration-applications"),
+    path(
+        "operator/registrations/<uuid:pk>/", registration_views.application, name="registration-application"
+    ),
+    path("organizations/<slug:slug>/review/", inventory_review_views.review, name="inventory-review"),
     path("circl/", circl_views.overview, name="circl-overview"),
     path("circl/findings/", circl_views.findings, name="circl-findings"),
     path("circl/research/", circl_views.inventory_research, name="circl-research"),

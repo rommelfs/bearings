@@ -58,6 +58,11 @@ def fetch(browser, request):
             )
             if name
             in {
+                "national",
+                "nationalcounts",
+                "nationalversions",
+                "nationalvulns",
+                "nationaltrend",
                 "overview",
                 "session",
                 "django",
@@ -84,7 +89,7 @@ def fetch(browser, request):
         )
 
 
-def main(username="company-admin"):
+def main(username="company-admin", *, national=False):
     state = dev.active()
     if state["mode"] != "bundled" or not state.get("sso"):
         raise SystemExit(
@@ -157,11 +162,11 @@ def main(username="company-admin"):
         body, path, _ = fetch(browser, Request(form.action, data=urlencode(form.fields).encode()))
         if path != "/" or "Sign out here" not in body:
             raise ValueError("SSO login did not reach the authenticated overview")
-        for path in ["/", "/applications/"]:
+        for path in ["/circl/", "/applications/"] if national else ["/", "/applications/"]:
             for repeat in range(2):
                 if repeat:
                     sleep(6)  # Include a request after the lab proxy DNS cache expires.
-                phase = "overview" if path == "/" else "applications"
+                phase = "national" if path == "/circl/" else "overview" if path == "/" else "applications"
                 _, final_path, metrics = fetch(browser, app + path)
                 if final_path != path:
                     raise ValueError("Unexpected authentication redirect")

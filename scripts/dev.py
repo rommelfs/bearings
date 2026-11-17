@@ -296,6 +296,9 @@ def main():
     )
     manage.add_argument("arguments", nargs=argparse.REMAINDER)
     timing = commands.add_parser("web-timing", help="Measure the running bundled SSO lab over HTTP/HTTPS")
+    timing.add_argument(
+        "--national", action="store_true", help="Measure the CIRCL national page as circl-analyst"
+    )
     timing.add_argument("--username", choices=["company-admin", "circl-analyst"], default="company-admin")
     rt_sso = commands.add_parser(
         "rt-sso", help="Generate private RT 5.x Apache/OIDC configuration; no remote changes", add_help=False
@@ -381,6 +384,19 @@ def main():
         # Python runs without autoreload. Compose keeps unchanged containers even
         # when their bind-mounted application code changed after git pull.
         runtime_base = compose(mode, project, flowintel, sso, rt, rtir)
+        run(
+            runtime_base
+            + [
+                "exec",
+                "-T",
+                "web",
+                "/app/.venv/bin/python",
+                "docker/dev/entrypoint.py",
+                "manage",
+                "migrate",
+                "--noinput",
+            ]
+        )
         run(runtime_base + ["restart", "web", "worker"])
         runtime_services = ["web", "worker"] + (["bearings-tls"] if sso else [])
         run(
@@ -479,7 +495,7 @@ def main():
         sys.path.insert(0, str(ROOT))
         from scripts.web_timing import main as web_timing
 
-        web_timing(args.username)
+        web_timing("circl-analyst" if args.national else args.username, national=args.national)
     elif args.action == "sso-smoke":
         import sys
 

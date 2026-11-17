@@ -566,7 +566,11 @@ def edit_local_asset(request, slug, pk):
     org = organization(request, slug)
     require(can_edit(request.user, org))
     asset = get_object_or_404(org.assets, pk=pk)
-    form = LocalAssetForm(request.POST or None, instance=asset)
+    from .forms import ManualAssetForm
+
+    form = (ManualAssetForm if asset.source.mode == "manual" else LocalAssetForm)(
+        request.POST or None, instance=asset
+    )
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             from .models import InventorySource

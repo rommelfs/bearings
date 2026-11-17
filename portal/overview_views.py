@@ -33,7 +33,9 @@ def _overview_response(request):
     if query:
         orgs = orgs.filter(name__icontains=query)
     page = Paginator(orgs, 12).get_page(request.GET.get("page"))
-    page.object_list = list(page.object_list.select_related("inventory_source__instance"))
+    page.object_list = list(
+        page.object_list.select_related("inventory_source__instance", "inventory_review_policy")
+    )
     if request.user.is_superuser:
         audited_orgs = page.object_list
     elif is_analyst(request.user):

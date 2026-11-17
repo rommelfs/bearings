@@ -14,13 +14,16 @@ from .models import ContactToken, Finding, FindingHistory, InventorySource, Inve
 
 @transaction.atomic
 def submit_asset(user, org, form):
-    source = org.inventory_source
+    source = InventorySource.objects.select_for_update().get(organization=org)
     require(can_edit(user, org) and source.can_write)
     asset = form.save(commit=False)
     asset.organization, asset.source = org, source
+    if source.mode == "manual":
+        asset.state = "recorded"
     asset.full_clean()
     asset.save()
-    InventoryWrite.objects.create(asset=asset)
+    if source.mode != "manual":
+        InventoryWrite.objects.create(asset=asset)
     audit(user, org, "inventory.submitted", asset.pk)
     return asset
 

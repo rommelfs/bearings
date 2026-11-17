@@ -135,7 +135,11 @@ class RedactAuthQueries(logging.Filter):
     def filter(self, record):
         def redact(value):
             return (
-                re.sub(r"(/oauth/complete/[^?\s]+|/circl/[^?\s]*)\?[^\s\"]+", r"\1?[redacted]", value)
+                re.sub(
+                    r"(/oauth/complete/[^?\s]+|/(?:circl|register)/[^?\s]*)\?[^\s\"]+",
+                    r"\1?[redacted]",
+                    value,
+                )
                 if isinstance(value, str)
                 else value
             )

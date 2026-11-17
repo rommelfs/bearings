@@ -166,3 +166,16 @@ class LocalAssetForm(forms.ModelForm):
     class Meta:
         model = Asset
         fields = ["criticality", "lifecycle", "responsible_team", "responsible_contact"]
+
+
+class ManualAssetForm(LocalAssetForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["kind"].choices = [
+            (value, label)
+            for value, label in self.fields["kind"].choices
+            if value not in {"ip_address", "prefix"}
+        ]
+
+    class Meta(LocalAssetForm.Meta):
+        fields = ["name", "kind", *LocalAssetForm.Meta.fields]

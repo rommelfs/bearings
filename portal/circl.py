@@ -1,6 +1,7 @@
 """National coordination over permitted reporting inventory, not population-wide surveillance."""
 
 from datetime import datetime, time, timedelta
+from time import perf_counter
 from django.db.models import (
     Case,
     Count,
@@ -21,7 +22,15 @@ from django.db.models.functions import Cast, Lower, TruncDate
 from django.utils import timezone
 from .access import organizations_for, visible_findings_for
 from .discovery import semver
-from .models import Asset, Contact, DiscoveryRevision, FindingHistory, Installation, InventorySource
+from .models import (
+    Asset,
+    Contact,
+    DiscoveryMatch,
+    DiscoveryRevision,
+    FindingHistory,
+    Installation,
+    InventorySource,
+)
 from .notifications import contact_policy
 from .presentation import ACTIVE_REVIEWS
 
@@ -56,32 +65,33 @@ def outstanding(findings):
 def trend(findings):
     today = timezone.localdate()
     start = timezone.make_aware(datetime.combine(today - timedelta(days=29), time.min))
+    # Visit each match once and read its earliest timestamp through a covering
+    # index. Refresh history must not multiply the work or count as a discovery.
     first = (
-        DiscoveryRevision.objects.filter(match_id=OuterRef("match_id"))
+        DiscoveryRevision.objects.filter(match_id=OuterRef("pk"))
         .order_by("created_at", "pk")
-        .values("pk")[:1]
+        .values("created_at")[:1]
     )
-    new = DiscoveryRevision.objects.filter(
-        match__finding__in=findings,
-        pk=Subquery(first),
-        created_at__gte=start,
-        match__watch__product_id=F("match__finding__installation__product_id"),
-        match__evidence_revision__record_id=F("match__finding__record_id"),
+    new = (
+        DiscoveryMatch.objects.filter(
+            finding__in=findings,
+            watch__product_id=F("finding__installation__product_id"),
+            evidence_revision__record_id=F("finding__record_id"),
+        )
+        .annotate(first_at=Subquery(first))
+        .filter(first_at__gte=start)
     )
     closed = FindingHistory.objects.filter(
         finding__in=findings, status="resolved", created_at__gte=start
     ).exclude(previous_status="resolved")
 
-    def daily(qs):
+    def daily(qs, field="created_at"):
         return {
             row["day"]: row["total"]
-            for row in qs.order_by()
-            .annotate(day=TruncDate("created_at"))
-            .values("day")
-            .annotate(total=Count("pk"))
+            for row in qs.order_by().annotate(day=TruncDate(field)).values("day").annotate(total=Count("pk"))
         }
 
-    discovered, resolved = daily(new), daily(closed)
+    discovered, resolved = daily(new, "first_at"), daily(closed)
     days = [
         {
             "day": today - timedelta(days=29 - i),
@@ -107,7 +117,9 @@ def trend(findings):
     }
 
 
-def dashboard(user):
+def dashboard(user, *, timings=None):
+    timings = {} if timings is None else timings
+    started = perf_counter()
     orgs = organizations_for(user)
     assets = Asset.objects.filter(
         organization__in=orgs, source__organization_id=F("organization_id"), lifecycle="active"
@@ -141,7 +153,15 @@ def dashboard(user):
         errors=Count("pk", filter=~Q(import_error="")),
         stale=Count(
             "pk",
-            filter=~Q(mode="development")
+            filter=(
+                Q(mode="manual")
+                & (
+                    Q(organization__inventory_review_policy__isnull=True)
+                    | Q(organization__inventory_review_policy__last_reviewed_at__isnull=True)
+                    | Q(organization__inventory_review_policy__next_due__lte=timezone.localdate())
+                )
+            )
+            | ~Q(mode__in=["development", "manual"])
             & (
                 Q(instance__isnull=True)
                 | Q(instance__enabled=False)
@@ -155,6 +175,8 @@ def dashboard(user):
         function="dpo"
     )
     counts["no_contact"] = orgs.filter(~Exists(contacts)).count()
+    counted = perf_counter()
+    timings["nationalcounts"] = (counted - started) * 1000
     versions = list(
         installed.order_by()
         .annotate(product_name=Lower("product__name"), identity=Lower("product__identifier"))
@@ -167,6 +189,8 @@ def dashboard(user):
         )
         .order_by("-companies", "-total", "product_name", "identity", "version")[:12]
     )
+    distributed = perf_counter()
+    timings["nationalversions"] = (distributed - counted) * 1000
     vulnerabilities = list(
         open_reviews.order_by()
         .values("record__external_id")
@@ -186,6 +210,10 @@ def dashboard(user):
         )
         .order_by("severity_rank", "-affected", "-companies", "record__external_id")[:12]
     )
+    prioritized = perf_counter()
+    timings["nationalvulns"] = (prioritized - distributed) * 1000
+    activity = trend(findings)
+    timings["nationaltrend"] = (perf_counter() - prioritized) * 1000
     for row in vulnerabilities:
         row["severity"] = SEVERITIES[row["severity_rank"]]
     return {
@@ -193,7 +221,7 @@ def dashboard(user):
         "sources": source_counts,
         "versions": versions,
         "vulnerabilities": vulnerabilities,
-        "trend": trend(findings),
+        "trend": activity,
         "updated_at": timezone.now(),
     }
 

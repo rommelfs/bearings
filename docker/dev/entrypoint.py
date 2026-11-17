@@ -101,6 +101,8 @@ def main():
     elif mode == "worker":
         while True:
             call_command("process_jobs")
+            call_command("remind_inventory", limit=5)
+            Path("/tmp/bearings-worker-heartbeat").touch()
             call_command("process_flowintel", all=True, due=True)
             call_command("process_rt_tickets", all=True, due=True)
             call_command("prepare_notifications", due=True)

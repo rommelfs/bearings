@@ -267,6 +267,12 @@ class StarterPrerequisiteTests(TestCase):
                 restart = next(
                     i for i, command in enumerate(commands) if command[-3:] == ["restart", "web", "worker"]
                 )
+                migration = next(
+                    i
+                    for i, command in enumerate(commands)
+                    if command[-3:] == ["manage", "migrate", "--noinput"]
+                )
+                self.assertLess(migration, restart)
                 waited = commands[restart + 1]
                 self.assertIn("--wait", waited)
                 self.assertIn("--no-deps", waited)

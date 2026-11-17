@@ -204,6 +204,7 @@ class InventorySource(models.Model):
         max_length=12,
         choices=[
             ("development", "DEVELOPMENT fixture"),
+            ("manual", "Company-reported inventory"),
             ("central", "Central NetBox"),
             ("external", "Organization NetBox"),
         ],
@@ -259,9 +260,11 @@ class InventorySource(models.Model):
             )
         if self.tenant_id is not None and self.tenant_id < 1:
             raise ValidationError("NetBox tenant ID must be positive or explicitly unset")
-        if self.mode == "development":
+        if self.mode in {"development", "manual"}:
             if self.instance_id:
-                raise ValidationError("Development sources cannot use a live NetBox instance")
+                raise ValidationError("Local sources cannot use a live NetBox instance")
+            if self.mode == "manual" and self.tenant_id is not None:
+                raise ValidationError("Manual inventory cannot bind a NetBox tenant")
         else:
             if not self.instance_id:
                 raise ValidationError("Select an operator-approved NetBox instance")
@@ -272,8 +275,8 @@ class InventorySource(models.Model):
 
     @property
     def can_write(self):
-        if self.mode == "development":
-            return self.instance_id is None
+        if self.mode in {"development", "manual"}:
+            return self.instance_id is None and (self.mode != "manual" or self.tenant_id is None)
         return bool(
             self.mode in {"central", "external"}
             and self.instance_id
@@ -309,7 +312,9 @@ class Asset(models.Model):
     object_type = models.CharField(max_length=60, default="dcim.device")
     external_id = models.CharField(max_length=100, blank=True)
     state = models.CharField(
-        max_length=12, default="pending", choices=[(x, x.title()) for x in ["pending", "synced", "failed"]]
+        max_length=12,
+        default="pending",
+        choices=[(x, x.title()) for x in ["pending", "synced", "failed", "recorded"]],
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -467,6 +472,9 @@ class DiscoveryRevision(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["match", "fingerprint"], name="unique_discovery_revision")
         ]
+        indexes = [
+            models.Index(fields=["match", "created_at", "id"], name="discovery_first_idx"),
+        ]
 
 
 class BusinessRiskRevision(models.Model):
@@ -603,6 +611,9 @@ class FindingHistory(models.Model):
     status = models.CharField(max_length=20)
     reason = models.TextField()
     created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [models.Index(fields=["status", "created_at"], name="finding_status_time_idx")]
 
 
 class SourceRecordRevision(models.Model):
@@ -1485,3 +1496,101 @@ class DemoObject(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["model_label", "object_pk"], name="unique_demo_object_owner")
         ]
+
+
+class InfrastructureRegistration(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    organization = models.OneToOneField(Organization, on_delete=models.PROTECT, null=True, blank=True)
+    company_name = models.CharField(max_length=180)
+    contact_name = models.CharField(max_length=180)
+    email = models.EmailField(unique=True)
+    scopes = models.JSONField(default=list)
+    review_days = models.PositiveSmallIntegerField(default=90)
+    email_reminders = models.BooleanField(default=True)
+    consent_at = models.DateTimeField(default=timezone.now)
+    status = models.CharField(
+        max_length=24,
+        default="awaiting_email",
+        choices=[
+            (x, x.replace("_", " ").title())
+            for x in ["awaiting_email", "awaiting_review", "approved", "rejected"]
+        ],
+    )
+    verification_digest = models.CharField(max_length=64, unique=True)
+    verification_expires = models.DateTimeField()
+    verification_attempted_at = models.DateTimeField(null=True, blank=True)
+    verification_error = models.BooleanField(default=False)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="infrastructure_registrations_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(max_length=2000, blank=True)
+    decision_mail_sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+
+class PublicRegistrationBucket(models.Model):
+    key = models.CharField(max_length=64, unique=True)
+    attempts = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+
+
+class InventoryReviewPolicy(models.Model):
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="inventory_review_policy"
+    )
+    interval_days = models.PositiveSmallIntegerField(default=90)
+    reminder_days = models.PositiveSmallIntegerField(default=7)
+    email_enabled = models.BooleanField(default=True)
+    next_due = models.DateField(default=timezone.localdate, db_index=True)
+    next_reminder_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_reviewed_at = models.DateTimeField(null=True, blank=True)
+    last_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(interval_days__gte=1, interval_days__lte=365),
+                name="valid_inventory_review_interval",
+            ),
+            models.CheckConstraint(
+                condition=Q(reminder_days__gte=1, reminder_days__lte=90),
+                name="valid_inventory_reminder_interval",
+            ),
+        ]
+
+
+class InventoryReviewConfirmation(models.Model):
+    policy = models.ForeignKey(InventoryReviewPolicy, on_delete=models.PROTECT, related_name="confirmations")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    reviewed_at = models.DateTimeField(default=timezone.now)
+    data_digest = models.CharField(max_length=64)
+    fingerprint = models.CharField(max_length=64, unique=True)
+    counts = models.JSONField(default=dict)
+    next_due = models.DateField()
+
+
+class InventoryReviewDelivery(models.Model):
+    policy = models.ForeignKey(InventoryReviewPolicy, on_delete=models.PROTECT, related_name="deliveries")
+    due_date = models.DateField()
+    recipient = models.EmailField()
+    fingerprint = models.CharField(max_length=64, unique=True)
+    status = models.CharField(
+        max_length=12,
+        default="pending",
+        choices=[(x, x.title()) for x in ["pending", "sent", "error", "suppressed"]],
+    )
+    attempts = models.PositiveSmallIntegerField(default=0)
+    next_attempt = models.DateTimeField(default=timezone.now, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)

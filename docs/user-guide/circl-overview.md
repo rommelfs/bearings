@@ -41,3 +41,9 @@ The thirty-day chart shows **first automated evidence records** (the earliest im
 Current visibility and active-inventory constraints apply to the underlying findings. Manual/imported reviews without first automated evidence do not become invented historical discoveries. These are recorded workflow events, not exploitation, verified patch-installation or historical national backlog curves. Historical version-adoption trends require periodic inventory snapshots; they are not inferred from the current version table.
 
 [Desktop overview](../images/circl-overview-1440.png) · [Mobile overview](../images/circl-overview-390.png) · [Local research](../images/circl-research-1440.png)
+
+## Performance diagnostics
+
+Update with `python3 scripts/dev.py up --no-build`; startup now applies migrations before restarting the retained Python processes. Migration 0028 adds indexes for first discovery history and closure status/time. The activity query starts from discovery matches and selects each first immutable revision through its index, instead of scanning every refresh as a candidate event. Current organization/evidence visibility and watch/product/record lineage remain enforced.
+
+`python3 scripts/dev.py web-timing --national` authenticates the existing bundled CIRCL SSO identity and prints sanitized numeric response timings, including `nationalcounts`, `nationalversions`, `nationalvulns` and `nationaltrend`. No queries, credentials or research criteria are printed. Compare repeated samples on the affected machine. A separate synthetic PostgreSQL test with 27,000 findings and 270,000 history revisions measured 2.03–2.22 seconds before and 0.51–0.73 seconds after; this is not a promise of national population capacity or the affected environment’s latency.

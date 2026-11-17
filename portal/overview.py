@@ -133,11 +133,15 @@ def company_states(user, orgs, *, evidence=None):
 
 def _company_state(org, watches, counts):
     source = getattr(org, "inventory_source", None)
-    source_stale = (
-        source is None
-        or source.mode != "development"
-        and (not source.instance_id or not source.instance.enabled or source.import_stale)
-    )
+    policy = getattr(org, "inventory_review_policy", None) if source and source.mode == "manual" else None
+    if source and source.mode == "manual":
+        source_stale = not policy or not policy.last_reviewed_at or policy.next_due <= timezone.localdate()
+    else:
+        source_stale = (
+            source is None
+            or source.mode != "development"
+            and (not source.instance_id or not source.instance.enabled or source.import_stale)
+        )
     state = {
         "org": org,
         "configured": len(watches),

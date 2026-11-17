@@ -4,6 +4,7 @@ from django.urls import reverse
 
 
 AREAS = {
+    "registrations": ("Registrations", "registration-applications", ""),
     "national": ("National overview", "circl-overview", ""),
     "overview": ("Infrastructure overview", "overview", ""),
     "start": ("Start here", "getting-started", ""),
@@ -23,6 +24,7 @@ AREAS = {
 }
 
 ROUTES = {
+    "registrations": {"registration-applications", "registration-application"},
     "national": {"circl-overview", "circl-research", "circl-findings"},
     "overview": {"overview"},
     "risks": {"risk-register", "business-risk", "automatic-scenario"},
@@ -34,9 +36,11 @@ ROUTES = {
         "organization",
         "asset",
         "edit-local-asset",
+        "inventory-review",
         "create-contact",
         "edit-contact",
         "create-claim",
+        "correct-scope",
         "create-asset",
         "create-installation",
     },
@@ -77,7 +81,7 @@ def workspace(request):
             "Act",
             ["notifications"] + (["response"] if operator else []),
         ),
-        ("Workspace", ["applications", "companies", "explore"]),
+        ("Workspace", ["applications", "companies", "explore"] + (["registrations"] if operator else [])),
     ]
     if request.user.is_superuser:
         sections.append(("Administration", ["platform", "administration"]))

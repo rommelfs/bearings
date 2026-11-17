@@ -33,11 +33,14 @@ def private_response(response):
 def overview(request):
     authorize(request, "operator.national_overview")
     started = perf_counter()
+    timings = {}
     with overview_queries() as database:
-        response = render(request, "portal/circl_overview.html", dashboard(request.user))
+        response = render(request, "portal/circl_overview.html", dashboard(request.user, timings=timings))
     response["Server-Timing"] = (
-        f"national;dur={(perf_counter() - started) * 1000:.1f}, database;dur={database.seconds * 1000:.1f}"
+        f"national;dur={(perf_counter() - started) * 1000:.1f}, database;dur={database.seconds * 1000:.1f}, "
+        f"dbmax;dur={database.slowest * 1000:.1f}"
     )
+    response["Server-Timing"] += "".join(f", {name};dur={duration:.1f}" for name, duration in timings.items())
     return private_response(response)
 
 

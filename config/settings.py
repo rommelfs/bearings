@@ -80,11 +80,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
-# Intentionally a local delivery sink. Production delivery requires a separate authorized change.
+# General/contact mail uses a local sink; service mail and reviewed outreach have explicit transport switches.
 EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
 EMAIL_FILE_PATH = LOCAL_DIR / "mail"
 DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "bearings@example.invalid")
-# Reviewed outreach has its own explicit transport switch; other application mail stays local.
+# Reviewed vulnerability outreach has a separate explicit transport switch.
 NOTIFICATION_TRANSPORT = os.getenv("BEARINGS_NOTIFICATION_TRANSPORT", "file")
 CIRCL_CAMPAIGN_MAX_REVIEWS = int(os.getenv("BEARINGS_CIRCL_CAMPAIGN_MAX_REVIEWS", "10000"))
 CIRCL_CAMPAIGN_MAX_RECIPIENTS = int(os.getenv("BEARINGS_CIRCL_CAMPAIGN_MAX_RECIPIENTS", "2000"))
@@ -199,3 +199,13 @@ LOGGING = {
     "handlers": {"django.server": {"class": "logging.StreamHandler", "filters": ["oidc_redaction"]}},
     "loggers": {"django.server": {"handlers": ["django.server"], "level": "INFO", "propagate": False}},
 }
+
+# Service messages (registration/data review) are separate from approved vulnerability outreach.
+PUBLIC_REGISTRATION_ENABLED = os.getenv("BEARINGS_PUBLIC_REGISTRATION", "1") == "1"
+PUBLIC_REGISTRATION_LIMIT = int(os.getenv("BEARINGS_REGISTRATION_HOURLY_LIMIT", "30"))
+SERVICE_MAIL_TRANSPORT = os.getenv("BEARINGS_SERVICE_MAIL_TRANSPORT", "file")
+PUBLIC_BASE_URL = os.getenv("BEARINGS_PUBLIC_URL", "").rstrip("/")
+if SERVICE_MAIL_TRANSPORT not in {"file", "smtp"} or not 1 <= PUBLIC_REGISTRATION_LIMIT <= 1000:
+    raise ValueError("Configure a supported service-mail transport and a registration limit of 1–1000")
+if SERVICE_MAIL_TRANSPORT == "smtp" and (not EMAIL_HOST or not (EMAIL_USE_TLS or EMAIL_USE_SSL)):
+    raise ValueError("Service SMTP requires an operator-configured host and TLS")
