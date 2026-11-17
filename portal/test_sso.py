@@ -180,6 +180,19 @@ class SSOTests(tests.Fixture):
         self.assertRedirects(self.finish(), "/accounts/login/", fetch_redirect_response=False)
         self.assertNotIn(auth.SESSION_KEY, self.client.session)
 
+    def test_authenticated_navigation_reports_session_time_without_provider_requests(self):
+        self.start()
+        self.finish()
+        self.http.reset_mock()
+        with patch("portal.sso.perf_counter", side_effect=[10, 10.025, 10.125]):
+            response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        timing = response.headers["Server-Timing"]
+        self.assertIn("overview;dur=", timing)
+        self.assertIn("session;dur=25.0", timing)
+        self.assertIn("django;dur=125.0", timing)
+        self.http.assert_not_called()
+
     def test_revoked_disabled_and_expired_sessions_end_without_changing_local_password_access(self):
         self.admin.set_password("synthetic-local-emergency-password")
         self.admin.save()

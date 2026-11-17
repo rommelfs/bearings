@@ -173,3 +173,8 @@ Delivered page-wide grouped counters, eager inventory source loading and bounded
 ## Verify overview performance through the running web process
 
 Delivered unconditional web/worker restart plus health wait on explicit local starter `up`, including cached images without SSO. Overview responses now report local overview processing milliseconds through `Server-Timing`; the bundled smoke requires this marker so a successful new-process unit benchmark cannot stand in for verification of the retained server. Actual HTTP and HTTPS Chromium checks distinguish server processing, TTFB and full load. Local improvement is verified; the reported user-machine six-second delay still requires measurements from that machine.
+
+
+## Isolate persistent SSO navigation latency
+
+Added per-response SSO session/Django timings and a bundled-only `web-timing` command using real Keycloak login, current running HTTP/HTTPS services and existing synthetic identities. Output is sanitized numeric timing/status information, with no credentials or page contents. Both overview and Applications are measured, including a request after the proxy DNS cache expires. Existing revocation/expiry checks remain current, with no IdP request on normal navigation. Local SSO navigation is verified; the user-reported delay remains open pending measurements from that machine.

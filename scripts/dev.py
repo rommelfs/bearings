@@ -295,6 +295,8 @@ def main():
         "manage", help="Run a Bearings management command with stack credentials/trust loaded"
     )
     manage.add_argument("arguments", nargs=argparse.REMAINDER)
+    timing = commands.add_parser("web-timing", help="Measure the running bundled SSO lab over HTTP/HTTPS")
+    timing.add_argument("--username", choices=["company-admin", "circl-analyst"], default="company-admin")
     rt_sso = commands.add_parser(
         "rt-sso", help="Generate private RT 5.x Apache/OIDC configuration; no remote changes", add_help=False
     )
@@ -471,6 +473,13 @@ def main():
         from scripts.rt_local_smoke import main as local_smoke
 
         local_smoke()
+    elif args.action == "web-timing":
+        import sys
+
+        sys.path.insert(0, str(ROOT))
+        from scripts.web_timing import main as web_timing
+
+        web_timing(args.username)
     elif args.action == "sso-smoke":
         import sys
 

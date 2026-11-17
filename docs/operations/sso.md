@@ -125,3 +125,20 @@ python3 scripts/dev.py up --sso
 Then start a **new** login at **https://localhost:9441/accounts/login/**. The old authorization response is tied to the previous redirect URI; do not edit or replay it. The callback now remains on **https://localhost:9441/oauth/complete/oidc/** (or the configured `BEARINGS_CANVAS_PORT`). No browser TLS/HSTS setting needs to be disabled.
 
 Startup creates/verifies the separate Bearings client-provisioning job before app initialization. It narrowly migrates the exact generated legacy HTTP callback list to the exact HTTPS localhost/127.0.0.1 workspace callbacks, after checking retained client policy, PKCE and secret. Disabled state, users, roles, credentials and custom client fields are preserved. Modified callback lists, authentication policy or mismatched secrets fail closed for operator review rather than being reset. The generated private provisioning file lives in the Bearings secrets volume, outside Keycloak's realm-import directory. App/worker processes restart on explicit SSO startup so retained images load the updated callback too. Independently operated IdPs and NetBox callbacks are unchanged.
+
+
+## Diagnose slow page navigation with an existing SSO session
+
+The bundled lab has a standard-library diagnostic; it does not require browser developer tools or a new dependency:
+
+```bash
+python3 scripts/dev.py web-timing
+# For the CIRCL identity:
+python3 scripts/dev.py web-timing --username circl-analyst
+```
+
+After updating code, run `python3 scripts/dev.py up --no-build` first. The diagnostic refuses external/non-SSO environments and unexpected issuers/origins, verifies the lab CA, signs in through the real local Keycloak authorization-code flow with an existing synthetic account and the retained lab password, then measures the running HTTPS overview and Applications page. It also measures the direct HTTP and proxied HTTPS login pages before authentication. Two authenticated samples per page are separated by six seconds to include a request after the lab proxy's five-second DNS cache expires. Changed account passwords may require operator investigation if the retained lab credential no longer matches; the diagnostic never resets passwords or grants access. It signs out its own app session afterward.
+
+Output contains phase, status and milliseconds only; no page bodies, authentication codes, cookies, passwords, tokens or inventory are printed. `ttfb_ms` is time to response headers, including redirects if present; `total_ms` includes reading the HTML body. These are HTTP measurements, excluding browser rendering. For existing SSO sessions, `server_ms.session` covers session loading, lazy authentication and current binding/lifetime checks, while `server_ms.django` covers that middleware plus the page response. On `/`, `server_ms.overview` covers the overview view/database aggregates/template rendering. The timing ranges overlap and must not be added. All values are milliseconds.
+
+Compare `ttfb_ms` with `django`: a large gap directs investigation toward the connection/proxy path or processing outside the measured middleware. A large `session` points to authentication/session database processing. A large `overview` points to overview/database/template work. Missing `session`/`django` measurements on authenticated overview/Applications responses means the responding process may not be running the current instrumentation; a Git commit alone does not identify the live process. This evidence narrows the investigation and does not declare a slow deployment fixed. Source restrictions, current identity revocation checks and absolute session expiry remain intact; normal authenticated navigation does not query the IdP.
