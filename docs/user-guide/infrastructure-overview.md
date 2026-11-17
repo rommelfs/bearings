@@ -62,3 +62,9 @@ Screenshots use a fictional company, real public CVE/catalog reads and synthetic
 ![Known product prefilled with auto-refresh enabled](../images/product-prefill.png)
 
 ![Public catalog selection without memorizing product keys](../images/product-catalog-search.png)
+
+## Open the actual problems and suggested risk scenario
+
+Every server card now includes linked problem titles, their dates and individual next actions. Identical action text remains attached to distinct named problems. Overdue badges filter **action deadlines** exactly; expiry/EOL dates remain separate. CVE/confirmed/critical counters open the scoped vulnerability queue; lifecycle counters open the scoped issue list. All-problem links use an exact asset ID, not a potentially ambiguous server-name search. Asset/attention filters survive subsequent filtering and pagination.
+
+Each issue also receives an automatic conditional risk-scenario draft derived from current source weakness/text or issue type. Follow its link to review compatible cached MONARC scenarios, preview a selected template and confirm a prefilled justification with pinned evidence. This prepares business consequences and treatment context without guessing likelihood/impact or accepting company risk. [Workflow and boundaries](automatic-scenarios.md).

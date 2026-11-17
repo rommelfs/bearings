@@ -56,7 +56,13 @@ def visible_issues(user):
                 finding__installation_id=F("installation_id"),
             )
         )
-        .select_related("organization", "asset__source__instance", "installation__product", "finding__record")
+        .select_related(
+            "organization",
+            "asset__source__instance",
+            "installation__product",
+            "finding__record",
+            "finding__installation__product",
+        )
     )
     if not user.is_superuser:
         allowed = Q(operator_only=False) & (Q(finding__isnull=True) | Q(finding__record__shareable=True))

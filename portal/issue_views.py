@@ -6,6 +6,7 @@ from django.core.paginator import Paginator
 from django.db.models import Case, F, IntegerField, Q, TextField, Value, When
 from django.db.models.functions import Cast, Coalesce
 from django.http import JsonResponse
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -13,7 +14,7 @@ from . import issues
 from .access import audit_operator_access, organizations_for, require, can_edit, can_operator_review
 from .asset_context import asset_context
 from .issue_forms import IssueForm, RiskForm
-from .models import AssetIssue, IssueRiskLink
+from .models import Asset, AssetIssue, IssueRiskLink
 from .presentation import vulnerability_summary
 from .views import organization
 
@@ -37,6 +38,34 @@ def board(request):
     if org_id:
         org = get_object_or_404(orgs, slug=org_id)
         base = base.filter(organization=org)
+    asset = None
+    if request.GET.get("asset"):
+        import uuid
+
+        try:
+            asset_id = uuid.UUID(request.GET["asset"])
+        except (ValueError, TypeError):
+            raise Http404 from None
+        asset = get_object_or_404(
+            Asset.objects.filter(organization__in=orgs, source__organization_id=F("organization_id")),
+            pk=asset_id,
+        )
+        if org_id and asset.organization_id != org.pk:
+            raise Http404
+        base = base.filter(asset=asset)
+    attention = request.GET.get("attention", "")
+    if attention in {"all", "overdue", "affected", "critical", "lifecycle"}:
+        base = base.filter(asset__lifecycle="active").exclude(finding__analyst_applicability="not_affected")
+        if attention == "overdue":
+            base = base.filter(action_due__lt=timezone.localdate())
+        elif attention == "affected":
+            base = base.filter(finding__analyst_applicability="affected")
+        elif attention == "critical":
+            base = base.filter(finding__record__source_severity="critical")
+        elif attention == "lifecycle":
+            base = base.filter(finding__isnull=True, priority__in=["critical", "high"])
+    else:
+        attention = ""
     # Counts, filters and pagination all start from the same currently visible rows.
     for org in orgs:
         audit_operator_access(request.user, org)
@@ -113,6 +142,8 @@ def board(request):
             "counts": counts,
             "timing": timing,
             "filters": filters.urlencode(),
+            "asset_filter": asset,
+            "attention": attention,
         },
     )
 
@@ -135,6 +166,8 @@ def detail(request, slug, pk):
     can_rt_export = any(
         rt.can_write(request.user, issue, instance) for instance in instances(request.user, issue)
     )
+    from .scenario_suggestions import draft_scenario
+
     return render(
         request,
         "portal/issue.html",
@@ -149,6 +182,7 @@ def detail(request, slug, pk):
             "rt_tickets": rt_rows,
             "can_rt_export": can_rt_export,
             "risk_form": RiskForm(),
+            "automatic_scenario": draft_scenario(issue),
         },
     )
 

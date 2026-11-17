@@ -1788,3 +1788,9 @@ input:focus-visible {
 .overview-controls form button { flex: 0 0 auto; white-space: nowrap; }
 .overview-controls label { display: inline-flex; align-items: center; gap: .5rem; }
 .overview-controls p { margin: .3rem 0; }
+
+.overview-problems { list-style: none; padding: 0; }
+.overview-problems li { border-top: 1px solid var(--line); margin-top: 1rem; padding-top: 1rem; overflow-wrap: anywhere; }
+.overview-problems h4 { margin: 0 0 .4rem; font-size: 1rem; }
+.overview-problems p { margin: .4rem 0; }
+.automatic-scenario-summary { padding: 1.25rem; border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: var(--radius); background: var(--surface); margin: 1.25rem 0; }

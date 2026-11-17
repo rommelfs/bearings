@@ -32,6 +32,26 @@ def finding_page(request, org):
         .prefetch_related(Prefetch("risk_links", queryset=links), "history__actor")
         .order_by("-evaluated_at", "pk")
     )
+    if request.GET.get("asset"):
+        import uuid
+
+        try:
+            asset_id = uuid.UUID(request.GET["asset"])
+        except (ValueError, TypeError):
+            raise Http404 from None
+        asset = get_object_or_404(org.assets, pk=asset_id)
+        findings = findings.filter(installation__asset=asset)
+    attention = request.GET.get("attention", "")
+    if attention in {"reviews", "affected", "critical"}:
+        from .presentation import ACTIVE_REVIEWS
+
+        findings = findings.filter(
+            status__in=ACTIVE_REVIEWS, installation__asset__lifecycle="active"
+        ).exclude(analyst_applicability="not_affected")
+        if attention == "affected":
+            findings = findings.filter(analyst_applicability="affected")
+        elif attention == "critical":
+            findings = findings.filter(record__source_severity="critical")
     if request.GET.get("finding"):
         try:
             finding_id = int(request.GET["finding"])
@@ -58,6 +78,8 @@ def finding_page(request, org):
 @login_required
 def intelligence(request, slug):
     org = organization(request, slug)
+    filters = request.GET.copy()
+    filters.pop("page", None)
     return render(
         request,
         "portal/intelligence.html",
@@ -68,6 +90,7 @@ def intelligence(request, slug):
             "sources": MOSPSource.objects.all(),
             "withdrawal_form": RiskWithdrawalForm(),
             "finding_review_form": FindingReviewForm(),
+            "filter_query": filters.urlencode(),
         },
     )
 

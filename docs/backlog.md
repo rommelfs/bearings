@@ -130,7 +130,7 @@ Implemented: [One reviewed CIRCL campaign across all matching constituents](user
 
 ## Named MONARC scenario selection
 
-Implemented: integrated local search, human-readable threat/asset/weakness preview, automatic identifiers and justified confirmation of the exact reviewed catalog revision. Upstream changes require re-review; outages preserve existing mappings. Automatic relevance recommendations and impact scoring remain separate work. See the [scenario selection guide](user-guide/risk-scenarios.md).
+Implemented: integrated local search, human-readable threat/asset/weakness preview, automatic identifiers and justified confirmation of the exact reviewed catalog revision. Upstream changes require re-review; outages preserve existing mappings. Bounded rule-based scenario recommendations are now delivered; automatic impact scoring remains separate. See the [scenario selection guide](user-guide/risk-scenarios.md).
 
 ## Guided entry and interchangeable examples
 
@@ -155,3 +155,9 @@ Implemented recognized-name/CPE/package mapping candidates and enabled-by-defaul
 The login landing page now summarizes permitted companies and prioritized assets with action/review/coverage states, monitoring freshness/setup gaps, concrete next actions, overdue deadlines and current contact links. Automatic page refresh runs every 60 seconds and defers during text entry. The prior technical review queue remains at `/reviews/`; existing scope/redistribution protections also govern overview counts and priorities. See [guide](user-guide/infrastructure-overview.md).
 
 Tracking: [#38](https://github.com/rommelfs/bearings/issues/38).
+
+## Direct problem navigation and automatic scenario drafts
+
+Delivered exact asset/attention filters and direct linked problem titles, dates, next actions and risk drafts on infrastructure cards. Overdue action counters no longer rely on expiry-date/name-search approximations; restricted evidence is excluded before selecting links and counts, including legacy CVE deep links. Local rule-based scenarios now describe conditional consequences and treatment by source weakness/text or lifecycle/exposure/entitlement kind. Compatible public MONARC catalog suggestions have explained asset/topic ranking, prefilled editable justification and explicit reviewed-revision/evidence confirmation. Withdrawn mappings remain respected; no automatic risk score, acceptance, process-deficiency claim or source-policy override is introduced. [Guide](user-guide/automatic-scenarios.md).
+
+Tracking: [#39](https://github.com/rommelfs/bearings/issues/39).

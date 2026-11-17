@@ -71,3 +71,7 @@ The three core gaps now have bounded implementations: explicit product watches d
 ## Infrastructure entry and automatic setup
 
 Delivered: recognized installed products enroll active watches automatically; unknown/conflicting identities use an integrated bounded public catalog picker. The company/CIRCL infrastructure overview is now the post-login landing page with separate action/review/coverage states, prioritized servers, next actions, deadlines and current monitoring. Page refresh is enabled every 60 seconds and defers while typing. Explicit pauses and existing mappings are preserved. [Guide](user-guide/infrastructure-overview.md).
+
+## Named problems and automatic scenario context
+
+Delivered exact problem deep links/filter sets from infrastructure cards and automatic conditional scenario drafts with compatible cached MOSP recommendations, prefilled justification and explicit evidence/catalog confirmation. Company impact/treatment context is proposed, while numeric scoring, risk acceptance and process-weakness validation remain human decisions. See [automatic scenarios](user-guide/automatic-scenarios.md).

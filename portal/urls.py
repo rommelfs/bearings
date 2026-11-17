@@ -16,9 +16,15 @@ from . import (
     outreach_views,
     business_risk_views,
     overview_views,
+    scenario_views,
 )
 
 urlpatterns = [
+    path(
+        "organizations/<slug:slug>/issues/<uuid:pk>/scenario/",
+        scenario_views.automatic,
+        name="automatic-scenario",
+    ),
     path("", overview_views.overview, name="overview"),
     path(
         "organizations/<slug:slug>/products/<int:pk>/catalog/",

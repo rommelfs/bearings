@@ -23,7 +23,7 @@ AREAS = {
 
 ROUTES = {
     "overview": {"overview"},
-    "risks": {"risk-register", "business-risk"},
+    "risks": {"risk-register", "business-risk", "automatic-scenario"},
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
     "start": {"getting-started"},
     "applications": {"applications", "application", "source-reference"},

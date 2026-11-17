@@ -65,8 +65,23 @@ def assessment(request, slug, pk):
     org = organization(request, slug)
     issue = get_object_or_404(visible_issues(request.user), organization=org, pk=pk)
     latest = issue.business_risks.first()
+    from .scenario_suggestions import draft_scenario
+
+    draft = draft_scenario(issue)
     current_hash = digest(evidence(issue))
-    initial = dict(latest.snapshot) if latest else {"owner": issue.asset.responsible_contact_id}
+    initial = (
+        dict(latest.snapshot)
+        if latest
+        else {
+            "owner": issue.asset.responsible_contact_id,
+            "business_process": f"Service hosted by {issue.asset.name}",
+            "business_impact": issue.consequence or draft["consequence"],
+            "assumptions": draft["assumptions"],
+            "planned_measures": issue.next_action or draft["next_action"],
+            "action_due": issue.action_due,
+            "reason": draft["reason"],
+        }
+    )
     initial.update(previous_revision=latest.pk if latest else 0, reviewed_evidence=current_hash)
     editable = can_edit(request.user, org) or can_operator_review(request.user, org)
     form = RiskAssessmentForm(request.POST or None, issue=issue, initial=initial)
@@ -115,5 +130,12 @@ def assessment(request, slug, pk):
     return render(
         request,
         "portal/business_risk.html",
-        {"org": org, "issue": issue, "form": form, "editable": editable, "revisions": revisions},
+        {
+            "org": org,
+            "issue": issue,
+            "form": form,
+            "editable": editable,
+            "revisions": revisions,
+            "automatic_scenario": draft,
+        },
     )

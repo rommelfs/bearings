@@ -92,14 +92,16 @@ class RiskAssessmentForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 3}),
         label="Evidence, likelihood rationale and uncertainty",
     )
-    likelihood = forms.TypedChoiceField(coerce=int, choices=LIKELIHOOD)
-    impact = forms.TypedChoiceField(coerce=int, choices=IMPACT)
+    likelihood = forms.TypedChoiceField(coerce=int, choices=[("", "Choose likelihood"), *LIKELIHOOD])
+    impact = forms.TypedChoiceField(coerce=int, choices=[("", "Choose impact"), *IMPACT])
     existing_controls = forms.CharField(max_length=4000, widget=forms.Textarea(attrs={"rows": 3}))
     planned_measures = forms.CharField(
         max_length=4000, required=False, widget=forms.Textarea(attrs={"rows": 3})
     )
-    residual_likelihood = forms.TypedChoiceField(coerce=int, choices=LIKELIHOOD)
-    residual_impact = forms.TypedChoiceField(coerce=int, choices=IMPACT)
+    residual_likelihood = forms.TypedChoiceField(
+        coerce=int, choices=[("", "Choose residual likelihood"), *LIKELIHOOD]
+    )
+    residual_impact = forms.TypedChoiceField(coerce=int, choices=[("", "Choose residual impact"), *IMPACT])
     residual_rationale = forms.CharField(
         max_length=4000,
         widget=forms.Textarea(attrs={"rows": 3}),

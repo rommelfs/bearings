@@ -150,6 +150,10 @@
       {
         "title": "Keep local SSO callbacks on HTTPS to avoid Safari localhost HSTS failures",
         "body": "Implemented: Bearings lab callbacks always use the HTTPS workspace port for localhost and 127.0.0.1, including HTTP-origin login. Exact legacy Keycloak HTTP callback lists migrate after retained policy/PKCE/secret validation; existing users, grants, secrets, disabled state and custom client fields remain. Nonstandard policies fail closed; separate client-provisioning dependency and explicit app/worker reload cover retained images. Provisioning inputs remain outside realm-import directory. No HSTS/TLS bypass, permissive redirects or external IdP changes. Regression tests and real retained-volume startup/SSO/full-stack validation: docs/operations/sso.md and docs/validation.md."
+      },
+      {
+        "title": "Link infrastructure problems directly and draft contextual risk scenarios",
+        "body": "Implemented exact organization/asset/attention issue filters and asset-scoped CVE queues with preserved filters/pagination; infrastructure badges and named problem/action links open the actual evidence, including legacy reviews. Generate conditional local risk drafts from issue type and bounded CVE weakness/text without asserting applicability, compromise or flawed processes. Recommend up to three compatible enabled public MONARC/EN/CC0 cached templates with explained asset/topic ranking; exclude withdrawn mappings for unchanged evidence and mark current links. Explicit preview/confirmation hydrates/verifies catalog revisions, checks issue/source/product fingerprints and pins ordinary protected evidence links with editable prefilled justification. Business context is prefilled, numeric likelihood/impact choices remain unselected. No automatic risk acceptance, production notification, scan or upstream write. See docs/user-guide/automatic-scenarios.md."
       }
     ]
   },

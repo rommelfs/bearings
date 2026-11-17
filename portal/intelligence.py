@@ -119,10 +119,20 @@ def link_risk(user, finding, source_id, risk_uuid, reason, *, expected_revision=
     revision = resolve_risk(source_id, risk_uuid)
     if expected_revision is not None and revision.pk != expected_revision:
         raise ValidationError("The catalog scenario changed. Review the updated preview before confirming.")
+    return link_resolved_risk(user, finding, revision, reason)
+
+
+def link_resolved_risk(user, finding, revision, reason, *, expected_evidence_hash=None):
+    """Pin an already verified catalog revision after current authorization checks."""
+    require(bool(reason.strip()) and len(reason) <= 4000)
     with transaction.atomic():
         finding = Finding.objects.select_for_update().get(pk=finding.pk)
         org = authorize_link(user, finding)
         record = SourceRecord.objects.select_for_update().get(pk=finding.record_id)
+        if expected_evidence_hash is not None and digest(record.payload) != expected_evidence_hash:
+            raise ValidationError(
+                "Vulnerability evidence changed. Review the updated draft before confirming."
+            )
         evidence = snapshot_evidence(record)
         link, created = RiskLink.objects.get_or_create(
             finding=finding,

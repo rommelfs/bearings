@@ -1,6 +1,8 @@
 """Current scoped infrastructure state; missing evidence is never a clean bill of health."""
 
-from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.db.models import Case, Count, F, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.urls import reverse
+from urllib.parse import urlencode
 from django.utils import timezone
 from .access import visible_findings_for
 from .issues import visible_issues, active_filter
@@ -144,6 +146,26 @@ def priority_assets(user, orgs):
             row["asset_id"], {"affected": 0, "critical": 0, "reviews": 0, "overdue": 0, "lifecycle": 0}
         )
         values["lifecycle"] = row["total"]
+    # Candidate selection is bounded, but every displayed badge uses the full scoped asset set.
+    for counts in (
+        reviews.filter(installation__asset_id__in=by_asset)
+        .values("installation__asset_id")
+        .annotate(
+            reviews=Count("pk"),
+            affected=Count("pk", filter=Q(analyst_applicability="affected")),
+            critical=Count("pk", filter=Q(record__source_severity="critical")),
+        )
+    ):
+        by_asset[counts.pop("installation__asset_id")].update(counts)
+    for counts in (
+        issues.filter(asset_id__in=by_asset)
+        .values("asset_id")
+        .annotate(
+            overdue=Count("pk", filter=Q(action_due__lt=timezone.localdate())),
+            lifecycle=Count("pk", filter=Q(finding__isnull=True, priority__in=["critical", "high"])),
+        )
+    ):
+        by_asset[counts.pop("asset_id")].update(counts)
     assets = Asset.objects.filter(
         pk__in=by_asset, organization__in=orgs, source__organization_id=F("organization_id")
     ).select_related("organization", "responsible_contact")
@@ -153,12 +175,66 @@ def priority_assets(user, orgs):
 
         row = {**by_asset[asset.pk], "asset": asset}
         row["context"] = asset_context(asset)
-        row["actions"] = list(
-            issues.filter(asset=asset)
-            .exclude(next_action="")
-            .order_by("action_due", "pk")
-            .values_list("next_action", flat=True)[:2]
+
+        def problem_list_url(attention):
+            return (
+                reverse("issues")
+                + "?"
+                + urlencode(
+                    {"organization": asset.organization.slug, "asset": str(asset.pk), "attention": attention}
+                )
+            )
+
+        row["links"] = {
+            key: problem_list_url(key) for key in ["all", "overdue", "affected", "critical", "lifecycle"]
+        }
+        for attention in ["reviews", "affected", "critical"]:
+            row["links"][attention] = (
+                reverse("intelligence", args=[asset.organization.slug])
+                + "?"
+                + urlencode({"asset": str(asset.pk), "attention": attention})
+            )
+        asset_issues = issues.filter(asset=asset)
+        shown = list(
+            asset_issues.annotate(
+                urgent_order=Case(
+                    When(action_due__lt=timezone.localdate(), then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            ).order_by("urgent_order", F("action_due").asc(nulls_last=True), "pk")[:4]
         )
+        from .scenario_suggestions import draft_scenario
+
+        row["problems"] = [
+            {
+                "title": issue.title,
+                "kind": issue.get_kind_display(),
+                "url": reverse("issue", args=[asset.organization.slug, issue.pk]),
+                "due": issue.action_due,
+                "next_action": issue.next_action,
+                "scenario": draft_scenario(issue),
+                "scenario_url": reverse("automatic-scenario", args=[asset.organization.slug, issue.pk]),
+            }
+            for issue in shown
+        ]
+        # Old findings may predate the common issue model; keep an exact CVE deep link.
+        for finding in (
+            reviews.filter(installation__asset=asset)
+            .exclude(pk__in=asset_issues.values("finding_id").filter(finding_id__isnull=False))
+            .order_by("pk")[: max(0, 4 - len(shown))]
+        ):
+            row["problems"].append(
+                {
+                    "title": finding.record.external_id,
+                    "kind": "Vulnerability",
+                    "url": reverse("intelligence", args=[asset.organization.slug])
+                    + f"?finding={finding.pk}#finding-{finding.pk}",
+                    "next_action": "Review applicability and vendor fixes",
+                }
+            )
+        row["problem_count"] = asset_issues.count()
+        row["actions"] = [problem["next_action"] for problem in row["problems"] if problem.get("next_action")]
         result.append(row)
     return sorted(
         result,
