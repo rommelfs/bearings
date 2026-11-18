@@ -581,32 +581,12 @@ def main():
             if state.get("rt"):
                 run(base + ["exec", "-T", "rt", "python3", "/adapter/start.py", "smoke"])
     elif args.action == "credentials":
-        print("BEARINGS PLATFORM ADMINISTRATOR — LOCAL LOGIN")
-        print("Username: platform-admin")
-        print("Open Bearings /accounts/login/ and use the Username / Password form with Sign in.")
-        print("This account is not a Keycloak SSO identity. Its initial password is the generated password below; retained passwords are never reset.")
-        if state.get("rt"):
-            print(
-                "Bundled RT: company-admin and circl-analyst use their own scoped queues. Local recovery user root at the RT recovery URL printed at startup; existing passwords are unchanged."
-            )
-        if state.get("sso"):
-            print(
-                "Keycloak SSO: company-admin (Bearings/NetBox), circl-analyst (also enabled FlowIntel), unassigned-demo (no app access). Existing IdP passwords are preserved. Enabled bundled RT shares SSO; external RT uses its operator-configured frontend."
-            )
-        if state.get("flowintel"):
-            print(
-                "Bundled FlowIntel logins: platform-admin@example.com and circl-analyst@example.com. Existing passwords are unchanged."
-            )
-        print("LOCAL DEVELOPMENT ONLY: Bearings users platform-admin, company-admin, circl-analyst.")
-        if state["mode"] == "bundled":
-            print(
-                "Bundled NetBox user: netbox-admin. All new demo users share this generated local password:", flush=True
-            )
-        else:
-            print(
-                "External NetBox accounts are unchanged. New Bearings demo users share this generated local password:", flush=True
-            )
-        run(base + ["exec", "-T", "web", "cat", "/run/bearings/secrets/demo_password"])
+        import sys
+
+        sys.path.insert(0, str(ROOT))
+        from scripts.dev_credentials import directory
+
+        directory(state, base, run, LOCAL / "external/connection.json")
     elif args.action == "trust":
         container = run(base + ["ps", "-a", "-q", "dev-init"], capture_output=True, text=True).stdout.strip()
         if not container:

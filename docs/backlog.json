@@ -58,6 +58,10 @@
       {
         "title": "Make local platform-admin credentials and login route explicit",
         "body": "Implemented an explicit platform-admin entry first in local starter credentials, with the Bearings Username/Password Sign in route, generated-initial-password explanation and retained-password preservation. Label the SSO-enabled local administrator form and explain that the bundled platform-admin has no Keycloak identity. No account/password/privilege/identity-binding reset or new IdP provisioning. See docs/operations/sso.md."
+      },
+      {
+        "title": "List all lab login accounts and published URLs in credentials",
+        "body": "Implemented service-grouped credentials directory for managed Bearings/NetBox/Keycloak/FlowIntel/RT/RTIR human accounts, plus current Bearings usernames/active flags. Show local/SSO/recovery/unassigned distinctions and explicit login, workspace, national/company, registration/activation, backend/outbox and native service URLs using actual Docker published ports. Include labeled retained generated initial service passwords and the separate Keycloak bootstrap password; preserve changed credentials/policies and omit API/client/database secrets. Disabled/unavailable profiles and external operator-managed URLs remain explicit; no external network login probing or account writes. Console output is confidential. See docs/operations/sso.md."
       }
     ]
   },

@@ -248,3 +248,7 @@ Implemented [#49](https://github.com/rommelfs/bearings/issues/49): explicit loca
 ## Distinguish platform-admin local login from SSO — 2026-11-18
 
 Implemented [#50](https://github.com/rommelfs/bearings/issues/50): made `platform-admin` the first explicit Bearings entry in starter credentials output, with the local form/Sign in route and retained-password explanation. The SSO-enabled login page now labels local administrator sign-in and explains the lab account's distinct identity store. No account/password/group/binding reset or IdP provisioning is introduced.
+
+## Complete credentials account/URL directory — 2026-11-18
+
+Implemented [#51](https://github.com/rommelfs/bearings/issues/51): service-grouped managed login accounts, current Bearings usernames/active flags and concrete URLs under `python3 scripts/dev.py credentials`. Actual Docker published ports support custom mappings; local/SSO/recovery and unassigned access are explicit. Print retained generated initial passwords per service (including separate Keycloak bootstrap), without tokens or account/password mutations. External mode and disabled/unavailable profiles remain explicit; no external login probing is performed.
