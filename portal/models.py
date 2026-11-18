@@ -1512,6 +1512,8 @@ class InfrastructureRegistration(models.Model):
         Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name="registration_notifications"
     )
     emergency_phone = models.CharField(max_length=80, blank=True)
+    pgp_public_key = models.TextField(max_length=50000, blank=True)
+    smime_certificate = models.TextField(max_length=30000, blank=True)
     authority_attested_at = models.DateTimeField(null=True, blank=True)
     periodic_review_consented_at = models.DateTimeField(null=True, blank=True)
     updates_committed_at = models.DateTimeField(null=True, blank=True)
@@ -1624,3 +1626,28 @@ class OrganizationLocation(models.Model):
                 condition=Q(longitude__gte=-180, longitude__lte=180), name="map_longitude_range"
             ),
         ]
+
+
+class OrganizationConfiguration(models.Model):
+    """Owner-managed preferences; no AIL execution, mail proof or key identity claim."""
+
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="configuration")
+    pgp_public_key = models.TextField(max_length=50000, blank=True)
+    smime_certificate = models.TextField(max_length=30000, blank=True)
+    ail_enabled = models.BooleanField(default=False)
+    ail_keywords = models.JSONField(default=list)
+    ail_honeytokens = models.JSONField(default=list)
+    ail_notification_email = models.EmailField(blank=True)
+
+
+class ConfigurationSection(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="configuration_sections")
+    section = models.CharField(max_length=20)
+    revision = models.PositiveIntegerField(default=0)
+    draft = models.JSONField(default=dict)
+    reviewed = models.BooleanField(default=False)
+    last_opened_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organization", "section"], name="unique_configuration_section")]

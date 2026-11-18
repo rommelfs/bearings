@@ -19,6 +19,7 @@ from .models import (
     InventoryReviewPolicy,
     InventorySource,
     Organization,
+    OrganizationConfiguration,
 )
 from .service_mail import public_base, send_service_mail
 
@@ -45,7 +46,9 @@ def mandatory_review_mail(org):
 def snapshot(org):
     assets = Asset.objects.filter(organization=org, source__organization=org)
     installed = Installation.objects.filter(asset__in=assets, product__organization=org)
+    configuration = OrganizationConfiguration.objects.filter(organization=org)
     queries = [
+        ("configuration", configuration.values("id", "pgp_public_key", "smime_certificate", "ail_enabled", "ail_keywords", "ail_honeytokens", "ail_notification_email")),
         (
             "contacts",
             Contact.objects.filter(organization=org).values(

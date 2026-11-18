@@ -118,25 +118,18 @@ class RegistrationReviewTests(Fixture):
         self.assertEqual(
             self.client.get(reverse("organization", args=[item.organization.slug])).status_code, 200
         )
-        self.assertEqual(set(item.organization.claims.values_list("status", flat=True)), {"declared"})
+        self.assertFalse(item.organization.claims.exists())
         self.assertEqual(Membership.objects.filter(user=user).count(), 1)
 
-    def test_minimum_scope_and_validation_normalization_duplicate_email(self):
-        response = self.client.post(
-            reverse("registration"), {**self.data, "networks": "", "ips": "", "domains": ""}
-        )
-        self.assertTrue(response.context["form"].non_field_errors())
-        for field, value in [
-            ("ips", "not-an-ip"),
-            ("domains", "https://evil.example/"),
-            ("networks", "192.0.2.5/24"),
-        ]:
-            response = self.client.post(reverse("registration"), {**self.data, field: value})
-            self.assertTrue(response.context["form"].errors)
-        self.assertEqual(InfrastructureRegistration.objects.count(), 0)
+    def test_registration_defers_scope_and_rejects_duplicate_email(self):
+        response = self.client.get(reverse("registration"))
+        self.assertNotIn("networks", response.context["form"].fields)
+        self.assertNotIn("ips", response.context["form"].fields)
+        self.assertNotIn("domains", response.context["form"].fields)
+        self.assertIn("pgp_public_key", response.context["form"].fields)
+        self.assertIn("smime_certificate", response.context["form"].fields)
         item, _ = self.signup()
-        self.assertIn({"kind": "domain", "value": "example.invalid", "network_context": ""}, item.scopes)
-        self.assertNotIn("password", str(item.scopes))
+        self.assertEqual(item.scopes, [])
         duplicate = self.client.post(
             reverse("registration"), {**self.data, "username": "another", "email": "OWNER@EXAMPLE.INVALID"}
         )
@@ -313,7 +306,7 @@ class RegistrationReviewTests(Fixture):
         self.assertTrue(org.inventory_review_policy.email_enabled)
         self.assertEqual(org.contacts.get().emergency_phone, "+352123456")
         self.assertIsNone(org.contacts.get().availability_confirmed_at)
-        self.assertTrue(org.claims.filter(status="declared").exists())
+        self.assertFalse(org.claims.exists())
 
     def test_schedule_is_platform_or_current_shared_circl_only_and_mail_is_required(self):
         item, org = self.workspace()
@@ -506,7 +499,8 @@ class RegistrationReviewTests(Fixture):
 
     def test_scope_correction_expires_old_proof_without_verifying_replacement(self):
         item, org = self.workspace()
-        claim = org.claims.first()
+        from .models import InfrastructureClaim
+        claim = InfrastructureClaim.objects.create(organization=org, kind="ip", value="198.51.100.17")
         claim.status = "verified"
         claim.method = "Synthetic old operator check"
         claim.save()

@@ -1808,3 +1808,15 @@ input:focus-visible {
 .research-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
 .research-fields input, .research-fields select { width: 100%; min-width: 0; }
 @media (max-width: 750px) { .national-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .research-fields { grid-template-columns: 1fr; } }
+
+/* Resumable company setup */
+.setup-progress{max-width:70rem;margin:1.5rem 0;padding:1.2rem;border:1px solid #cddbe5;border-radius:12px;background:#fff}
+.setup-progress progress{display:block;width:100%;height:1.2rem;margin:.8rem 0;accent-color:#176f69}
+.setup-tabs{display:flex;flex-wrap:wrap;gap:.6rem;margin:1.5rem 0}
+.setup-tabs a{padding:.7rem 1rem;border:1px solid #cddbe5;border-radius:8px;background:#fff}
+.setup-tabs [aria-current=step]{background:#176f69;color:#fff}
+.setup-editor{max-width:70rem}.setup-editor textarea{max-width:100%;width:100%;box-sizing:border-box}.setup-editor form{max-width:55rem}
+.setup-save-state{font-weight:600}.setup-progress [data-setup-celebration]{color:#176f69;font-weight:700}
+[data-save-errors]{color:#a10c2f}[data-setup-celebration][hidden]{display:none}
+
+.public-material{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}

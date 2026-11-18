@@ -20,6 +20,7 @@ from .models import (
     InventorySource,
     Membership,
     Organization,
+    OrganizationConfiguration,
     PublicRegistrationBucket,
 )
 from .service_mail import public_base, send_service_mail
@@ -67,7 +68,9 @@ def submit_registration(form):
         periodic_review_consented_at=now,
         updates_committed_at=now,
         commitments_version=REGISTRATION_COMMITMENTS_VERSION,
-        scopes=form.cleaned_data["scopes"],
+        scopes=[],
+        pgp_public_key=form.cleaned_data["pgp_public_key"],
+        smime_certificate=form.cleaned_data["smime_certificate"],
         review_days=InventoryReviewPolicy._meta.get_field("interval_days").get_default(),
         email_reminders=True,
         verification_digest=secrets.token_hex(32),
@@ -145,6 +148,9 @@ def verify_registration(raw, password):
         operator_visibility=False,
     )
     InventorySource.objects.create(organization=org, mode="manual", import_enabled=False)
+    OrganizationConfiguration.objects.create(
+        organization=org, pgp_public_key=item.pgp_public_key, smime_certificate=item.smime_certificate
+    )
     for scope in item.scopes:
         claim = InfrastructureClaim(
             organization=org,
@@ -241,7 +247,7 @@ def notify_decision(pk):
     try:
         base = public_base()
         if item.status == "approved":
-            body = f"CIRCL access is approved for your organization. Continue signing in with your portal username {item.user.username}.\n{base}/organizations/{item.organization.slug}/review/\n\nReview your declared scopes and contacts, and add servers/software versions when available. Scope authority is not automatically verified. SSO accounts are managed separately."
+            body = f"CIRCL access is approved for your organization. Continue signing in with your portal username {item.user.username}.\n\nStart or resume your guided configuration:\n{base}/organizations/{item.organization.slug}/setup/\n\nAdd IPs, networks, domains and software versions, then review contacts and optional AIL import preferences. Your changes save automatically and you can return at any point. Scope authority is not automatically verified. SSO accounts are managed separately."
         else:
             body = f"CIRCL visibility was not approved. Your private workspace remains available. Contact the operator if you need assistance.\n{base}/accounts/login/"
         send_service_mail("Your Bearings reporting application", body, item.email)

@@ -153,6 +153,8 @@ def home(request):
 
 @login_required
 def detail(request, slug):
+    from .models import OrganizationConfiguration
+
     org = organization(request, slug)
     return render(
         request,
@@ -163,6 +165,9 @@ def detail(request, slug):
             "inventory_writable": can_edit(request.user, org)
             and hasattr(org, "inventory_source")
             and org.inventory_source.can_write,
+            "public_keys": OrganizationConfiguration.objects.filter(organization=org)
+            .values("pgp_public_key", "smime_certificate")
+            .first(),
             "contact_reviewer": can_review_contact(request.user, org),
             "operator_reviewer": can_operator_review(request.user, org),
             "findings": severity_first(visible_findings(request.user, org)),

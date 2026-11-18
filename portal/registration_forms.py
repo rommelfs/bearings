@@ -5,13 +5,13 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from .models import InfrastructureRegistration, InventoryReviewPolicy, Organization
-from .scope import normalize
+from .configuration_forms import PublicKeysForm
 
 
 REGISTRATION_COMMITMENTS_VERSION = "2026-11-18"
 
 
-class InfrastructureRegistrationForm(forms.ModelForm):
+class InfrastructureRegistrationForm(PublicKeysForm, forms.ModelForm):
     company_name = forms.CharField(max_length=180, label="Company / organization")
     company_address = forms.CharField(
         max_length=1000,
@@ -37,29 +37,6 @@ class InfrastructureRegistrationForm(forms.ModelForm):
         widget=forms.TextInput(attrs={"type": "tel", "autocomplete": "tel"}),
         help_text="Include the international country code, e.g. +352 123 456. This number is not automatically verified.",
     )
-    networks = forms.CharField(
-        max_length=6000,
-        required=False,
-        widget=forms.Textarea(attrs={"rows": 3}),
-        help_text="One CIDR prefix or start-end IP range per line.",
-    )
-    ips = forms.CharField(
-        max_length=6000,
-        required=False,
-        widget=forms.Textarea(attrs={"rows": 3}),
-        label="Individual static IP addresses",
-        help_text="IPv4 or IPv6, one per line.",
-    )
-    domains = forms.CharField(
-        max_length=6000,
-        required=False,
-        widget=forms.Textarea(attrs={"rows": 3}),
-        label="Domains / hostnames",
-        help_text="One DNS name per line, without URL or wildcard.",
-    )
-    network_context = forms.CharField(
-        max_length=100, required=False, label="Internal network context (optional)"
-    )
     consent = forms.BooleanField(
         label="I request CIRCL review and consent to CIRCL accessing my organization's infrastructure information after approval"
     )
@@ -83,10 +60,8 @@ class InfrastructureRegistrationForm(forms.ModelForm):
             "email",
             "notification_email",
             "emergency_phone",
-            "networks",
-            "ips",
-            "domains",
-            "network_context",
+            "pgp_public_key",
+            "smime_certificate",
             "consent",
             "attestation",
             "periodic_consent",
@@ -113,36 +88,6 @@ class InfrastructureRegistrationForm(forms.ModelForm):
             )
         return value
 
-    def clean(self):
-        data = super().clean()
-        scopes = []
-        for field in ["networks", "ips", "domains"]:
-            for line in data.get(field, "").splitlines():
-                if not line.strip():
-                    continue
-                kind = (
-                    "domain"
-                    if field == "domains"
-                    else "ip"
-                    if field == "ips"
-                    else "network"
-                    if "/" in line
-                    else "range"
-                )
-                try:
-                    value = normalize(kind, line)
-                except forms.ValidationError as error:
-                    self.add_error(field, error)
-                    continue
-                item = {"kind": kind, "value": value, "network_context": data.get("network_context", "")}
-                if item not in scopes:
-                    scopes.append(item)
-        if not scopes:
-            self.add_error(None, "Declare at least one IP range, static IP address or domain.")
-        if len(scopes) > 100:
-            self.add_error(None, "Submit at most 100 scope entries per application.")
-        data["scopes"] = scopes
-        return data
 
 
 class RegistrationVerificationForm(forms.Form):

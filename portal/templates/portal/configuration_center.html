@@ -1,0 +1,8 @@
+{% extends 'portal/base.html' %}{% block content %}
+<p class="eyebrow">COMPANY CONFIGURATION</p><h1>Set up {{ org.name }}</h1>
+<p>Start small and add details over time. Saved settings and drafts are shared with your company administrators, so you can continue on another device.</p>
+{% include 'portal/configuration_progress.html' %}
+{% if available %}<p><a class="button primary" href="{% url 'setup-resume' org.slug %}">Start / resume guided setup →</a></p>{% else %}<aside><strong>Guided setup opens after CIRCL approval.</strong><p>You can already use the individual sections below in your private company area. Approval and later sharing changes do not verify your IP/domain authority.</p></aside>{% endif %}
+<div class="cards">{% for item in setup.items %}<article><p class="eyebrow">SECTION {{ forloop.counter }}</p><h2>{{ item.label }}</h2><p>{% if item.complete %}✓ Reviewed{% else %}Ready to complete at your own pace{% endif %}</p><a class="button" href="{% url 'configuration-section' org.slug item.key %}">Open section →</a></article>{% endfor %}</div>
+<p><a href="{% url 'organization' org.slug %}">Company inventory, contacts and individual editors →</a></p>
+{% endblock %}

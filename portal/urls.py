@@ -21,9 +21,15 @@ from . import (
     circl_map_views,
     registration_views,
     inventory_review_views,
+    configuration_views,
 )
 
 urlpatterns = [
+    path("organizations/<slug:slug>/configuration-export/ail/", configuration_views.export_ail, name="configuration-ail-export"),
+    path("organizations/<slug:slug>/configuration/", configuration_views.center, name="configuration"),
+    path("organizations/<slug:slug>/configuration/<slug:section>/", configuration_views.section, name="configuration-section"),
+    path("organizations/<slug:slug>/setup/", configuration_views.resume, name="setup-resume"),
+    path("organizations/<slug:slug>/setup/<slug:section>/", configuration_views.section, {"guided": True}, name="setup-section"),
     path("circl/panels/<slug:section>/", circl_views.panel, name="circl-panel"),
     path("circl/map/data/", circl_map_views.data, name="circl-map-data"),
     path("circl/map/<slug:slug>/location/", circl_map_views.location, name="circl-map-location"),

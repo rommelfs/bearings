@@ -37,6 +37,8 @@ See [asset location, source-severity filters and linked analyst triage](docs/use
 
 [Self-registration and data-review reminders](docs/user-guide/reporting-registration.md): email confirmation immediately opens a private company workspace; CIRCL sharing is approved afterward. Registration includes an emergency telephone and explicit sharing/update/periodic-check commitments. Platform admins and CIRCL for shared organizations manage the review intervals; required service email checks and owner confirmations keep networks/domains and optional software inventory current. An optional independently confirmed team notification mailbox keeps shared security/NOC contacts separate from personal logins.
 
+[Company configuration & setup](docs/user-guide/company-configuration.md): after CIRCL approval, a resumable four-part guide covers IPs/networks/domains, local hardware/software entry, manual AIL keyword/Honeytoken configuration and contacts/public communication material. Sections also work independently, with autosave, conflict protection and a setup progress bar. Registration accepts optional public PGP/S/MIME material instead of requiring infrastructure declarations. AIL configuration is exported for manual import and human review; no direct connector or automatic alerts.
+
 New to Bearings? Open **Start here** for a [guided case](docs/user-guide/guided-cases.md): machine → evidence → risk → action → follow-up. The opt-in PHP example uses CVE-2026-109618 and CVE-2026-109619; product/CVE selection stays flexible.
 
 [Choose MOSP/MONARC risk scenarios](docs/user-guide/risk-scenarios.md) by name with integrated search and preview; no manual UUID entry is needed.
