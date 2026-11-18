@@ -148,3 +148,9 @@ For slow overview processing, the diagnostic also reports `scope`, `companies`, 
 
 
 If `priority` dominates a slow overview, inspect its submetrics `ranking` (candidate selection/counts/assets), `issuepreviews` (bounded issue IDs and scoped detail loading) and `legacypreviews` (remaining legacy CVE slots). The latter is skipped for cards already filled with four visible issue previews. These nested ranges overlap `priority` and database timing. Slow `database`/`dbmax` with fast `session` and Applications localizes a database path; it does not establish JIT as the cause. The follow-up user measurements remained slow after local JIT suppression, so that hypothesis did not explain that environment.
+
+## Signing in as the local platform administrator
+
+The bundled `platform-admin` is a Bearings local account, without a fixture Keycloak identity. Open **https://localhost:9441/accounts/login/** (or your configured Bearings HTTPS port), then use the **Local account / administrator sign-in** Username/Password form and the ordinary **Sign in** button. The SSO button takes you to a different identity store.
+
+`python3 scripts/dev.py credentials` now starts with an explicit platform-admin entry and explains this local login route. Newly created local lab accounts use the generated password displayed at the end. If an account password has since been changed, that generated value is not a copy of its current password; bootstrap and this read-only command preserve existing passwords, disabled state, grants and SSO bindings. Production local accounts follow the operator's own credentials/recovery policy.

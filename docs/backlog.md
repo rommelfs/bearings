@@ -244,3 +244,7 @@ Implemented [#48](https://github.com/rommelfs/bearings/issues/48), [company conf
 ## Registration delivery visibility and administrative activation — 2026-11-18
 
 Implemented [#49](https://github.com/rommelfs/bearings/issues/49): explicit local-vs-SMTP registration delivery status, platform-only local outbox inspection and retry controls. Django admin now exposes registrations through controlled review links. Platform superusers can activate private access with a recorded reason before mailbox proof and hand the owner a one-use password setup link; email confirmation/reachability remains unasserted and CIRCL sharing is a separate review. Existing passwords/privileges are preserved; public resend throttling remains. See [registration operations](user-guide/reporting-registration.md#pending-registration-local-mail-and-administrative-override).
+
+## Distinguish platform-admin local login from SSO — 2026-11-18
+
+Implemented [#50](https://github.com/rommelfs/bearings/issues/50): made `platform-admin` the first explicit Bearings entry in starter credentials output, with the local form/Sign in route and retained-password explanation. The SSO-enabled login page now labels local administrator sign-in and explains the lab account's distinct identity store. No account/password/group/binding reset or IdP provisioning is introduced.

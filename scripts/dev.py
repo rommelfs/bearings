@@ -581,6 +581,10 @@ def main():
             if state.get("rt"):
                 run(base + ["exec", "-T", "rt", "python3", "/adapter/start.py", "smoke"])
     elif args.action == "credentials":
+        print("BEARINGS PLATFORM ADMINISTRATOR — LOCAL LOGIN")
+        print("Username: platform-admin")
+        print("Open Bearings /accounts/login/ and use the Username / Password form with Sign in.")
+        print("This account is not a Keycloak SSO identity. Its initial password is the generated password below; retained passwords are never reset.")
         if state.get("rt"):
             print(
                 "Bundled RT: company-admin and circl-analyst use their own scoped queues. Local recovery user root at the RT recovery URL printed at startup; existing passwords are unchanged."
@@ -596,11 +600,11 @@ def main():
         print("LOCAL DEVELOPMENT ONLY: Bearings users platform-admin, company-admin, circl-analyst.")
         if state["mode"] == "bundled":
             print(
-                "Bundled NetBox user: netbox-admin. All new demo users share this generated local password:"
+                "Bundled NetBox user: netbox-admin. All new demo users share this generated local password:", flush=True
             )
         else:
             print(
-                "External NetBox accounts are unchanged. New Bearings demo users share this generated local password:"
+                "External NetBox accounts are unchanged. New Bearings demo users share this generated local password:", flush=True
             )
         run(base + ["exec", "-T", "web", "cat", "/run/bearings/secrets/demo_password"])
     elif args.action == "trust":

@@ -54,6 +54,10 @@
       {
         "title": "Expose registration mail status and audited administrative activation overrides",
         "body": "Implemented explicit local-file vs SMTP delivery UI, platform-only bounded/escaped/audited local mail inspection, pending-registration resend controls and Django admin review links. Platform superusers can activate private company access before mailbox proof with a recorded reason and one-use 24-hour owner password setup link. Keep email_verified_at and contact reachability unconfirmed, preserve existing passwords/privileges/membership/source policy, and review CIRCL sharing separately. Reissue only before a usable password exists; invalidate previous tokens, retain public resend cooldown and report local/relay acceptance vs failure without provider secrets. Default mail remains local; no real SMTP relay or production notification enabled. See docs/user-guide/reporting-registration.md."
+      },
+      {
+        "title": "Make local platform-admin credentials and login route explicit",
+        "body": "Implemented an explicit platform-admin entry first in local starter credentials, with the Bearings Username/Password Sign in route, generated-initial-password explanation and retained-password preservation. Label the SSO-enabled local administrator form and explain that the bundled platform-admin has no Keycloak identity. No account/password/privilege/identity-binding reset or new IdP provisioning. See docs/operations/sso.md."
       }
     ]
   },
