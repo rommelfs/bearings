@@ -7,7 +7,9 @@ from django.db.models.functions import Cast
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 from .access import (
     audit,
     audit_operator_access,
@@ -206,8 +208,27 @@ def contact_action(request, slug, pk, action):
             "Role and details reviewed. Channel reachability and emergency availability are separate.",
         )
     elif action == "verify":
-        issue_contact_token(request.user, contact)
-        messages.success(request, "Verification prepared in the local development mail sink (.local/mail).")
+        service = contact.registration_notifications.exists()
+        if service:
+            try:
+                sent = issue_contact_token(request.user, contact, service=True)
+            except Exception:
+                sent = False
+                audit(request.user, org, "contact.service_verification_failed", contact.pk)
+            if sent:
+                messages.success(
+                    request, "Team mailbox verification prepared using the configured service mail transport."
+                )
+            else:
+                messages.warning(
+                    request,
+                    "Team verification was not prepared. Allow 15 minutes between requests or check service mail configuration and retry.",
+                )
+        else:
+            issue_contact_token(request.user, contact)
+            messages.success(
+                request, "Verification prepared in the local development mail sink (.local/mail)."
+            )
     elif action == "availability":
         contact.availability_confirmed_at = timezone.now()
         contact.save(update_fields=["availability_confirmed_at"])
@@ -222,6 +243,9 @@ def contact_action(request, slug, pk, action):
     return redirect("organization", slug=slug)
 
 
+@never_cache
+@sensitive_post_parameters()
+@require_http_methods(["GET", "POST"])
 def verify_contact(request):
     if request.method == "POST":
         success = redeem_contact_token(request.POST.get("token", ""))
@@ -229,7 +253,7 @@ def verify_contact(request):
             request,
             "portal/verify.html",
             {
-                "result": "Development channel confirmation recorded; external reachability remains untested."
+                "result": "Mailbox confirmation recorded. Contact role, emergency availability and infrastructure authority remain separate."
                 if success
                 else "Invalid or expired token."
             },

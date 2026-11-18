@@ -21,7 +21,16 @@ class InfrastructureRegistrationForm(forms.ModelForm):
         help_text="Street, postal code, city and country. You can add this later.",
     )
     contact_name = forms.CharField(max_length=180, label="Responsible person's name")
-    email = forms.EmailField(label="Your email address")
+    email = forms.EmailField(
+        label="Your email address",
+        help_text="Used to confirm your personal account. Add a shared team mailbox below if needed.",
+    )
+    notification_email = forms.EmailField(
+        max_length=254,
+        required=False,
+        label="Team notification email (optional)",
+        help_text="For a shared security@, abuse@ or noc@ mailbox. Confirm that mailbox before it receives notifications; your personal login email stays separate.",
+    )
     emergency_phone = forms.CharField(
         max_length=80,
         label="Emergency contact telephone number",
@@ -72,6 +81,7 @@ class InfrastructureRegistrationForm(forms.ModelForm):
             "company_address",
             "contact_name",
             "email",
+            "notification_email",
             "emergency_phone",
             "networks",
             "ips",
@@ -82,6 +92,9 @@ class InfrastructureRegistrationForm(forms.ModelForm):
             "periodic_consent",
             "updates_consent",
         ]
+
+    def clean_notification_email(self):
+        return self.cleaned_data["notification_email"].casefold()
 
     def clean_emergency_phone(self):
         value = re.sub(r"[\s()./-]", "", self.cleaned_data["emergency_phone"])

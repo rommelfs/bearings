@@ -136,7 +136,7 @@ class RedactAuthQueries(logging.Filter):
         def redact(value):
             return (
                 re.sub(
-                    r"(/oauth/complete/[^?\s]+|/(?:circl|register)/[^?\s]*)\?[^\s\"]+",
+                    r"(/oauth/complete/[^?\s]+|/(?:circl|register|contacts)/[^?\s]*)\?[^\s\"]+",
                     r"\1?[redacted]",
                     value,
                 )

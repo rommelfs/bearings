@@ -79,6 +79,7 @@ def main():
                 print("Synthetic showcase state retained; no automatic reseeding or account/policy changes.")
             else:
                 call_command("seed_showcase")
+            call_command("seed_showcase_addresses", automatic=True)
         from portal.product_matching import enroll_products
 
         print(f"Auto-enabled {enroll_products()} recognized product watches; existing settings retained.")

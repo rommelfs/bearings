@@ -55,3 +55,13 @@ Real service mail requires `BEARINGS_SERVICE_MAIL_TRANSPORT=smtp` plus `SMTP_HOS
 After updating, `python3 scripts/dev.py up --no-build` applies migrations before restarting web/worker. Migration 0030 adds phone/commitment fields without backfilling agreement or changing legacy scopes, contacts, intervals or optional-mail policy.
 
 Migration 0031 adds optional submitted/current company-address fields. Existing addresses remain blank; no location is guessed. Automated resource verification remains a proposal while the low-friction onboarding design is reconsidered.
+
+## Optional team notification mailbox
+
+Signup now offers **Team notification email (optional)** for a shared `security@`, `abuse@`, `noc@` or another valid mailbox; no prefix is mandatory. This is additional to the personal account-confirmation address and creates a separate security contact, not a shared user/login. Equal personal/team addresses are deduplicated.
+
+After personal mailbox confirmation opens the private organization, a separate one-use team confirmation is prepared through the configured service-mail transport. Opening that link only prefills the verification form and clears the URL fragment; a deliberate POST confirms the mailbox. The code is hashed, expires in 24 hours and cannot be replayed. Resend via **Emergency contacts → Prepare verification** respects the service transport and a 15-minute cooldown. A failed team send does not roll back personal access; retry after correcting mail configuration. An unconfirmed team mailbox is excluded from reminders.
+
+Confirmed team mailboxes receive generic periodic data-review requests alongside the registered administrator, with address deduplication and current eligibility checks. Vulnerability outreach still requires the existing contact-role review and campaign approval; mailbox confirmation does not assign those rights, verify availability or grant infrastructure access. Changing a contact's email invalidates old mailbox tokens/status through the existing contact editor.
+
+The periodic test is implemented: the worker queues due requests, sends a link to the authenticated company review page, records the administrator's explicit current-data confirmation, advances the next due date and suppresses queued obsolete requests. Link opening alone and mail scanners never confirm data. The command now includes newly queued jobs in its same-pass delivery cutoff; the worker no longer needs a second iteration for those jobs. Local file delivery remains the default, and real service SMTP must be explicitly configured.

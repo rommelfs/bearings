@@ -397,6 +397,20 @@ def main():
                 "--noinput",
             ]
         )
+        if mode == "bundled" and os.getenv("BEARINGS_SHOWCASE", "1") == "1":
+            run(
+                runtime_base
+                + [
+                    "exec",
+                    "-T",
+                    "web",
+                    "/app/.venv/bin/python",
+                    "docker/dev/entrypoint.py",
+                    "manage",
+                    "seed_showcase_addresses",
+                    "--automatic",
+                ]
+            )
         run(runtime_base + ["restart", "web", "worker"])
         runtime_services = ["web", "worker"] + (["bearings-tls"] if sso else [])
         run(

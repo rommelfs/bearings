@@ -220,3 +220,7 @@ Implemented an independently loaded [company map and optional heat overlay](user
 ## Isolate National Overview latency — 2026-11-18
 
 After a reported minute-long blank document and an inconclusive diagnostic failure, removed aggregate queries from the National Overview document. Summary, problem ranking, version distribution and history load independently with current policy, explicit missing-data states and retry. PostgreSQL per-statement timeout and section time budget prevent a slow history/ranking query from holding the whole page. The local failing/slow-section browser acceptance and genuine query cancellation/restoration pass; affected-environment phase diagnostics remain necessary to identify its database bottleneck.
+
+## Luxembourg showcase, team mail and federation design — 2026-11-18
+
+Implemented safe one-time local Luxembourg addresses for existing/fresh provenance-owned showcase companies, without overwriting user addresses/points/decisions or resurrecting removed data. Optional independently confirmed shared notification mailboxes are separate contacts and never grant a user/login/role; existing outreach policy remains required. End-to-end periodic mail review is verified and same-pass delivery cutoff fixed. The [company synchronization proposal](decisions/0008-company-synchronization-proposal.md) explains the implemented read-only snapshot pilot and proposed stable-ID/resource/delta/outbound-agent work; these protocol changes are not yet implemented.

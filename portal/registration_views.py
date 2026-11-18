@@ -20,6 +20,7 @@ from .registration import (
     permit_public_attempt,
     submit_registration,
     verify_registration,
+    prepare_team_verification,
 )
 from .registration_forms import (
     InfrastructureRegistrationForm,
@@ -84,9 +85,12 @@ def verify(request):
                 form.add_error(None, error)
             else:
                 if verified:
+                    team_ready = prepare_team_verification(verified)
                     return private_response(
                         render(
-                            request, "portal/registration_verify.html", {"verified": True, "item": verified}
+                            request,
+                            "portal/registration_verify.html",
+                            {"verified": True, "item": verified, "team_ready": team_ready},
                         )
                     )
                 form.add_error(

@@ -35,7 +35,7 @@ See [asset location, source-severity filters and linked analyst triage](docs/use
 
 [CIRCL company map](docs/user-guide/circl-map.md): severity markers and optional heatmap, local Luxembourg postal/place lookup, explicit manual points and current scoped problem links; no external tiles or address submission.
 
-[Self-registration and data-review reminders](docs/user-guide/reporting-registration.md): email confirmation immediately opens a private company workspace; CIRCL sharing is approved afterward. Registration includes an emergency telephone and explicit sharing/update/periodic-check commitments. Platform admins and CIRCL for shared organizations manage the review intervals; required service email checks and owner confirmations keep networks/domains and optional software inventory current.
+[Self-registration and data-review reminders](docs/user-guide/reporting-registration.md): email confirmation immediately opens a private company workspace; CIRCL sharing is approved afterward. Registration includes an emergency telephone and explicit sharing/update/periodic-check commitments. Platform admins and CIRCL for shared organizations manage the review intervals; required service email checks and owner confirmations keep networks/domains and optional software inventory current. An optional independently confirmed team notification mailbox keeps shared security/NOC contacts separate from personal logins.
 
 New to Bearings? Open **Start here** for a [guided case](docs/user-guide/guided-cases.md): machine → evidence → risk → action → follow-up. The opt-in PHP example uses CVE-2026-109618 and CVE-2026-109619; product/CVE selection stays flexible.
 
@@ -45,7 +45,7 @@ See the [unpatched Exchange example and analyst workflow](docs/user-guide/exchan
 
 ## Explore synthetic scenarios
 
-The bundled lab now includes **10 fictional companies, 300 assets, 900 installations, 960 asset issues, six weeks of exposure history and offline response/message previews**. Follow **Explore the scenarios** in the banner. No scans, messages or remote cases are created by this dataset. Platform administrators can preview and safely remove the tracked examples; a retained marker prevents reseeding on restart. See [synthetic data, cleanup and production boundaries](docs/operations/synthetic-data.md).
+The bundled lab now includes **10 fictional companies, 300 assets, 900 installations, 960 asset issues, six weeks of exposure history and offline response/message previews**. Follow **Explore the scenarios** in the banner. Its fictional firms now include clearly synthetic addresses across Luxembourg for the local company map; edited/real addresses remain untouched. No scans, messages or remote cases are created by this dataset. Platform administrators can preview and safely remove the tracked examples; a retained marker prevents reseeding on restart. See [synthetic data, cleanup and production boundaries](docs/operations/synthetic-data.md).
 
 ## Optional single sign-on
 

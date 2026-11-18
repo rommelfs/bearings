@@ -40,6 +40,8 @@
   const status=root.querySelector('[data-map-status]');
   if(!window.L) { status.textContent='Map renderer unavailable. Use the company and problem lists.';return; }
   const map=setupMap(root.querySelector('[data-map-canvas]'));
+  map.createPane('companyPoints').style.zIndex='450';
+  const pointRenderer=L.canvas({pane:'companyPoints'});
   let markers=L.featureGroup().addTo(map),heat=null,payload=null,page=0,controller;
   const table=root.querySelector('[data-map-table]'),unlocated=root.querySelector('[data-map-unlocated]');
   function companyContent(point) {
@@ -79,7 +81,7 @@
     points.forEach(p=>{const key=p.lat.toFixed(4)+','+p.lon.toFixed(4);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(p);});
     groups.forEach(group=>{
       const worst=group.reduce((a,b)=>a.rank>=b.rank?a:b);
-      const marker=L.circleMarker([worst.lat,worst.lon],{radius:Math.min(18,7+Math.log2(group.length)*3),color:'#233c4a',weight:1.5,fillColor:colors[worst.level],fillOpacity:.88});
+      const marker=L.circleMarker([worst.lat,worst.lon],{pane:'companyPoints',renderer:pointRenderer,radius:Math.min(18,7+Math.log2(group.length)*3),color:'#233c4a',weight:1.5,fillColor:colors[worst.level],fillOpacity:.88});
       marker.bindTooltip(element('span',`${group.length} ${group.length===1?'company':'companies'} · ${names[worst.level]}`));
       marker.bindPopup(()=>{
         const box=element('div');

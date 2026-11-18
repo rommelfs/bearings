@@ -111,6 +111,17 @@ def removal_plan(dataset, *, lock=False):
             count = unexpected.count()
             if count:
                 blockers.append(f"{model._meta.label}.{field.name}: {count} unowned references (preserved)")
+    organization = apps.get_model("portal", "Organization")
+    if groups.get(organization):
+        from .geography import address_digest
+
+        applied = dataset.configuration.get("map_addresses_v1", {}).get("applied", {})
+        for company in organization.objects.filter(pk__in=groups[organization]):
+            if company.postal_address.strip() and applied.get(str(company.pk)) != address_digest(
+                company.postal_address
+            ):
+                blockers.append("Organization: changed/unowned company address requires separate review")
+                break
     contact = apps.get_model("portal", "Contact")
     if groups.get(contact) and any(
         not email.lower().endswith(".invalid")

@@ -61,6 +61,7 @@ def submit_registration(form):
         company_address=form.cleaned_data["company_address"],
         contact_name=form.cleaned_data["contact_name"],
         email=user.email,
+        notification_email=form.cleaned_data["notification_email"],
         emergency_phone=form.cleaned_data["emergency_phone"],
         authority_attested_at=now,
         periodic_review_consented_at=now,
@@ -164,6 +165,16 @@ def verify_registration(raw, password):
         notification_enabled=item.email_reminders,
         next_review=timezone.localdate(),
     )
+    if item.notification_email and item.notification_email != item.email:
+        item.notification_contact = Contact.objects.create(
+            organization=org,
+            name="Notification team",
+            email=item.notification_email,
+            role="Team notification mailbox (self-declared)",
+            function="security",
+            notification_enabled=True,
+            next_review=timezone.localdate(),
+        )
     Membership.objects.create(organization=org, user=user, role="admin")
     InventoryReviewPolicy.objects.create(
         organization=org,
@@ -176,7 +187,7 @@ def verify_registration(raw, password):
     user.save(update_fields=["is_active"])
     item.organization = org
     item.status = "awaiting_review"
-    item.save(update_fields=["email_verified_at", "organization", "status"])
+    item.save(update_fields=["email_verified_at", "organization", "notification_contact", "status"])
     audit(None, item.organization, "registration.email_verified", item.pk)
     return item
 
@@ -240,3 +251,15 @@ def notify_decision(pk):
     item.decision_mail_sent_at = timezone.now()
     item.save(update_fields=["decision_mail_sent_at"])
     return True
+
+
+def prepare_team_verification(item):
+    if not item.notification_contact_id:
+        return True
+    from .services import issue_contact_token
+
+    try:
+        return issue_contact_token(item.user, item.notification_contact, service=True)
+    except Exception:
+        audit(None, item.organization, "registration.team_verification_failed", item.pk)
+        return False

@@ -143,6 +143,72 @@ class RegistrationReviewTests(Fixture):
         self.assertTrue(duplicate.context["form"].errors)
         self.assertEqual(InfrastructureRegistration.objects.count(), 1)
 
+    def test_one_scheduler_pass_queues_and_sends_due_review_email(self):
+        item, org = self.workspace()
+        self.make_due(org)
+        mail.outbox.clear()
+        call_command("remind_inventory")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("/review/", mail.outbox[0].body)
+        self.assertEqual(InventoryReviewDelivery.objects.get().status, "sent")
+
+    def test_optional_team_mailbox_is_separate_verified_and_notification_eligible(self):
+        from .registration import prepare_team_verification
+        from .inventory_review import reminder_recipients
+        from .services import redeem_contact_token
+
+        self.data["notification_email"] = "SECURITY@EXAMPLE.INVALID"
+        item, org = self.workspace()
+        self.assertEqual(item.notification_email, "security@example.invalid")
+        team = item.notification_contact
+        self.assertEqual(team.email, "security@example.invalid")
+        self.assertIsNone(team.reachable_at)
+        self.assertIsNone(team.reviewed_at)
+        self.assertIsNone(team.availability_confirmed_at)
+        self.assertNotIn(team.email, reminder_recipients(org.inventory_review_policy))
+        self.assertTrue(prepare_team_verification(item))
+        self.assertEqual(mail.outbox[-1].to, [team.email])
+        self.assertFalse(prepare_team_verification(item))
+        token = re.search(r"#token=([A-Za-z0-9_-]{43})", mail.outbox[-1].body)[1]
+        self.assertEqual(self.client.get(reverse("verify-contact")).status_code, 200)
+        team.refresh_from_db()
+        self.assertIsNone(team.reachable_at)
+        self.assertTrue(redeem_contact_token(token))
+        self.assertFalse(redeem_contact_token(token))
+        self.assertIn(team.email, reminder_recipients(org.inventory_review_policy))
+        team.refresh_from_db()
+        self.assertIsNone(team.reviewed_at)
+        self.assertIsNone(team.availability_confirmed_at)
+        self.assertEqual(get_user_model().objects.filter(email=team.email).count(), 0)
+
+    def test_team_verification_failure_keeps_primary_workspace_usable(self):
+        self.data["notification_email"] = "noc@example.invalid"
+        item, code = self.signup()
+        with patch("portal.service_mail.send_service_mail", side_effect=OSError("private SMTP detail")):
+            response = self.client.post(
+                reverse("registration-verify"),
+                {"code": code, "password1": PASSWORD, "password2": PASSWORD, "requested": "on"},
+            )
+        self.assertContains(response, "team mailbox verification could not be prepared")
+        item.refresh_from_db()
+        self.assertTrue(item.user.is_active)
+        self.assertIsNotNone(item.organization)
+        self.assertIsNone(item.notification_contact.reachable_at)
+        self.assertNotContains(response, "private SMTP detail")
+        self.assertTrue(self.client.login(username=item.user.username, password=PASSWORD))
+
+    def test_team_email_validation_same_address_dedup_and_confirmation_cooldown(self):
+        from .registration import prepare_team_verification
+
+        self.data["notification_email"] = "invalid email"
+        response = self.client.post(reverse("registration"), self.data)
+        self.assertIn("notification_email", response.context["form"].errors)
+        self.data["notification_email"] = self.data["email"].upper()
+        item, org = self.workspace()
+        self.assertIsNone(item.notification_contact_id)
+        self.assertEqual(org.contacts.count(), 1)
+        self.assertTrue(prepare_team_verification(item))
+
     def test_optional_company_address_persists_and_remains_scoped(self):
         address = "12 Example Road\nL-1234 Exampletown\nLuxembourg"
         self.data["company_address"] = address

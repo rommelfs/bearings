@@ -20,6 +20,8 @@ class Command(BaseCommand):
             email_enabled=True, next_due__lte=timezone.localdate(), next_reminder_at__lte=now
         ).order_by("next_reminder_at", "pk")
         queued = sum(queue_review_reminders(pk) for pk in list(policies.values_list("pk", flat=True)[:limit]))
+        # Include deliveries just created by this pass, not only rows predating its start.
+        now = timezone.now()
         deliveries = InventoryReviewDelivery.objects.filter(
             status__in=["pending", "error"], attempts__lt=3, next_attempt__lte=now
         ).order_by("next_attempt", "pk")

@@ -1507,6 +1507,10 @@ class InfrastructureRegistration(models.Model):
     company_address = models.TextField(max_length=1000, blank=True)
     contact_name = models.CharField(max_length=180)
     email = models.EmailField(unique=True)
+    notification_email = models.EmailField(blank=True)
+    notification_contact = models.ForeignKey(
+        Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name="registration_notifications"
+    )
     emergency_phone = models.CharField(max_length=80, blank=True)
     authority_attested_at = models.DateTimeField(null=True, blank=True)
     periodic_review_consented_at = models.DateTimeField(null=True, blank=True)

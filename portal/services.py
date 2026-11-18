@@ -93,24 +93,52 @@ def review_contact(user, contact):
     audit(user, contact.organization, "contact.role_reviewed", contact.pk)
 
 
-def issue_contact_token(user, contact):
+def issue_contact_token(user, contact, *, service=False):
     raw = secrets.token_urlsafe(32)
     with transaction.atomic():
+        if service:
+            from .access import can_review_contact
+            from .models import Contact
+
+            contact = Contact.objects.select_for_update().get(pk=contact.pk)
+            require(user.is_active and can_review_contact(user, contact.organization))
+        if (
+            service
+            and ContactToken.objects.filter(
+                contact=contact,
+                used_at__isnull=True,
+                expires_at__gt=timezone.now() + timedelta(hours=23, minutes=45),
+            ).exists()
+        ):
+            return False
         ContactToken.objects.filter(contact=contact, used_at__isnull=True).update(used_at=timezone.now())
         ContactToken.objects.create(
             contact=contact,
             digest=hashlib.sha256(raw.encode()).hexdigest(),
             expires_at=timezone.now() + timedelta(hours=24),
         )
-        # Local sink only; no production message delivery is configured.
-        send_mail(
-            "Bearings development: verify contact channel",
-            f"LOCAL DEVELOPMENT ONLY. Open /contacts/verify/ and submit this one-use token: {raw}\n"
-            "This verifies only email reachability, not authority, role review, or emergency availability.",
-            settings.DEFAULT_FROM_EMAIL,
-            [contact.email],
-        )
+        if service:
+            from .service_mail import public_base, send_service_mail
+
+            send_service_mail(
+                "Confirm your Bearings notification mailbox",
+                f"An administrator nominated this team mailbox for {contact.organization.name}. Confirm only if this mailbox should receive its notifications.\n\n"
+                f"Open {public_base()}/contacts/verify/#token={raw}\n\n"
+                f"Or open /contacts/verify/ and submit this one-use token: {raw}\n\n"
+                "The token expires in 24 hours. Opening the link alone confirms nothing. This verifies mailbox access only, not a role, emergency availability or infrastructure authority.",
+                contact.email,
+            )
+        else:
+            # Local sink only; no production message delivery is configured.
+            send_mail(
+                "Bearings development: verify contact channel",
+                f"LOCAL DEVELOPMENT ONLY. Open /contacts/verify/ and submit this one-use token: {raw}\n"
+                "This verifies only email reachability, not authority, role review, or emergency availability.",
+                settings.DEFAULT_FROM_EMAIL,
+                [contact.email],
+            )
         audit(user, contact.organization, "contact.verification_prepared", contact.pk)
+    return True
 
 
 @transaction.atomic

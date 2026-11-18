@@ -42,6 +42,10 @@
       {
         "title": "Capture optional company addresses for future geographic overviews",
         "body": "Implemented one optional free-text company address in registration (street/postal code/city/country), copied to the private organization after mailbox proof. Company admins can add/correct/clear the scoped address; submitted application remains original. Existing CIRCL read policy, escaped display, metadata-only audit and signed owner-review snapshot invalidation apply. Additive blank legacy migration; no coordinates, automatic geocoding, map or technical authority challenge. Future map should distinguish company locations from actual asset locations; low-friction proof options remain under discussion."
+      },
+      {
+        "title": "Add Luxembourg showcase geography and independently confirmed team notification mailboxes",
+        "body": "Implemented one-time provenance-owned Luxembourg address extension for fresh/retained exploration companies; preserve edited/cleared/manual locations, source/asset conversions and removal tombstones, respect showcase disable and protect changed address values during cleanup. Add optional team security/abuse/NOC mailbox as a distinct contact, independent one-use/expiring confirmation via service mail after personal activation, transport-aware retry/cooldown and no automatic role/login grants. Team failures preserve personal access. Verify full due-mail -> authenticated review -> confirmation -> next-due loop and fix same-pass queued-mail cutoff. Current federation remains a bounded/manual read-only pilot; a documented ownership/outbound-agent/versioned-change proposal is not implemented synchronization. See registration guide, synthetic-data operations and company synchronization proposal."
       }
     ]
   },

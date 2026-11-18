@@ -59,3 +59,17 @@ The application records ownership when it creates each object, rather than infer
 `demo_data check` exits nonzero while tracked datasets or recognized **unregistered older fixtures** remain. It reports older fixture evidence/Plum sources and known old example organizations; it never adopts/deletes them by their name. This matters for existing installations predating the provenance registry. Review those separately or build the production deployment with clean application databases and explicitly migrated real inventory/policies.
 
 This cleanup does **not** remotely delete examples in NetBox, FlowIntel, RTIR or Keycloak, remove retained volumes, rotate lab credentials, or turn the bundled developer stack into a production deployment. Backend retention and a clean production service/identity configuration remain separate. Exported cases/messages require explicit retention decisions rather than erasing local evidence that still identifies remote objects. No successful local data check certifies the complete deployment as production-ready.
+
+## Luxembourg geography showcase
+
+The existing ten `explore-v1` companies now receive fictional street/address labels with real Luxembourg postcodes/localities: Luxembourg, Esch-sur-Alzette, Differdange, Dudelange, Diekirch, Ettelbruck, Wiltz, Clervaux, Echternach and Remich. These are not real customer offices. The bundled local postal lookup plots approximate locations without geocoding/tiles leaving the application. Ordinary CIRCL visibility is preserved: eight of the ten default companies are visible to CIRCL, and two remain private. No vulnerability decision, priority, scope or notification opt-in is changed to manufacture map colors.
+
+`python3 scripts/dev.py up --no-build` automatically performs the one-time address extension in bundled mode when the showcase is enabled, including retained installations whose init container does not rerun. It respects the container's `BEARINGS_SHOWCASE=0` flag, never recreates a removed dataset, and touches only registry-owned companies/sources with blank addresses, development provenance and no unowned/converted assets or manual map points. Edited/nonblank addresses and deliberately cleared addresses after extension are preserved. Busy source writers are skipped for a later run instead of waiting while an organization lock is held. No NetBox/API write, mail or new account is involved.
+
+Explicit manual command for an existing DEBUG showcase:
+
+```sh
+python3 scripts/dev.py manage seed_showcase_addresses
+```
+
+Standalone use can pass `--actor YOUR_SUPERUSER`. The extension records processed companies and hashes of the exact synthetic address values in dataset metadata. Cleanup blocks when a nonblank company address differs from its recorded synthetic value, protecting later user/operational edits for separate review. New/retained seeds do not adopt a company merely because its name contains “SYNTHETIC”. [Real SSO showcase map](../images/circl-luxembourg-showcase.png).
