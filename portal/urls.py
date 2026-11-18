@@ -18,11 +18,14 @@ from . import (
     overview_views,
     scenario_views,
     circl_views,
+    circl_map_views,
     registration_views,
     inventory_review_views,
 )
 
 urlpatterns = [
+    path("circl/map/data/", circl_map_views.data, name="circl-map-data"),
+    path("circl/map/<slug:slug>/location/", circl_map_views.location, name="circl-map-location"),
     path("organizations/<slug:slug>/address/", registration_views.company_address, name="company-address"),
     path(
         "organizations/<slug:slug>/scope/<int:pk>/correct/",

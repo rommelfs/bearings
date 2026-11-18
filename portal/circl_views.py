@@ -50,6 +50,9 @@ def overview(request):
 def findings(request):
     authorize(request, "operator.national_findings")
     qs = outstanding(findings_for(request.user))
+    organization_filter = request.GET.get("organization", "")[:100]
+    if organization_filter:
+        qs = qs.filter(organization__slug=organization_filter)
     record = request.GET.get("record", "")[:120]
     bucket = request.GET.get("bucket", "all")
     if record:
@@ -73,7 +76,11 @@ def findings(request):
         25,
     ).get_page(request.GET.get("page"))
     return private_response(
-        render(request, "portal/circl_findings.html", {"page": page, "record": record, "bucket": bucket})
+        render(
+            request,
+            "portal/circl_findings.html",
+            {"page": page, "record": record, "bucket": bucket, "organization_filter": organization_filter},
+        )
     )
 
 

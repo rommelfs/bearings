@@ -212,3 +212,7 @@ Implemented [#42](https://github.com/rommelfs/bearings/issues/42): **Register yo
 ## Optional company address — 2026-11-18
 
 Added one optional address field during signup and a scoped company-admin address editor. Mailbox confirmation copies the original application address to the private organization; subsequent changes preserve the original submission and invalidate open data-review confirmations. Existing CIRCL visibility applies; no coordinates, map, external geocoding or automatic authority challenge. A future map must distinguish company locations from physical asset locations. Technical ownership-verification options remain under discussion to keep onboarding accessible.
+
+## CIRCL severity map — 2026-11-18
+
+Implemented an independently loaded [company map and optional heat overlay](user-guide/circl-map.md), highest-current-severity markers, exact problem links and accessible table. Local Luxembourg postal/place centroids and explicitly saved manual points send no addresses externally. Current sharing/source/exposure rules and signed address-bound positioning apply. Unlocated and omitted-company coverage is explicit; map points describe firms, not physical assets. A bounded 2,000-point response prioritizes severity/counts and leaves existing problem lists independent. Public geographic assets and permissive/CC/public-domain notices are retained. Global geocoding, broader response-capacity acceptance and physical asset maps remain separate work.

@@ -76,7 +76,11 @@ def board(request):
     else:
         kind = ""
     state = request.GET.get("state", "active")
-    if state == "active":
+    if state == "map-open":
+        base = base.filter(
+            finding__isnull=True, asset__lifecycle="active", status__in=[*issues.ACTIVE, "accepted_risk"]
+        )
+    elif state == "active":
         base = base.filter(issues.active_filter())
     elif state == "closed":
         base = base.exclude(issues.active_filter())

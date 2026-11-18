@@ -1601,3 +1601,22 @@ class InventoryReviewDelivery(models.Model):
     sent_at = models.DateTimeField(null=True, blank=True)
     error = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
+
+
+class OrganizationLocation(models.Model):
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="map_location")
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    address_digest = models.CharField(max_length=64)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(latitude__gte=-90, latitude__lte=90), name="map_latitude_range"
+            ),
+            models.CheckConstraint(
+                condition=Q(longitude__gte=-180, longitude__lte=180), name="map_longitude_range"
+            ),
+        ]
