@@ -20,11 +20,14 @@ from . import (
     circl_views,
     circl_map_views,
     registration_views,
+    service_mail_views,
     inventory_review_views,
     configuration_views,
 )
 
 urlpatterns = [
+    path("operator/service-mail/", service_mail_views.outbox, name="service-mail"),
+    path("operator/service-mail/<slug:key>/", service_mail_views.outbox, name="service-mail-message"),
     path("organizations/<slug:slug>/configuration-export/ail/", configuration_views.export_ail, name="configuration-ail-export"),
     path("organizations/<slug:slug>/configuration/", configuration_views.center, name="configuration"),
     path("organizations/<slug:slug>/configuration/<slug:section>/", configuration_views.section, name="configuration-section"),

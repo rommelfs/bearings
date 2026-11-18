@@ -21,12 +21,15 @@ from .registration import (
     submit_registration,
     verify_registration,
     prepare_team_verification,
+    activate_registration_override,
 )
 from .registration_forms import (
     InfrastructureRegistrationForm,
     RegistrationDecisionForm,
     RegistrationVerificationForm,
     VerificationResendForm,
+    RegistrationOverrideForm,
+    RegistrationMailRetryForm,
 )
 
 
@@ -42,7 +45,14 @@ def register(request):
     if request.method == "POST":
         if not permit_public_attempt(request):
             form.add_error(None, "Too many public attempts. Try again later or contact the operator.")
-            return private_response(render(request, "portal/registration.html", {"form": form}, status=429))
+            return private_response(
+                render(
+                    request,
+                    "portal/registration.html",
+                    {"form": form, "local_mail": settings.SERVICE_MAIL_TRANSPORT == "file"},
+                    status=429,
+                )
+            )
         if form.is_valid():
             try:
                 item = submit_registration(form)
@@ -57,13 +67,25 @@ def register(request):
                         "Application saved, but verification email could not be prepared. Use resend later or contact the operator.",
                     )
                 return redirect("registration-sent")
-    return private_response(render(request, "portal/registration.html", {"form": form}))
+    return private_response(
+        render(
+            request,
+            "portal/registration.html",
+            {"form": form, "local_mail": settings.SERVICE_MAIL_TRANSPORT == "file"},
+        )
+    )
 
 
 @never_cache
 @require_http_methods(["GET"])
 def sent(request):
-    return private_response(render(request, "portal/registration.html", {"sent": True}))
+    return private_response(
+        render(
+            request,
+            "portal/registration.html",
+            {"sent": True, "local_mail": settings.SERVICE_MAIL_TRANSPORT == "file"},
+        )
+    )
 
 
 @never_cache
@@ -85,7 +107,7 @@ def verify(request):
                 form.add_error(None, error)
             else:
                 if verified:
-                    team_ready = prepare_team_verification(verified)
+                    team_ready = prepare_team_verification(verified) if verified.email_verified_at else False
                     return private_response(
                         render(
                             request,
@@ -133,24 +155,78 @@ def applications(request):
         .order_by("created_at", "pk"),
         25,
     ).get_page(request.GET.get("page"))
-    return private_response(render(request, "portal/registrations.html", {"page": page, "state": state}))
+    return private_response(
+        render(
+            request,
+            "portal/registrations.html",
+            {"page": page, "state": state, "local_mail": settings.SERVICE_MAIL_TRANSPORT == "file"},
+        )
+    )
 
 
 @login_required
 @never_cache
+@sensitive_post_parameters()
 @require_http_methods(["GET", "POST"])
 def application(request, pk):
     require(request.user.is_superuser or is_analyst(request.user))
     item = get_object_or_404(
         InfrastructureRegistration.objects.select_related("user", "organization", "reviewed_by"), pk=pk
     )
-    form = RegistrationDecisionForm(request.POST or None)
+    action = request.POST.get("action") if request.method == "POST" else ""
+    override_form = RegistrationOverrideForm(
+        request.POST if action == "override" else None, auto_id="override_%s"
+    )
+    retry_form = RegistrationMailRetryForm(
+        request.POST if action == "retry_email" else None, auto_id="retry_%s"
+    )
+    can_override = request.user.is_superuser and (
+        item.status == "awaiting_email"
+        or (
+            item.manually_activated_at
+            and item.status in {"awaiting_review", "approved"}
+            and not item.user.has_usable_password()
+        )
+    )
+    if action == "override":
+        require(can_override)
+        if override_form.is_valid():
+            try:
+                item, activation_url = activate_registration_override(
+                    request.user, item.pk, override_form.cleaned_data["note"]
+                )
+            except ValidationError as error:
+                override_form.add_error(None, error)
+            else:
+                response = private_response(
+                    render(
+                        request,
+                        "portal/registration_activation_ready.html",
+                        {"item": item, "activation_url": activation_url},
+                    )
+                )
+                response["Referrer-Policy"] = "no-referrer"
+                return response
+    elif action == "retry_email":
+        require(request.user.is_superuser and item.status == "awaiting_email")
+        if retry_form.is_valid():
+            success = issue_verification(item.pk, actor=request.user)
+            (messages.success if success else messages.error)(
+                request,
+                "New verification message saved to the local outbox."
+                if settings.SERVICE_MAIL_TRANSPORT == "file" and success
+                else "New verification message accepted by the configured SMTP relay."
+                if success
+                else "Verification email failed. Check service-mail configuration and retry.",
+            )
+            return redirect("registration-application", pk=item.pk)
+    form = RegistrationDecisionForm(request.POST if request.method == "POST" and not action else None)
     if item.status == "awaiting_email":
-        require(request.method == "GET")
+        require(request.method == "GET" or action in {"override", "retry_email"})
         form = None
     elif item.status in {"approved", "rejected"}:
         form.fields["decision"].choices = [("notify", "Retry decision email")]
-    if request.method == "POST" and form.is_valid():
+    if request.method == "POST" and not action and form and form.is_valid():
         item = decide_registration(
             request.user, item.pk, form.cleaned_data["decision"], form.cleaned_data["note"]
         )
@@ -166,7 +242,19 @@ def application(request, pk):
         return redirect("registration-application", pk=item.pk)
     audit(request.user, item.organization, "operator.registration_read", item.pk)
     return private_response(
-        render(request, "portal/registration_application.html", {"item": item, "form": form})
+        render(
+            request,
+            "portal/registration_application.html",
+            {
+                "item": item,
+                "form": form,
+                "override_form": override_form if can_override else None,
+                "retry_form": retry_form
+                if request.user.is_superuser and item.status == "awaiting_email"
+                else None,
+                "local_mail": settings.SERVICE_MAIL_TRANSPORT == "file",
+            },
+        )
     )
 
 

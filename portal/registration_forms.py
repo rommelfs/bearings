@@ -89,7 +89,6 @@ class InfrastructureRegistrationForm(PublicKeysForm, forms.ModelForm):
         return value
 
 
-
 class RegistrationVerificationForm(forms.Form):
     password1 = forms.CharField(label="Choose your portal password", widget=forms.PasswordInput())
     password2 = forms.CharField(label="Repeat password", widget=forms.PasswordInput())
@@ -165,3 +164,20 @@ class CompanyAddressForm(forms.ModelForm):
             "postal_address": "Street, postal code, city and country. This is your organization's location; servers may be elsewhere."
         }
         widgets = {"postal_address": forms.Textarea(attrs={"rows": 3, "autocomplete": "street-address"})}
+
+
+class RegistrationOverrideForm(forms.Form):
+    note = forms.CharField(
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Reason for the administrative override",
+    )
+    checked = forms.BooleanField(
+        label="Activate private company access without asserting email ownership. I will give the one-use password setup link to the intended responsible person through a trusted channel. CIRCL sharing remains separate."
+    )
+
+
+class RegistrationMailRetryForm(forms.Form):
+    checked = forms.BooleanField(
+        label="Send a new verification message to this application's registered email. The previous link will stop working."
+    )

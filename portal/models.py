@@ -1530,6 +1530,12 @@ class InfrastructureRegistration(models.Model):
             for x in ["awaiting_email", "awaiting_review", "approved", "rejected"]
         ],
     )
+    manually_activated_at = models.DateTimeField(null=True, blank=True)
+    manually_activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="manually_activated_registrations",
+    )
+    manual_activation_note = models.TextField(max_length=2000, blank=True)
     verification_digest = models.CharField(max_length=64, unique=True)
     verification_expires = models.DateTimeField()
     verification_attempted_at = models.DateTimeField(null=True, blank=True)

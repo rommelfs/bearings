@@ -1,10 +1,13 @@
 from django.contrib import admin
 from django.db import transaction
+from django.urls import reverse
+from django.utils.html import format_html
 from .access import audit
 from .models import (
     RTInstance,
     CompanyInstance,
     FederationGrant,
+    InfrastructureRegistration,
     PlumInstance,
     AuditEvent,
     InventorySource,
@@ -248,3 +251,38 @@ class GrantAdmin(PlatformAdmin):
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         audit(request.user, obj.organization, "federation.grant_toggled", obj.pk, enabled=obj.enabled)
+
+
+@admin.register(InfrastructureRegistration)
+class RegistrationAdmin(PlatformAdmin):
+    list_display = [
+        "company_name",
+        "email",
+        "status",
+        "email_verified_at",
+        "manually_activated_at",
+        "verification_error",
+        "review_actions",
+    ]
+    list_filter = ["status", "verification_error"]
+    search_fields = ["company_name", "email", "user__username"]
+    list_select_related = ["user", "organization"]
+    fields = ["review_actions", "mail_status"] + [
+        field.name for field in InfrastructureRegistration._meta.fields if field.name != "verification_digest"
+    ]
+    readonly_fields = fields
+    actions = None
+
+    def has_add_permission(self, request):
+        return False
+
+    @admin.display(description="Activation / review")
+    def review_actions(self, obj):
+        return format_html(
+            '<a href="{}">Review / administrative activation / resend email →</a>',
+            reverse("registration-application", args=[obj.pk]),
+        )
+
+    @admin.display(description="Service mail")
+    def mail_status(self, obj):
+        return format_html('<a href="{}">Service mail status & local outbox →</a>', reverse("service-mail"))

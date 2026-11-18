@@ -4,7 +4,7 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from unittest import skipUnless
-from django.db import connection, close_old_connections, transaction
+from django.db import connection, connections, close_old_connections, transaction
 from django.test import TransactionTestCase
 from datetime import datetime, timezone as dt_timezone
 from django.test import Client, override_settings
@@ -374,7 +374,7 @@ class ConfigurationConcurrencyTests(TransactionTestCase):
                     acquired.set()
                     release.wait(5)
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(writer)

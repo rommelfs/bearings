@@ -79,11 +79,15 @@ def submit_registration(form):
 
 
 @transaction.atomic
-def issue_verification(pk):
+def issue_verification(pk, *, actor=None):
+    if actor is not None:
+        require(actor.is_active and actor.is_superuser)
     item = InfrastructureRegistration.objects.select_for_update().get(pk=pk)
     now = timezone.now()
     if item.status != "awaiting_email" or (
-        item.verification_attempted_at and item.verification_attempted_at > now - timedelta(minutes=15)
+        actor is None
+        and item.verification_attempted_at
+        and item.verification_attempted_at > now - timedelta(minutes=15)
     ):
         return False
     raw = secrets.token_urlsafe(32)
@@ -112,7 +116,7 @@ def issue_verification(pk):
             "verification_error",
         ]
     )
-    audit(None, None, "registration.verification_prepared", item.pk, success=not item.verification_error)
+    audit(actor, None, "registration.verification_prepared", item.pk, success=not item.verification_error)
     return not item.verification_error
 
 
@@ -125,6 +129,8 @@ def verify_registration(raw, password):
         .filter(verification_digest=hashlib.sha256(raw.encode()).hexdigest())
         .first()
     )
+    if item and item.manually_activated_at and item.status in {"awaiting_review", "approved"}:
+        return _set_override_password(item, password)
     if not item or item.status != "awaiting_email" or item.verification_expires <= timezone.now():
         return False
     user = get_user_model().objects.select_for_update().get(pk=item.user_id)
@@ -141,6 +147,13 @@ def verify_registration(raw, password):
     user.set_password(password)
     user.save(update_fields=["password"])
     item.email_verified_at = timezone.now()
+    _open_workspace(item, user)
+    audit(None, item.organization, "registration.email_verified", item.pk)
+    return item
+
+
+def _open_workspace(item, user):
+    """Caller holds application/user locks; only email proof sets email_verified_at."""
     org = Organization.objects.create(
         name=item.company_name,
         postal_address=item.company_address,
@@ -194,8 +207,84 @@ def verify_registration(raw, password):
     item.organization = org
     item.status = "awaiting_review"
     item.save(update_fields=["email_verified_at", "organization", "notification_contact", "status"])
-    audit(None, item.organization, "registration.email_verified", item.pk)
     return item
+
+
+def _set_override_password(item, password):
+    if item.verification_expires <= timezone.now() or item.email_verified_at or not item.organization_id:
+        return False
+    user = get_user_model().objects.select_for_update().get(pk=item.user_id)
+    if (
+        not user.is_active
+        or user.is_staff
+        or user.is_superuser
+        or user.groups.exists()
+        or user.has_usable_password()
+        or Membership.objects.filter(user=user).count() != 1
+        or not Membership.objects.filter(
+            user=user, organization_id=item.organization_id, role="admin"
+        ).exists()
+    ):
+        return False
+    validate_password(password, user)
+    user.set_password(password)
+    user.save(update_fields=["password"])
+    item.verification_digest = secrets.token_hex(32)
+    item.verification_expires = timezone.now()
+    item.save(update_fields=["verification_digest", "verification_expires"])
+    audit(None, item.organization, "registration.override_password_set", item.pk)
+    return item
+
+
+@transaction.atomic
+def activate_registration_override(actor, pk, note):
+    """Explicit platform override, private access only, one-use owner password setup."""
+    require(actor.is_active and actor.is_superuser)
+    if not note.strip() or len(note) > 2000:
+        raise ValidationError(
+            "Explain why mailbox confirmation is being overridden (at most 2000 characters)."
+        )
+    base = public_base()  # Validate the operator URL before changing an account.
+    item = InfrastructureRegistration.objects.select_for_update().get(pk=pk)
+    user = get_user_model().objects.select_for_update().get(pk=item.user_id)
+    require(
+        not user.is_staff
+        and not user.is_superuser
+        and not user.groups.exists()
+        and not user.has_usable_password()
+    )
+    if item.status == "awaiting_email":
+        require(
+            not user.is_active
+            and not item.organization_id
+            and not item.email_verified_at
+            and not Membership.objects.filter(user=user).exists()
+        )
+        item.manually_activated_at = timezone.now()
+        item.manually_activated_by = actor
+        item.manual_activation_note = note.strip()
+        item.save(update_fields=["manually_activated_at", "manually_activated_by", "manual_activation_note"])
+        _open_workspace(item, user)
+        event = "registration.manually_activated"
+    else:
+        require(
+            item.status in {"awaiting_review", "approved"}
+            and item.manually_activated_at
+            and not item.email_verified_at
+            and user.is_active
+            and item.organization_id
+            and Membership.objects.filter(user=user).count() == 1
+            and Membership.objects.filter(
+                user=user, organization_id=item.organization_id, role="admin"
+            ).exists()
+        )
+        event = "registration.activation_link_reissued"
+    raw = secrets.token_urlsafe(32)
+    item.verification_digest = hashlib.sha256(raw.encode()).hexdigest()
+    item.verification_expires = timezone.now() + timedelta(hours=24)
+    item.save(update_fields=["verification_digest", "verification_expires"])
+    audit(actor, item.organization, event, item.pk)
+    return item, f"{base}/register/verify/#token={raw}"
 
 
 @transaction.atomic
@@ -207,7 +296,10 @@ def decide_registration(actor, pk, decision, note):
         return item
     require(item.status == "awaiting_review")
     if decision == "approve":
-        require(item.status == "awaiting_review" and item.email_verified_at is not None)
+        require(
+            item.status == "awaiting_review"
+            and (item.email_verified_at is not None or item.manually_activated_at is not None)
+        )
         user = get_user_model().objects.select_for_update().get(pk=item.user_id)
         require(
             user.is_active
