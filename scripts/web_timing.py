@@ -59,6 +59,8 @@ def fetch(browser, request):
             if name
             in {
                 "national",
+                "nationalshell",
+                "mapdatabase",
                 "nationalcounts",
                 "nationalversions",
                 "nationalvulns",
@@ -162,16 +164,84 @@ def main(username="company-admin", *, national=False):
         body, path, _ = fetch(browser, Request(form.action, data=urlencode(form.fields).encode()))
         if path != "/" or "Sign out here" not in body:
             raise ValueError("SSO login did not reach the authenticated overview")
-        for path in ["/circl/", "/applications/"] if national else ["/", "/applications/"]:
-            for repeat in range(2):
+        paths = [("/", "overview"), ("/applications/", "applications")]
+        if national:
+            paths = [
+                ("/circl/", "national"),
+                *[
+                    (f"/circl/panels/{part}/", "national" + part)
+                    for part in ["summary", "problems", "versions", "activity"]
+                ],
+                ("/circl/map/data/", "nationalmap"),
+                ("/applications/", "applications"),
+            ]
+        for path, phase in paths:
+            for repeat in range(2 if phase in {"national", "overview", "applications"} else 1):
                 if repeat:
-                    sleep(6)  # Include a request after the lab proxy DNS cache expires.
-                phase = "national" if path == "/circl/" else "overview" if path == "/" else "applications"
-                _, final_path, metrics = fetch(browser, app + path)
+                    sleep(6)
+                started = perf_counter()
+                try:
+                    _, final_path, metrics = fetch(browser, app + path)
+                except HTTPError as error:
+                    print(
+                        json.dumps(
+                            {
+                                "phase": phase,
+                                "sample": repeat + 1,
+                                "status": error.code,
+                                "error": "http_error",
+                                "server_ms": {
+                                    name: float(value)
+                                    for name, value in re.findall(
+                                        r"([a-z]+);dur=(\d+(?:\.\d+)?)",
+                                        error.headers.get("Server-Timing", ""),
+                                    )
+                                    if name
+                                    in {
+                                        "national",
+                                        "database",
+                                        "dbmax",
+                                        "nationalcounts",
+                                        "nationalversions",
+                                        "nationalvulns",
+                                        "nationaltrend",
+                                    }
+                                },
+                                "total_ms": round((perf_counter() - started) * 1000, 1),
+                            }
+                        ),
+                        flush=True,
+                    )
+                    continue
+                except (URLError, OSError):
+                    print(
+                        json.dumps(
+                            {
+                                "phase": phase,
+                                "sample": repeat + 1,
+                                "error": "network_or_timeout",
+                                "timeout_seconds": 20,
+                                "total_ms": round((perf_counter() - started) * 1000, 1),
+                            }
+                        ),
+                        flush=True,
+                    )
+                    continue
                 if final_path != path:
                     raise ValueError("Unexpected authentication redirect")
                 print(json.dumps({"phase": phase, "sample": repeat + 1, **metrics}), flush=True)
-    except (HTTPError, URLError, OSError, ValueError, KeyError, TypeError):
+
+    except (HTTPError, URLError, OSError, ValueError, KeyError, TypeError) as error:
+        print(
+            json.dumps(
+                {
+                    "phase": phase,
+                    "error": "http_error" if isinstance(error, HTTPError) else "request_or_validation_error",
+                    **({"status": error.code} if isinstance(error, HTTPError) else {}),
+                }
+            ),
+            flush=True,
+        )
         # Exceptions/HTTP bodies can contain codes, passwords or provider details.
         raise SystemExit(
             f"web-timing failed during {phase}; check local service health and lab login"

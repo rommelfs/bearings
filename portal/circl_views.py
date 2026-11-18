@@ -3,6 +3,7 @@
 from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import OperationalError
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -33,13 +34,39 @@ def private_response(response):
 def overview(request):
     authorize(request, "operator.national_overview")
     started = perf_counter()
-    timings = {}
-    with overview_queries() as database:
-        response = render(request, "portal/circl_overview.html", dashboard(request.user, timings=timings))
+    response = render(request, "portal/circl_overview.html")
     response["Server-Timing"] = (
-        f"national;dur={(perf_counter() - started) * 1000:.1f}, database;dur={database.seconds * 1000:.1f}, "
-        f"dbmax;dur={database.slowest * 1000:.1f}"
+        f"national;dur={(perf_counter() - started) * 1000:.1f}, nationalshell;dur={(perf_counter() - started) * 1000:.1f}"
     )
+    return private_response(response)
+
+
+@login_required
+@never_cache
+@require_GET
+def panel(request, section):
+    authorize(
+        request,
+        "operator.national_" + section
+        if section in {"summary", "versions", "problems", "activity"}
+        else "operator.national_invalid",
+    )
+    if section not in {"summary", "versions", "problems", "activity"}:
+        return private_response(render(request, "portal/circl_panel_error.html", status=404))
+    started = perf_counter()
+    timings = {}
+    database = None
+    try:
+        with overview_queries(query_timeout_ms=3000, budget_ms=8000) as database:
+            context = dashboard(request.user, timings=timings, section=section)
+            response = render(request, "portal/circl_panel_" + section + ".html", context)
+    except OperationalError:
+        response = render(request, "portal/circl_panel_error.html", status=503)
+    response["Server-Timing"] = f"national;dur={(perf_counter() - started) * 1000:.1f}"
+    if database:
+        response["Server-Timing"] += (
+            f", database;dur={database.seconds * 1000:.1f}, dbmax;dur={database.slowest * 1000:.1f}"
+        )
     response["Server-Timing"] += "".join(f", {name};dur={duration:.1f}" for name, duration in timings.items())
     return private_response(response)
 

@@ -51,3 +51,11 @@ Update with `python3 scripts/dev.py up --no-build`; startup now applies migratio
 ## Company map and heatmap
 
 The overview now includes a separately loaded, offline [company severity map](circl-map.md), approximate Luxembourg postal/place lookup, explicit manual positioning, severity colors, optional heat overlay and exact scoped problem links. Unlocated companies and coverage limits remain visible. No company addresses leave the application. A map point describes the company location, not physical server locations.
+
+## Independent bounded sections
+
+The National Overview document now performs only authentication/navigation/audit work. Summary/coverage, vulnerability ranking, version prevalence and history load independently from `/circl/panels/{summary,problems,versions,activity}/`; the map remains independent. A failed section clears its old data, shows an unavailable/missing-data message and offers **Retry section**. Other sections remain usable. Missing results never display as zero findings. Direct section links are available with JavaScript disabled. Every fragment enforces current role/organization/evidence policy and private/no-store responses; no shared response or authorization cache is introduced.
+
+PostgreSQL fragment work has a 3-second per-statement timeout and 8-second section budget checked between executes; an in-flight final statement may finish up to three seconds after the section budget. Previous database settings are transaction-local/restored, including nested transactions and cancellation. SQLite remains a local single-worker fallback without PostgreSQL statement cancellation. The client has a 12-second section timeout. These bounds isolate bad queries rather than proving that every underlying aggregate is fast.
+
+After `git pull` and `python3 scripts/dev.py up --no-build`, `python3 scripts/dev.py web-timing --national` measures the lightweight document and each data section/map separately. HTTP failures report a numeric status and available numeric server timings; network/timeouts have a separate sanitized reason. No response bodies, SQL, passwords or customer fields are printed. This replaces the former undifferentiated “failed during national” message. Please use affected-environment results to locate a remaining slow section.

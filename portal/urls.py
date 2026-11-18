@@ -24,6 +24,7 @@ from . import (
 )
 
 urlpatterns = [
+    path("circl/panels/<slug:section>/", circl_views.panel, name="circl-panel"),
     path("circl/map/data/", circl_map_views.data, name="circl-map-data"),
     path("circl/map/<slug:slug>/location/", circl_map_views.location, name="circl-map-location"),
     path("organizations/<slug:slug>/address/", registration_views.company_address, name="company-address"),

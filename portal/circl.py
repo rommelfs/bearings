@@ -117,113 +117,117 @@ def trend(findings):
     }
 
 
-def dashboard(user, *, timings=None):
+def dashboard(user, *, timings=None, section="all"):
     timings = {} if timings is None else timings
-    started = perf_counter()
-    orgs = organizations_for(user)
-    assets = Asset.objects.filter(
-        organization__in=orgs, source__organization_id=F("organization_id"), lifecycle="active"
-    )
-    installed = installations_for(user)
-    findings = findings_for(user)
-    open_reviews = outstanding(findings)
-    counts = open_reviews.aggregate(
-        reviews=Count("pk"),
-        assets=Count("installation__asset_id", distinct=True),
-        companies=Count("organization_id", distinct=True),
-        affected=Count("pk", filter=Q(analyst_applicability="affected")),
-        critical=Count("pk", filter=Q(record__source_severity="critical")),
-        accepted=Count("pk", filter=Q(status="accepted_risk")),
-    )
-    counts.update(installed.aggregate(installations=Count("pk"), unknown=Count("pk", filter=Q(version=""))))
-    counts.update(organizations=orgs.count(), inventory_assets=assets.count())
-    sources = InventorySource.objects.filter(organization__in=orgs).annotate(
-        deadline=ExpressionWrapper(
-            F("last_import_success")
-            + ExpressionWrapper(
-                Cast("import_interval_minutes", IntegerField()) * Value(timedelta(minutes=2)),
-                output_field=DurationField(),
-            ),
-            output_field=DateTimeField(),
+    result = {"updated_at": timezone.now()}
+    findings = findings_for(user) if section in {"all", "summary", "problems", "activity"} else None
+    open_reviews = outstanding(findings) if findings is not None else None
+    if section in {"all", "summary"}:
+        orgs = organizations_for(user)
+        assets = Asset.objects.filter(
+            organization__in=orgs, source__organization_id=F("organization_id"), lifecycle="active"
         )
-    )
-    source_counts = sources.aggregate(
-        total=Count("pk"),
-        synthetic=Count("pk", filter=Q(mode="development")),
-        errors=Count("pk", filter=~Q(import_error="")),
-        stale=Count(
-            "pk",
-            filter=(
-                Q(mode="manual")
-                & (
-                    Q(organization__inventory_review_policy__isnull=True)
-                    | Q(organization__inventory_review_policy__last_reviewed_at__isnull=True)
-                    | Q(organization__inventory_review_policy__next_due__lte=timezone.localdate())
-                )
-            )
-            | ~Q(mode__in=["development", "manual"])
-            & (
-                Q(instance__isnull=True)
-                | Q(instance__enabled=False)
-                | Q(last_import_success__isnull=True)
-                | Q(deadline__lt=timezone.now())
-            ),
-        ),
-    )
-    source_counts["missing"] = counts["organizations"] - source_counts["total"]
-    contacts = Contact.objects.filter(organization_id=OuterRef("pk"), **contact_policy()).exclude(
-        function="dpo"
-    )
-    counts["no_contact"] = orgs.filter(~Exists(contacts)).count()
-    counted = perf_counter()
-    timings["nationalcounts"] = (counted - started) * 1000
-    versions = list(
-        installed.order_by()
-        .annotate(product_name=Lower("product__name"), identity=Lower("product__identifier"))
-        .values("product_name", "identity", "version")
-        .annotate(
-            name=Min("product__name"),
-            companies=Count("asset__organization_id", distinct=True),
-            assets=Count("asset_id", distinct=True),
-            total=Count("pk"),
-        )
-        .order_by("-companies", "-total", "product_name", "identity", "version")[:12]
-    )
-    distributed = perf_counter()
-    timings["nationalversions"] = (distributed - counted) * 1000
-    vulnerabilities = list(
-        open_reviews.order_by()
-        .values("record__external_id")
-        .annotate(
+        installed = installations_for(user)
+        started = perf_counter()
+        counts = open_reviews.aggregate(
             reviews=Count("pk"),
-            companies=Count("organization_id", distinct=True),
             assets=Count("installation__asset_id", distinct=True),
+            companies=Count("organization_id", distinct=True),
             affected=Count("pk", filter=Q(analyst_applicability="affected")),
+            critical=Count("pk", filter=Q(record__source_severity="critical")),
             accepted=Count("pk", filter=Q(status="accepted_risk")),
-            severity_rank=Min(
-                Case(
-                    *[When(record__source_severity=s, then=Value(i)) for i, s in enumerate(SEVERITIES)],
-                    default=Value(5),
-                    output_field=IntegerField(),
+        )
+        counts.update(
+            installed.aggregate(installations=Count("pk"), unknown=Count("pk", filter=Q(version="")))
+        )
+        counts.update(organizations=orgs.count(), inventory_assets=assets.count())
+        sources = InventorySource.objects.filter(organization__in=orgs).annotate(
+            deadline=ExpressionWrapper(
+                F("last_import_success")
+                + ExpressionWrapper(
+                    Cast("import_interval_minutes", IntegerField()) * Value(timedelta(minutes=2)),
+                    output_field=DurationField(),
+                ),
+                output_field=DateTimeField(),
+            )
+        )
+        source_counts = sources.aggregate(
+            total=Count("pk"),
+            synthetic=Count("pk", filter=Q(mode="development")),
+            errors=Count("pk", filter=~Q(import_error="")),
+            stale=Count(
+                "pk",
+                filter=(
+                    Q(mode="manual")
+                    & (
+                        Q(organization__inventory_review_policy__isnull=True)
+                        | Q(organization__inventory_review_policy__last_reviewed_at__isnull=True)
+                        | Q(organization__inventory_review_policy__next_due__lte=timezone.localdate())
+                    )
                 )
+                | ~Q(mode__in=["development", "manual"])
+                & (
+                    Q(instance__isnull=True)
+                    | Q(instance__enabled=False)
+                    | Q(last_import_success__isnull=True)
+                    | Q(deadline__lt=timezone.now())
+                ),
             ),
         )
-        .order_by("severity_rank", "-affected", "-companies", "record__external_id")[:12]
-    )
-    prioritized = perf_counter()
-    timings["nationalvulns"] = (prioritized - distributed) * 1000
-    activity = trend(findings)
-    timings["nationaltrend"] = (perf_counter() - prioritized) * 1000
-    for row in vulnerabilities:
-        row["severity"] = SEVERITIES[row["severity_rank"]]
-    return {
-        "counts": counts,
-        "sources": source_counts,
-        "versions": versions,
-        "vulnerabilities": vulnerabilities,
-        "trend": activity,
-        "updated_at": timezone.now(),
-    }
+        source_counts["missing"] = counts["organizations"] - source_counts["total"]
+        contacts = Contact.objects.filter(organization_id=OuterRef("pk"), **contact_policy()).exclude(
+            function="dpo"
+        )
+        counts["no_contact"] = orgs.filter(~Exists(contacts)).count()
+        timings["nationalcounts"] = (perf_counter() - started) * 1000
+        result.update(counts=counts, sources=source_counts)
+    if section in {"all", "versions"}:
+        started = perf_counter()
+        installed = installations_for(user)
+        versions = list(
+            installed.order_by()
+            .annotate(product_name=Lower("product__name"), identity=Lower("product__identifier"))
+            .values("product_name", "identity", "version")
+            .annotate(
+                name=Min("product__name"),
+                companies=Count("asset__organization_id", distinct=True),
+                assets=Count("asset_id", distinct=True),
+                total=Count("pk"),
+            )
+            .order_by("-companies", "-total", "product_name", "identity", "version")[:12]
+        )
+        timings["nationalversions"] = (perf_counter() - started) * 1000
+        result["versions"] = versions
+    if section in {"all", "problems"}:
+        started = perf_counter()
+        vulnerabilities = list(
+            open_reviews.order_by()
+            .values("record__external_id")
+            .annotate(
+                reviews=Count("pk"),
+                companies=Count("organization_id", distinct=True),
+                assets=Count("installation__asset_id", distinct=True),
+                affected=Count("pk", filter=Q(analyst_applicability="affected")),
+                accepted=Count("pk", filter=Q(status="accepted_risk")),
+                severity_rank=Min(
+                    Case(
+                        *[When(record__source_severity=s, then=Value(i)) for i, s in enumerate(SEVERITIES)],
+                        default=Value(5),
+                        output_field=IntegerField(),
+                    )
+                ),
+            )
+            .order_by("severity_rank", "-affected", "-companies", "record__external_id")[:12]
+        )
+        for row in vulnerabilities:
+            row["severity"] = SEVERITIES[row["severity_rank"]]
+        timings["nationalvulns"] = (perf_counter() - started) * 1000
+        result["vulnerabilities"] = vulnerabilities
+    if section in {"all", "activity"}:
+        started = perf_counter()
+        result["trend"] = trend(findings)
+        timings["nationaltrend"] = (perf_counter() - started) * 1000
+    return result
 
 
 def research(user, data):

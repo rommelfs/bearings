@@ -46,3 +46,20 @@ class OverviewQueryTests(TestCase):
                 plan = cursor.fetchone()[0][0]
                 self.assertNotIn("JIT", plan)
         self.assertEqual(self.setting(), "on")
+
+    def test_statement_timeout_is_local_restored_and_cancels_slow_query(self):
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            previous = cursor.fetchone()[0]
+        with overview_queries(query_timeout_ms=25):
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW statement_timeout")
+                self.assertEqual(cursor.fetchone()[0], "25ms")
+        with self.assertRaises(DatabaseError), overview_queries(query_timeout_ms=25):
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_sleep(0.1)")
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            self.assertEqual(cursor.fetchone()[0], previous)
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.fetchone()[0], 1)

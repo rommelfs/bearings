@@ -59,7 +59,7 @@ class CIRCLTests(Fixture):
         finding.analyst_applicability = "affected"
         finding.status = "accepted_risk"
         finding.save()
-        response = self.client.get(reverse("circl-overview"))
+        response = self.client.get(reverse("circl-panel", args=["summary"]))
         self.assertEqual(response.context["counts"]["affected"], 1)
         self.assertEqual(response.context["counts"]["accepted"], 1)
         self.assertEqual(response.context["counts"]["organizations"], 1)
@@ -71,20 +71,30 @@ class CIRCLTests(Fixture):
         self.assertContains(target, f"?finding={finding.pk}#finding-{finding.pk}")
         finding.status = "resolved"
         finding.save()
-        self.assertEqual(self.client.get(reverse("circl-overview")).context["counts"]["reviews"], 0)
+        self.assertEqual(
+            self.client.get(reverse("circl-panel", args=["summary"])).context["counts"]["reviews"], 0
+        )
         finding.status, finding.analyst_applicability = "new", "not_affected"
         finding.save()
-        self.assertEqual(self.client.get(reverse("circl-overview")).context["counts"]["reviews"], 0)
+        self.assertEqual(
+            self.client.get(reverse("circl-panel", args=["summary"])).context["counts"]["reviews"], 0
+        )
         self.a.operator_visibility = False
         self.a.save()
-        self.assertEqual(self.client.get(reverse("circl-overview")).context["counts"]["organizations"], 0)
+        self.assertEqual(
+            self.client.get(reverse("circl-panel", args=["summary"])).context["counts"]["organizations"], 0
+        )
         Membership.objects.create(organization=self.a, user=self.analyst, role="reader")
         finding.analyst_applicability = "affected"
         finding.save()
-        self.assertEqual(self.client.get(reverse("circl-overview")).context["counts"]["reviews"], 0)
+        self.assertEqual(
+            self.client.get(reverse("circl-panel", args=["summary"])).context["counts"]["reviews"], 0
+        )
         finding.record.shareable = True
         finding.record.save()
-        self.assertEqual(self.client.get(reverse("circl-overview")).context["counts"]["reviews"], 1)
+        self.assertEqual(
+            self.client.get(reverse("circl-panel", args=["summary"])).context["counts"]["reviews"], 1
+        )
 
     def test_prevalence_and_inventory_counters_exclude_foreign_sources_and_retired_assets(self):
         self.installation.version = "1.2.3"
@@ -95,8 +105,9 @@ class CIRCLTests(Fixture):
             Asset.objects.create(organization=self.a, source=self.sa, name="Retired", lifecycle="retired"),
         ]:
             Installation.objects.create(asset=asset, product=self.product, version="1.2.3")
-        response = self.client.get(reverse("circl-overview"))
+        response = self.client.get(reverse("circl-panel", args=["summary"]))
         self.assertEqual(response.context["counts"]["installations"], 2)
+        response = self.client.get(reverse("circl-panel", args=["versions"]))
         item = response.context["versions"][0]
         self.assertEqual((item["companies"], item["assets"], item["total"]), (1, 1, 2))
         self.assertContains(response, 'action="/circl/research/"')
@@ -222,19 +233,21 @@ class CIRCLTests(Fixture):
         FindingHistory.objects.create(
             finding=finding, previous_status="resolved", status="resolved", reason="No transition"
         )
-        response = self.client.get(reverse("circl-overview"))
+        response = self.client.get(reverse("circl-panel", args=["activity"]))
         self.assertEqual(response.context["trend"]["new"], 1)
         self.assertEqual(response.context["trend"]["recent"], 0)
         self.assertEqual(response.context["trend"]["previous"], 1)
         self.assertEqual(response.context["trend"]["closures"], 1)
         self.a.operator_visibility = False
         self.a.save()
-        self.assertEqual(self.client.get(reverse("circl-overview")).context["trend"]["new"], 0)
+        self.assertEqual(
+            self.client.get(reverse("circl-panel", args=["activity"])).context["trend"]["new"], 0
+        )
 
     def test_dashboard_query_budget_is_bounded_without_per_company_counts(self):
         self.record_finding()
         with CaptureQueriesContext(connection) as small:
-            self.assertEqual(self.client.get(reverse("circl-overview")).status_code, 200)
+            self.assertEqual(self.client.get(reverse("circl-panel", args=["summary"])).status_code, 200)
         for number in range(12):
             org = Organization.objects.create(
                 name=f"Reporting company {number}", slug=f"national-budget-{number}", operator_visibility=True
@@ -244,9 +257,28 @@ class CIRCLTests(Fixture):
             product = Product.objects.create(organization=org, name=self.product.name)
             Installation.objects.create(asset=asset, product=product)
         with CaptureQueriesContext(connection) as large:
-            response = self.client.get(reverse("circl-overview"))
+            response = self.client.get(reverse("circl-panel", args=["summary"]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["counts"]["organizations"], 13)
         self.assertEqual(response.context["counts"]["installations"], 13)
         self.assertLessEqual(len(large), len(small) + 1)
         self.assertLessEqual(len(large), 35)
+
+    def test_shell_never_runs_aggregates_and_sections_fail_independently(self):
+        from django.db import OperationalError
+
+        with patch("portal.circl_views.dashboard", side_effect=AssertionError("No heavy shell query")):
+            with CaptureQueriesContext(connection) as queries:
+                response = self.client.get(reverse("circl-overview"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-national-panel="summary"')
+        self.assertFalse(any("portal_finding" in query["sql"] for query in queries))
+        with patch("portal.circl_views.dashboard", side_effect=OperationalError("private query text")):
+            response = self.client.get(reverse("circl-panel", args=["activity"]))
+        self.assertEqual(response.status_code, 503)
+        self.assertNotContains(response, "private query text", status_code=503)
+        self.assertContains(response, "missing results are not zero", status_code=503)
+        self.assertEqual(self.client.get(reverse("circl-panel", args=["versions"])).status_code, 200)
+        self.login(self.admin)
+        for section in ["summary", "problems", "versions", "activity"]:
+            self.assertEqual(self.client.get(reverse("circl-panel", args=[section])).status_code, 403)
