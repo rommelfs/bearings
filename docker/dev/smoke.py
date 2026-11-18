@@ -172,7 +172,22 @@ def main():
             "lifecycle": "active",
             "csrfmiddlewaretoken": client.cookies.get("csrftoken"),
         }
-        assert client.post(ro_url, data=fields).status_code == 403, "Portal must reject read-only writes"
+        assert client.post(ro_url, data=fields).status_code == 404, "Foreign company must be hidden"
+        with httpx.Client(trust_env=False, follow_redirects=True) as operator:
+            operator.get(base + "/accounts/login/")
+            login = operator.post(
+                base + "/accounts/login/",
+                data={
+                    "username": "platform-admin",
+                    "password": password,
+                    "csrfmiddlewaretoken": operator.cookies.get("csrftoken"),
+                },
+            )
+            assert login.status_code == 200 and login.url.path == "/", "Operator login failed"
+            ro_fields = {**fields, "csrfmiddlewaretoken": operator.cookies.get("csrftoken")}
+            assert operator.post(ro_url, data=ro_fields).status_code == 403, (
+                "Portal must enforce read-only source capability for operators too"
+            )
         for kind in ["server", "vm"]:
             name = "smoke-" + kind + "-" + uuid.uuid4().hex[:8]
             fields.update(
@@ -211,5 +226,5 @@ def main():
             ]
             assert len(matches) == 1, "Write recovery duplicated an upstream object"
         print(
-            "Verified Bearings login, portal read-only denial, worker device/VM writes and lost-ack recovery without duplicates."
+            "Verified single-company login, foreign-company/read-only denial, worker device/VM writes and lost-ack recovery without duplicates."
         )

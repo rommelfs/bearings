@@ -210,7 +210,7 @@ def seed(actor, *, companies=10, assets_per_company=30, restore=False):
             from django.contrib.auth import get_user_model
 
             account = get_user_model().objects.filter(username="company-admin", is_active=True).first()
-            if account:
+            if account and c == 0 and not Membership.objects.filter(user=account).exists():
                 Membership.objects.create(organization=org, user=account, role="admin")
             for k in range(3):
                 Contact.objects.create(

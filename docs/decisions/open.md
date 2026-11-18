@@ -9,3 +9,5 @@
 - Live service instances, approved network destinations, least-privilege keys, NetBox site/type/role/tenant mapping and custom-field provisioning.
 - Production WSGI server/proxy, TLS, outbound enforcement, deployment topology, scheduler and delivery authorization.
 - Actual deployed connector versions. Latest upstream documentation is a starting point, not a tested compatibility promise.
+
+- AIL connector (requested 2026-11-18): supported API/version and service permissions, optional registration/company monitoring keywords and a separately typed Honeytoken; secure confidential storage/display and explicit company-scoped forwarding/match semantics. Planned only; no live connector, automatic alerts or actual indicator values yet.

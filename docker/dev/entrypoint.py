@@ -80,6 +80,8 @@ def main():
             else:
                 call_command("seed_showcase")
             call_command("seed_showcase_addresses", automatic=True)
+        if config.get("mode") == "bundled":
+            call_command("scope_company_admin")
         from portal.product_matching import enroll_products
 
         print(f"Auto-enabled {enroll_products()} recognized product watches; existing settings retained.")

@@ -411,6 +411,19 @@ def main():
                     "--automatic",
                 ]
             )
+        if mode == "bundled":
+            run(
+                runtime_base
+                + [
+                    "exec",
+                    "-T",
+                    "web",
+                    "/app/.venv/bin/python",
+                    "docker/dev/entrypoint.py",
+                    "manage",
+                    "scope_company_admin",
+                ]
+            )
         run(runtime_base + ["restart", "web", "worker"])
         runtime_services = ["web", "worker"] + (["bearings-tls"] if sso else [])
         run(

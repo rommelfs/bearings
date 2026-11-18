@@ -32,7 +32,7 @@ class LocationForm(forms.Form):
 @require_GET
 def data(request):
     authorize(request, "operator.national_map")
-    with overview_queries() as database:
+    with overview_queries(planning_limit=4) as database:
         payload = map_data(request.user)
     response = private_response(JsonResponse(payload))
     response["Server-Timing"] = (

@@ -63,3 +63,23 @@ class OverviewQueryTests(TestCase):
             self.assertEqual(cursor.fetchone()[0], previous)
             cursor.execute("SELECT 1")
             self.assertEqual(cursor.fetchone()[0], 1)
+
+    def test_planning_limits_are_local_and_restore_on_success_and_cancel(self):
+        def settings():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT current_setting('join_collapse_limit'), current_setting('from_collapse_limit')"
+                )
+                return cursor.fetchone()
+
+        previous = settings()
+        with overview_queries(planning_limit=4):
+            self.assertEqual(settings(), ("4", "4"))
+            with overview_queries(planning_limit=1):
+                self.assertEqual(settings(), ("1", "1"))
+            self.assertEqual(settings(), ("4", "4"))
+        self.assertEqual(settings(), previous)
+        with self.assertRaises(DatabaseError), overview_queries(planning_limit=4, query_timeout_ms=20):
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_sleep(0.1)")
+        self.assertEqual(settings(), previous)

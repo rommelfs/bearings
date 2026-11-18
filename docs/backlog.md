@@ -224,3 +224,13 @@ After a reported minute-long blank document and an inconclusive diagnostic failu
 ## Luxembourg showcase, team mail and federation design — 2026-11-18
 
 Implemented safe one-time local Luxembourg addresses for existing/fresh provenance-owned showcase companies, without overwriting user addresses/points/decisions or resurrecting removed data. Optional independently confirmed shared notification mailboxes are separate contacts and never grant a user/login/role; existing outreach policy remains required. End-to-end periodic mail review is verified and same-pass delivery cutoff fixed. The [company synchronization proposal](decisions/0008-company-synchronization-proposal.md) explains the implemented read-only snapshot pilot and proposed stable-ID/resource/delta/outbound-agent work; these protocol changes are not yet implemented.
+
+## Agenda: AIL, company keywords and Honeytokens — 2026-11-18
+
+Planned in [#47](https://github.com/rommelfs/bearings/issues/47): an [AIL](https://ail-project.org) connector and optional company-specific monitored keywords during registration/later configuration, with a **separate Honeytoken indicator**. These fields and the connector are not implemented yet. Decide supported API/version/authentication, indicator matching and secure storage/display first. Keep search values confidential and company-scoped, preserve source/TLP handling and evidence provenance, and do not interpret a match as proven breach or authority. No real monitoring values or leaked content belong in this public backlog.
+
+## National query planning and single-company demo — 2026-11-18
+
+Delivered bounded PostgreSQL join planning within national panel/map transactions, keeping current authorization and the existing 3-second query timeout. Local paired EXPLAIN measurements identify planning overhead; larger synthetic comparisons retain identical results, with history execution still dominating its large-data timing. Actual affected-machine acceptance requires a new timing run.
+
+Bundled `company-admin` now retains only its existing read/write lab company, including safe narrowing of older managed lab/showcase grants. Standalone showcase creation assigns at most one company. Passwords, SSO, unrelated accounts, CIRCL policy and explicit revocations are preserved; external deployments and unexpected grants are excluded. See [synthetic data](operations/synthetic-data.md).

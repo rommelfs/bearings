@@ -2,11 +2,11 @@
 
 The **bundled development installation** automatically creates the `explore-v1` showcase on its next `python3 scripts/dev.py up`. This also fills an existing lab after an update. External mode and non-DEBUG deployments do not automatically receive it. Set `BEARINGS_SHOWCASE=0` before starting the lab to skip automatic creation. No default passwords or additional application/SSO accounts are created.
 
-As `company-admin`, `circl-analyst` or `platform-admin`, follow **Explore the scenarios** in the synthetic-data banner, or open `/explore/`. Visibility follows ordinary company membership and CIRCL sharing policy. Two companies deliberately do not grant CIRCL visibility; platform administrators and their company administrator can still see them.
+As `circl-analyst` or `platform-admin`, follow **Explore the scenarios** in the synthetic-data banner, or open `/explore/`. Visibility follows ordinary company membership and CIRCL sharing policy. Two companies deliberately do not grant CIRCL visibility; platform administrators can still see them. The bundled `company-admin` demonstrates responsibility for exactly one company, `netbox-lab-rw`, and does not receive memberships in these additional showcase companies.
 
 ## What is included
 
-The default dataset has **6,374 explicitly tracked objects** when the existing local `company-admin` is present:
+The default dataset explicitly tracks its synthetic objects and their ownership:
 
 | Area | Examples |
 | --- | --- |
@@ -73,3 +73,9 @@ python3 scripts/dev.py manage seed_showcase_addresses
 ```
 
 Standalone use can pass `--actor YOUR_SUPERUSER`. The extension records processed companies and hashes of the exact synthetic address values in dataset metadata. Cleanup blocks when a nonblank company address differs from its recorded synthetic value, protecting later user/operational edits for separate review. New/retained seeds do not adopt a company merely because its name contains “SYNTHETIC”. [Real SSO showcase map](../images/circl-luxembourg-showcase.png).
+
+## One company per demonstration administrator
+
+Bundled startup and explicit `python3 scripts/dev.py up --no-build` narrow the existing synthetic `company-admin` account to its already assigned read/write NetBox lab company. Retained older lab/showcase memberships are removed with audit events, together with their fixture membership registry entries. CIRCL visibility, platform access, user passwords, SSO bindings and native backend permissions remain intact. General Bearings accounts can still have multiple memberships; this is a demonstration profile only.
+
+The helper requires DEBUG, the explicit bundled-lab flag, a platform administrator and matching local source identities. Unrelated/converted company grants or unexpected operator privileges cause refusal for manual review without partial deletion. It never restores a revoked grant or adds a company membership. External mode is excluded. In a standalone showcase with an existing unassigned `company-admin`, the initial seed gives at most the first synthetic company; repeating a retained seed does not recreate revoked memberships.

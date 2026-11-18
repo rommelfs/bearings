@@ -57,7 +57,7 @@ def panel(request, section):
     timings = {}
     database = None
     try:
-        with overview_queries(query_timeout_ms=3000, budget_ms=8000) as database:
+        with overview_queries(query_timeout_ms=3000, budget_ms=8000, planning_limit=4) as database:
             context = dashboard(request.user, timings=timings, section=section)
             response = render(request, "portal/circl_panel_" + section + ".html", context)
     except OperationalError:
