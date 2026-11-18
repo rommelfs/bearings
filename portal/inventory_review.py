@@ -7,7 +7,7 @@ from django.core import signing
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
-from .access import audit, require, role_for
+from .access import audit, is_analyst, require, role_for
 from .models import (
     Asset,
     Contact,
@@ -29,6 +29,19 @@ def owner_can_review(user, org):
     return user.is_superuser or role_for(user, org) == "admin"
 
 
+def can_configure_review(user, org):
+    return user.is_active and (
+        user.is_superuser
+        or (is_analyst(user) and Organization.objects.filter(pk=org.pk, operator_visibility=True).exists())
+    )
+
+
+def mandatory_review_mail(org):
+    return InfrastructureRegistration.objects.filter(
+        organization=org, periodic_review_consented_at__isnull=False
+    ).exists()
+
+
 def snapshot(org):
     assets = Asset.objects.filter(organization=org, source__organization=org)
     installed = Installation.objects.filter(asset__in=assets, product__organization=org)
@@ -40,6 +53,7 @@ def snapshot(org):
                 "name",
                 "email",
                 "phone",
+                "emergency_phone",
                 "function",
                 "role",
                 "notification_enabled",
@@ -113,12 +127,13 @@ def review_token(user, policy, data_digest):
 
 @transaction.atomic
 def configure_review(user, org, data):
-    require(owner_can_review(user, org))
-    Organization.objects.select_for_update().get(pk=org.pk)
+    org = Organization.objects.select_for_update().get(pk=org.pk)
+    require(can_configure_review(user, org))
     policy, _ = InventoryReviewPolicy.objects.get_or_create(organization=org)
     policy = InventoryReviewPolicy.objects.select_for_update().get(pk=policy.pk)
-    for field in ["interval_days", "reminder_days", "email_enabled"]:
+    for field in ["interval_days", "reminder_days"]:
         setattr(policy, field, data[field])
+    policy.email_enabled = True if mandatory_review_mail(org) else data["email_enabled"]
     policy.next_due = (
         policy.last_reviewed_at.date() + timedelta(days=policy.interval_days)
         if policy.last_reviewed_at
@@ -246,10 +261,10 @@ def deliver_review_reminder(pk):
         item.attempts += 1
         try:
             send_service_mail(
-                "Please review your infrastructure reporting data",
-                f"Your periodic reporting-data review is due. Sign in at {public_base()}/organizations/{policy.organization.slug}/review/\n\n"
-                "Please check contacts, declared IP ranges, static IPs, domains and any assets/software versions. Confirm the current data or correct it first. This is a data-review service reminder, not a vulnerability alert.\n"
-                "Reminder frequency and service-email settings are available in that workspace.",
+                "Please review your infrastructure data",
+                f"Your periodic infrastructure-data review and email reactivity check are due. Sign in at {public_base()}/organizations/{policy.organization.slug}/review/\n\n"
+                "Please check contacts, declared IP ranges, static IPs, domains and any assets/software versions. Confirm the current data or correct it first. An active response is required; opening this email alone does not complete the review. This is a data-review service reminder, not a vulnerability alert.\n"
+                "Review frequency is managed by the platform administrator or CIRCL. Confirm your data review in your organization area.",
                 item.recipient,
                 item.fingerprint,
             )

@@ -1,0 +1,18 @@
+# Low-friction infrastructure authority checks — proposed approach
+
+These are recommendations, not implemented automated verification. Today declarations remain unverified until an authorized operator records a scoped authority review. Email proof, CIRCL application approval, self-declared sharing authorization and response to a periodic review are distinct evidence.
+
+| Resource | Suggested first route | What the result supports / limits |
+| --- | --- | --- |
+| Domain | Short-lived random DNS TXT at `_bearings-verification.<domain>`; exact HTTPS `/.well-known/bearings-verification` as an alternative | Technical control of that domain or endpoint. A web editor may lack organization-wide authority; DNS control does not prove legal ownership. Do not infer control of unrelated domains. |
+| Static public IP | Exact IP/hostname-bound HTTPS token where a suitable service exists; provider confirmation when no web service is available | Control of the challenged endpoint only. Shared hosting, CDN, NAT and load balancers require explicit context; one endpoint does not establish exclusive responsibility for an IP or range. |
+| Prefix / range | Prefill a candidate from RIR RDAP; compare organization/assignment information; obtain a provider confirmation or delegated reverse-DNS challenge when available | Registry allocation is often to the provider rather than its customer. A reverse-DNS-zone challenge proves control of that zone, not a different/broader allocation. A single responding IP never verifies a full range. |
+| Internal / private addresses | Company administrator confirms the organization and network/VRF context; operator reviews unusual overlaps | Private address spaces are intentionally shared and cannot be assigned nationally by public lookup. Match within organization/context boundaries. |
+
+A mailbox under a declared corporate domain, current forward/reverse DNS, TLS certificates, public websites and RDAP organization names are useful review hints. They are not sufficient on their own. An RPKI route-origin authorization supports an ASN/prefix routing relationship; it does not prove the reporting person's authority.
+
+A practical rollout would be: email-confirmed private access immediately; then offer DNS TXT with a copy button for domains, RDAP-prefilled review plus provider attestation for IPs/ranges, and a short operator exception path for people who cannot change DNS/HTTP. Store the exact verified resource, organization/context, method, reviewer, timestamp, evidence reference and expiry. Flag overlapping claims for review while allowing legitimate shared infrastructure; never reveal another company's private details in conflict messages. Changed scopes must obtain a fresh review, as the current correction workflow already requires.
+
+Future challenge processing needs short-lived one-use organization/resource-bound tokens, current authorization rechecks, explicit target confirmation and bounded DNS/HTTP processing. HTTP fetches require approved destinations, retained TLS verification, no redirects and protection against private-address access, DNS rebinding and SSRF; public forms must not become an arbitrary URL fetcher. DNS responses, TTLs, CNAME/delegation scope and temporary failures need conservative handling. Do not collect passwords, registrar credentials, private keys or unnecessary full customer contracts as proof.
+
+Periodic review reminders can request renewed authority evidence after provider changes, domain changes or expiry. An active response shows that someone acted in the portal; it does not replace the underlying technical/resource assignment check.

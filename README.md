@@ -33,7 +33,7 @@ CIRCL analysts also have a **[National overview](docs/user-guide/circl-overview.
 
 See [asset location, source-severity filters and linked analyst triage](docs/user-guide/asset-triage.md).
 
-[Self-registration and data-review reminders](docs/user-guide/reporting-registration.md): email confirmation immediately opens a private company workspace; CIRCL sharing is approved afterward. Configurable periodic owner confirmations and service email reminders keep declared networks/domains and optional software inventory current.
+[Self-registration and data-review reminders](docs/user-guide/reporting-registration.md): email confirmation immediately opens a private company workspace; CIRCL sharing is approved afterward. Registration includes an emergency telephone and explicit sharing/update/periodic-check commitments. Platform admins and CIRCL for shared organizations manage the review intervals; required service email checks and owner confirmations keep networks/domains and optional software inventory current.
 
 New to Bearings? Open **Start here** for a [guided case](docs/user-guide/guided-cases.md): machine → evidence → risk → action → follow-up. The opt-in PHP example uses CVE-2026-109618 and CVE-2026-109619; product/CVE selection stays flexible.
 

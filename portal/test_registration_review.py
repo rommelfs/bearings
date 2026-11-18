@@ -48,6 +48,9 @@ class RegistrationReviewTests(Fixture):
             "company_name": "New reporting company",
             "contact_name": "Reporting owner",
             "email": "owner@example.invalid",
+            "emergency_phone": "+352 123 456",
+            "periodic_consent": "on",
+            "updates_consent": "on",
             "networks": "192.0.2.0/24\n2001:db8::/48",
             "ips": "198.51.100.17",
             "domains": "EXAMPLE.invalid.",
@@ -91,7 +94,7 @@ class RegistrationReviewTests(Fixture):
             reverse("registration-verify"),
             {"code": code, "password1": PASSWORD, "password2": PASSWORD, "requested": "on"},
         )
-        self.assertContains(response, "private reporting workspace is ready")
+        self.assertContains(response, "private organization area is ready")
         item.refresh_from_db()
         user = get_user_model().objects.get(pk=item.user_id)
         self.assertTrue(user.is_active)
@@ -139,6 +142,85 @@ class RegistrationReviewTests(Fixture):
         )
         self.assertTrue(duplicate.context["form"].errors)
         self.assertEqual(InfrastructureRegistration.objects.count(), 1)
+
+    def test_phone_and_each_participation_commitment_are_required(self):
+        for field in ["emergency_phone", "consent", "attestation", "periodic_consent", "updates_consent"]:
+            with self.subTest(field=field):
+                response = self.client.post(reverse("registration"), {**self.data, field: ""})
+                self.assertIn(field, response.context["form"].errors)
+                self.assertFalse(InfrastructureRegistration.objects.exists())
+        for phone in ["123", "not a telephone", "+0001234567", "+352123456789012345"]:
+            response = self.client.post(reverse("registration"), {**self.data, "emergency_phone": phone})
+            self.assertIn("emergency_phone", response.context["form"].errors)
+        item, _ = self.signup()
+        self.assertEqual(item.emergency_phone, "+352123456")
+        self.assertEqual(item.commitments_version, "2026-11-18")
+        self.assertIsNotNone(item.authority_attested_at)
+        self.assertIsNotNone(item.periodic_review_consented_at)
+        self.assertIsNotNone(item.updates_committed_at)
+
+    def test_signup_cannot_choose_interval_or_disable_required_mail(self):
+        response = self.client.get(reverse("registration"))
+        self.assertContains(response, "Register your organization")
+        self.assertNotContains(response, 'name="review_days"')
+        self.assertNotContains(response, 'name="email_reminders"')
+        self.data.update(review_days=365, email_reminders="")
+        item, org = self.workspace()
+        self.assertEqual(item.review_days, 90)
+        self.assertTrue(item.email_reminders)
+        self.assertEqual(org.inventory_review_policy.interval_days, 90)
+        self.assertTrue(org.inventory_review_policy.email_enabled)
+        self.assertEqual(org.contacts.get().emergency_phone, "+352123456")
+        self.assertIsNone(org.contacts.get().availability_confirmed_at)
+        self.assertTrue(org.claims.filter(status="declared").exists())
+
+    def test_schedule_is_platform_or_current_shared_circl_only_and_mail_is_required(self):
+        item, org = self.workspace()
+        url = reverse("inventory-review", args=[org.slug])
+        data = {"action": "settings", "interval_days": 14, "reminder_days": 2, "email_enabled": ""}
+        self.login(item.user)
+        page = self.client.get(url)
+        self.assertNotContains(page, 'name="interval_days"')
+        self.assertEqual(self.client.post(url, data).status_code, 403)
+        with self.assertRaises(PermissionDenied):
+            configure_review(item.user, org, data)
+        self.login(self.analyst)
+        self.assertEqual(self.client.post(url, data).status_code, 404)
+        # An unrelated ordinary membership does not grant CIRCL schedule authority.
+        Membership.objects.create(user=self.analyst, organization=org, role="reader")
+        self.assertEqual(self.client.post(url, data).status_code, 403)
+        decide_registration(self.analyst, item.pk, "approve", "Checked")
+        response = self.client.get(url)
+        self.assertContains(response, 'name="interval_days"')
+        self.assertNotContains(response, 'name="email_enabled"')
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+        policy = org.inventory_review_policy
+        policy.refresh_from_db()
+        self.assertEqual(policy.interval_days, 14)
+        self.assertTrue(policy.email_enabled)
+        # Service-layer authorization must read current visibility even with a stale org object.
+        org.operator_visibility = True
+        Organization.objects.filter(pk=org.pk).update(operator_visibility=False)
+        with self.assertRaises(PermissionDenied):
+            configure_review(self.analyst, org, data)
+        self.login(self.platform)
+        self.assertEqual(self.client.post(url, data).status_code, 302)
+
+    def test_legacy_registration_does_not_gain_retrospective_commitments(self):
+        item, org = self.workspace()
+        InfrastructureRegistration.objects.filter(pk=item.pk).update(
+            authority_attested_at=None,
+            periodic_review_consented_at=None,
+            updates_committed_at=None,
+            commitments_version="",
+            emergency_phone="",
+        )
+        self.login(self.analyst)
+        response = self.client.get(reverse("registration-application", args=[item.pk]))
+        self.assertContains(response, "Legacy application")
+        self.assertContains(response, "No retrospective agreement")
+        item.refresh_from_db()
+        self.assertIsNone(item.periodic_review_consented_at)
 
     def test_codes_expire_cannot_be_replayed_and_no_preselected_password_survives(self):
         item, code = self.signup()
@@ -221,7 +303,7 @@ class RegistrationReviewTests(Fixture):
         code = review_token(item.user, policy, digest)
         confirmation = confirm_review(item.user, org, code)
         policy.refresh_from_db()
-        self.assertEqual(policy.next_due, timezone.localdate() + timedelta(days=30))
+        self.assertEqual(policy.next_due, timezone.localdate() + timedelta(days=90))
         self.assertEqual(confirmation.counts, counts)
         self.assertEqual(org.claims.filter(status="verified").count(), 0)
         self.assertIsNone(org.contacts.get().reviewed_at)
@@ -233,6 +315,11 @@ class RegistrationReviewTests(Fixture):
         with self.assertRaises(ValidationError):
             confirm_review(item.user, org, code)
         self.assertEqual(InventoryReviewConfirmation.objects.count(), 1)
+        policy.refresh_from_db()
+        code = review_token(item.user, policy, snapshot(org)[0])
+        org.contacts.update(emergency_phone="+352654321")
+        with self.assertRaises(ValidationError):
+            confirm_review(item.user, org, code)
 
     def test_reminders_are_deduplicated_repeated_and_stopped_by_confirmation(self):
         item, org = self.workspace()
@@ -306,14 +393,14 @@ class RegistrationReviewTests(Fixture):
         self.assertEqual(self.client.get(reverse("inventory-review", args=[org.slug])).status_code, 404)
         self.login(item.user)
         response = self.client.get(reverse("inventory-review", args=[org.slug]))
-        self.assertContains(response, "Review reporting data")
+        self.assertContains(response, "Review infrastructure data")
         Membership.objects.filter(user=item.user, organization=org).update(role="reader")
         response = self.client.post(
             reverse("inventory-review", args=[org.slug]),
             {"action": "settings", "interval_days": 7, "reminder_days": 1, "email_enabled": "on"},
         )
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(org.inventory_review_policy.interval_days, 30)
+        self.assertEqual(org.inventory_review_policy.interval_days, 90)
 
     def test_email_uses_operator_origin_and_mail_error_does_not_activate_user(self):
         with patch("portal.registration.send_service_mail", side_effect=OSError("private provider response")):
@@ -371,7 +458,7 @@ class RegistrationReviewTests(Fixture):
 
     def test_schedule_is_configurable_without_postponing_unreviewed_data(self):
         item, org = self.workspace()
-        self.login(item.user)
+        self.login(self.platform)
         url = reverse("inventory-review", args=[org.slug])
         response = self.client.post(
             url, {"action": "settings", "interval_days": 14, "reminder_days": 2, "email_enabled": "on"}
@@ -381,10 +468,10 @@ class RegistrationReviewTests(Fixture):
         self.assertEqual((policy.interval_days, policy.reminder_days), (14, 2))
         self.assertEqual(policy.next_due, timezone.localdate())
         confirm_review(item.user, org, review_token(item.user, policy, snapshot(org)[0]))
-        configure_review(item.user, org, {"interval_days": 7, "reminder_days": 1, "email_enabled": False})
+        configure_review(self.platform, org, {"interval_days": 7, "reminder_days": 1, "email_enabled": False})
         policy.refresh_from_db()
         self.assertEqual(policy.next_due, timezone.localdate() + timedelta(days=7))
-        self.assertFalse(policy.email_enabled)
+        self.assertTrue(policy.email_enabled)
         response = self.client.post(url, {"action": "settings", "interval_days": 0, "reminder_days": 0})
         self.assertEqual(response.status_code, 200)
         policy.refresh_from_db()

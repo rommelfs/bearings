@@ -34,6 +34,10 @@
       {
         "title": "Add email-confirmed private registration and periodic inventory-data reviews",
         "body": "Implemented self-registration with minimum IP/range/domain declarations, password set only at email verification, immediate private company-admin workspace and subsequent audited CIRCL-sharing approval. Manual company-reported assets/software never provision NetBox. Configurable owner data-review/repeat intervals, signed snapshot confirmations, persistent deduplicated scheduled service emails, opt-out/current-recipient rechecks and bounded retries. Default local email sink; separately configured TLS SMTP. Infrastructure authority, contact roles and patch verification remain separate. See docs/user-guide/reporting-registration.md. Production mail/bounce acceptance, automated ownership challenges and existing-company invitations remain follow-ups."
+      },
+      {
+        "title": "Require accountable organization registration and administrator-managed data checks",
+        "body": "Implemented Register your organization terminology, required international emergency telephone, authorization-to-share declaration, explicit periodic email-reactivity/data-review consent and immediate-update commitment. Store individual timestamps/text version and show to CIRCL without inventing legacy consent or telephone availability. Remove public schedule/mail switches, ignore forged values, restrict schedule changes to platform superusers or CIRCL with current organization sharing, and enforce required mail in form/service for new-consent registrations. Add emergency telephone to reviewed snapshot fingerprint. DNS TXT/HTTPS, RDAP/provider and reverse-DNS verification remain proposed options, not automatic implementation. See docs/user-guide/reporting-registration.md and infrastructure-verification.md."
       }
     ]
   },

@@ -1,38 +1,53 @@
-# Infrastructure registration and periodic data review
+# Register your organization and keep infrastructure data current
 
-From **Sign in → Register as an infrastructure responsible person** (`/register/`), provide a company name, responsible contact, unique username/email and at least one IP range, static IP or domain. CIDR prefixes, explicit start-end ranges, IPv4/IPv6 and DNS names are supported, up to 100 declarations. Internal address spaces can have a network-context label. Software inventory is optional; the workspace encourages adding assets and exact installed versions for useful vulnerability matching.
+From **Sign in → Register your organization** (`/register/`), provide your organization, responsible person's name, emergency telephone number, unique username/email and at least one IP range, static IP or domain. Include the international telephone prefix (`+`); formatting spaces/brackets are normalized. No telephone call or automatic availability verification takes place.
+
+CIDR prefixes, explicit start-end ranges, IPv4/IPv6 and DNS names are supported, up to 100 declarations. Internal addresses can have a network-context label. Software inventory is optional: add assets and exact installed versions once signed in to improve vulnerability matching.
+
+## Required participation statements
+
+Every new applicant must explicitly confirm all four statements. None is selected in advance:
+
+- CIRCL may review the application and access the organization's infrastructure information after approval.
+- The person is authorized to share the organization's contact and infrastructure information; IP/domain authority remains subject to verification.
+- They accept periodic data reviews and email reactivity checks and will respond.
+- They will keep the information current and report changes to contacts, responsibilities and infrastructure immediately.
+
+The authorization declaration, periodic-check consent and update commitment are recorded with individual timestamps and text version **2026-11-18**. CIRCL sees the emergency telephone and these records in Registrations. The timestamps describe applicant statements at submission, not independent verification. Earlier applications retain blank fields and are identified as legacy; the migration invents no phone numbers or retrospective agreement. The public form cannot choose a review period or turn off service emails, including through extra manipulated POST fields.
 
 ## Email confirmation opens private access
 
 1. Submit the registration. No password or company access exists yet.
 2. Open the email link, choose your password and deliberately confirm the request. Opening a link alone has no effect. The one-use code expires after 24 hours; resends replace it and have a 15-minute cooldown.
-3. Sign in with the local portal username/password. Your new private workspace is immediately available: review contacts/declarations and add assets/software versions. This does not provision an SSO identity or join an existing company with the same name.
-4. CIRCL opens **Registrations** (`/operator/registrations/`), reviews the submitted application and approves or rejects CIRCL sharing. Approval makes this new workspace visible to CIRCL. Rejection leaves private owner access available. CIRCL analysts cannot inspect its live inventory before approval; trusted platform administrators retain administrative access. Application review itself exposes only the submitted application and is audited.
+3. Sign in with the local portal username/password. Your new private organization area is immediately available for contacts/declarations and optional assets/software. This does not provision SSO or join an existing company with the same name.
+4. CIRCL opens **Registrations**, reviews the application and approves/rejects CIRCL sharing after mailbox verification. Approval makes the organization visible to CIRCL. Rejection preserves private owner access. CIRCL cannot inspect live pending inventory; trusted platform administrators retain administrative access. Application snapshots themselves are separately auditable.
 
-Email confirmation proves mailbox access. It does not verify infrastructure authority. Approval does not convert declarations to verified claims. Existing authority review, contact-role review, emergency availability and vulnerability applicability remain separate.
+Mailbox confirmation does not prove infrastructure authority. Approval does not verify claims, contact roles, emergency availability or patch status. [Practical technical-verification options](infrastructure-verification.md) are recommendations for a later increment; no automated DNS/RDAP/HTTP challenge is introduced here.
 
-Self-service inventory uses a **Company-reported inventory** source. Assets are recorded locally without NetBox provisioning or connector write jobs. Existing authoritative NetBox organizations retain their source and existing write/acknowledgment rules. Correcting a declaration expires its old record and creates a fresh unverified declaration; withdrawing expires it without deleting history.
+Self-service inventory uses **Company-reported inventory**: local assets without NetBox provisioning/write jobs. Existing authoritative NetBox organizations retain their source. Correcting a declaration expires its old record and creates a new unverified claim; withdrawing preserves history.
 
-## Keep data current
+## Administrator-managed data reviews
 
-Each company has **Data review & reminders**, linked from its company page and infrastructure overview. Registered companies start with a configurable interval (default 90 days) and an initial review due now. Existing company administrators can enable the same schedule. Configure:
+**Periodic data review and email reminders** is linked from company pages and the infrastructure overview. A new organization starts with a 90-day review interval, repeat requests every seven overdue days, and the initial data review due now. These are defaults; administrators configure each organization's schedule on that page:
 
-- Data review interval: 1–365 days.
-- Repeat reminder interval while overdue: 1–90 days, default 7.
-- Service email reminders: enabled by default for registrations, can be disabled.
+- Only **platform administrators** and **CIRCL analysts for currently shared organizations** can change periods or initialize a schedule for an existing company. Ordinary membership, company-admin status or a previously granted CIRCL visibility is insufficient. Company administrators can review/correct/confirm data, not configure the schedule.
+- Review interval: 1–365 days; overdue repeat interval: 1–90 days.
+- For registrations accepting the new periodic-check commitment, email checks are mandatory. No opt-out field appears for either applicant or administrator; the service layer enforces enabled mail even if a submitted value attempts to disable it. Legacy optional-mail settings are preserved without pretending that older applicants agreed to new terms.
 
-Check contacts, IP/domain declarations, assets and installed versions, then confirm the current data. A confirmation records the actor, time, summary counts and a digest of that inventory snapshot, and sets the next due date. It does not assert patches, complete inventory or verified authority. Changed data/schedules invalidate an open confirmation form. Merely changing the schedule does not postpone unreviewed data. Manual-source freshness follows owner confirmation rather than a fictitious connector import.
+Check contacts, emergency telephone, IP/domain declarations, assets and versions, then confirm the current data. Confirmation records actor/time, summary counts and a digest, and advances the next due date. A changed emergency number or other data/schedule invalidates an open confirmation form. Changing periods alone does not postpone unreviewed data. Manual-source freshness follows owner review rather than an imaginary connector import.
 
-Due service messages go to the mailbox-confirmed registered administrator and opted-in reachable response contacts, deduplicated by address. DPO-only contacts are excluded automatically; DPO vulnerability outreach retains its separate policy. These generic data-review requests do not silently stop because a contact's role review expired. Messages contain a sign-in link, not the inventory or vulnerability evidence. Current schedule and recipient eligibility are checked again at delivery. Confirmation/opt-out suppress pending messages. Delivery state is visible on the review page.
+Due email asks for an active portal response. Sent-message time and owner-confirmation time are visible; opening mail alone does not confirm anything. This is a data-review/reactivity request, not proof of mail delivery, phone availability, network control or remediation. The workflow does not track email opens or automatically escalate unanswered checks.
 
-The bundled worker runs reminders automatically. Other installations must schedule `python manage.py remind_inventory --limit 10` regularly; no GET request sends mail. Queue/delivery attempts are durable, database-locked and deduplicated per due-date/recipient/day. Failed sends retry at most three times with backoff; relay acceptance is not proof of delivery, and an ambiguous SMTP failure can duplicate an email. There is no bounce processing yet.
+Mail goes to the mailbox-confirmed registered administrator and opted-in reachable response contacts, deduplicated by address; DPO-only contacts are excluded automatically. Expired contact role review does not silently stop generic data-review requests. Messages contain a portal link, not inventory/vulnerability details. Current policy and recipients are rechecked at delivery; completed reviews suppress pending requests. Failed sends have at most three attempts with backoff. Ambiguous SMTP failure can duplicate mail; bounce processing is not implemented.
 
-## Operator settings and local lab
+## Operator settings
 
-The default backend writes service emails to the local mail sink (`.local/mail` inside the web/worker runtime). It sends no operational email. Set an operator-owned `BEARINGS_PUBLIC_URL` (HTTPS origin without path/query/credentials), or use the configured canvas origin, for email links. DEBUG allows HTTP localhost only. Never construct verification links from a client-supplied Host header.
+The bundled worker runs checks automatically. Other deployments must regularly schedule `python manage.py remind_inventory --limit 10`. GET requests do not send mail. Delivery state is durable and database-locked, with recipient/due-date/day deduplication.
 
-Actual service delivery requires an explicit `BEARINGS_SERVICE_MAIL_TRANSPORT=smtp` setting plus `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_STARTTLS=1` or `SMTP_TLS=1`, and `DJANGO_DEFAULT_FROM_EMAIL`. For the bundled starter, place these settings in the private `.env` read by Compose; for bare Django, supply process environment variables. Keep credentials outside Git. This switch is separate from reviewed vulnerability outreach (`BEARINGS_NOTIFICATION_TRANSPORT`) and does not approve campaigns. The SMTP timeout is ten seconds. Real service SMTP is transport-tested with a mocked relay, not an operational delivery acceptance.
+The default backend writes service mail to `.local/mail` in the web/worker runtime. Set the operator-owned `BEARINGS_PUBLIC_URL` HTTPS origin, or use the canvas origin, for email links; DEBUG permits HTTP localhost only. Links never use client-supplied Host headers.
 
-`BEARINGS_PUBLIC_REGISTRATION=0` closes new signup. `BEARINGS_REGISTRATION_HOURLY_LIMIT` defaults to 30 public attempts per peer/hour (1–1000). Only salted rate keys are retained, not raw peer addresses. Verification codes are retained only as digests, supplied in email URL fragments, cleared from the browser URL and never consumed by GET. Reverse proxies must overwrite forwarded peer headers and redact verification/query information in their own logs. No automatic DNS/IP ownership challenge is performed.
+Real service mail requires `BEARINGS_SERVICE_MAIL_TRANSPORT=smtp` plus `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_STARTTLS=1` or `SMTP_TLS=1`, and `DJANGO_DEFAULT_FROM_EMAIL`. The starter reads private `.env` through Compose; bare Django needs process environment variables. Keep credentials out of Git. This switch is separate from `BEARINGS_NOTIFICATION_TRANSPORT` and never approves vulnerability campaigns. SMTP is transport-tested with a mocked relay; no operational mail was sent.
 
-After updating the checkout, `python3 scripts/dev.py up --no-build` applies migrations before restarting web/worker, including the new tables and national-activity indexes. External mode still never provisions external inventory during startup.
+`BEARINGS_PUBLIC_REGISTRATION=0` closes signup. `BEARINGS_REGISTRATION_HOURLY_LIMIT` defaults to 30 attempts/peer/hour. Only salted rate keys are retained. Verification codes use digests in the database and URL fragments cleared from the browser; GET never consumes them. Trusted proxies must overwrite forwarded peer headers and redact verification/query values in their logs.
+
+After updating, `python3 scripts/dev.py up --no-build` applies migrations before restarting web/worker. Migration 0030 adds phone/commitment fields without backfilling agreement or changing legacy scopes, contacts, intervals or optional-mail policy.

@@ -23,6 +23,7 @@ from .models import (
     PublicRegistrationBucket,
 )
 from .service_mail import public_base, send_service_mail
+from .registration_forms import REGISTRATION_COMMITMENTS_VERSION
 
 
 def permit_public_attempt(request):
@@ -53,14 +54,20 @@ def submit_registration(form):
     user.is_active = False
     user.set_unusable_password()
     user.save()
+    now = timezone.now()
     return InfrastructureRegistration.objects.create(
         user=user,
         company_name=form.cleaned_data["company_name"],
         contact_name=form.cleaned_data["contact_name"],
         email=user.email,
+        emergency_phone=form.cleaned_data["emergency_phone"],
+        authority_attested_at=now,
+        periodic_review_consented_at=now,
+        updates_committed_at=now,
+        commitments_version=REGISTRATION_COMMITMENTS_VERSION,
         scopes=form.cleaned_data["scopes"],
-        review_days=form.cleaned_data["review_days"],
-        email_reminders=form.cleaned_data["email_reminders"],
+        review_days=InventoryReviewPolicy._meta.get_field("interval_days").get_default(),
+        email_reminders=True,
         verification_digest=secrets.token_hex(32),
         verification_expires=timezone.now(),
     )
@@ -82,8 +89,8 @@ def issue_verification(pk):
     try:
         base = public_base()
         send_service_mail(
-            "Confirm your Bearings reporting email",
-            f"A new reporting account was requested for {item.company_name}. Confirm the email and set your own password to open your private workspace. CIRCL will review sharing separately.\n\n"
+            "Confirm your Bearings registration email",
+            f"An organization registration was requested for {item.company_name}. Confirm the email and set your own password to open your private workspace. CIRCL will review sharing separately.\n\n"
             f"Open {base}/register/verify/#token={raw}\n\n"
             f"Or open {base}/register/verify/ and enter this one-use code:\n{raw}\n\n"
             "This code expires in 24 hours. Opening the link alone does not confirm anything. Ignore this message if you did not request an account.",
@@ -147,6 +154,7 @@ def verify_registration(raw, password):
         organization=org,
         name=item.contact_name,
         email=item.email,
+        emergency_phone=item.emergency_phone,
         role="Registered infrastructure responsible",
         reachable_at=item.email_verified_at,
         notification_enabled=item.email_reminders,
@@ -218,7 +226,7 @@ def notify_decision(pk):
     try:
         base = public_base()
         if item.status == "approved":
-            body = f"CIRCL visibility is approved for your reporting workspace. Continue signing in with your portal username {item.user.username}.\n{base}/organizations/{item.organization.slug}/review/\n\nReview your declared scopes and contacts, and add servers/software versions when available. Scope authority is not automatically verified. SSO accounts are managed separately."
+            body = f"CIRCL access is approved for your organization. Continue signing in with your portal username {item.user.username}.\n{base}/organizations/{item.organization.slug}/review/\n\nReview your declared scopes and contacts, and add servers/software versions when available. Scope authority is not automatically verified. SSO accounts are managed separately."
         else:
             body = f"CIRCL visibility was not approved. Your private workspace remains available. Contact the operator if you need assistance.\n{base}/accounts/login/"
         send_service_mail("Your Bearings reporting application", body, item.email)

@@ -1,5 +1,6 @@
 """Public reporting applications and accountable inventory review."""
 
+import re
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -7,10 +8,19 @@ from .models import InfrastructureRegistration, InventoryReviewPolicy
 from .scope import normalize
 
 
+REGISTRATION_COMMITMENTS_VERSION = "2026-11-18"
+
+
 class InfrastructureRegistrationForm(forms.ModelForm):
     company_name = forms.CharField(max_length=180, label="Company / organization")
     contact_name = forms.CharField(max_length=180, label="Responsible person's name")
     email = forms.EmailField(label="Your email address")
+    emergency_phone = forms.CharField(
+        max_length=80,
+        label="Emergency contact telephone number",
+        widget=forms.TextInput(attrs={"type": "tel", "autocomplete": "tel"}),
+        help_text="Include the international country code, e.g. +352 123 456. This number is not automatically verified.",
+    )
     networks = forms.CharField(
         max_length=6000,
         required=False,
@@ -34,15 +44,17 @@ class InfrastructureRegistrationForm(forms.ModelForm):
     network_context = forms.CharField(
         max_length=100, required=False, label="Internal network context (optional)"
     )
-    review_days = forms.IntegerField(min_value=1, max_value=365, initial=90, label="Review data every (days)")
-    email_reminders = forms.BooleanField(
-        required=False, initial=True, label="Email me when a data review is due"
-    )
     consent = forms.BooleanField(
-        label="I request CIRCL review and consent to CIRCL reading this new reporting workspace after approval"
+        label="I request CIRCL review and consent to CIRCL accessing my organization's infrastructure information after approval"
     )
     attestation = forms.BooleanField(
-        label="I am submitting these reporting details in good faith; I understand that scope authority remains unverified"
+        label="I am authorized to share this organization's contact and infrastructure information with CIRCL; I understand that IP/domain authority remains subject to verification"
+    )
+    periodic_consent = forms.BooleanField(
+        label="I agree to periodic data reviews and email reactivity checks, and will respond to these requests"
+    )
+    updates_consent = forms.BooleanField(
+        label="I will keep this information current and report changes to contacts, responsibilities and infrastructure immediately"
     )
 
     class Meta:
@@ -52,15 +64,22 @@ class InfrastructureRegistrationForm(forms.ModelForm):
             "company_name",
             "contact_name",
             "email",
+            "emergency_phone",
             "networks",
             "ips",
             "domains",
             "network_context",
-            "review_days",
-            "email_reminders",
             "consent",
             "attestation",
+            "periodic_consent",
+            "updates_consent",
         ]
+
+    def clean_emergency_phone(self):
+        value = re.sub(r"[\s()./-]", "", self.cleaned_data["emergency_phone"])
+        if not re.fullmatch(r"\+[1-9][0-9]{6,14}", value):
+            raise forms.ValidationError("Enter an international number starting with + and 7–15 digits.")
+        return value
 
     def clean_email(self):
         value = self.cleaned_data["email"].casefold()
@@ -108,7 +127,9 @@ class InfrastructureRegistrationForm(forms.ModelForm):
 class RegistrationVerificationForm(forms.Form):
     password1 = forms.CharField(label="Choose your portal password", widget=forms.PasswordInput())
     password2 = forms.CharField(label="Repeat password", widget=forms.PasswordInput())
-    requested = forms.BooleanField(label="I requested this reporting account and am setting its password")
+    requested = forms.BooleanField(
+        label="I requested this organization registration and am setting its password"
+    )
 
     def clean(self):
         data = super().clean()
@@ -151,6 +172,11 @@ class RegistrationDecisionForm(forms.Form):
 class InventoryReviewSettingsForm(forms.ModelForm):
     interval_days = forms.IntegerField(min_value=1, max_value=365)
     reminder_days = forms.IntegerField(min_value=1, max_value=90)
+
+    def __init__(self, *args, mandatory_email=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if mandatory_email:
+            self.fields.pop("email_enabled")
 
     class Meta:
         model = InventoryReviewPolicy

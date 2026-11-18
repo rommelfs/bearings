@@ -8,7 +8,15 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 from .access import require
 from .circl_views import private_response
-from .inventory_review import configure_review, confirm_review, owner_can_review, review_token, snapshot
+from .inventory_review import (
+    configure_review,
+    confirm_review,
+    owner_can_review,
+    review_token,
+    snapshot,
+    can_configure_review,
+    mandatory_review_mail,
+)
 from .models import InventoryReviewPolicy
 from .registration_forms import InventoryReviewForm, InventoryReviewSettingsForm
 from .views import organization
@@ -21,12 +29,16 @@ def review(request, slug):
     org = organization(request, slug)
     policy = InventoryReviewPolicy.objects.filter(organization=org).first()
     editable = owner_can_review(request.user, org)
+    configurable = can_configure_review(request.user, org)
+    mandatory_email = mandatory_review_mail(org)
     error = None
     if request.method == "POST":
-        require(editable)
         if request.POST.get("action") == "settings":
+            require(configurable)
             settings_form = InventoryReviewSettingsForm(
-                request.POST, instance=policy or InventoryReviewPolicy(organization=org)
+                request.POST,
+                instance=policy or InventoryReviewPolicy(organization=org),
+                mandatory_email=mandatory_email,
             )
             if settings_form.is_valid():
                 configure_review(request.user, org, settings_form.cleaned_data)
@@ -34,6 +46,7 @@ def review(request, slug):
                 return redirect("inventory-review", slug=slug)
             error = settings_form.errors
         else:
+            require(editable)
             require(policy is not None)
             form = InventoryReviewForm(request.POST)
             if form.is_valid():
@@ -64,10 +77,13 @@ def review(request, slug):
                 "policy": policy,
                 "counts": counts,
                 "editable": editable,
+                "configurable": configurable,
+                "mandatory_email": mandatory_email,
                 "review_form": form,
                 "error": error,
                 "settings_form": InventoryReviewSettingsForm(
-                    instance=policy or InventoryReviewPolicy(organization=org)
+                    instance=policy or InventoryReviewPolicy(organization=org),
+                    mandatory_email=mandatory_email,
                 ),
                 "history": policy.confirmations.select_related("actor").order_by("-reviewed_at", "-pk")[:10]
                 if policy
