@@ -143,6 +143,81 @@ class RegistrationReviewTests(Fixture):
         self.assertTrue(duplicate.context["form"].errors)
         self.assertEqual(InfrastructureRegistration.objects.count(), 1)
 
+    def test_optional_company_address_persists_and_remains_scoped(self):
+        address = "12 Example Road\nL-1234 Exampletown\nLuxembourg"
+        self.data["company_address"] = address
+        item, org = self.workspace()
+        self.assertEqual(item.company_address, address)
+        self.assertEqual(org.postal_address, address)
+        self.login(item.user)
+        self.assertContains(self.client.get(reverse("organization", args=[org.slug])), "L-1234 Exampletown")
+        self.login(self.reader)
+        self.assertEqual(self.client.get(reverse("organization", args=[org.slug])).status_code, 404)
+        self.login(self.analyst)
+        self.assertEqual(self.client.get(reverse("organization", args=[org.slug])).status_code, 404)
+        self.assertContains(
+            self.client.get(reverse("registration-application", args=[item.pk])), "L-1234 Exampletown"
+        )
+        decide_registration(self.analyst, item.pk, "approve", "Reviewed")
+        self.assertContains(self.client.get(reverse("organization", args=[org.slug])), "L-1234 Exampletown")
+        self.assertEqual(
+            self.client.post(
+                reverse("company-address", args=[org.slug]), {"postal_address": "Changed"}
+            ).status_code,
+            403,
+        )
+
+    def test_address_can_be_corrected_without_changing_registration_or_sharing(self):
+        from .models import AuditEvent
+
+        self.data["company_address"] = "Original address"
+        item, org = self.workspace()
+        policy = org.inventory_review_policy
+        token = review_token(item.user, policy, snapshot(org)[0])
+        self.login(item.user)
+        url = reverse("company-address", args=[org.slug])
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(
+            self.client.post(
+                url, {"postal_address": "New address", "operator_visibility": "on", "name": "Forged"}
+            ).status_code,
+            302,
+        )
+        org.refresh_from_db()
+        self.assertEqual(org.postal_address, "New address")
+        self.assertFalse(org.operator_visibility)
+        self.assertEqual(org.name, self.data["company_name"])
+        item.refresh_from_db()
+        self.assertEqual(item.company_address, "Original address")
+        with self.assertRaises(ValidationError):
+            confirm_review(item.user, org, token)
+        event = AuditEvent.objects.get(action="organization.address_updated")
+        self.assertNotIn("New address", str(event.details))
+        self.assertEqual(self.client.post(url, {"postal_address": "x" * 1001}).status_code, 200)
+        org.refresh_from_db()
+        self.assertEqual(org.postal_address, "New address")
+        self.assertEqual(self.client.post(url, {"postal_address": ""}).status_code, 302)
+        org.refresh_from_db()
+        self.assertEqual(org.postal_address, "")
+        Membership.objects.filter(user=item.user, organization=org).update(role="editor")
+        self.assertEqual(self.client.post(url, {"postal_address": "Editor address"}).status_code, 403)
+
+    def test_company_address_is_optional_bounded_and_escaped(self):
+        self.data["company_address"] = "x" * 1001
+        response = self.client.post(reverse("registration"), self.data)
+        self.assertIn("company_address", response.context["form"].errors)
+        self.assertFalse(InfrastructureRegistration.objects.exists())
+        self.data["company_address"] = '<script>alert("address")</script>'
+        item, org = self.workspace()
+        self.login(item.user)
+        response = self.client.get(reverse("organization", args=[org.slug]))
+        self.assertNotContains(response, '<script>alert("address")</script>')
+        self.assertContains(response, "&lt;script&gt;")
+        self.login(self.analyst)
+        response = self.client.get(reverse("registration-application", args=[item.pk]))
+        self.assertNotContains(response, '<script>alert("address")</script>')
+        self.assertContains(response, "&lt;script&gt;")
+
     def test_phone_and_each_participation_commitment_are_required(self):
         for field in ["emergency_phone", "consent", "attestation", "periodic_consent", "updates_consent"]:
             with self.subTest(field=field):

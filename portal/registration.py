@@ -58,6 +58,7 @@ def submit_registration(form):
     return InfrastructureRegistration.objects.create(
         user=user,
         company_name=form.cleaned_data["company_name"],
+        company_address=form.cleaned_data["company_address"],
         contact_name=form.cleaned_data["contact_name"],
         email=user.email,
         emergency_phone=form.cleaned_data["emergency_phone"],
@@ -137,7 +138,10 @@ def verify_registration(raw, password):
     user.save(update_fields=["password"])
     item.email_verified_at = timezone.now()
     org = Organization.objects.create(
-        name=item.company_name, slug=f"reporting-{item.pk.hex[:20]}", operator_visibility=False
+        name=item.company_name,
+        postal_address=item.company_address,
+        slug=f"reporting-{item.pk.hex[:20]}",
+        operator_visibility=False,
     )
     InventorySource.objects.create(organization=org, mode="manual", import_enabled=False)
     for scope in item.scopes:

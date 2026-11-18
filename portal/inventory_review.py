@@ -101,6 +101,18 @@ def snapshot(org):
         ),
     ]
     digest, counts = hashlib.sha256(), {"unknown_versions": 0}
+    digest.update(
+        json.dumps(
+            {
+                "organization": org.pk,
+                "postal_address": Organization.objects.values_list("postal_address", flat=True).get(
+                    pk=org.pk
+                ),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    )
     for label, query in queries:
         digest.update(label.encode())
         counts[label] = 0

@@ -23,6 +23,7 @@ from . import (
 )
 
 urlpatterns = [
+    path("organizations/<slug:slug>/address/", registration_views.company_address, name="company-address"),
     path(
         "organizations/<slug:slug>/scope/<int:pk>/correct/",
         registration_views.correct_scope,

@@ -212,3 +212,38 @@ def correct_scope(request, slug, pk):
     return private_response(
         render(request, "portal/scope_correction.html", {"org": org, "claim": claim, "form": form})
     )
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET", "POST"])
+def company_address(request, slug):
+    from django.db import transaction
+    from .access import can_review_contact
+    from .models import Organization
+    from .registration_forms import CompanyAddressForm
+    from .views import organization
+
+    org = organization(request, slug)
+    require(can_review_contact(request.user, org))
+    form = CompanyAddressForm(request.POST or None, instance=org)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            current = Organization.objects.select_for_update().get(pk=org.pk)
+            require(can_review_contact(request.user, current))
+            if current.postal_address != form.cleaned_data["postal_address"]:
+                current.postal_address = form.cleaned_data["postal_address"]
+                current.save(update_fields=["postal_address"])
+                audit(request.user, current, "organization.address_updated", current.pk)
+        return redirect("organization", slug=slug)
+    return private_response(
+        render(
+            request,
+            "portal/form.html",
+            {
+                "org": org,
+                "title": "Update company address",
+                "form": form,
+            },
+        )
+    )

@@ -4,7 +4,7 @@ import re
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import InfrastructureRegistration, InventoryReviewPolicy
+from .models import InfrastructureRegistration, InventoryReviewPolicy, Organization
 from .scope import normalize
 
 
@@ -13,6 +13,13 @@ REGISTRATION_COMMITMENTS_VERSION = "2026-11-18"
 
 class InfrastructureRegistrationForm(forms.ModelForm):
     company_name = forms.CharField(max_length=180, label="Company / organization")
+    company_address = forms.CharField(
+        max_length=1000,
+        required=False,
+        label="Company address (optional)",
+        widget=forms.Textarea(attrs={"rows": 3, "autocomplete": "street-address"}),
+        help_text="Street, postal code, city and country. You can add this later.",
+    )
     contact_name = forms.CharField(max_length=180, label="Responsible person's name")
     email = forms.EmailField(label="Your email address")
     emergency_phone = forms.CharField(
@@ -62,6 +69,7 @@ class InfrastructureRegistrationForm(forms.ModelForm):
         fields = [
             "username",
             "company_name",
+            "company_address",
             "contact_name",
             "email",
             "emergency_phone",
@@ -188,3 +196,14 @@ class InventoryReviewForm(forms.Form):
     checked = forms.BooleanField(
         label="I reviewed the current contacts, declared IP/domain scopes, assets and software versions, including unknowns and gaps"
     )
+
+
+class CompanyAddressForm(forms.ModelForm):
+    class Meta:
+        model = Organization
+        fields = ["postal_address"]
+        labels = {"postal_address": "Company address (optional)"}
+        help_texts = {
+            "postal_address": "Street, postal code, city and country. This is your organization's location; servers may be elsewhere."
+        }
+        widgets = {"postal_address": forms.Textarea(attrs={"rows": 3, "autocomplete": "street-address"})}

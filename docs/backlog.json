@@ -38,6 +38,10 @@
       {
         "title": "Require accountable organization registration and administrator-managed data checks",
         "body": "Implemented Register your organization terminology, required international emergency telephone, authorization-to-share declaration, explicit periodic email-reactivity/data-review consent and immediate-update commitment. Store individual timestamps/text version and show to CIRCL without inventing legacy consent or telephone availability. Remove public schedule/mail switches, ignore forged values, restrict schedule changes to platform superusers or CIRCL with current organization sharing, and enforce required mail in form/service for new-consent registrations. Add emergency telephone to reviewed snapshot fingerprint. DNS TXT/HTTPS, RDAP/provider and reverse-DNS verification remain proposed options, not automatic implementation. See docs/user-guide/reporting-registration.md and infrastructure-verification.md."
+      },
+      {
+        "title": "Capture optional company addresses for future geographic overviews",
+        "body": "Implemented one optional free-text company address in registration (street/postal code/city/country), copied to the private organization after mailbox proof. Company admins can add/correct/clear the scoped address; submitted application remains original. Existing CIRCL read policy, escaped display, metadata-only audit and signed owner-review snapshot invalidation apply. Additive blank legacy migration; no coordinates, automatic geocoding, map or technical authority challenge. Future map should distinguish company locations from actual asset locations; low-friction proof options remain under discussion."
       }
     ]
   },

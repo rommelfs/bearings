@@ -34,6 +34,7 @@ ROUTES = {
     "inventory": {
         "inventory",
         "organization",
+        "company-address",
         "asset",
         "edit-local-asset",
         "inventory-review",

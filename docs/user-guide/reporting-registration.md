@@ -2,6 +2,8 @@
 
 From **Sign in → Register your organization** (`/register/`), provide your organization, responsible person's name, emergency telephone number, unique username/email and at least one IP range, static IP or domain. Include the international telephone prefix (`+`); formatting spaces/brackets are normalized. No telephone call or automatic availability verification takes place.
 
+The optional **Company address** field accepts street, postal code, city and country in one text box; it can be skipped and added later. The address is copied to the private organization after mailbox confirmation. Company admins can edit/clear it through **Update company address**; the original submitted application remains unchanged. CIRCL reads the current address under existing organization sharing rules and sees the submitted address in its application review. The address is part of the reviewed data digest. It is a company location, not an assertion of physical server location. No map, coordinates or geocoding service is added.
+
 CIDR prefixes, explicit start-end ranges, IPv4/IPv6 and DNS names are supported, up to 100 declarations. Internal addresses can have a network-context label. Software inventory is optional: add assets and exact installed versions once signed in to improve vulnerability matching.
 
 ## Required participation statements
@@ -51,3 +53,5 @@ Real service mail requires `BEARINGS_SERVICE_MAIL_TRANSPORT=smtp` plus `SMTP_HOS
 `BEARINGS_PUBLIC_REGISTRATION=0` closes signup. `BEARINGS_REGISTRATION_HOURLY_LIMIT` defaults to 30 attempts/peer/hour. Only salted rate keys are retained. Verification codes use digests in the database and URL fragments cleared from the browser; GET never consumes them. Trusted proxies must overwrite forwarded peer headers and redact verification/query values in their logs.
 
 After updating, `python3 scripts/dev.py up --no-build` applies migrations before restarting web/worker. Migration 0030 adds phone/commitment fields without backfilling agreement or changing legacy scopes, contacts, intervals or optional-mail policy.
+
+Migration 0031 adds optional submitted/current company-address fields. Existing addresses remain blank; no location is guessed. Automated resource verification remains a proposal while the low-friction onboarding design is reconsidered.

@@ -208,3 +208,7 @@ National activity now starts from discovery matches and uses indexed earliest-re
 ## Organization registration commitments — 2026-11-18
 
 Implemented [#42](https://github.com/rommelfs/bearings/issues/42): **Register your organization** with required emergency telephone and explicit authorization, periodic email-check and immediate-update commitments, timestamped/versioned without retrospective legacy agreement. Applicants and company admins cannot choose review periods or disable mandatory service checks. Platform admins and CIRCL for currently shared companies configure periods; service-layer and revoked-sharing checks enforce this independently of form visibility. See [registration](user-guide/reporting-registration.md). [Low-friction technical/resource verification](user-guide/infrastructure-verification.md) is a documented proposal; no DNS/HTTP/RDAP challenge is yet automated.
+
+## Optional company address — 2026-11-18
+
+Added one optional address field during signup and a scoped company-admin address editor. Mailbox confirmation copies the original application address to the private organization; subsequent changes preserve the original submission and invalidate open data-review confirmations. Existing CIRCL visibility applies; no coordinates, map, external geocoding or automatic authority challenge. A future map must distinguish company locations from physical asset locations. Technical ownership-verification options remain under discussion to keep onboarding accessible.

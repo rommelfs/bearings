@@ -8,6 +8,7 @@ from django.utils import timezone
 
 class Organization(models.Model):
     name = models.CharField(max_length=180)
+    postal_address = models.TextField(max_length=1000, blank=True)
     slug = models.SlugField(unique=True)
     operator_visibility = models.BooleanField(
         default=False, help_text="Allow CIRCL analysts to access this organization"
@@ -1503,6 +1504,7 @@ class InfrastructureRegistration(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     organization = models.OneToOneField(Organization, on_delete=models.PROTECT, null=True, blank=True)
     company_name = models.CharField(max_length=180)
+    company_address = models.TextField(max_length=1000, blank=True)
     contact_name = models.CharField(max_length=180)
     email = models.EmailField(unique=True)
     emergency_phone = models.CharField(max_length=80, blank=True)
