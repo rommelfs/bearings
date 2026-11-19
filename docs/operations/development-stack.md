@@ -121,3 +121,10 @@ Screenshots are a populated test database, not a database distributed by Git. Fo
 ### Registration page timing
 
 Use `python3 scripts/dev.py web-timing --registration` to compare anonymous HTTP/HTTPS and signed-in HTTPS `/register/` in the running bundled SSO lab. Add `--username circl-analyst` for the synthetic operator account. The login returns directly to registration, so the command does not accidentally measure a dashboard redirect as registration latency. JSON output includes the final path plus registration/database/SSO timing where available; no form, inventory, credential or query-string content is printed. Keep the generated lab CA trusted. If the application was updated, restart the web service through the normal `up --no-build` workflow first.
+
+
+### Linux inventory reference
+
+The [Linux client guide](../../clients/linux/README.md) describes building and enrolling an outbound-only reporter. Rebuild the Bearings image once with `python3 scripts/dev.py up` after installing this revision: the frozen HTTP-signature verifier is new. Startup applies migrations 0054–0056; the ordinary worker also processes bounded agent reports. Separate deployments must schedule `python manage.py process_agent_reports --limit 25`. Install Go 1.24+ to build the standard-library-only Linux amd64/arm64 artifacts with `python3 scripts/build_linux_client.py`; an explicit `--go` selects the compiler. Builds/checksums are not signed operator releases.
+
+For the retained bundled lab only, `python3 scripts/linux_client_lab_smoke.py` executes the native client in a restricted Rocky Linux container through verified local HTTPS. It requires the already-running bundled SSO/NetBox lab and an available official Rocky image; it refuses external configuration. The test leaves a clearly synthetic VM and evidence, verifies its NetBox tenant/identity, and revokes its temporary credential. Private key/grant material is removed. No production mail, arbitrary scanner, IPAM write or external service enrollment is performed.

@@ -599,7 +599,10 @@ def api_evidence(request, slug, pk):
 def asset_detail(request, slug, pk):
     org = organization(request, slug)
     asset = get_object_or_404(
-        org.assets.select_related("source__instance").prefetch_related("installations__product"), pk=pk
+        org.assets.select_related("source__instance").prefetch_related(
+            "installations__product", "installations__agent_component__device"
+        ),
+        pk=pk,
     )
     findings = (
         visible_findings(request.user, org)

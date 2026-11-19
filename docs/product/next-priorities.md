@@ -45,3 +45,8 @@ Implementation tracking: [minimal setup/bulk entry #56](https://github.com/romme
 ## Deliberately defer
 
 Keep direct AIL automation deferred, as requested. Defer broad bidirectional synchronization, automatic upstream publication, automated compromise declarations, automatic patching and a universal blended risk score until the targeted user flows and operating boundaries are accepted. These features add permissions, recovery paths and noise before solving the immediate adoption/response gap.
+
+
+## Linux reporting increment
+
+The [Linux reference implementation](../integrations/linux-agent.md) now supplies authenticated post-update package observations, optional fixed NGINX runtime checks and explicit first-host registration. It reduces repeated manual version entry while retaining organization/source identity and separate analyst decisions. Next acceptance work is a small representative Debian/RPM pilot, service-account/runtime coverage, expiry/replacement, proxy/outage recovery and a measured storage/retention/ingest budget. Existing large-inventory read benchmarks do not establish agent-fleet throughput. Windows, automatic credential renewal, signed release distribution, network/IPAM reconciliation and general application/container discovery remain subsequent increments.

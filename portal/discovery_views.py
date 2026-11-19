@@ -163,10 +163,21 @@ def version(request, slug, pk):
     org = organization(request, slug)
     require(can_edit(request.user, org))
     installation = get_object_or_404(Installation, pk=pk, asset__organization=org, product__organization=org)
+    if hasattr(installation, "agent_component"):
+        messages.error(
+            request,
+            "This version is managed by a Linux device. Detach its software binding before editing manually.",
+        )
+        return redirect("agent-center", slug=slug)
     form = VersionForm(request.POST or None, instance=installation)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             current = Installation.objects.select_for_update().get(pk=pk)
+            if hasattr(current, "agent_component"):
+                messages.error(
+                    request, "This version is now device-managed. Release its binding before editing."
+                )
+                return redirect("agent-center", slug=slug)
             for field in form.Meta.fields:
                 setattr(current, field, form.cleaned_data[field])
             current.full_clean()

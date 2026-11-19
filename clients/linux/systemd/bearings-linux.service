@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[Unit]
+Description=Bearings Linux inventory observations (outbound HTTPS only)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=bearings-linux
+Group=bearings-linux
+StateDirectory=bearings-linux
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=/usr/local/bin/bearings-linux watch --state-dir /var/lib/bearings-linux --inventory --interval 6h
+Restart=on-failure
+RestartSec=60s
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+# Root-owned nginx processes may be unreadable; runtime coverage then remains unknown.
+# No broad ptrace, Docker socket or host administration capability is granted.
+MemoryMax=192M
+TasksMax=32
+LimitNOFILE=128
+
+[Install]
+WantedBy=multi-user.target

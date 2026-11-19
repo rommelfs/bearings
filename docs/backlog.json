@@ -263,7 +263,7 @@
       },
       {
         "title": "Add SBOM, endpoint imports and delegated providers",
-        "body": "Reuse software identity boundaries and source provenance; scanner/agent/SBOM imports with isolation and explicit grants. Scanning remains separate authorization."
+        "body": "Implemented bounded Linux reference: native standard-library Go client, public-key-bound one-use enrollment, RFC 9421 Ed25519 signed HTTPS reports, private durable outbox, source/device serialization, explicit same-asset version bindings and separately dated package/runtime facts. Explicit first-host registration creates a local host or queues a tenant-scoped writable NetBox device/VM; initial hostname/IP declarations are unverified and do not create IPAM assignments. PostgreSQL and actual Go/TLS/native-lab tests cover replay, lost acknowledgment, revocation, source ownership, partial/stale data and batched changes. See docs/integrations/linux-agent.md and docs/validation.md. Windows, SBOM, delegated providers, signed releases, automatic renewal, retention/delta/fleet ingest acceptance and verified network reconciliation remain planned. Scanning remains separate authorization."
       },
       {
         "title": "Provide extensive synthetic exploration data and provenance-based cleanup",

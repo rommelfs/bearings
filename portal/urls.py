@@ -1,6 +1,7 @@
 from django.urls import path
 from . import (
     views,
+    agent_views,
     member_views,
     review_followup_views,
     company_work_views,
@@ -32,6 +33,10 @@ from . import (
 )
 
 urlpatterns = [
+    path("api/v1/agent/enroll/", agent_views.enrollment, name="agent-enroll"),
+    path("api/v1/agent/reports/", agent_views.reports, name="agent-reports"),
+    path("api/v1/agent/status/", agent_views.status, name="agent-status"),
+    path("organizations/<slug:slug>/agents/", agent_views.center, name="agent-center"),
     path("operator/organizations/merge/", member_views.merge_companies, name="company-merge"),
     path("join/", member_views.join, name="company-join"),
     path("organizations/<slug:slug>/members/", member_views.members, name="company-members"),

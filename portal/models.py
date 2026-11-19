@@ -2020,3 +2020,127 @@ class NationalProductVersion(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["product", "version"], name="national_product_version")
         ]
+
+
+class AgentEnrollment(models.Model):
+    """One-use, public-key-bound authorization, created by a company administrator."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    asset = models.ForeignKey(Asset, on_delete=models.PROTECT, null=True, blank=True)
+    new_asset_kind = models.CharField(max_length=20, blank=True)
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    public_key = models.CharField(max_length=44)
+    token_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    request_hash = models.CharField(max_length=64, blank=True)
+    signed_body = models.BinaryField(default=bytes, blank=True)
+    signature_input = models.TextField(blank=True)
+    signature = models.TextField(blank=True)
+    request_url = models.CharField(max_length=2048, blank=True)
+    device_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
+
+class AgentDevice(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    asset = models.ForeignKey(Asset, on_delete=models.PROTECT, related_name="agent_devices")
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    public_key = models.CharField(max_length=44, unique=True)
+    enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_sequence = models.PositiveBigIntegerField(default=0)
+    daily_bytes = models.PositiveBigIntegerField(default=0)
+    daily_reports = models.PositiveIntegerField(default=0)
+    applied_sequence = models.PositiveBigIntegerField(default=0)
+    last_received_at = models.DateTimeField(null=True, blank=True)
+    last_observed_at = models.DateTimeField(null=True, blank=True)
+    last_complete_at = models.DateTimeField(null=True, blank=True)
+    reported_network = models.JSONField(default=dict, blank=True)
+    os = models.JSONField(default=dict, blank=True)
+    services = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asset"], condition=Q(enabled=True), name="one_active_agent_per_asset"
+            )
+        ]
+
+    @property
+    def stale(self):
+        from datetime import timedelta
+
+        return not self.last_observed_at or self.last_observed_at < timezone.now() - timedelta(hours=12)
+
+    @property
+    def runtime_services(self):
+        from datetime import timedelta
+        from django.utils.dateparse import parse_datetime
+
+        result = []
+        for item in self.services:
+            observed = parse_datetime(item.get("observed_at", ""))
+            result.append({**item, "stale": not observed or observed < timezone.now() - timedelta(hours=12)})
+        return result
+
+    def __str__(self):
+        return f"{self.asset.name} · {self.id}"
+
+
+class AgentReport(models.Model):
+    """Exact signed input, retained independently of its current inventory projection."""
+
+    id = models.UUIDField(primary_key=True, editable=False)
+    device = models.ForeignKey(AgentDevice, on_delete=models.PROTECT, related_name="reports")
+    sequence = models.PositiveBigIntegerField()
+    observed_at = models.DateTimeField()
+    received_at = models.DateTimeField(default=timezone.now)
+    body = models.BinaryField()
+    body_hash = models.CharField(max_length=64)
+    signature_input = models.TextField()
+    signature = models.TextField()
+    request_url = models.CharField(max_length=2048)
+    content_type = models.CharField(max_length=100)
+    public_key = models.CharField(max_length=44)
+    status = models.CharField(
+        max_length=12,
+        default="pending",
+        choices=[(s, s) for s in ["pending", "applied", "rejected", "superseded"]],
+    )
+    error = models.CharField(max_length=120, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    component_count = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["device", "sequence"], name="agent_device_sequence")]
+        indexes = [models.Index(fields=["status", "received_at"], name="agent_pending_reports_idx")]
+
+
+class AgentComponent(models.Model):
+    device = models.ForeignKey(AgentDevice, on_delete=models.PROTECT, related_name="components")
+    key = models.CharField(max_length=255)
+    name = models.CharField(max_length=128)
+    manager = models.CharField(max_length=8)
+    architecture = models.CharField(max_length=64)
+    version = models.CharField(max_length=120)
+    observed_at = models.DateTimeField()
+    missing_since = models.DateTimeField(null=True, blank=True)
+    last_report = models.ForeignKey(AgentReport, on_delete=models.PROTECT)
+    installation = models.OneToOneField(
+        Installation, on_delete=models.PROTECT, null=True, blank=True, related_name="agent_component"
+    )
+
+    @property
+    def stale(self):
+        from datetime import timedelta
+
+        return self.observed_at < timezone.now() - timedelta(hours=12)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["device", "key"], name="agent_component_identity")]

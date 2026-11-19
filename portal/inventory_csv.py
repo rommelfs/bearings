@@ -178,6 +178,10 @@ def plan(source, rows):
                 pk=item["id"], asset=asset, product__organization=source.organization
             ).first()
             records[software_key] = installation_data(installed) if installed else None
+            if installed and hasattr(installed, "agent_component"):
+                errors.append(
+                    f"Asset {key}: software is managed by a Linux device; reconcile ownership first"
+                )
             if not installed or digest(records[software_key]) != item["digest"]:
                 errors.append(f"Asset {key}: software was edited elsewhere; reconcile before importing")
         baseline["bindings"][key] = {"asset": str(asset.pk), "data": current, "installed": records}

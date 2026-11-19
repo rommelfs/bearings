@@ -48,7 +48,7 @@ Prepare controlled operational use
 Extend without changing authoritative-source rules
 
 - **Completed [#14](https://github.com/rommelfs/bearings/issues/14): organization-owned NetBox read-only sources**: Operator-approved connections import directly into the common organization-scoped model, with one authoritative source, isolated credentials and no central duplication or bidirectional synchronization.
-- **Add SBOM, endpoint imports and delegated providers**: Reuse software identity boundaries and source provenance; scanner/agent/SBOM imports with isolation and explicit grants. Scanning remains separate authorization.
+- **Add SBOM, endpoint imports and delegated providers**: Implemented bounded Linux reference: native standard-library Go client, public-key-bound one-use enrollment, RFC 9421 Ed25519 signed HTTPS reports, private durable outbox, source/device serialization, explicit same-asset version bindings and separately dated package/runtime facts. Explicit first-host registration creates a local host or queues a tenant-scoped writable NetBox device/VM; initial hostname/IP declarations are unverified and do not create IPAM assignments. PostgreSQL and actual Go/TLS/native-lab tests cover replay, lost acknowledgment, revocation, source ownership, partial/stale data and batched changes. See docs/integrations/linux-agent.md and docs/validation.md. Windows, SBOM, delegated providers, signed releases, automatic renewal, retention/delta/fleet ingest acceptance and verified network reconciliation remain planned. Scanning remains separate authorization.
 
 ## Multi-instance NetBox increment
 

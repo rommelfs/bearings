@@ -8,6 +8,7 @@ Reviewed 19 November 2026. Bearings is a runnable development/pilot workspace; p
 - [Company first steps](user-guide/company-first-steps.md): minimal useful setup, reviewed CSV import and concrete actions.
 - [Company membership](user-guide/company-members.md): invitations, roles and reviewed organization merges.
 - [Registration](user-guide/reporting-registration.md) and [resumable company configuration](user-guide/company-configuration.md).
+- [Linux inventory client](integrations/linux-agent.md): authenticated patch observations, explicit first-host registration and safe source ownership.
 - [Current project steps and priorities](product/next-priorities.md): implemented increments and the next acceptance gates.
 
 ## Choose your workflow
