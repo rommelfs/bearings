@@ -1,5 +1,7 @@
 # Agreed next phases
 
+Current status/navigation, reviewed 19 November 2026: use [current next steps](product/next-priorities.md), the [documentation index](README.md) and [FAQ](faq.md). The phases below preserve the historical planning baseline; they are not a list of entirely unimplemented work.
+
 Planning baseline: 2026-10-20. Implementation status is now mixed: phases 1/2 have bounded implementations, phase 3 has lifecycle outreach/draft subscriptions/opt-in SMTP, phase 4 has a bounded read-only snapshot pilot, and phase 5a has historical import/comparison. Live RT/Plum compatibility, production operational acceptance, scalable deltas and phase 5b remain open. Existing NetBox, Vulnerability-Lookup, MOSP/MONARC and FlowIntel capabilities remain described in the user guides and validation record.
 
 Bearings should provide one understandable view of organizational asset problems and their consequences: hardware, installed software/firmware, vulnerabilities, support/EOL, licenses, maintenance, warranty and observed network exposure. Each item must answer: what is affected, where it is, what evidence exists, why it matters, when action is due and who owns the next step.

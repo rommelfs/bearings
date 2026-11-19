@@ -18,7 +18,7 @@ Source and instance identity and original IDs are preserved. Query results carry
 
 `full_clean` checks cross-organization foreign keys in service paths, and all views scope foreign object IDs. Django's `save()` does not automatically validate models: importers must validate and authorize explicitly. Database uniqueness prevents duplicate identities, memberships, records, and findings, but multi-column tenant integrity does not yet have database-level triggers/RLS. Direct SQL/ORM scripts and superusers are trusted administrative boundaries.
 
-Migrations are committed. Evidence/finding/time fields form the initial correlation slice; a separate general observation and many-to-many relationship model is still planned for MISP/Plum Island. Asset fields do not yet cover all network/service topology. Contact role review history is in the audit log; complete escalation/delivery workflow is planned. No evidence expiry or retention deletion job exists yet; operator retention policy is an open decision.
+Migrations are committed. Evidence/finding/time fields form the initial correlation slice; MISP now has owner/source-bound cached events and Plum Island has retained exposure snapshots/reviews; a fully general observation/relationship model remains future work. Asset fields do not yet cover all network/service topology. Contact role review history is in the audit log; reviewed notification/follow-up delivery and owner-response records now exist, with provider feedback explicitly operator-reported. No evidence expiry or retention deletion job exists yet; operator retention policy is an open decision.
 
 ## Pinned intelligence and MONARC scenarios
 
@@ -29,3 +29,10 @@ Migrations are committed. Evidence/finding/time fields form the initial correlat
 `FlowIntelInstance` is an operator-owned approved API/browser origin, credential reference and expected service organization; API/key/scope cannot be repointed after a preview exists. `FlowIntelCase` retains the immutable approved snapshot, correlation UUID, creator, durable attempt state, remote case ID/UUID and last-known workflow summary. Finding/instance and instance/remote-case pairs are unique. Four `FlowIntelTask` records retain step/correlation, durable attempt state and verified remote identity. These are integration records, not alternative applicability/remediation assessments. See the [guide](user-guide/flowintel.md) for uncertain-write recovery and retained-state limits.
 
 `DemoDataset` stores a versioned synthetic dataset configuration and its retained active/removed state. `DemoObject` uniquely records ownership by model label and primary key at creation; it has no cascading foreign key into domain data. Removal computes the owned graph, includes only explicitly allowed synthetic review-history descendants, protects unowned dependencies and operational conversions, then deletes transactionally while retaining the audit trail and dataset tombstone. User accounts and backend identities are not owned by the showcase.
+
+
+## Membership, consolidation and personal intelligence
+
+`OrganizationInvitation` stores an expiring one-use digest, inviter, recipient, company role and mail/consumed/revoked state. `Organization.merged_into` archives a reviewed source; transfer IDs/original member roles are retained in audit metadata. These change Bearings permissions only. See [membership workflow](user-guide/company-members.md).
+
+`MISPServer` is the approved destination catalog. Personal customer `MISPInstance` records bind the active owner, company, native user ID, credential nonce and encrypted write-only key; their `MISPEvent` caches are not shared with company peers or CIRCL sources. Native permission freshness is bounded, not instantaneous. See [MISP integration](integrations/misp.md).

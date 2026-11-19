@@ -1,0 +1,143 @@
+[
+  {
+    "name": "NGINX2Root",
+    "cve": "CVE-2026-123007 + 4 CVEs",
+    "related_cves": [
+      "CVE-2026-123007",
+      "CVE-2026-123633",
+      "CVE-2026-123634",
+      "CVE-2026-121810",
+      "CVE-2026-113425"
+    ],
+    "date": "2026-11-18",
+    "source": "https://nginx.org/en/security_advisories.html",
+    "context_source": "https://access.redhat.com/security/vulnerabilities/RHSB-2026-019",
+    "en": {
+      "quote": "I was hoping your inventory stopped at “web server”. Then you wrote down the NGINX version. Awkward.",
+      "fact": "NGINX2Root groups five NGINX flaws disclosed in November 2026, including CVE-2026-123007. Relevant features and configuration matter.",
+      "benefit": "Find recorded NGINX installations and package versions, check the applicable vendor or distribution advisory, and reach the team that can update them."
+    },
+    "de": {
+      "quote": "Ich hoffte, euer Inventar endet bei „Webserver“. Dann habt ihr die NGINX-Version notiert. Unangenehm.",
+      "fact": "NGINX2Root umfasst fünf im November 2026 veröffentlichte NGINX-Schwachstellen, darunter CVE-2026-123007. Aktivierte Funktionen und Konfiguration sind relevant.",
+      "benefit": "Erfasste NGINX-Installationen und Paketversionen finden, den passenden Hersteller- oder Distributionshinweis prüfen und das zuständige Team erreichen."
+    },
+    "fr": {
+      "quote": "J’espérais que votre inventaire s’arrêtait à « serveur web ». Puis vous avez noté la version de NGINX. Embarrassant.",
+      "fact": "NGINX2Root regroupe cinq vulnérabilités NGINX divulguées en novembre 2026, dont CVE-2026-123007. Les fonctions activées et la configuration comptent.",
+      "benefit": "Retrouver les installations NGINX et versions de paquets enregistrées, vérifier l’avis de l’éditeur ou de la distribution et joindre l’équipe responsable."
+    },
+    "lb": {
+      "quote": "Ech hat gehofft, Ären Inventar géif bei „Webserver“ ophalen. Dunn hutt Dir d’NGINX-Versioun notéiert. Onangeneem.",
+      "fact": "NGINX2Root ëmfaasst fënnef NGINX-Schwachstellen, déi am November 2026 verëffentlecht goufen, dorënner CVE-2026-123007. Aktiv Funktiounen an d’Konfiguratioun spille mat.",
+      "benefit": "Erfaasst NGINX-Installatiounen a Paketversioune fannen, de passende Fabrikant- oder Distributiounshinweis préiwen an dat zoustännegt Team erreechen."
+    }
+  },
+  {
+    "name": "Java / Java4Shell",
+    "cve": "CVE-2026-114938",
+    "date": "2026-11-17",
+    "source": "https://www.oracle.com/security-alerts/cspunov2026.html",
+    "context_source": "https://content.govdelivery.com/accounts/USDHSCISA/bulletins/4332a87",
+    "en": {
+      "quote": "“Somewhere there’s probably Java” used to be my favourite inventory entry. Bearings is ruining the mystery.",
+      "fact": "Oracle addressed CVE-2026-114938 in its 17 November 2026 update. CISA urged organizations to identify affected Java runtimes, including bundled ones.",
+      "benefit": "Record the runtime vendor and exact build, connect it to the application and owner, then check the current vendor guidance. “Java installed” is not enough."
+    },
+    "de": {
+      "quote": "„Irgendwo läuft bestimmt Java“ war mein liebster Inventareintrag. Bearings verdirbt mir das Rätsel.",
+      "fact": "Oracle adressierte CVE-2026-114938 im Update vom 17. November 2026. CISA rief dazu auf, betroffene Java-Laufzeiten einschließlich mitgelieferter Runtimes zu identifizieren.",
+      "benefit": "Anbieter und genauen Build der Laufzeit erfassen, Anwendung und Zuständigen zuordnen und aktuelle Herstellerhinweise prüfen. „Java installiert“ reicht nicht."
+    },
+    "fr": {
+      "quote": "« Il y a sûrement Java quelque part » était mon entrée d’inventaire préférée. Bearings gâche le mystère.",
+      "fact": "Oracle a corrigé CVE-2026-114938 dans sa mise à jour du 17 novembre 2026. La CISA appelle à identifier les runtimes affectés, y compris ceux fournis avec des applications.",
+      "benefit": "Enregistrer l’éditeur et le build exact du runtime, les relier à l’application et au responsable, puis vérifier les consignes actuelles. « Java installé » ne suffit pas."
+    },
+    "lb": {
+      "quote": "„Iergendwou leeft bestëmmt Java“ war mäi léifsten Inventarandrag. Bearings verdierft mir d’Rätsel.",
+      "fact": "Oracle huet CVE-2026-114938 am Update vum 17. November 2026 adresséiert. D’CISA fuerdert, betraffe Java-Lafzäiten z’identifizéieren, och déi a Software matgeliwwert ginn.",
+      "benefit": "Den Ubidder an de geneeë Build vun der Lafzäit erfaassen, Applikatioun a Responsabel zouuerdnen an aktuell Fabrikanthinweiser préiwen. „Java installéiert“ geet net duer."
+    }
+  },
+  {
+    "name": "Cisco Secure FMC",
+    "cve": "CVE-2026-20079",
+    "date": "2026-09",
+    "source": "https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-onprem-fmc-authbypass-5JPp45V2",
+    "context_source": "https://content.govdelivery.com/accounts/USDHSCISA/bulletins/42944e2",
+    "en": {
+      "quote": "An inventory, a named owner and follow-up? Honestly, terrible working conditions.",
+      "fact": "Authentication bypass in Cisco Secure FMC. Active exploitation reported in 2026; CISA listed it on 9 September.",
+      "benefit": "Find recorded management platforms and versions, review the advisory and give the right team a concrete next step."
+    },
+    "de": {
+      "quote": "Inventar, ein benannter Verantwortlicher und Nachverfolgung? Ehrlich gesagt: miserable Arbeitsbedingungen.",
+      "fact": "Authentifizierungsumgehung in Cisco Secure FMC. 2026 wurde aktive Ausnutzung gemeldet; CISA listete die CVE am 9. September.",
+      "benefit": "Erfasste Managementsysteme und Versionen finden, den Hinweis prüfen und dem richtigen Team einen konkreten nächsten Schritt geben."
+    },
+    "fr": {
+      "quote": "Un inventaire, un responsable désigné et du suivi ? Franchement, de terribles conditions de travail.",
+      "fact": "Contournement d’authentification dans Cisco Secure FMC. Exploitation signalée en 2026 ; ajout au catalogue CISA le 9 septembre.",
+      "benefit": "Retrouver les plateformes de gestion et versions enregistrées, examiner l’avis et confier une action concrète à la bonne équipe."
+    },
+    "lb": {
+      "quote": "En Inventar, eng zoustänneg Persoun a Suivi? Éierlech: miserabel Aarbechtsbedingungen.",
+      "fact": "Ëmgoe vun der Authentifikatioun an Cisco Secure FMC. Aktiv Ausnotzung gouf 2026 gemellt; d’CISA huet d’CVE den 9. September opgelëscht.",
+      "benefit": "Erfaasst Managementsystemer a Versioune fannen, den Hiweis iwwerpréiwen an dem richtegen Team en konkrete nächste Schrëtt ginn."
+    }
+  },
+  {
+    "name": "React Server Components",
+    "cve": "CVE-2025-55182",
+    "date": "2025-12",
+    "source": "https://react.dev/blog/2025/12/03/critical-security-vulnerability-in-react-server-components",
+    "en": {
+      "quote": "Five stars for finding the right servers. Zero stars for my career prospects.",
+      "fact": "Unauthenticated remote code execution in React Server Components, disclosed on 3 December 2025.",
+      "benefit": "Record component versions, not just ‘React’. Narrow the review to the installations and owners that need checking."
+    },
+    "de": {
+      "quote": "Fünf Sterne fürs Finden der richtigen Server. Null Sterne für meine Karrierechancen.",
+      "fact": "Codeausführung ohne Authentifizierung in React Server Components, veröffentlicht am 3. Dezember 2025.",
+      "benefit": "Komponentenversionen erfassen, nicht nur ‚React‘. Die Prüfung auf die passenden Installationen und Verantwortlichen eingrenzen."
+    },
+    "fr": {
+      "quote": "Cinq étoiles pour trouver les bons serveurs. Zéro pour mes perspectives de carrière.",
+      "fact": "Exécution de code à distance sans authentification dans React Server Components, divulguée le 3 décembre 2025.",
+      "benefit": "Enregistrer les versions des composants, pas seulement ‘React’. Cibler les installations et responsables à vérifier."
+    },
+    "lb": {
+      "quote": "Fënnef Stäre fir déi richteg Serveren ze fannen. Null Stäre fir meng Karriäraussiichten.",
+      "fact": "Codeausféierung ouni Authentifikatioun an React Server Components, verëffentlecht den 3. Dezember 2025.",
+      "benefit": "Komponenteversiounen erfaassen, net nëmmen ‚React‘. D’Iwwerpréiwung op déi passend Installatiounen a Responsabel agrenzen."
+    }
+  },
+  {
+    "name": "FortiCloud SSO",
+    "cve": "CVE-2026-24858",
+    "date": "2026-01",
+    "source": "https://cert.cyber.gouv.fr/avis/CERTFR-2026-AVI-0097/",
+    "vendor_source": "https://www.fortiguard.com/psirt/FG-IR-26-060",
+    "en": {
+      "quote": "I was rather hoping nobody remembered which firmware was running. Bearings had other plans.",
+      "fact": "FortiCloud SSO authentication bypass. CERT-FR relayed active exploitation on 28 January 2026.",
+      "benefit": "Locate recorded appliances and firmware, verify the relevant SSO configuration and reach the responsible contact."
+    },
+    "de": {
+      "quote": "Ich hatte gehofft, niemand erinnert sich an die Firmwareversion. Bearings hatte andere Pläne.",
+      "fact": "Authentifizierungsumgehung bei FortiCloud SSO. CERT-FR meldete am 28. Januar 2026 aktive Ausnutzung.",
+      "benefit": "Erfasste Appliances und Firmware finden, die relevante SSO-Konfiguration prüfen und den Verantwortlichen erreichen."
+    },
+    "fr": {
+      "quote": "J’espérais que personne ne se souviendrait de la version du firmware. Bearings avait d’autres projets.",
+      "fact": "Contournement d’authentification FortiCloud SSO. Le CERT-FR a relayé l’exploitation active le 28 janvier 2026.",
+      "benefit": "Retrouver les équipements et firmwares enregistrés, vérifier la configuration SSO concernée et joindre le responsable."
+    },
+    "lb": {
+      "quote": "Ech hat gehofft, kee géif sech un d’Firmwareversioun erënneren. Bearings hat aner Pläng.",
+      "fact": "Ëmgoe vun der FortiCloud-SSO-Authentifikatioun. De CERT-FR huet den 28. Januar 2026 aktiv Ausnotzung gemellt.",
+      "benefit": "Erfaasst Apparater a Firmware fannen, déi relevant SSO-Konfiguratioun iwwerpréiwen an déi zoustänneg Persoun erreechen."
+    }
+  }
+]

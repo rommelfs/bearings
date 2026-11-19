@@ -295,3 +295,8 @@ Implemented [optional personal customer MISP connections](user-guide/personal-mi
 Implemented OrgAdmin-managed invitations for existing/new users and reviewed platform-only local company consolidation. Existing target roles win on overlap; source/history are archived. Native identities, sources, delivery state and data collisions require separate reconciliation. See [company members guide](user-guide/company-members.md).
 
 Membership administration now uses readable user/company/role labels and separate searchable list columns with a role filter.
+
+
+## Project communication, FAQ and local static website
+
+Added a documentation index and shared nineteen-question FAQ; reconciled stale overview/policy statements. A local-only static website in English, German, French and Luxembourgish explains immediate company benefits and free registration with synthetic product images. Five real vulnerability examples (including November 2026 NGINX2Root and Java/Java4Shell) have source links and visibly fictional humorous quotes. Public deployment is deferred at the owner’s request. See [website guide](../website/README.md), [source review](product/website-examples.md) and [next acceptance steps](product/next-priorities.md).

@@ -2,6 +2,16 @@
 
 Reviewed 2026-11-19 against the current implementation. This is a product/implementation recommendation, not a claim of production acceptance or measured usability. Existing guides and validation record what is implemented.
 
+## The next practical steps
+
+1. **Validate one end-to-end company pilot.** Register/invite → minimal scope → small inventory/CSV → a justified review/action → responsible owner → periodic snapshot response. The implementation exists; measure where representative users get stuck and whether the first useful setup fits the five-minute target.
+2. **Accept real-service boundaries.** Exercise an approved customer's MISP key versus CIRCL's universal key against the actual service/version and intended corpus. The current 500-event pilot is not ready for universal large-corpus synchronization. Validate intended SMTP delivery and owner reaction, not just local mail generation.
+3. **Close operational release gates.** Rehearse backup/restore, secret rotation, retention, lost access, native-account/session revocation, failed jobs and monitored scheduling. Bearings membership changes alone do not revoke native access.
+4. **Measure scale with explicit coverage.** Use representative inventory volumes and revoked/partial sources; check National Overview panels, queue deadlines and cache expiry. No unmeasured response-time/coverage guarantee follows from a small synthetic fixture.
+5. **Then extend based on measured benefit.** Add scalable authorization-aware MISP deltas or federation/source migration only after the pilot shows a concrete need. Keep direct AIL ingestion deferred; current manual configuration export is intentional.
+
+Company-admin invitations, platform-reviewed local company merges and readable membership administration are implemented. Duplicate-name hints may assist an operator later; no fuzzy automatic membership or company merge is used. See [members and merges](../user-guide/company-members.md). Local preparation for public communication now has an English/German/French/Luxembourgish static site and a shared [FAQ](../faq.md); deployment-specific legal/support details and localized content review remain follow-ups.
+
 ## Current position
 
 The core loop exists: registration and separate CIRCL approval; resumable configuration; manual/NetBox inventory and explicit product watches; company priorities and a national view; contacts, periodic confirmation mail and reviewed notification workflows. SSO and native NetBox rights remain application-specific; automated company provisioning is currently bundled-lab-only. AIL remains a deliberate manual configuration export. The new MISP pilot adds a restricted local read cache and explained current IP/domain assignment leads, not automatic company alerting or native MISP replication.

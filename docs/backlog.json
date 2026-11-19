@@ -86,6 +86,10 @@
       {
         "title": "Support company-admin invitations and reviewed company consolidation",
         "body": "Implemented existing-company email invitations with 72-hour one-use digest proofs, existing-account sign-in and no password reset, new account creation without another company, current OrgAdmin-only delegation, member role/removal controls and last-active-admin protection. No platform/native role inheritance. Platform-only signed/current-state merge preview consolidates local manual company data and membership, keeps target roles for overlaps, archives source/history, revokes old invites and resets review due state. Native sources/MISP/federation/cases/delivery and identity/configuration conflicts block for separate reconciliation; no automatic fuzzy association or external account migration. PostgreSQL redemption race, scoped permission/replay tests and browser workflow validation; docs/user-guide/company-members.md. Backend membership labels now include username/company/role, with separate list columns, related-object joins, search and role filter."
+      },
+      {
+        "title": "Explain Bearings benefits with a multilingual static website and shared FAQ",
+        "body": "Implemented local-only EN/DE/FR/LB static project website focused on free company registration, useful first steps, company/CIRCL use cases and synthetic product screenshots. Nineteen translated FAQs share one content source with docs/faq.md. Five source-reviewed real CVE examples lead with November 2026 NGINX2Root and Java/Java4Shell; humorous personified quotes are explicitly fictional. No customer testimonials, prevention claims, analytics, private-service calls or public hosting. Local registration URL is configurable; a public build rejects localhost registration. Reconciled outdated documentation summaries and added audience-based index, source review and realistic release gates. Real browser/mobile/no-JS/language/FAQ/image checks plus static link/assets validation. Public launch/domain, legal/support details and native-language editorial review remain separate. See website/README.md and docs/product/website-examples.md."
       }
     ]
   },

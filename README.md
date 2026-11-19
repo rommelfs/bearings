@@ -2,9 +2,13 @@
 
 A standalone organization inventory and evidence review portal intended for CIRCL operation. It connects inventory ownership, emergency contacts, infrastructure authority claims, and technology relevance without equating a match with compromise.
 
-**Status: first runnable development increment, not production-ready.** No operational data is included. The existing repository is `rommelfs/bearings`; no additional repository is needed. This is a public open-source project licensed under [GNU AGPL v3.0 or later](LICENSE) (`AGPL-3.0-or-later`).
+**Status: runnable development and pilot workspace, not production-ready.** No operational data is included. The existing repository is `rommelfs/bearings`; no additional repository is needed. This is a public open-source project licensed under [GNU AGPL v3.0 or later](LICENSE) (`AGPL-3.0-or-later`).
 
 CIRCL analysts also have a **[National overview](docs/user-guide/circl-overview.md)** at `/circl/`: outstanding vulnerability reach, software-version prevalence, recorded review activity and local confidential version research before a CVE exists. It uses permitted reporting inventory; it does not claim complete national coverage or verified patch installation.
+
+## Documentation and project introduction
+
+Start with the [documentation index](docs/README.md), [FAQ](docs/faq.md) and [current next steps](docs/product/next-priorities.md). The four-language [public static website source](website/README.md) explains the product with use cases and synthetic screenshots. [Company invitations and merges](docs/user-guide/company-members.md) and [personal customer MISP access](docs/user-guide/personal-misp.md) are implemented with explicit local/native permission boundaries.
 
 ## Implemented
 
