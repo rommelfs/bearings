@@ -326,3 +326,8 @@ Executed an isolated PostgreSQL test with 40,000 companies, 1.2 million assets/i
 ## Implemented scale follow-up — 2026-11-19
 
 The earlier baseline failure above is historical. Global pages/audit work are now bounded; company queries retain ownership checks in a planner-friendly form; national projections refresh transactionally in a dedicated worker, disclose pending coverage and apply current permissions. Confidential version research combines prepared/live data consistently. Cache/write races, cleanup/merge/reset and overload handling have regression coverage. The same 40,000 companies and 1.2 million assets were retested repeatedly, including multiple owners and committed updates. Passing four-core measurements and the retained failing two-core workload are documented in [iterative scale results](performance/scale-improvements.md). Operational deployment acceptance remains distinct from this tested local workload.
+
+
+## Four-language website editorial review — 2026-11-19
+
+Removed automatic outer blockquote punctuation that doubled the Java quotation mark. Reviewed EN/DE/FR/LB landing pages, all 76 translated FAQ pairs and all twenty fictional quote/fact/benefit sets; corrected mixed German address, awkward French/Luxembourgish wording, French spacing and previously English-only labels. The FAQ now consistently states continued free use, the current schedule-management roles and measured scale evidence with its limits. Browser checks cover all eight pages at four widths and no-JavaScript FAQs. See [website maintenance](../website/README.md) and [validation](validation.md).

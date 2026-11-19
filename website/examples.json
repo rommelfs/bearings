@@ -18,19 +18,19 @@
       "benefit": "Find recorded NGINX installations and package versions, check the applicable vendor or distribution advisory, and reach the team that can update them."
     },
     "de": {
-      "quote": "Ich hoffte, euer Inventar endet bei „Webserver“. Dann habt ihr die NGINX-Version notiert. Unangenehm.",
+      "quote": "Ich hatte gehofft, euer Inventar würde bei „Webserver“ enden. Dann habt ihr die NGINX-Version notiert. Unangenehm.",
       "fact": "NGINX2Root umfasst fünf im November 2026 veröffentlichte NGINX-Schwachstellen, darunter CVE-2026-123007. Aktivierte Funktionen und Konfiguration sind relevant.",
       "benefit": "Erfasste NGINX-Installationen und Paketversionen finden, den passenden Hersteller- oder Distributionshinweis prüfen und das zuständige Team erreichen."
     },
     "fr": {
-      "quote": "J’espérais que votre inventaire s’arrêtait à « serveur web ». Puis vous avez noté la version de NGINX. Embarrassant.",
+      "quote": "J’espérais que votre inventaire s’arrêtait à « serveur web ». Puis vous avez noté la version de NGINX. Embarrassant.",
       "fact": "NGINX2Root regroupe cinq vulnérabilités NGINX divulguées en novembre 2026, dont CVE-2026-123007. Les fonctions activées et la configuration comptent.",
       "benefit": "Retrouver les installations NGINX et versions de paquets enregistrées, vérifier l’avis de l’éditeur ou de la distribution et joindre l’équipe responsable."
     },
     "lb": {
       "quote": "Ech hat gehofft, Ären Inventar géif bei „Webserver“ ophalen. Dunn hutt Dir d’NGINX-Versioun notéiert. Onangeneem.",
-      "fact": "NGINX2Root ëmfaasst fënnef NGINX-Schwachstellen, déi am November 2026 verëffentlecht goufen, dorënner CVE-2026-123007. Aktiv Funktiounen an d’Konfiguratioun spille mat.",
-      "benefit": "Erfaasst NGINX-Installatiounen a Paketversioune fannen, de passende Fabrikant- oder Distributiounshinweis préiwen an dat zoustännegt Team erreechen."
+      "fact": "NGINX2Root ëmfaasst fënnef Sécherheetslücken an NGINX, déi am November 2026 verëffentlecht goufen, dorënner CVE-2026-123007. Déi aktivéiert Funktiounen an d’Konfiguratioun si wichteg.",
+      "benefit": "Fannt déi erfaasst NGINX-Installatiounen a Paketversiounen, iwwerpréift de passenden Hiweis vum Fabrikant oder vun der Distributioun an erreecht dat zoustännegt Team."
     },
     "analysis_source": "https://www.circl.lu/pub/tr-105/"
   },
@@ -47,18 +47,18 @@
     },
     "de": {
       "quote": "„Irgendwo läuft bestimmt Java“ war mein liebster Inventareintrag. Bearings verdirbt mir das Rätsel.",
-      "fact": "Oracle adressierte CVE-2026-114938 im Update vom 17. November 2026. CISA rief dazu auf, betroffene Java-Laufzeiten einschließlich mitgelieferter Runtimes zu identifizieren.",
-      "benefit": "Anbieter und genauen Build der Laufzeit erfassen, Anwendung und Zuständigen zuordnen und aktuelle Herstellerhinweise prüfen. „Java installiert“ reicht nicht."
+      "fact": "Oracle behob CVE-2026-114938 mit dem Update vom 17. November 2026. CISA rief dazu auf, betroffene Java-Laufzeitumgebungen einschließlich mitgelieferter Versionen zu identifizieren.",
+      "benefit": "Anbieter und genauen Build der Laufzeitumgebung erfassen, Anwendung und Zuständige zuordnen und aktuelle Herstellerhinweise prüfen. „Java installiert“ reicht nicht."
     },
     "fr": {
-      "quote": "« Il y a sûrement Java quelque part » était mon entrée d’inventaire préférée. Bearings gâche le mystère.",
+      "quote": "« Il y a sûrement Java quelque part » était mon entrée d’inventaire préférée. Bearings gâche le mystère.",
       "fact": "Oracle a corrigé CVE-2026-114938 dans sa mise à jour du 17 novembre 2026. La CISA appelle à identifier les runtimes affectés, y compris ceux fournis avec des applications.",
-      "benefit": "Enregistrer l’éditeur et le build exact du runtime, les relier à l’application et au responsable, puis vérifier les consignes actuelles. « Java installé » ne suffit pas."
+      "benefit": "Enregistrer l’éditeur et le build exact de l’environnement d’exécution, les associer à l’application et à son responsable, puis vérifier les consignes actuelles. « Java installé » ne suffit pas."
     },
     "lb": {
-      "quote": "„Iergendwou leeft bestëmmt Java“ war mäi léifsten Inventarandrag. Bearings verdierft mir d’Rätsel.",
-      "fact": "Oracle huet CVE-2026-114938 am Update vum 17. November 2026 adresséiert. D’CISA fuerdert, betraffe Java-Lafzäiten z’identifizéieren, och déi a Software matgeliwwert ginn.",
-      "benefit": "Den Ubidder an de geneeë Build vun der Lafzäit erfaassen, Applikatioun a Responsabel zouuerdnen an aktuell Fabrikanthinweiser préiwen. „Java installéiert“ geet net duer."
+      "quote": "„Iergendwou leeft bestëmmt Java“ war meng léifsten Notiz am Inventar. Bearings mécht dem Rätsel en Enn.",
+      "fact": "Oracle huet CVE-2026-114938 mam Update vum 17. November 2026 behuewen. D’CISA fuerdert dozou op, betraffe Java-Lafzäitëmfelder z’identifizéieren, och déi mat Applikatioune matgeliwwert ginn.",
+      "benefit": "Erfaasst den Ubidder, de geneeë Build vun der Lafzäitëmgebung, déi zougehéiereg Applikatioun an déi zoustänneg Persoun. Iwwerpréift déi aktuell Fabrikanthinweiser. „Java installéiert“ geet net duer."
     },
     "analysis_source": "https://www.circl.lu/pub/tr-104/"
   },
@@ -79,14 +79,14 @@
       "benefit": "Erfasste Managementsysteme und Versionen finden, den Hinweis prüfen und dem richtigen Team einen konkreten nächsten Schritt geben."
     },
     "fr": {
-      "quote": "Un inventaire, un responsable désigné et du suivi ? Franchement, de terribles conditions de travail.",
-      "fact": "Contournement d’authentification dans Cisco Secure FMC. Exploitation signalée en 2026 ; ajout au catalogue CISA le 9 septembre.",
+      "quote": "Un inventaire, un responsable désigné et du suivi ? Franchement, de terribles conditions de travail.",
+      "fact": "Contournement d’authentification dans Cisco Secure FMC. Exploitation signalée en 2026 ; ajout au catalogue CISA le 9 septembre.",
       "benefit": "Retrouver les plateformes de gestion et versions enregistrées, examiner l’avis et confier une action concrète à la bonne équipe."
     },
     "lb": {
       "quote": "En Inventar, eng zoustänneg Persoun a Suivi? Éierlech: miserabel Aarbechtsbedingungen.",
       "fact": "Ëmgoe vun der Authentifikatioun an Cisco Secure FMC. Aktiv Ausnotzung gouf 2026 gemellt; d’CISA huet d’CVE den 9. September opgelëscht.",
-      "benefit": "Erfaasst Managementsystemer a Versioune fannen, den Hiweis iwwerpréiwen an dem richtegen Team en konkrete nächste Schrëtt ginn."
+      "benefit": "Fannt déi erfaasst Managementsystemer a Versiounen, iwwerpréift den Hiweis a gitt dem richtegen Team en nächste Schrëtt."
     }
   },
   {
@@ -107,12 +107,12 @@
     "fr": {
       "quote": "Cinq étoiles pour trouver les bons serveurs. Zéro pour mes perspectives de carrière.",
       "fact": "Exécution de code à distance sans authentification dans React Server Components, divulguée le 3 décembre 2025.",
-      "benefit": "Enregistrer les versions des composants, pas seulement ‘React’. Cibler les installations et responsables à vérifier."
+      "benefit": "Enregistrer les versions des composants, pas seulement « React ». Cibler les installations à vérifier et les responsables à contacter."
     },
     "lb": {
       "quote": "Fënnef Stäre fir déi richteg Serveren ze fannen. Null Stäre fir meng Karriäraussiichten.",
-      "fact": "Codeausféierung ouni Authentifikatioun an React Server Components, verëffentlecht den 3. Dezember 2025.",
-      "benefit": "Komponenteversiounen erfaassen, net nëmmen ‚React‘. D’Iwwerpréiwung op déi passend Installatiounen a Responsabel agrenzen."
+      "fact": "Codeausféierung aus der Distanz ouni Authentifikatioun an React Server Components, verëffentlecht den 3. Dezember 2025.",
+      "benefit": "Erfaasst d’Versioune vun de Komponenten, net nëmmen „React“. Grenzt d’Iwwerpréiwung op déi passend Installatiounen a Kontaktpersounen an."
     }
   },
   {
@@ -139,7 +139,7 @@
     "lb": {
       "quote": "Ech hat gehofft, kee géif sech un d’Firmwareversioun erënneren. Bearings hat aner Pläng.",
       "fact": "Ëmgoe vun der FortiCloud-SSO-Authentifikatioun. De CERT-FR huet den 28. Januar 2026 aktiv Ausnotzung gemellt.",
-      "benefit": "Erfaasst Apparater a Firmware fannen, déi relevant SSO-Konfiguratioun iwwerpréiwen an déi zoustänneg Persoun erreechen."
+      "benefit": "Fannt déi erfaasst Apparater a Firmwareversiounen, iwwerpréift déi relevant SSO-Konfiguratioun an erreecht déi zoustänneg Persoun."
     }
   }
 ]

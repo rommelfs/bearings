@@ -65,6 +65,13 @@ def source_links(item, c):
     return links
 
 
+def example_cve(item, c):
+    related = item.get("related_cves", [])
+    if len(related) > 1:
+        return related[0] + c["additional_cves"].format(count=len(related) - 1)
+    return item["cve"]
+
+
 def page(lang, faq=False, base="", registration="https://localhost:9441/register/"):
     c = COPY[lang]
     home = f"/{lang}/" if lang != "en" else "/"
@@ -121,10 +128,10 @@ def page(lang, faq=False, base="", registration="https://localhost:9441/register
             f"<article><h3>{E(title)}</h3><p>{E(body)}</p></article>" for title, body in c["trust"]
         )
         examples = "".join(
-            f'<article class="vulnerability"><p class="eyebrow">{E(item["name"])}</p><blockquote>“{E(item[lang]["quote"])}”</blockquote><p class="quote-author"><strong>{E(item["cve"])}</strong><span>{E(c["fiction"])}</span></p><div class="real-fact"><h3>{E(c["fact_label"])}</h3><p>{E(item[lang]["fact"])}</p><h3>{E(c["benefit_label"])}</h3><p>{E(item[lang]["benefit"])}</p>{source_links(item, c)}</div></article>'
+            f'<article class="vulnerability"><p class="eyebrow">{E(item["name"])}</p><blockquote>{E(item[lang]["quote"])}</blockquote><p class="quote-author"><strong>{E(example_cve(item, c))}</strong><span>{E(c["fiction"])}</span></p><div class="real-fact"><h3>{E(c["fact_label"])}</h3><p>{E(item[lang]["fact"])}</p><h3>{E(c["benefit_label"])}</h3><p>{E(item[lang]["benefit"])}</p>{source_links(item, c)}</div></article>'
             for item in EXAMPLES
         )
-        main = f'''<section class="hero"><div class="wrap hero-grid"><div class="hero-copy"><p class="eyebrow">{E(c["eyebrow"])}</p><h1>{c["hero"]}</h1><p class="lead">{E(c["intro"])}</p><div class="actions"><a class="button primary" href="{E(registration)}">{E(c["primary"])}</a><a class="button ghost" href="#workflow">{E(c["secondary"])}</a></div><p class="hero-proof"><a href="#testimonials">{E(c["testimonials_link"])}</a></p><p class="stage"><strong>{E(c["status"])}</strong><span>{E(c["status_note"])}</span></p></div><div class="hero-visual"><div class="window-bar"><span aria-hidden="true">◈</span><span>BEARINGS / INFRASTRUCTURE OVERVIEW</span></div><a href="/assets/overview.webp" data-lightbox aria-label="{E(c["zoom"])}"><img class="hero-shot" src="/assets/overview.webp" alt="{E(c["hero_alt"])}" fetchpriority="high" width="1440" height="1653"></a><p class="hero-caption">{E(c["screen"])}</p></div></div><div class="hero-rule wrap"><span>INVENTORY</span><span>EVIDENCE</span><span>RISK</span><span>RESPONSE</span></div></section>
+        main = f'''<section class="hero"><div class="wrap hero-grid"><div class="hero-copy"><p class="eyebrow">{E(c["eyebrow"])}</p><h1>{c["hero"]}</h1><p class="lead">{E(c["intro"])}</p><div class="actions"><a class="button primary" href="{E(registration)}">{E(c["primary"])}</a><a class="button ghost" href="#workflow">{E(c["secondary"])}</a></div><p class="hero-proof"><a href="#testimonials">{E(c["testimonials_link"])}</a></p><p class="stage"><strong>{E(c["status"])}</strong><span>{E(c["status_note"])}</span></p></div><div class="hero-visual"><div class="window-bar"><span aria-hidden="true">◈</span><span>BEARINGS / {E(c["overview_label"])}</span></div><a href="/assets/overview.webp" data-lightbox aria-label="{E(c["zoom"])}"><img class="hero-shot" src="/assets/overview.webp" alt="{E(c["hero_alt"])}" fetchpriority="high" width="1440" height="1653"></a><p class="hero-caption">{E(c["screen"])}</p></div></div><div class="hero-rule wrap">{"".join(f"<span>{E(label)}</span>" for label in c["principles"])}</div></section>
 <section class="operator-band"><div class="wrap"><div><p class="operator-name">{E(c["operator_label"])}</p><p>{E(c["operator_body"])}</p></div><a href="https://www.circl.lu/mission/rfc2350/">{E(c["operator_link"])}</a></div></section>
 <section class="section wrap" id="why"><div class="section-intro"><p class="eyebrow">{E(c["why_label"])}</p><h2>{c["why_title"]}</h2><p class="lead">{E(c["why_body"])}</p></div><div class="pillars">{pillars}</div></section>
 <section class="section real-examples" id="testimonials"><div class="wrap"><p class="eyebrow">{E(c["real_label"])}</p><h2>{E(c["real_title"])}</h2><p class="lead">{E(c["real_intro"])}</p><div class="vulnerabilities">{examples}</div><p class="small">{E(c["source_note"])}</p></div></section>

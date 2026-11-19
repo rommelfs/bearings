@@ -788,3 +788,10 @@ The final review additionally bounded the issue ordering scan by an explicitly s
 
 
 Final corrected suites: **604/604 passed on PostgreSQL 17 (181.582 s)**; SQLite **604 executed, 567 passed and 37 PostgreSQL-specific skips (90.091 s)**, with no failures/errors. Frozen dependencies, full-repository Ruff lint/format, Django system/migration-drift checks, whitespace and static collection passed. The scale container is stopped with its owned volume/reports retained; the ordinary national worker remains healthy.
+
+
+## Complete EN/DE/FR/LB website text review — 2026-11-19
+
+Reviewed all four landing pages, 76 FAQ question/answer translations and twenty fictional vulnerability quote/fact/benefit sets. Removed builder-added outer quotation marks: Java's initial quoted phrase now has exactly its intended single pair. Standardized German formal address, corrected awkward French/Luxembourgish wording and French nonbreaking punctuation, localized screenshot-window/four-step/CVE-count labels, clarified permanent free use and the actual platform/CIRCL review-schedule roles, and reconciled production FAQ with measured scale evidence and remaining gates. CVE identities, source links, fiction labels and synthetic image provenance remain. Rebuilt the shared English documentation FAQ.
+
+Actual loopback Chromium checks passed all eight home/FAQ pages in four languages at 1440, 768, 390 and 360px (32 layouts), exact rendered contents of twenty quotations and 76 FAQ pairs, localized labels, free-registration targets, FAQ search and empty state, and all four FAQ pages without JavaScript. No horizontal overflow, JavaScript errors, external requests or cookies. Desktop testimonial screenshots and Luxembourgish mobile card were visually inspected. Static checks passed all 292 local links/assets/fragments across eleven generated HTML documents (including English aliases and 404). Website build, JavaScript syntax and Ruff checks passed. No database, application workflow, external service or public hosting change; backend/connector capacity tests were not repeated for this editorial change.

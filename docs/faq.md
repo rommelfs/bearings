@@ -10,9 +10,9 @@ Bearings connects a company's infrastructure inventory with vulnerability eviden
 
 This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy.
 
-## Is company registration free?
+## Is Bearings free to use?
 
-Yes. Company registration is free. Start with a responsible contact and one domain or network, and add details over time. Existing team members can join by invitation. Optional upstream tools keep their own account and operating requirements.
+Yes. The CIRCL-operated Bearings service is free and will remain free, including continued use after registration. Start with a responsible contact and one domain or network, then add details over time. Colleagues can join by invitation. Optional external tools have their own account and operating requirements.
 
 ## Do I need a complete inventory to get started?
 
@@ -56,7 +56,7 @@ No. Companies can supply optional keywords, separate Honeytoken indicators and a
 
 ## How do data reviews and the email reaction test work?
 
-The service asks responsible people by email to review current contacts and inventory and confirm a snapshot through a link. The platform administration sets the review schedule; registered companies cannot disable required review emails. Message preparation, delivery and an actual response remain separate evidence, so a sent message alone does not count as confirmation.
+The service emails responsible people to review their contacts and inventory and confirm a snapshot through a link. Platform administrators set the review schedule; CIRCL analysts can also manage it for approved companies. Registered companies cannot disable required review emails. Message preparation, delivery and an actual response remain separate evidence: a sent message alone does not count as confirmation.
 
 ## Can a security team or DPO be included?
 
@@ -68,11 +68,11 @@ Your company uses its Bearings account to access the CIRCL-operated workspace. O
 
 ## What happens if a company is registered twice or companies merge?
 
-A platform administrator can review a company merge. Source members join the target; duplicate users retain their target role. Supported local manual inventory and evidence transfer atomically, while the source is archived. Native identities, source-side external bindings and conflicting data require separate reconciliation. Similar company names never automatically grant membership or trigger a merge.
+A platform administrator can review a company merge. Members of the original company join the target; users already in both companies retain their target role. Supported local manual inventory and evidence are transferred together, and the original company is archived. Native identities, external source bindings and conflicting data require separate reconciliation. Similar company names never automatically grant membership or trigger a merge.
 
 ## Is Bearings ready for production?
 
-Bearings is a runnable development and pilot project with automated tests and synthetic reference deployments. This is not a production-readiness claim. The next gates include real-service permission/version acceptance, operational email delivery, monitored jobs, backup/restore and retention, native-account revocation and representative user/scale trials.
+Bearings is a development and pilot project with automated tests and synthetic reference deployments. Tests with 40,000 companies and 1.2 million assets passed within the documented resource and workload limits. This is not a production approval: sustained testing on the intended deployment, real-service permissions and versions, operational email delivery, monitored jobs, backup/restore, retention and native-account revocation still require validation.
 
 ## Is Bearings open source, and does this website show real company data?
 
