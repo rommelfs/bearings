@@ -19,6 +19,11 @@ from .models import (
 )
 
 
+admin.site.site_header = "Bearings administration"
+admin.site.site_title = "Bearings administration"
+admin.site.index_title = "Platform administration"
+
+
 class PlatformAdmin(admin.ModelAdmin):
     def has_module_permission(self, request):
         return request.user.is_superuser

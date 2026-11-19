@@ -62,6 +62,10 @@
       {
         "title": "List all lab login accounts and published URLs in credentials",
         "body": "Implemented service-grouped credentials directory for managed Bearings/NetBox/Keycloak/FlowIntel/RT/RTIR human accounts, plus current Bearings usernames/active flags. Show local/SSO/recovery/unassigned distinctions and explicit login, workspace, national/company, registration/activation, backend/outbox and native service URLs using actual Docker published ports. Include labeled retained generated initial service passwords and the separate Keycloak bootstrap password; preserve changed credentials/policies and omit API/client/database secrets. Disabled/unavailable profiles and external operator-managed URLs remain explicit; no external network login probing or account writes. Console output is confidential. See docs/operations/sso.md."
+      },
+      {
+        "title": "Brand the administration backend as Bearings and align its visual style",
+        "body": "Implemented Bearings administration titles/header, system font, teal/navy palette, matching surfaces/sidebar/forms and explicit workspace/registration/outbox navigation through the supported Django base_site template and a separate admin stylesheet. Keep native admin forms, permissions, CSRF, filtered widgets, popup behavior, responsive layout and light/dark/theme controls. Explicit portal template search precedence makes the override work with the existing mounted lab paths; no migrations, user/role changes or external dependencies. Actual synthetic browser user save/reload and light/dark desktop/mobile/popup checks; existing access/registration tests remain green. See docs/user-guide/platform-administration.md."
       }
     ]
   },

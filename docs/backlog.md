@@ -252,3 +252,7 @@ Implemented [#50](https://github.com/rommelfs/bearings/issues/50): made `platfor
 ## Complete credentials account/URL directory — 2026-11-18
 
 Implemented [#51](https://github.com/rommelfs/bearings/issues/51): service-grouped managed login accounts, current Bearings usernames/active flags and concrete URLs under `python3 scripts/dev.py credentials`. Actual Docker published ports support custom mappings; local/SSO/recovery and unassigned access are explicit. Print retained generated initial passwords per service (including separate Keycloak bootstrap), without tokens or account/password mutations. External mode and disabled/unavailable profiles remain explicit; no external login probing is performed.
+
+## Bearings administration appearance — 2026-11-19
+
+Implemented [#52](https://github.com/rommelfs/bearings/issues/52): Bearings branding/browser titles and matching system font, teal/navy palette, surfaces/sidebar/forms for the administration backend. Add direct workspace/registration/outbox links while preserving native forms, permissions, CSRF, filtered selectors, popups and light/dark controls. Use an explicit portal template search directory so mounted lab code also receives the override. See [platform administration](user-guide/platform-administration.md).
