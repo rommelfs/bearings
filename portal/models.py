@@ -1669,3 +1669,69 @@ class ConfigurationSection(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["organization", "section"], name="unique_configuration_section")]
+
+
+class MISPInstance(models.Model):
+    """An operator-approved read-only cache source; disabled until explicitly configured."""
+
+    name = models.CharField(max_length=100, unique=True)
+    base_url = models.URLField(max_length=250, default="https://misppriv.circl.lu")
+    token_env_var = models.CharField(max_length=100, unique=True, default="MISP_CIRCL_TOKEN")
+    enabled = models.BooleanField(default=False)
+    allow_private = models.BooleanField(default=False)
+    refresh_minutes = models.PositiveIntegerField(default=60)
+    max_age_minutes = models.PositiveIntegerField(default=120)
+    last_attempt = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=250, blank=True)
+    generation = models.UUIDField(null=True, blank=True, editable=False)
+    syncing_until = models.DateTimeField(null=True, blank=True, editable=False)
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        import re
+        from .connectors.http import ConnectorError, validate_base
+
+        try:
+            validate_base(self.base_url)
+        except ConnectorError:
+            raise ValidationError("MISP requires an operator-approved credential-free HTTPS base URL") from None
+        if not re.fullmatch(r"MISP_[A-Z0-9_]*TOKEN", self.token_env_var):
+            raise ValidationError("Use a server-side MISP_*TOKEN credential reference")
+        if not 5 <= self.refresh_minutes <= 1440 or not self.refresh_minutes <= self.max_age_minutes <= 2880:
+            raise ValidationError("Refresh must be 5–1440 minutes and maximum cache age refresh–2880 minutes")
+        if self.pk and MISPEvent.objects.filter(source_id=self.pk).exists():
+            old = MISPInstance.objects.get(pk=self.pk)
+            if old.base_url != self.base_url or old.token_env_var != self.token_env_var:
+                raise ValidationError("A source with cached events cannot be repointed; create a new source")
+
+
+class MISPEvent(models.Model):
+    source = models.ForeignKey(MISPInstance, on_delete=models.PROTECT, related_name="events")
+    event_uuid = models.UUIDField()
+    remote_id = models.PositiveBigIntegerField()
+    timestamp = models.PositiveBigIntegerField()
+    info = models.CharField(max_length=1000)
+    payload = models.JSONField(default=dict)
+    digest = models.CharField(max_length=64)
+    available = models.BooleanField(default=True)
+    cached_at = models.DateTimeField(default=timezone.now)
+    review_digest = models.CharField(max_length=64, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=1000, blank=True)
+    readers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name="permitted_misp_events",
+        help_text="Explicit authorized CIRCL recipients for this exact event revision, including all nested restrictions. No participant access.",
+    )
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["source", "event_uuid"], name="misp_source_event_uuid")]
+        indexes = [models.Index(fields=["source", "available", "-timestamp"])]
+
+    def __str__(self):
+        return str(self.event_uuid)

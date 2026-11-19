@@ -4,6 +4,7 @@ import ipaddress
 import json
 import os
 import socket
+import time
 from urllib.parse import urlsplit
 import httpx
 from django.conf import settings
@@ -66,7 +67,7 @@ def approved_base(url, allow_private=False, *, proxy_dns=None):
     return url.rstrip("/")
 
 
-def request_json(method, url, *, allow_list=False, **kwargs):
+def request_json(method, url, *, allow_list=False, deadline=None, **kwargs):
     try:
         with httpx.Client(timeout=15, follow_redirects=False) as client:
             with client.stream(method, url, **kwargs) as response:
@@ -74,6 +75,8 @@ def request_json(method, url, *, allow_list=False, **kwargs):
                     raise UpstreamHTTPError(response.status_code)
                 chunks, size = [], 0
                 for chunk in response.iter_bytes():
+                    if deadline is not None and time.monotonic() > deadline:
+                        raise ConnectorError("Connector response time budget exceeded")
                     size += len(chunk)
                     if size > 2_000_000:
                         raise ConnectorError("Upstream response exceeds 2 MB limit")
@@ -82,7 +85,7 @@ def request_json(method, url, *, allow_list=False, **kwargs):
                 if not isinstance(data, dict) and not (allow_list and isinstance(data, list)):
                     raise ConnectorError("Expected an upstream JSON object")
                 return data
-    except (httpx.HTTPError, ValueError):
+    except (httpx.HTTPError, ValueError, RecursionError):
         raise ConnectorError(
             "Connector transport or JSON failure; retry after checking service health"
         ) from None

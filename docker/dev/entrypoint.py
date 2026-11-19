@@ -15,7 +15,7 @@ def environment():
     os.environ["DJANGO_SECRET_KEY"] = (ROOT / "secrets/django_secret").read_text().strip()
     os.environ["SSL_CERT_FILE"] = str(ROOT / "trust/ca-bundle.pem")
     for path in (ROOT / "secrets").iterdir():
-        if re.fullmatch(r"(?:NETBOX|FLOWINTEL|RT|PLUM|FEDERATION)_[A-Z0-9_]*TOKEN", path.name):
+        if re.fullmatch(r"(?:NETBOX|FLOWINTEL|RT|PLUM|FEDERATION|MISP)_[A-Z0-9_]*TOKEN", path.name):
             os.environ[path.name] = path.read_text().strip()
     if os.getenv("BEARINGS_SSO_LAB") == "1":
         manifest = json.loads((ROOT / "secrets/oidc-lab.json").read_text())
@@ -128,6 +128,11 @@ def main():
             Path("/tmp/bearings-worker-heartbeat").touch()
             try:
                 call_command("sync_vulnerabilities", due=True, limit=2)
+            except CommandError:
+                pass
+            Path("/tmp/bearings-worker-heartbeat").touch()
+            try:
+                call_command("sync_misp", all=True, due=True, limit=1)
             except CommandError:
                 pass
             Path("/tmp/bearings-worker-heartbeat").touch()

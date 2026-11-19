@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from .access import audit
 from .models import (
+    MISPInstance,
     RTInstance,
     CompanyInstance,
     FederationGrant,
@@ -308,3 +309,30 @@ class RegistrationAdmin(PlatformAdmin):
     @admin.display(description="Service mail")
     def mail_status(self, obj):
         return format_html('<a href="{}">Service mail status & local outbox →</a>', reverse("service-mail"))
+
+
+@admin.register(MISPInstance)
+class MISPAdmin(PlatformAdmin):
+    list_display = ["name", "base_url", "enabled", "last_success", "error"]
+    readonly_fields = ["last_attempt", "last_success", "error", "generation", "syncing_until"]
+
+    def save_model(self, request, obj, form, change):
+        with transaction.atomic():
+            if change:
+                current = MISPInstance.objects.select_for_update().get(pk=obj.pk)
+                for field in form.changed_data:
+                    setattr(current, field, getattr(obj, field))
+                current.full_clean()
+                fields = list(form.changed_data)
+                if set(fields) & {"enabled", "base_url", "token_env_var", "allow_private"}:
+                    import uuid
+                    current.generation, current.syncing_until = uuid.uuid4(), None
+                    current.last_success, current.last_attempt = None, None
+                    current.error = "Awaiting a complete refresh after source policy change"
+                    fields += ["generation", "syncing_until", "last_success", "last_attempt", "error"]
+                    current.events.update(review_digest="")
+                current.save(update_fields=fields)
+            else:
+                obj.full_clean()
+                obj.save()
+            audit(request.user, None, "misp.configuration_changed", obj.pk, fields=form.changed_data)

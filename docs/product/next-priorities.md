@@ -1,0 +1,33 @@
+# Next priorities: low effort, useful outcomes, dependable operation
+
+Reviewed 2026-11-19 against the current implementation. This is a product/implementation recommendation, not a claim of production acceptance or measured usability. Existing guides and validation record what is implemented.
+
+## Current position
+
+The core loop exists: registration and separate CIRCL approval; resumable configuration; manual/NetBox inventory and explicit product watches; company priorities and a national view; contacts, periodic confirmation mail and reviewed notification workflows. SSO and native NetBox rights remain application-specific; automated company provisioning is currently bundled-lab-only. AIL remains a deliberate manual configuration export. The new MISP pilot adds a restricted local read cache and explained current IP/domain assignment leads, not automatic company alerting or native MISP replication.
+
+The highest-value next work is to shorten and close this loop. Extra connectors, score types and native accounts should serve a concrete user action rather than add mandatory configuration. Company-facing progress must distinguish setup completion, infrastructure authority, data freshness and vulnerability remediation.
+
+## Recommended order and acceptance targets
+
+| Priority | Increment | Why it matters | Reviewable acceptance target |
+| --- | --- | --- | --- |
+| First | Minimal first useful company setup and safe bulk entry | Manually entering a large inventory is the main adoption cost. The guided flow already exists; it needs a fast path, not another wizard. | A responsible person supplies contact + one domain/range, saves and leaves. A CSV preview adds assets/software in bulk with row-level validation, duplicates/provenance, an explicit commit and no unexpected upstream NetBox writes. Optional software/PGP/AIL material can follow. Measure first useful setup with representative users; target five minutes, not an asserted result. |
+| Next | A short company action list that reuses existing issues and evidence | Dashboards and CVE scores should lead to understandable work. Avoid a separate task database duplicating issue ownership/deadlines/history. | Show the most urgent justified actions with asset, reason, responsible person, due date and the next step. Group duplicate software/CVE notices. Permit acknowledge/assign/record remediation evidence; closing requires the existing workflow's evidence rules. Unknown version or stale inventory stays explicitly unknown. |
+| Next | Reachability and unanswered-review follow-through | CIRCL's ability to reach the right person is a core outcome. Periodic mail generation alone does not prove delivery or reaction. | Distinguish queued, relay-accepted, failed/bounced, awaiting response and acknowledged states. An overdue-review queue supports a reviewed repeat or alternate contact, with deduplication, cooldowns and no automatic DPO escalation. Exercise actual approved SMTP/bounce handling separately from local file mail. |
+| In parallel, as a release gate | Operational health and restricted-data boundaries | A useful pilot becomes dependable through observable failures, revocation and recovery. | Operator health exposes last successful import, queued/retrying work, stale/incomplete coverage and safely recoverable failures without raw secrets/intelligence. Test revoked access against raw data, derived counts, map points, caches and exports. Establish retention/backup encryption/access, restoration and external-IdP/native-account revocation procedures before production acceptance. |
+| After the focused MISP pilot | Narrow MISP decisions and evidence-rich Vulnerability-Lookup | Relevant, explained leads provide more value than a stream of false positives. | Analyst reviews source context and recipient handling before drafting outreach through the existing workflow. Measure actionable leads and duplicate/noise rate on an approved scoped dataset. Then add explicit software/version/no-CVE matching and source-linked public community evidence. |
+
+The first two increments should be validated together: register → provide minimal scope → add a small inventory → see a justified action or an honest coverage gap → record the next step. Mobile/resume/error recovery and denied foreign-company access belong in that same acceptance flow. Avoid making native NetBox, MISP or Vulnerability-Lookup accounts prerequisites for it.
+
+## MISP synchronization boundary
+
+The pilot uses source-bound event UUIDs, upstream modification timestamps and content hashes, with background paginated complete reads and local research. A missing event is retained but unavailable; payload/policy changes invalidate exact-revision reader approval. Failed or stale caches cannot masquerade as current intelligence. No remote request occurs on overview navigation.
+
+This is not MISP server-to-server replication. The 500-event/20 MB/30-second bounded pilot requires an appropriately scoped read account. An upstream read timeout may add up to one read wait beyond the wall-clock budget; egress/DNS limits remain operator concerns. It does not yet implement large-corpus checkpoint/delta jobs, native push/pull filters, deletion manifests or a strong upstream snapshot. A scalable next cache increment should combine an authorized UUID manifest with overlapping timestamp deltas, periodic complete authorization reconciliation, restartable partitions and revocation-safe publication. An incremental timestamp alone cannot detect an event that disappeared because its sharing policy changed. Native MISP replication is an alternative if the operator chooses to run a dedicated restricted MISP replica; it does not remove Bearings' recipient rules.
+
+Implementation tracking: [minimal setup/bulk entry #56](https://github.com/rommelfs/bearings/issues/56), [company actions/reachability #57](https://github.com/rommelfs/bearings/issues/57).
+
+## Deliberately defer
+
+Keep direct AIL automation deferred, as requested. Defer broad bidirectional synchronization, automatic upstream publication, automated compromise declarations, automatic patching and a universal blended risk score until the targeted user flows and operating boundaries are accepted. These features add permissions, recovery paths and noise before solving the immediate adoption/response gap.

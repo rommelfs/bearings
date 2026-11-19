@@ -25,7 +25,7 @@ AREAS = {
 
 ROUTES = {
     "registrations": {"registration-applications", "registration-application", "service-mail", "service-mail-message"},
-    "national": {"circl-overview", "circl-research", "circl-findings", "circl-map-location"},
+    "national": {"misp", "misp-event", "circl-overview", "circl-research", "circl-findings", "circl-map-location"},
     "overview": {"overview"},
     "risks": {"risk-register", "business-risk", "automatic-scenario"},
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},

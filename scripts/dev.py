@@ -255,6 +255,13 @@ def main():
     )
     up.add_argument("--no-build", action="store_true")
     up.add_argument("--timeout", type=int, default=600)
+    misp = commands.add_parser("configure-misp", help="Configure a disabled MISP cache source and private key; no upstream request")
+    misp.add_argument("--url", default="https://misppriv.circl.lu")
+    misp.add_argument("--name", default="CIRCL private MISP")
+    misp.add_argument("--credential-ref", default="MISP_CIRCL_TOKEN")
+    misp.add_argument("--token-file")
+    misp.add_argument("--actor", default="platform-admin")
+    misp.add_argument("--allow-private", action="store_true")
     connect = commands.add_parser("configure", help="Configure an external NetBox without logging its token")
     connect.add_argument("--url", required=True)
     scope = connect.add_mutually_exclusive_group(required=True)
@@ -321,6 +328,12 @@ def main():
         check_docker()
     LOCAL.mkdir(parents=True, exist_ok=True)
     (LOCAL / "external").mkdir(exist_ok=True)
+    if args.action == "configure-misp":
+        import sys
+        sys.path.insert(0, str(ROOT))
+        from scripts.configure_misp import execute
+        execute(args)
+        return
     if args.action == "configure":
         configure(args)
         return

@@ -1,0 +1,212 @@
+"""Restricted local MISP cache. Complete read snapshots, fail-closed access, no upstream writes."""
+
+import hashlib
+import json
+import uuid
+from datetime import timedelta
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import F
+from django.utils import timezone
+from .access import audit, is_analyst, require
+from .connectors.http import ConnectorError
+from .connectors.misp import snapshot
+from .models import MISPEvent, MISPInstance
+
+
+def digest(event):
+    return hashlib.sha256(json.dumps(event, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def ready(source):
+    return bool(
+        source.enabled
+        and source.last_success
+        and not source.error
+        and not source.syncing_until
+        and source.last_success >= timezone.now() - timedelta(minutes=source.max_age_minutes)
+    )
+
+
+def visible_events(actor):
+    qs = MISPEvent.objects.filter(
+        available=True, source__enabled=True, source__error="", source__syncing_until__isnull=True
+    )
+    # Apply each operator source's own freshness bound before listing event rows.
+    sources = [s.pk for s in MISPInstance.objects.filter(enabled=True) if ready(s)]
+    qs = qs.filter(source_id__in=sources)
+    if not actor.is_active or not (actor.is_superuser or is_analyst(actor)):
+        return qs.none()
+    if not actor.is_superuser:
+        qs = qs.filter(readers=actor, review_digest=F("digest"), reviewed_by__isnull=False)
+    return qs.select_related("source").defer("payload").distinct()
+
+
+def sync_source(pk, *, due=False):
+    """Short lease transactions surround network I/O; readers fail closed during reconciliation."""
+    now = timezone.now()
+    generation = uuid.uuid4()
+    with transaction.atomic():
+        source = MISPInstance.objects.select_for_update().get(pk=pk)
+        if not source.enabled:
+            if due:
+                return None
+            raise ConnectorError("MISP source is disabled")
+        if source.syncing_until and source.syncing_until > now:
+            return None
+        if (
+            due
+            and not source.syncing_until
+            and source.last_attempt
+            and source.last_attempt
+            > now
+            - timedelta(minutes=min(source.refresh_minutes, 5) if source.error else source.refresh_minutes)
+        ):
+            return None
+        source.generation, source.syncing_until, source.last_attempt = (
+            generation,
+            now + timedelta(minutes=2),
+            now,
+        )
+        source.save(update_fields=["generation", "syncing_until", "last_attempt"])
+    try:
+        rows = snapshot(source)
+        with transaction.atomic():
+            current = MISPInstance.objects.select_for_update().get(pk=pk)
+            if (
+                not current.syncing_until
+                or current.syncing_until < timezone.now()
+                or current.generation != generation
+                or not current.enabled
+                or current.base_url != source.base_url
+                or current.token_env_var != source.token_env_var
+            ):
+                raise ConnectorError("MISP source changed during refresh; snapshot refused")
+            current.full_clean()
+            seen = []
+            for payload in rows:
+                key, timestamp, remote_id = payload["uuid"], int(payload["timestamp"]), int(payload["id"])
+                event = MISPEvent.objects.select_for_update().filter(source=current, event_uuid=key).first()
+                content_digest = digest(payload)
+                if event:
+                    if event.remote_id != remote_id or timestamp < event.timestamp:
+                        raise ConnectorError("MISP event identity/timestamp regressed; snapshot refused")
+                    if event.digest != content_digest or not event.available:
+                        event.review_digest = (
+                            ""  # Policy/content changes and reappearance invalidate reader attestations.
+                        )
+                    event.payload, event.digest, event.info = payload, content_digest, payload["info"]
+                    event.timestamp, event.cached_at, event.available = timestamp, now, True
+                    event.save()
+                else:
+                    event = MISPEvent.objects.create(
+                        source=current,
+                        event_uuid=key,
+                        remote_id=remote_id,
+                        timestamp=timestamp,
+                        info=payload["info"],
+                        payload=payload,
+                        digest=content_digest,
+                        cached_at=now,
+                    )
+                seen.append(event.pk)
+            current.events.exclude(pk__in=seen).update(available=False, review_digest="")
+            current.last_success, current.error, current.syncing_until = now, "", None
+            current.save(update_fields=["last_success", "error", "syncing_until"])
+            audit(None, None, "misp.cache_refreshed", current.pk, events=len(rows))
+        return len(rows)
+    except (ConnectorError, ValidationError):
+        # Retain the previous complete cache but hide it after every uncertain/auth/partial failure.
+        MISPInstance.objects.filter(pk=pk, generation=generation).update(
+            error="MISP refresh failed; previous cache retained but unavailable for research",
+            syncing_until=None,
+        )
+        raise ConnectorError("MISP refresh failed; cached data retained and access suspended") from None
+
+
+def grant_readers(actor, event_id, readers, note, *, expected_digest):
+    require(actor.is_active and actor.is_superuser)
+    if not note.strip():
+        raise ValidationError(
+            "Record the authorized recipients and handling decision for all event/attribute restrictions"
+        )
+    with transaction.atomic():
+        source_id = MISPEvent.objects.values_list("source_id", flat=True).get(pk=event_id)
+        source = MISPInstance.objects.select_for_update().get(pk=source_id)
+        event = MISPEvent.objects.select_for_update().get(pk=event_id)
+        require(event.source_id == source.pk and event.available and ready(source))
+        if expected_digest != event.digest:
+            raise ValidationError(
+                "Event changed since this review form was opened. Reload and review the current revision."
+            )
+        if any(not u.is_active or not is_analyst(u) for u in readers):
+            raise ValidationError("Only explicitly authorized active CIRCL analysts may be selected")
+        event.readers.set(readers)
+        event.review_digest, event.review_note = event.digest, note.strip()[:1000]
+        event.reviewed_by, event.reviewed_at = actor, timezone.now()
+        event.save(update_fields=["review_digest", "review_note", "reviewed_by", "reviewed_at"])
+        audit(actor, None, "misp.readers_attested", event.pk, reader_ids=[u.pk for u in readers])
+
+
+def research(actor, event):
+    """Transient exact infrastructure leads; no persisted finding or participant redistribution."""
+    import ipaddress
+    from .access import organizations_for
+    from .models import InfrastructureClaim
+    from .scope import matches, normalize
+
+    require(visible_events(actor).filter(pk=event.pk, digest=event.digest).exists())
+    payload = event.payload
+    attributes = list(payload.get("Attribute", []))
+    for obj in payload.get("Object", [])[:100]:
+        if isinstance(obj, dict) and isinstance(obj.get("Attribute"), list):
+            attributes.extend(obj["Attribute"][:100])
+    indicators = []
+    for item in attributes[:100]:
+        if not isinstance(item, dict) or item.get("deleted") not in (None, False, 0, "0"):
+            continue
+        kind, value = item.get("type"), item.get("value")
+        if not isinstance(value, str) or len(value) > 500:
+            continue
+        parts = [(kind, value)]
+        if kind == "domain|ip" and value.count("|") == 1:
+            domain, ip = value.split("|")
+            parts = [("domain", domain), ("ip-dst", ip)]
+        for kind, value in parts:
+            try:
+                if kind in {"domain", "hostname"}:
+                    indicators.append(("domain", normalize("domain", value)))
+                elif kind in {"ip-src", "ip-dst"}:
+                    address = ipaddress.ip_address(value)
+                    if address.is_global:
+                        indicators.append(("ip", str(address)))
+            except (ValidationError, ValueError):
+                continue
+    now = timezone.now()
+    claims = list(
+        InfrastructureClaim.objects.filter(
+            organization__in=organizations_for(actor),
+            status="verified",
+            valid_from__lte=now,
+        )
+        .select_related("organization")
+        .order_by("pk")[:2001]
+    )
+    results, seen = [], set()
+    for kind, indicator in dict.fromkeys(indicators):
+        for claim in claims[:2000]:
+            if (kind == "domain") != (claim.kind == "domain"):
+                continue
+            if matches(claim, indicator, now) and (claim.organization_id, indicator) not in seen:
+                results.append(
+                    {
+                        "organization": claim.organization,
+                        "indicator": indicator,
+                        "claim": claim,
+                        "reason": "Current verified infrastructure assignment",
+                    }
+                )
+                seen.add((claim.organization_id, indicator))
+                if len(results) >= 100:
+                    return results, True
+    return results, len(claims) > 2000 or len(attributes) > 100 or len(payload.get("Object", [])) > 100

@@ -1,6 +1,7 @@
 from django.urls import path
 from . import (
     views,
+    misp_views,
     demo_views,
     intelligence_views,
     notification_views,
@@ -27,6 +28,8 @@ from . import (
 )
 
 urlpatterns = [
+    path("circl/misp/", misp_views.center, name="misp"),
+    path("circl/misp/<int:pk>/", misp_views.detail, name="misp-event"),
     path("account/sso/", sso_onboarding.settings_view, name="sso-settings"),
     path("operator/service-mail/", service_mail_views.outbox, name="service-mail"),
     path("operator/service-mail/<slug:key>/", service_mail_views.outbox, name="service-mail-message"),

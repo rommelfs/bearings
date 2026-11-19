@@ -74,6 +74,14 @@
       {
         "title": "Onboard registered company owners to explicit SSO and scoped native NetBox access",
         "body": "Implemented explicit post-CIRCL-approval self-service identity linking with local password reauthentication, bounded attempts, signed OIDC proof, immutable issuer/subject binding and unchanged local roles/passwords. Bundled-lab operator plan/apply creates owned Keycloak identities and dedicated NetBox tenants/humans/server credentials with own-inventory view/add/change and constrained references; preserves disabled bindings/policies, supports staged retries and refuses nonempty manual source conversion (--without-netbox keeps inventory). External provider/native provisioning, populated inventory migration, global logout and cross-application lifecycle synchronization remain separate. Optional unique platform-attested MISP organization UUID is correlation metadata, never login/membership proof or a live connector. See docs/user-guide/company-sso.md and docs/validation.md."
+      },
+      {
+        "title": "Reduce company onboarding effort with minimal setup and reviewed bulk inventory entry",
+        "body": "Product priority after the restricted MISP pilot: reuse existing resumable setup for a minimal contact + domain/range path, then offer bounded CSV inventory/software preview, validation, duplicates/provenance and explicit commit without implicit upstream NetBox writes. Optional advanced configuration follows later. Target first useful setup within five minutes, measured with representative users. No production usability acceptance claimed. See docs/product/next-priorities.md."
+      },
+      {
+        "title": "Close the company action and reachability loop without duplicate workflows",
+        "body": "Prioritize a short justified company action list reusing existing issues/owners/deadlines/history, duplicate notice grouping and acknowledgment/remediation evidence, with explicit unknown/stale coverage. Extend existing periodic review mail with a CIRCL nonresponse queue and distinct queued/relay/failure/bounce/acknowledgment states, cooldowns and reviewed alternate-contact escalation. Validate SMTP/bounce delivery separately from local file mail; no automatic DPO escalation or production delivery is authorized here. Retention/recovery/revocation and large-data operation remain release gates. See docs/product/next-priorities.md."
       }
     ]
   },
@@ -95,7 +103,7 @@
       },
       {
         "title": "Implement MISP ingestion with redistribution policy",
-        "body": "Inspect selected release API, paginate/retry safely, preserve event/object roles and markings. Enforce distribution, sharing groups and operator policy for raw and derived data. Test default-deny behavior and common origins."
+        "body": "Implemented bounded restricted-cache pilot: configurable disabled-by-default HTTPS source, private MISP_*TOKEN installer, complete paginated read-only events/restSearch POST, UUID/timestamp/digest identity, atomic local merge and retained failures/missing events, lease recovery, freshness gates and exact-revision named CIRCL recipient attestation. Local current verified IP/domain assignment research is scoped and never exposed to participants. Proposed destination misppriv.circl.lu has not been authenticated; no real API key used. Remaining: deployed service/schema acceptance, native/delta/partition replication, software/historical correlation, recipient-safe outreach, full redistribution engine and production retention/recovery. See docs/integrations/misp.md and docs/validation.md."
       },
       {
         "title": "Implement Plum Island historical observation adapter",
