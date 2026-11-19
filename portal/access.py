@@ -13,11 +13,11 @@ def organizations_for(user):
     if not user.is_authenticated:
         return Organization.objects.none()
     if user.is_superuser:
-        return Organization.objects.all()
+        return Organization.objects.filter(merged_into__isnull=True)
     q = Q(membership__user=user)
     if is_analyst(user):
         q |= Q(operator_visibility=True)
-    return Organization.objects.filter(q).distinct()
+    return Organization.objects.filter(q, merged_into__isnull=True).distinct()
 
 
 def role_for(user, org):

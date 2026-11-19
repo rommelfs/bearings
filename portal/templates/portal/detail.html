@@ -1,4 +1,4 @@
-{% extends 'portal/base.html' %}{% block content %}
+{% extends 'portal/base.html' %}{% block content %}{% if org.merged_into_id %}<aside>This organization is archived after a merge. <a href="{% url 'organization' org.merged_into.slug %}">Open the combined company →</a></aside>{% endif %}{% if user.is_superuser %}<p><a href="{% url 'company-merge' %}">Merge organizations →</a></p>{% endif %}{% if member_admin %}<p><a class="button" href="{% url 'company-members' org.slug %}">Company members & invitations →</a></p>{% endif %}
 <a href="{% url 'inventory' %}">← All organizations</a><p class="eyebrow">ORGANIZATION WORKSPACE</p><h1>{{ org.name }}</h1>
 {% if contact_reviewer %}<p><a class="button primary" href="{% url 'configuration' org.slug %}">Company configuration & setup guide →</a></p>{% endif %}
 <section aria-label="Company address"><h2>Company address</h2>{% if org.postal_address %}<p>{{ org.postal_address|linebreaksbr }}</p>{% else %}<p>No address supplied.</p>{% endif %}{% if contact_reviewer %}<a class="button" href="{% url 'company-address' org.slug %}">Update company address →</a>{% endif %}</section>

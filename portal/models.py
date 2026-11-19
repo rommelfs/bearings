@@ -7,6 +7,7 @@ from django.utils import timezone
 
 
 class Organization(models.Model):
+    merged_into = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="merged_organizations", editable=False)
     name = models.CharField(max_length=180)
     postal_address = models.TextField(max_length=1000, blank=True)
     slug = models.SlugField(unique=True)
@@ -1810,3 +1811,17 @@ class CSVAssetBinding(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["source", "key"], name="csv_source_key")]
+
+
+class OrganizationInvitation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    inviter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    email = models.EmailField()
+    role = models.CharField(max_length=10, choices=Membership.ROLES)
+    digest = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    mail_error = models.BooleanField(default=False)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)

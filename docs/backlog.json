@@ -82,6 +82,10 @@
       {
         "title": "Close the company action and reachability loop without duplicate workflows",
         "body": "Implemented grouped Critical/High-first current-authorized action list, exact group drilldowns, compact acknowledgment/owner/deadline/evidence form with stale-state tokens and existing issue/CVE histories. No automatic closure/applicability changes. Added current shared-CIRCL/platform due-review queue, separate local-file/SMTP-acceptance/reported delivery or bounce/actual cycle-confirmation states, signed previewed follow-ups, recipient revalidation, configured cooldown and existing dedup/retries. Operator-reported SMTP evidence suppresses/re-enables bounced mailboxes without forging contact review or owner acknowledgment. No automatic DPO escalation or provider webhook/DSN ingestion. Production SMTP/bounce acceptance remains separate. See docs/user-guide/review-followups.md and docs/validation.md."
+      },
+      {
+        "title": "Support company-admin invitations and reviewed company consolidation",
+        "body": "Implemented existing-company email invitations with 72-hour one-use digest proofs, existing-account sign-in and no password reset, new account creation without another company, current OrgAdmin-only delegation, member role/removal controls and last-active-admin protection. No platform/native role inheritance. Platform-only signed/current-state merge preview consolidates local manual company data and membership, keeps target roles for overlaps, archives source/history, revokes old invites and resets review due state. Native sources/MISP/federation/cases/delivery and identity/configuration conflicts block for separate reconciliation; no automatic fuzzy association or external account migration. PostgreSQL redemption race, scoped permission/replay tests and browser workflow validation; docs/user-guide/company-members.md."
       }
     ]
   },

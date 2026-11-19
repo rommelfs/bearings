@@ -169,6 +169,7 @@ def detail(request, slug):
             .values("pgp_public_key", "smime_certificate")
             .first(),
             "contact_reviewer": can_review_contact(request.user, org),
+            "member_admin": org.membership_set.filter(user=request.user, role="admin").exists(),
             "operator_reviewer": can_operator_review(request.user, org),
             "findings": severity_first(visible_findings(request.user, org)),
             "claim_review_form": ClaimReviewForm(),

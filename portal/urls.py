@@ -1,6 +1,7 @@
 from django.urls import path
 from . import (
     views,
+    member_views,
     review_followup_views,
     company_work_views,
     misp_views,
@@ -31,6 +32,9 @@ from . import (
 )
 
 urlpatterns = [
+    path("operator/organizations/merge/", member_views.merge_companies, name="company-merge"),
+    path("join/", member_views.join, name="company-join"),
+    path("organizations/<slug:slug>/members/", member_views.members, name="company-members"),
     path("circl/review-followups/", review_followup_views.center, name="review-followups"),
     path("organizations/<slug:slug>/review/followup/", review_followup_views.detail, name="review-followup"),
     path("actions/", company_work_views.actions, name="company-actions"),

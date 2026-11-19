@@ -47,6 +47,7 @@ def center(request, slug):
                 "org": org,
                 "setup": progress(org),
                 "available": wizard_available(org),
+                "member_admin": org.membership_set.filter(user=request.user, role="admin").exists(),
             },
         )
     )

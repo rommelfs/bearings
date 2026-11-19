@@ -288,3 +288,8 @@ Implemented [#58](https://github.com/rommelfs/bearings/issues/58): the [MISP cac
 ## Customer-native MISP permissions — 2026-11-19
 
 Implemented [optional personal customer MISP connections](user-guide/personal-misp.md). Universal CIRCL rights remain internal investigation rights and cannot stand in for customers. Customers supply their own key against an approved fixed endpoint; setup pins its native user, encrypts the key, and refreshes a separate owner/company cache. No staff-key fallback, manual reader grant, same-company inheritance or platform raw-event bypass. Current membership, endpoint approval and bounded freshness apply. CIRCL investigation and company-safe outreach stay separate; no new MISP account is mandatory for the core product. Real private-service distribution/version validation and large-corpus replication remain open.
+
+
+## Company membership and consolidation
+
+Implemented OrgAdmin-managed invitations for existing/new users and reviewed platform-only local company consolidation. Existing target roles win on overlap; source/history are archived. Native identities, sources, delivery state and data collisions require separate reconciliation. See [company members guide](user-guide/company-members.md).
