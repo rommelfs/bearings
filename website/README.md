@@ -9,17 +9,21 @@ Company-first SaaS introduction in **English, German, French and Luxembourgish**
 From the repository root:
 
 ```sh
-python3 website/serve.py
+python3 scripts/dev.py website --language de
 ```
 
-This command builds the pages first and serves an absolute output directory, independent of the caller’s working directory. Stop an older server on port 8050 with Ctrl+C first; it cannot pick up a different serving directory automatically. If the port belongs to another service, use `--port 8051`.
+This command builds the pages and opens the selected language in your browser, without requiring Docker or another build command. Use `--no-open` for a terminal-only session. `python3 website/serve.py` remains available as a standalone server.
+
+The starter builds the pages first and serves an absolute output directory, independent of the caller’s working directory. Stop an older server on port 8050 with Ctrl+C first; it cannot pick up a different serving directory automatically. If the port belongs to another service, use `--port 8051`.
+
+Use **HTTP**, not HTTPS, for this preview. The numeric loopback address avoids Safari carrying over HTTPS-only rules from the separate localhost application. Stop the preview with Ctrl+C. The application stack still starts separately with `python3 scripts/dev.py up --no-build`.
 
 Open:
 
-- English: `http://localhost:8050/` (also `/en/`)
-- Deutsch: `http://localhost:8050/de/`
-- Français: `http://localhost:8050/fr/`
-- Lëtzebuergesch: `http://localhost:8050/lb/`
+- English: `http://127.0.0.1:8050/` (also `/en/`)
+- Deutsch: `http://127.0.0.1:8050/de/`
+- Français: `http://127.0.0.1:8050/fr/`
+- Lëtzebuergesch: `http://127.0.0.1:8050/lb/`
 - FAQ: add `faq/` to any language path.
 - Fictional vulnerability testimonials: follow the link below the main buttons, or open `/de/#testimonials` (the same anchor works in every language).
 
@@ -60,7 +64,7 @@ Documentation links currently target **`codex/continuous-review-workflow`**, whe
 
 The fictional vulnerability quotes are satire, not real customers, vendor endorsements, attacker statements or observed incidents in a Bearings deployment. The CVEs, dates and source links are real and separately presented. Do not replace dated facts with “currently exploited” claims without checking new primary evidence. No patch-version matrix is duplicated; current vendor guidance remains authoritative.
 
-Keep claims about native MONARC, personal MISP rights/cache limits, manual AIL export, SMTP outcomes, local versus native membership and production readiness consistent with the implementation. Free company registration is the product owner's stated offer; it is not a promise that every independently operated third-party service, support contract or hosting environment is free.
+Keep claims about native MONARC, personal MISP rights/cache limits, manual AIL export, SMTP outcomes, local versus native membership and production readiness consistent with the implementation. The CIRCL-operated Bearings service remains free, including continued use, as confirmed by the product owner; it is not a promise that every independently operated third-party service, support contract or hosting environment is free.
 
 All product screenshots use fictional data. The Luxembourg map retains Natural Earth/GeoNames attribution, including GeoNames CC BY 4.0. Source uses the repository's AGPL-3.0-or-later license; preserve source/license notices. No operational data or private MISP event is included.
 

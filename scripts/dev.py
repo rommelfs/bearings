@@ -219,6 +219,13 @@ def exchange_example(base, mode, *, inventory_only=False):
 def main():
     import sys
 
+    if len(sys.argv) > 1 and sys.argv[1] == "website":
+        sys.path.insert(0, str(ROOT))
+        from website.serve import main as website_main
+
+        website_main(sys.argv[2:], open_browser=True)
+        return
+
     # Delegate the independent stdlib generator with its own option/help parser.
     if len(sys.argv) > 1 and sys.argv[1] == "rt-sso":
         sys.path.insert(0, str(ROOT))
@@ -228,6 +235,7 @@ def main():
         return
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+    commands.add_parser("website", help="Build the local website and open it in your browser")
     up = commands.add_parser("up", help="Start the bundled lab, or use --external for an existing NetBox")
     up.add_argument("--external", action="store_true")
     up.add_argument(
@@ -255,9 +263,13 @@ def main():
     )
     up.add_argument("--no-build", action="store_true")
     up.add_argument("--timeout", type=int, default=600)
-    misp = commands.add_parser("configure-misp", help="Configure a disabled MISP cache source and private key; no upstream request")
+    misp = commands.add_parser(
+        "configure-misp", help="Configure a disabled MISP cache source and private key; no upstream request"
+    )
     misp.add_argument("--owner", required=True, help="Individual Bearings user owning this personal key")
-    misp.add_argument("--misp-user-id", type=int, required=True, help="Pinned native MISP user ID for this key")
+    misp.add_argument(
+        "--misp-user-id", type=int, required=True, help="Pinned native MISP user ID for this key"
+    )
     misp.add_argument("--url", default="https://misppriv.circl.lu")
     misp.add_argument("--name")
     misp.add_argument("--credential-ref")
@@ -338,8 +350,10 @@ def main():
     (LOCAL / "external").mkdir(exist_ok=True)
     if args.action == "configure-misp":
         import sys
+
         sys.path.insert(0, str(ROOT))
         from scripts.configure_misp import execute
+
         execute(args)
         return
     if args.action == "configure":
@@ -558,7 +572,11 @@ def main():
         sys.path.insert(0, str(ROOT))
         from scripts.web_timing import main as web_timing
 
-        web_timing("circl-analyst" if args.national else args.username, national=args.national, registration=args.registration)
+        web_timing(
+            "circl-analyst" if args.national else args.username,
+            national=args.national,
+            registration=args.registration,
+        )
     elif args.action == "sso-smoke":
         import sys
 

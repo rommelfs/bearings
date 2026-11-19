@@ -10,6 +10,8 @@ CIRCL analysts also have a **[National overview](docs/user-guide/circl-overview.
 
 Start with the [documentation index](docs/README.md), [FAQ](docs/faq.md) and [current next steps](docs/product/next-priorities.md). The four-language [public static website source](website/README.md) explains the product with use cases and synthetic screenshots. [Company invitations and merges](docs/user-guide/company-members.md) and [personal customer MISP access](docs/user-guide/personal-misp.md) are implemented with explicit local/native permission boundaries.
 
+To preview the website locally and open it in your browser: `python3 scripts/dev.py website --language de` (EN/FR/LB are also available). The preview uses HTTP on `127.0.0.1:8050`; the application keeps its separate HTTPS entrance.
+
 ## Implemented
 
 - [Direct problem links and automatic risk scenarios](docs/user-guide/automatic-scenarios.md): server badges open exact problem sets; individual problem titles, actions and drafts link directly to their evidence. Local evidence-based scenario drafts recommend compatible public MOSP templates with prefilled justification and reviewed confirmation.
