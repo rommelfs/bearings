@@ -315,3 +315,5 @@ Registration no longer silently sends signed-in visitors through dashboard aggre
 Website follow-up: all four closing headlines explicitly include continued free use of the CIRCL-operated service. `python3 scripts/dev.py website --language de` builds and opens the local preview; `--no-open` supports headless use. The HTTP numeric loopback address avoids localhost HTTPS upgrades in Safari. See [website guide](../website/README.md).
 
 The use-case headline now adds the benefit to Luxembourg as a third line in EN/DE/FR/LB, retaining the existing company and CIRCL lines.
+
+Branding: the website now uses a CIRCL-derived Bearings design with a connecting ring, the original supplied CIRCL operator logo and nine original project logos hosted locally. Source/checksum provenance and ownership notes are in [branding documentation](../website/branding/README.md); integration maturity descriptions remain unchanged.

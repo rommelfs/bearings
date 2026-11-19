@@ -16,6 +16,29 @@ FAQ = json.loads((ROOT / "faq.json").read_text())
 EXAMPLES = json.loads((ROOT / "examples.json").read_text())
 E = html.escape
 COPY = json.loads((ROOT / "copy.json").read_text())
+PROJECT_LOGOS = json.loads((ROOT / "assets/projects/sources.json").read_text())
+LOGO_GROUPS = {
+    "NetBox": ["NetBox"],
+    "Vulnerability-Lookup": ["Vulnerability-Lookup"],
+    "MOSP / MONARC": ["MOSP", "MONARC"],
+    "MISP": ["MISP"],
+    "AIL": ["AIL"],
+    "FlowIntel · RT / RTIR": ["FlowIntel", "RT", "RTIR"],
+}
+
+
+def project_logos(group):
+    return (
+        '<div class="project-logos">'
+        + "".join(
+            f'<a href="{E(logo["url"])}" aria-label="{E(logo["name"])}"><img src="/assets/projects/{E(logo["file"])}" alt="{E(logo["name"])}" loading="lazy" width="130" height="56"></a>'
+            for logo in PROJECT_LOGOS
+            if logo["name"] in LOGO_GROUPS[group]
+        )
+        + "</div>"
+    )
+
+
 LANGUAGES = {"en": "English", "de": "Deutsch", "fr": "Français", "lb": "Lëtzebuergesch"}
 
 
@@ -77,7 +100,7 @@ def page(lang, faq=False, base="", registration="https://localhost:9441/register
         f'<a href="{home}#{anchor}">{E(label)}</a>'
         for anchor, label in zip(["why", "use-cases", "workflow"], c["nav"][:3])
     )
-    start = f'''<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bearings — {E(title)}</title><meta name="description" content="{E(c["description"])}"><meta name="theme-color" content="#102b37"><meta property="og:type" content="website"><meta property="og:title" content="Bearings — {E(title)}"><meta property="og:description" content="{E(c["description"])}">{head}{alternate}{"<meta name=robots content=noindex>" if not base else ""}<link rel="icon" type="image/svg+xml" href="/assets/mark.svg"><link rel="stylesheet" href="/style.css"><script src="/site.js" defer></script></head><body id="top"><a class="skip" href="#main">{E(c["skip"])}</a><header class="header"><div class="wrap nav"><a href="{home}" class="brand" aria-label="Bearings {E(c["home"])}"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M18 2 34 18 18 34 2 18Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M18 9 27 18 18 27 9 18Z" fill="currentColor"/></svg><span class="brand-word">BEARINGS<small>{E(c["operator_short"])}</small></span></a><nav aria-label="{E(c["home"])}">{nav}<a href="{faq_url}">FAQ</a>{languages}</nav><a class="nav-docs" href="{E(registration)}">{E(c["primary"])}</a></div></header><main id="main">'''
+    start = f'''<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bearings — {E(title)}</title><meta name="description" content="{E(c["description"])}"><meta name="theme-color" content="#102b37"><meta property="og:type" content="website"><meta property="og:title" content="Bearings — {E(title)}"><meta property="og:description" content="{E(c["description"])}">{head}{alternate}{"<meta name=robots content=noindex>" if not base else ""}<link rel="icon" type="image/png" href="/assets/bearings-favicon.png"><link rel="stylesheet" href="/style.css"><script src="/site.js" defer></script></head><body id="top"><a class="skip" href="#main">{E(c["skip"])}</a><header class="header"><div class="wrap nav"><a href="{home}" class="brand" aria-label="Bearings {E(c["home"])}"><img class="bearings-mark" src="/assets/bearings-mark.webp" width="48" height="48" alt=""><span class="brand-word">BEARINGS<small>{E(c["operator_short"])}</small></span></a><nav aria-label="{E(c["home"])}">{nav}<a href="{faq_url}">FAQ</a>{languages}</nav><a class="nav-docs" href="{E(registration)}">{E(c["primary"])}</a></div></header><main id="main">'''
     if faq:
         main = f'''<section class="faq-hero wrap"><p class="eyebrow">BEARINGS / FAQ</p><h1>{E(c["faq_page_title"])}</h1><p class="lead">{E(c["faq_intro"])}</p><div class="search" hidden data-search><label for="faq-search">{E(c["search"])}</label><input type="search" id="faq-search" autocomplete="off" placeholder="MISP, NetBox, SSO…"><p aria-live="polite" id="faq-count" data-label="{E(c["results"])}"></p></div><noscript><p>{E(c["nojs"])}</p></noscript><div class="faq-list">{"".join(question(i, lang) for i in FAQ)}</div><p id="faq-empty" hidden>{E(c["empty"])}</p><a class="text-link" href="{DOCS}/README.md">{E(c["nav"][4])}</a></section>'''
     else:
@@ -91,7 +114,7 @@ def page(lang, faq=False, base="", registration="https://localhost:9441/register
         )
         steps = "".join(f"<li><h3>{E(title)}</h3><p>{E(body)}</p></li>" for title, body in c["workflow"])
         integrations = "".join(
-            f'<article><p class="integration-role">{E(role)}</p><h3>{E(name)}</h3><p>{E(body)}</p></article>'
+            f'<article>{project_logos(name)}<p class="integration-role">{E(role)}</p><h3>{E(name)}</h3><p>{E(body)}</p></article>'
             for name, role, body in c["integrations"]
         )
         trust = "".join(
@@ -111,7 +134,7 @@ def page(lang, faq=False, base="", registration="https://localhost:9441/register
 <section class="section wrap trust"><p class="eyebrow">{E(c["trust_label"])}</p><h2>{E(c["trust_title"])}</h2><div class="trust-grid">{trust}</div></section>
 <section class="section faq-preview"><div class="wrap faq-preview-grid"><div><p class="eyebrow">{E(c["faq_label"])}</p><h2>{E(c["faq_title"])}</h2><a class="text-link" href="{faq_url}">{E(c["faq_all"])}</a></div><div>{"".join(question(i, lang) for i in FAQ if i["id"] in ["operator", "free", "start", "updates", "production"])}</div></div></section>
 <section class="section closing wrap" id="register"><div><p class="eyebrow">BEARINGS · AGPL-3.0-OR-LATER</p><h2>{E(c["closing"])}</h2><p class="lead">{E(c["closing_body"])}</p></div><div class="actions"><a class="button primary" href="{E(registration)}">{E(c["primary"])}</a><a class="button secondary" href="{DOCS}/README.md">{E(c["nav"][4])}</a></div></section>'''
-    end = f'''</main><footer class="footer"><div class="wrap footer-grid"><div><a class="brand" href="{home}">◈ BEARINGS</a><p><strong>{E(c["operator_label"])}</strong><br>{E(c["operator_body"])}</p><a class="operator-footer-link" href="https://www.circl.lu/mission/rfc2350/">{E(c["operator_link"])}</a></div><div class="footer-links"><a href="{DOCS}/README.md">{E(c["nav"][4])}</a><a href="{faq_url}">FAQ</a><a href="{REPO}/blob/{REF}/LICENSE">{E(c["license"])}</a><a href="#top">{E(c["back"])}</a></div></div><div class="wrap footer-meta"><p>{E(c["privacy"])}<br>{E(c["reviewed"])}</p><p>{E(c["credits"])}<br><a href="https://www.naturalearthdata.com/">Natural Earth</a> · <a href="https://www.geonames.org/">GeoNames</a> · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></p></div></footer><dialog id="image-dialog" aria-label="{E(c["zoom"])}"><button type="button" data-close>{E(c["close"])}</button><img alt=""></dialog></body></html>'''
+    end = f'''</main><footer class="footer"><div class="wrap footer-grid"><div><a class="brand" href="{home}"><img class="bearings-mark" src="/assets/bearings-mark.webp" width="48" height="48" alt="">BEARINGS</a><a class="operator-logo" href="https://www.circl.lu/" aria-label="CIRCL"><img src="/assets/circl.svg" width="194" height="72" alt="CIRCL" loading="lazy"></a><p><strong>{E(c["operator_label"])}</strong><br>{E(c["operator_body"])}</p><a class="operator-footer-link" href="https://www.circl.lu/mission/rfc2350/">{E(c["operator_link"])}</a></div><div class="footer-links"><a href="{DOCS}/README.md">{E(c["nav"][4])}</a><a href="{faq_url}">FAQ</a><a href="{REPO}/blob/{REF}/LICENSE">{E(c["license"])}</a><a href="#top">{E(c["back"])}</a></div></div><div class="wrap footer-meta"><p>{E(c["privacy"])}<br>{E(c["reviewed"])}</p><p>{E(c["credits"])}<br><a href="https://www.naturalearthdata.com/">Natural Earth</a> · <a href="https://www.geonames.org/">GeoNames</a> · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></p></div></footer><dialog id="image-dialog" aria-label="{E(c["zoom"])}"><button type="button" data-close>{E(c["close"])}</button><img alt=""></dialog></body></html>'''
     return start + main + end
 
 

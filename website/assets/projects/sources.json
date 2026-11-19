@@ -1,0 +1,74 @@
+[
+  {
+    "name": "NetBox",
+    "file": "netbox.svg",
+    "source": "https://raw.githubusercontent.com/netbox-community/netbox/HEAD/netbox/project-static/img/logo_netbox_dark_teal.svg",
+    "url": "https://netboxlabs.com/oss/netbox/",
+    "sha256": "cc7c4cac167834d5b206603219a6852a9500e70325c8ffa0b2e42ee3c46934f3",
+    "retrieved": "2026-11-19"
+  },
+  {
+    "name": "Vulnerability-Lookup",
+    "file": "vulnerability-lookup.png",
+    "source": "https://vulnerability.circl.lu/static/img/VL-hori-coul.png",
+    "url": "https://vulnerability-lookup.org/",
+    "sha256": "0245a5bc2cf1a77dc1df4da7adc6f557740545c259424f6fbaf86c4201335f94",
+    "retrieved": "2026-11-19"
+  },
+  {
+    "name": "MOSP",
+    "file": "mosp.png",
+    "source": "https://raw.githubusercontent.com/monarc-project/mosp/HEAD/mosp/static/img/logo-large.png",
+    "url": "https://mosp.monarc.lu/",
+    "sha256": "c27290cdf9aca81dacb1a0799729775c728e07cb2ed716c74d22fb3029637370",
+    "retrieved": "2026-11-19"
+  },
+  {
+    "name": "MONARC",
+    "file": "monarc.png",
+    "source": "https://www.monarc.lu/assets/images/monarc-logo.png",
+    "url": "https://www.monarc.lu/",
+    "sha256": "ed15de8d8b1d0109bbcd91ebd1b8696c513d433bc4929152539f337937d44007",
+    "retrieved": "2026-11-19"
+  },
+  {
+    "name": "MISP",
+    "file": "misp.svg",
+    "source": "https://raw.githubusercontent.com/MISP/MISP/HEAD/INSTALL/logos/misp-logo.svg",
+    "url": "https://www.misp-project.org/",
+    "sha256": "0a6fa909c80a333a69abc9328736fa49b7f39ec0f424ef1f12f1004b0b16d62f",
+    "retrieved": "2026-11-19"
+  },
+  {
+    "name": "AIL",
+    "file": "ail.png",
+    "source": "https://raw.githubusercontent.com/ail-project/ail-framework/HEAD/var/www/static/image/ail-project.png",
+    "url": "https://ail-project.org/",
+    "sha256": "e77623f04fef4cbc4973704094bbe1acbdabefe3f37616b053df36b6252c0f4d",
+    "retrieved": "2026-11-19"
+  },
+  {
+    "name": "FlowIntel",
+    "file": "flowintel.png",
+    "source": "https://raw.githubusercontent.com/flowintel/flowintel/HEAD/doc/images/flowintel_logo.png",
+    "url": "https://flowintel.org/",
+    "sha256": "8572bd4543fbbd54ba42efeef834d0c8374ba302a7d24549d041f3a433a6b926",
+    "retrieved": "2026-11-19"
+  },
+  {
+    "name": "RT",
+    "file": "rt.svg",
+    "source": "https://raw.githubusercontent.com/bestpractical/rt/HEAD/share/static/images/request-tracker-logo.svg",
+    "url": "https://bestpractical.com/request-tracker",
+    "sha256": "352660c7e7e77b5687a1c9958dc77e4ce2fbe3c5f10d94ef893bcd108590ff48",
+    "retrieved": "2026-11-19"
+  },
+  {
+    "name": "RTIR",
+    "file": "rtir.svg",
+    "source": "https://raw.githubusercontent.com/bestpractical/rtir/HEAD/static/images/RTIR/rtir-logo.svg",
+    "url": "https://bestpractical.com/rtir",
+    "sha256": "f30e666845ae42dad6be08cf91677ad986ac3693c014801b8fa6cab0ddea71bf",
+    "retrieved": "2026-11-19"
+  }
+]

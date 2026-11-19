@@ -1,6 +1,6 @@
 # Bearings static project website
 
-Company-first SaaS introduction in **English, German, French and Luxembourgish**. Includes practical benefits, company/CIRCL workflows, nineteen FAQs, four synthetic product screenshots and five source-backed real vulnerability examples with explicitly fictional, humorous quotes.
+Company-first SaaS introduction in **English, German, French and Luxembourgish**. Includes practical benefits, company/CIRCL workflows, nineteen FAQs, four synthetic product screenshots, locally hosted project logos and five source-backed real vulnerability examples with explicitly fictional, humorous quotes.
 
 **Local-only at the owner's request. Nothing has been deployed publicly.** The main call to action is free company registration at the existing local Bearings installation. The website is static HTML/CSS/JavaScript, with no dependencies, visitor analytics, forms, cookies or private connectors. Optional FAQ search and screenshot enlargement work in the browser; content, answers and image links remain available without JavaScript.
 
@@ -49,6 +49,10 @@ This installation is explicitly identified as operated by **CIRCL**, the CERT fo
 
 The NGINX2Root and Java examples also link directly to CIRCL’s [TR-105](https://www.circl.lu/pub/tr-105/) and [TR-104](https://www.circl.lu/pub/tr-104/) alongside the vendor/official sources.
 
+## Visual identity
+
+The header, footer and favicon use a new Bearings mark derived from the supplied CIRCL symbol: a recognizable red aperture surrounded by a teal bearing ring with connecting nodes. The original full CIRCL logo appears below in the operator information. Nine original project logos identify NetBox, Vulnerability-Lookup, MOSP, MONARC, MISP, AIL, FlowIntel, RT and RTIR in their existing ecosystem sections. All assets are local; project links are ordinary outbound navigation. Small screens use a single-column ecosystem layout for readable descriptions. See [branding sources and ownership](branding/README.md) and the [project asset provenance](assets/projects/sources.json).
+
 ## Content and maintenance
 
 - `copy.json`: complete EN/DE/FR/LB page copy. Language keys must remain aligned.
@@ -57,7 +61,7 @@ The NGINX2Root and Java examples also link directly to CIRCL’s [TR-105](https:
 - `build.py`: dependency-free HTML and metadata generation.
 - `serve.py`: build-before-serve, absolute-directory loopback preview with explicit occupied-port diagnostics.
 - `style.css`, `site.js`: responsive presentation and progressive enhancements.
-- `assets/`: optimized WebP copies of documented synthetic screenshots and a local SVG mark.
+- `assets/`: optimized WebP copies of documented synthetic screenshots and the local Bearings/CIRCL/project marks.
 - `dist/`: generated, ignored by Git; building does not modify application data.
 
 Documentation links currently target **`codex/continuous-review-workflow`**, where these guides and implemented features exist. After merging, update `REF` in `build.py`. The displayed content review date is 19 November 2026; update after substantive review. Screenshots illustrate synthetic examples and may show an earlier date/UI.
