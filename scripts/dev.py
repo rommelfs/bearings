@@ -313,8 +313,14 @@ def main():
     enrollment.add_argument("--without-netbox", action="store_true")
     enrollment.add_argument("--apply", action="store_true")
     timing = commands.add_parser("web-timing", help="Measure the running bundled SSO lab over HTTP/HTTPS")
-    timing.add_argument(
+    timing_mode = timing.add_mutually_exclusive_group()
+    timing_mode.add_argument(
         "--national", action="store_true", help="Measure the CIRCL national page as circl-analyst"
+    )
+    timing_mode.add_argument(
+        "--registration",
+        action="store_true",
+        help="Measure public and signed-in registration without loading dashboard aggregates",
     )
     timing.add_argument("--username", choices=["company-admin", "circl-analyst"], default="company-admin")
     rt_sso = commands.add_parser(
@@ -552,7 +558,7 @@ def main():
         sys.path.insert(0, str(ROOT))
         from scripts.web_timing import main as web_timing
 
-        web_timing("circl-analyst" if args.national else args.username, national=args.national)
+        web_timing("circl-analyst" if args.national else args.username, national=args.national, registration=args.registration)
     elif args.action == "sso-smoke":
         import sys
 

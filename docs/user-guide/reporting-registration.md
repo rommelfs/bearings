@@ -6,6 +6,14 @@ The optional **Company address** field accepts street, postal code, city and cou
 
 CIDR prefixes, explicit start-end ranges, IPv4/IPv6 and DNS names are supported, up to 100 declarations. Internal addresses can have a network-context label. Software inventory is optional: add assets and exact installed versions once signed in to improve vulnerability matching.
 
+## Already signed in or a slow registration link
+
+Opening `/register/` with a valid Bearings session now shows a small account-entry page, with links to actual company memberships and an explicit workspace action. It does not automatically redirect into inventory aggregates. Registration POSTs from an existing session do not create another account or company. Switching accounts requires a deliberate CSRF-protected sign-out; it does not end an identity-provider session. A closed-registration policy still returns the closed page.
+
+Anonymous form display performs no database query and no upstream request. It does not inspect synthetic showcase state. `Server-Timing` exposes only numerical registration/SQL durations; current SSO checks remain separate. This is diagnostic evidence, not a promise of a particular browser/network latency.
+
+In the bundled SSO lab, measure with `python3 scripts/dev.py web-timing --registration` (optionally `--username circl-analyst`). The command compares public HTTP/HTTPS registration and authenticated HTTPS registration, uses the generated trusted CA, prints no cookies/passwords/form bodies and avoids overview aggregates in the login return path. Registration timing and national timing are separate modes.
+
 ## Required participation statements
 
 Every new applicant must explicitly confirm all four statements. None is selected in advance:

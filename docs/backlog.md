@@ -306,3 +306,8 @@ Local website recovery: `python3 website/serve.py` builds before serving the abs
 The fictional vulnerability testimonials now have a prominent hero link in every language and the stable `#testimonials` anchor.
 
 Marketing scope: focus on the CIRCL-operated SaaS and free company registration. Removed self-hosting promotion, local-start CTAs and technical local-mail messaging from public copy; retained local-only preview instructions in the operator/developer guide.
+
+
+## Fast registration entry
+
+Registration no longer silently sends signed-in visitors through dashboard aggregates. Anonymous form display has no showcase/inventory query; existing sessions get a bounded account entry and explicit account-switch form. Numerical Server-Timing and `web-timing --registration` separate public HTTP/HTTPS from SSO request times. See [registration guide](user-guide/reporting-registration.md).

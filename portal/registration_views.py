@@ -2,20 +2,23 @@
 
 import os
 import shlex
+from functools import wraps
+from time import perf_counter
 from social_django.models import UserSocialAuth
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 from .access import audit, is_analyst, require
 from .circl_views import private_response
-from .models import InfrastructureRegistration
+from .models import InfrastructureRegistration, Organization
+from .overview_queries import QueryTiming
 from .registration import (
     decide_registration,
     issue_verification,
@@ -36,14 +39,42 @@ from .registration_forms import (
 )
 
 
+def registration_timing(view):
+    @wraps(view)
+    def measured(request, *args, **kwargs):
+        started = perf_counter()
+        timing = QueryTiming()
+        with connection.execute_wrapper(timing):
+            response = view(request, *args, **kwargs)
+        values = (
+            f"registration;dur={(perf_counter() - started) * 1000:.1f}, "
+            f"database;dur={timing.seconds * 1000:.1f}, dbmax;dur={timing.slowest * 1000:.1f}"
+        )
+        previous = response.get("Server-Timing")
+        response["Server-Timing"] = f"{previous}, {values}" if previous else values
+        return response
+
+    return measured
+
+
 @never_cache
 @sensitive_post_parameters()
 @require_http_methods(["GET", "POST"])
+@registration_timing
 def register(request):
     if not settings.PUBLIC_REGISTRATION_ENABLED:
         return render(request, "portal/registration.html", {"closed": True}, status=403)
     if request.user.is_authenticated:
-        return redirect("overview")
+        # Entry must not silently load overview aggregates when a marketing visitor
+        # still has a valid company/operator session. Never submit a second signup.
+        companies = (
+            Organization.objects.filter(membership__user=request.user, merged_into__isnull=True)
+            .only("name", "slug")
+            .order_by("name", "pk")[:6]
+        )
+        return private_response(
+            render(request, "portal/registration.html", {"signed_in": True, "companies": companies})
+        )
     form = InfrastructureRegistrationForm(request.POST or None)
     if request.method == "POST":
         if not permit_public_attempt(request):
@@ -256,9 +287,7 @@ def application(request, pk):
                 if request.user.is_superuser and item.status == "awaiting_email"
                 else None,
                 "local_mail": settings.SERVICE_MAIL_TRANSPORT == "file",
-                "company_sso_binding": UserSocialAuth.objects.filter(
-                    user=item.user, provider="oidc"
-                ).first(),
+                "company_sso_binding": UserSocialAuth.objects.filter(user=item.user, provider="oidc").first(),
                 "company_sso_command": "python3 scripts/dev.py enroll-company-sso --username="
                 + shlex.quote(item.user.username)
                 if request.user.is_superuser

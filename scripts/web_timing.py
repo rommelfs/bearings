@@ -66,6 +66,7 @@ def fetch(browser, request):
                 "nationalvulns",
                 "nationaltrend",
                 "overview",
+                "registration",
                 "session",
                 "django",
                 "database",
@@ -91,7 +92,9 @@ def fetch(browser, request):
         )
 
 
-def main(username="company-admin", *, national=False):
+def main(username="company-admin", *, national=False, registration=False):
+    if registration and national:
+        raise SystemExit("Choose registration or national timing, not both")
     state = dev.active()
     if state["mode"] != "bundled" or not state.get("sso"):
         raise SystemExit(
@@ -139,11 +142,22 @@ def main(username="company-admin", *, national=False):
         for phase, origin in [("http_login", direct), ("https_login", app)]:
             body, _, metrics = fetch(browser, origin + "/accounts/login/")
             print(json.dumps({"phase": phase, **metrics}), flush=True)
+        if registration:
+            for origin, label in [(direct, "http"), (app, "https")]:
+                for repeat in range(2):
+                    phase = "public_" + label + "_registration"
+                    _, public_path, metrics = fetch(browser, origin + "/register/")
+                    print(
+                        json.dumps({"phase": phase, "sample": repeat + 1, "path": public_path, **metrics}),
+                        flush=True,
+                    )
         phase = "sso_login"
         form = LoginForm(app_form=True)
         form.feed(body)
         if form.action != "/oauth/login/oidc/":
             raise ValueError("Expected local SSO form")
+        if registration:
+            form.fields["next"] = "/register/"
         body, _, _ = fetch(
             browser,
             Request(
@@ -162,9 +176,11 @@ def main(username="company-admin", *, national=False):
             raise ValueError("Expected local identity-provider form")
         form.fields.update(username=username, password=read("secrets/demo_password"))
         body, path, _ = fetch(browser, Request(form.action, data=urlencode(form.fields).encode()))
-        if path != "/" or "Sign out here" not in body:
-            raise ValueError("SSO login did not reach the authenticated overview")
+        if path != ("/register/" if registration else "/") or "Sign out here" not in body:
+            raise ValueError("SSO login did not reach the expected authenticated page")
         paths = [("/", "overview"), ("/applications/", "applications")]
+        if registration:
+            paths = [("/register/", "authenticated_registration")]
         if national:
             paths = [
                 ("/circl/", "national"),
@@ -176,8 +192,10 @@ def main(username="company-admin", *, national=False):
                 ("/applications/", "applications"),
             ]
         for path, phase in paths:
-            for repeat in range(2 if phase in {"national", "overview", "applications"} else 1):
-                if repeat:
+            for repeat in range(
+                2 if phase in {"national", "overview", "applications", "authenticated_registration"} else 1
+            ):
+                if repeat and not registration:
                     sleep(6)
                 started = perf_counter()
                 try:
@@ -227,6 +245,8 @@ def main(username="company-admin", *, national=False):
                         flush=True,
                     )
                     continue
+                if registration:
+                    metrics["path"] = final_path
                 if final_path != path:
                     raise ValueError("Unexpected authentication redirect")
                 print(json.dumps({"phase": phase, "sample": repeat + 1, **metrics}), flush=True)

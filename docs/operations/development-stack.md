@@ -116,3 +116,8 @@ Screenshots are a populated test database, not a database distributed by Git. Fo
 ### Optional bundled FlowIntel
 
 `python3 scripts/dev.py up --flowintel` adds a compact case-workflow build of pinned upstream FlowIntel, isolated PostgreSQL/Valkey, generated credentials and a separate verified HTTPS gateway. The selection is retained on subsequent `up` calls. `up --no-flowintel` stops the optional services and pauses managed work without deleting volumes or affecting Bearings/NetBox. The native-architecture source build excludes PDF/AI/external analysis services; it uses a separate hash-locked dependency set and preserves upstream source/license notices. See the [FlowIntel guide](../user-guide/flowintel.md) for login identities, CA trust, Exchange hand-off, uncertain writes, API-only alternatives and actual limits.
+
+
+### Registration page timing
+
+Use `python3 scripts/dev.py web-timing --registration` to compare anonymous HTTP/HTTPS and signed-in HTTPS `/register/` in the running bundled SSO lab. Add `--username circl-analyst` for the synthetic operator account. The login returns directly to registration, so the command does not accidentally measure a dashboard redirect as registration latency. JSON output includes the final path plus registration/database/SSO timing where available; no form, inventory, credential or query-string content is printed. Keep the generated lab CA trusted. If the application was updated, restart the web service through the normal `up --no-build` workflow first.

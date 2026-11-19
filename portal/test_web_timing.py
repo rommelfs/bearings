@@ -45,7 +45,7 @@ class WebTimingTests(SimpleTestCase):
             status=200,
             url="https://localhost:9441/?secret=synthetic-code",
             headers={
-                "Server-Timing": "overview;dur=17.5, session;dur=2.0, django;dur=20, database;dur=10, dbmax;dur=4, companies;dur=5, priority;dur=6, render;dur=3, scope;dur=1, ranking;dur=4, issuepreviews;dur=1, legacypreviews;dur=1, secret;dur=123"
+                "Server-Timing": "overview;dur=17.5, registration;dur=3.5, session;dur=2.0, django;dur=20, database;dur=10, dbmax;dur=4, companies;dur=5, priority;dur=6, render;dur=3, scope;dur=1, ranking;dur=4, issuepreviews;dur=1, legacypreviews;dur=1, secret;dur=123"
             },
             read=Mock(return_value=b"synthetic private body"),
         )
@@ -62,6 +62,7 @@ class WebTimingTests(SimpleTestCase):
                 "total_ms": 40.0,
                 "server_ms": {
                     "overview": 17.5,
+                    "registration": 3.5,
                     "session": 2.0,
                     "django": 20.0,
                     "database": 10.0,
