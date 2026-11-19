@@ -6,6 +6,10 @@ Reviewed 2026-11-19. This FAQ describes implemented development/pilot behavior, 
 
 Bearings connects a company's infrastructure inventory with vulnerability evidence, business risk, accountable contacts and follow-up. It gives company teams a view of what needs attention and gives authorized CIRCL analysts a view across participating organizations.
 
+## Who operates this installation?
+
+This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy. Bearings is open-source software; other installations can have different operators.
+
 ## Is company registration free?
 
 Yes. Company registration is free. Start with a responsible contact and one domain or network, and add details over time. Existing team members can join by invitation. Optional upstream tools keep their own account and operating requirements.

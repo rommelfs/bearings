@@ -174,7 +174,12 @@
     "source_note": "Sources checked 19 November 2026. Historical examples, not a live threat feed. Actual affectedness and fixes require the current vendor guidance.",
     "local_note": "Local preview: registration opens the local Bearings installation. A public registration address will be configured before launch.",
     "languages": "Choose language",
-    "context_link": "Additional source"
+    "context_link": "Additional source",
+    "operator_short": "by CIRCL",
+    "operator_label": "Operated by CIRCL",
+    "operator_body": "CIRCL is the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy.",
+    "operator_link": "About CIRCL and its mission",
+    "analysis_link": "CIRCL analysis"
   },
   "de": {
     "title": "Infrastruktur, Risiken & Reaktion",
@@ -351,7 +356,12 @@
     "source_note": "Quellen geprüft am 19. November 2026. Historische Beispiele, kein Live-Bedrohungsfeed. Tatsächliche Betroffenheit und Maßnahmen anhand aktueller Herstellerhinweise prüfen.",
     "local_note": "Lokale Vorschau: Die Registrierung öffnet die lokale Bearings-Installation. Vor dem öffentlichen Start wird die öffentliche Registrierungsadresse hinterlegt.",
     "languages": "Sprache wählen",
-    "context_link": "Zusätzliche Quelle"
+    "context_link": "Zusätzliche Quelle",
+    "operator_short": "von CIRCL",
+    "operator_label": "Betrieben von CIRCL",
+    "operator_body": "CIRCL ist das CERT für die Privatwirtschaft und Kommunen in Luxemburg, mandatiert vom Wirtschaftsministerium.",
+    "operator_link": "Über CIRCL und seinen Auftrag",
+    "analysis_link": "CIRCL-Analyse"
   },
   "fr": {
     "title": "Infrastructure, risques et réponse",
@@ -528,7 +538,12 @@
     "source_note": "Sources vérifiées le 19 novembre 2026. Exemples historiques, pas un flux de menaces en direct. Vérifiez l’exposition et les mesures à partir des consignes actuelles de l’éditeur.",
     "local_note": "Aperçu local : l’inscription ouvre l’installation Bearings locale. Une adresse publique sera configurée avant le lancement.",
     "languages": "Choisir la langue",
-    "context_link": "Source complémentaire"
+    "context_link": "Source complémentaire",
+    "operator_short": "par CIRCL",
+    "operator_label": "Exploité par CIRCL",
+    "operator_body": "CIRCL est le CERT du secteur privé et des communes au Luxembourg, mandaté par le ministère de l’Économie.",
+    "operator_link": "À propos du CIRCL et de sa mission",
+    "analysis_link": "Analyse du CIRCL"
   },
   "lb": {
     "title": "Infrastruktur, Risiken a Reaktioun",
@@ -705,6 +720,11 @@
     "source_note": "Quellen iwwerpréift den 19. November 2026. Historesch Beispiller, kee Live-Bedrohungsfeed. Reell Betroffenheet a Moossnamen no den aktuelle Fabrikanthinweiser iwwerpréiwen.",
     "local_note": "Lokal Virschau: D’Registréierung mécht déi lokal Bearings-Installatioun op. Eng ëffentlech Registréierungsadress gëtt virum Start agestallt.",
     "languages": "Sprooch wielen",
-    "context_link": "Weider Quell"
+    "context_link": "Weider Quell",
+    "operator_short": "vum CIRCL",
+    "operator_label": "Bedriwwe vum CIRCL",
+    "operator_body": "De CIRCL ass de CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg, am Optrag vum Wirtschaftsministère.",
+    "operator_link": "Iwwer de CIRCL a säin Optrag",
+    "analysis_link": "CIRCL-Analys"
   }
 }

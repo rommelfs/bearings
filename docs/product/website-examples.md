@@ -17,3 +17,5 @@ The short source-derived factual summaries remain separate from original marketi
 Edit [`website/examples.json`](../../website/examples.json), review all four translations and rebuild. The FAQ and screenshots retain their independent synthetic/development boundaries.
 
 NGINX2Root is a family: CVE-2026-123007, CVE-2026-123633, CVE-2026-123634, CVE-2026-121810 and CVE-2026-113425. The site does not equate the NGINX flaws alone with guaranteed root access or confuse a separately demonstrated kernel privilege-escalation chain with the NGINX CVEs. Java coverage does not imply that every JDK vendor, architecture or build is affected, and Bearings does not automatically discover embedded runtimes. These facts remain explicit inventory/review work.
+
+The current NGINX2Root and Java cards additionally link the operator’s own published analysis: [CIRCL TR-105](https://www.circl.lu/pub/tr-105/) and [CIRCL TR-104](https://www.circl.lu/pub/tr-104/), both listed by CIRCL on 18 November 2026. The site does not copy their exploit/reproducer details or patch tables.

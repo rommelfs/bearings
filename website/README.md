@@ -1,6 +1,6 @@
 # Bearings static project website
 
-Company-first introduction in **English, German, French and Luxembourgish**. Includes practical benefits, company/CIRCL workflows, nineteen FAQs, four synthetic product screenshots and five source-backed real vulnerability examples with explicitly fictional, humorous quotes.
+Company-first introduction in **English, German, French and Luxembourgish**. Includes practical benefits, company/CIRCL workflows, twenty FAQs, four synthetic product screenshots and five source-backed real vulnerability examples with explicitly fictional, humorous quotes.
 
 **Local-only at the owner's request. Nothing has been deployed publicly.** The main call to action is free company registration at the existing local Bearings installation. The website is static HTML/CSS/JavaScript, with no dependencies, visitor analytics, forms, cookies or private connectors. Optional FAQ search and screenshot enlargement work in the browser; content, answers and image links remain available without JavaScript.
 
@@ -37,6 +37,12 @@ The builder rejects a public website origin combined with a loopback registratio
 
 Copy the **contents of `website/dist/`** to a static HTTPS host. Serve at the origin root: asset/language links are root-relative. A subdirectory mount needs base-path adaptation. Enable directory `index.html` resolution; no SPA fallback is needed. A standalone `404.html` is included. Select the host/custom domain separately when ready; this change does not publish to GitHub Pages or Sites.
 
+## Operator identity
+
+This installation is explicitly identified as operated by **CIRCL**, the CERT for Luxembourg’s private sector and municipalities, mandated by the Ministry of the Economy, as supplied by the product owner. The brand caption, prominent mission strip, footer and FAQ carry translated operator information. The official [CIRCL mission/RFC 2350](https://www.circl.lu/mission/rfc2350/) and [Ministry description of LHC/CIRCL](https://meco.gouvernement.lu/en/le-ministere/gie.html) corroborate the institutional context. These operator details are in `copy.json`/`faq.json`; independently operated installations must replace them rather than imply CIRCL operates every Bearings deployment. No new logo, copyright ownership, service availability or production acceptance is inferred.
+
+The NGINX2Root and Java examples also link directly to CIRCL’s [TR-105](https://www.circl.lu/pub/tr-105/) and [TR-104](https://www.circl.lu/pub/tr-104/) alongside the vendor/official sources.
+
 ## Content and maintenance
 
 - `copy.json`: complete EN/DE/FR/LB page copy. Language keys must remain aligned.
@@ -57,7 +63,7 @@ All product screenshots use fictional data. The Luxembourg map retains Natural E
 
 ## Review before publication
 
-1. Check all four translations and nineteen FAQs against the implementation. Arrange native-language editorial review before an official public launch.
+1. Check all four translations and twenty FAQs against the implementation. Arrange native-language editorial review before an official public launch.
 2. Recheck real vulnerability summaries/dates against the linked primary sources; retain the fiction labels and image attributions.
 3. Build; check internal links/fragments/assets and JavaScript syntax. Verify all eight pages at desktop/mobile widths, FAQ search/empty state, no-JavaScript content, language navigation, keyboard focus and image dialog.
 4. Configure the actual public registration URL, source branch and hostname. Confirm operator-specific legal/privacy information and support contacts without inventing them.

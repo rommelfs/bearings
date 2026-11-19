@@ -31,7 +31,8 @@
       "quote": "Ech hat gehofft, Ären Inventar géif bei „Webserver“ ophalen. Dunn hutt Dir d’NGINX-Versioun notéiert. Onangeneem.",
       "fact": "NGINX2Root ëmfaasst fënnef NGINX-Schwachstellen, déi am November 2026 verëffentlecht goufen, dorënner CVE-2026-123007. Aktiv Funktiounen an d’Konfiguratioun spille mat.",
       "benefit": "Erfaasst NGINX-Installatiounen a Paketversioune fannen, de passende Fabrikant- oder Distributiounshinweis préiwen an dat zoustännegt Team erreechen."
-    }
+    },
+    "analysis_source": "https://www.circl.lu/pub/tr-105/"
   },
   {
     "name": "Java / Java4Shell",
@@ -58,7 +59,8 @@
       "quote": "„Iergendwou leeft bestëmmt Java“ war mäi léifsten Inventarandrag. Bearings verdierft mir d’Rätsel.",
       "fact": "Oracle huet CVE-2026-114938 am Update vum 17. November 2026 adresséiert. D’CISA fuerdert, betraffe Java-Lafzäiten z’identifizéieren, och déi a Software matgeliwwert ginn.",
       "benefit": "Den Ubidder an de geneeë Build vun der Lafzäit erfaassen, Applikatioun a Responsabel zouuerdnen an aktuell Fabrikanthinweiser préiwen. „Java installéiert“ geet net duer."
-    }
+    },
+    "analysis_source": "https://www.circl.lu/pub/tr-104/"
   },
   {
     "name": "Cisco Secure FMC",

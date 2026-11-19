@@ -19,6 +19,25 @@
     ]
   },
   {
+    "id": "operator",
+    "en": [
+      "Who operates this installation?",
+      "This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy. Bearings is open-source software; other installations can have different operators."
+    ],
+    "de": [
+      "Wer betreibt diese Installation?",
+      "Diese Bearings-Installation wird von CIRCL betrieben, dem Computer Incident Response Center Luxembourg: dem CERT für die Privatwirtschaft und Kommunen in Luxemburg, mandatiert vom Wirtschaftsministerium. Bearings ist Open-Source-Software; andere Installationen können andere Betreiber haben."
+    ],
+    "fr": [
+      "Qui exploite cette installation ?",
+      "Cette installation Bearings est exploitée par CIRCL, le Computer Incident Response Center Luxembourg : le CERT du secteur privé et des communes au Luxembourg, mandaté par le ministère de l’Économie. Bearings est un logiciel open source ; d’autres installations peuvent avoir d’autres opérateurs."
+    ],
+    "lb": [
+      "Wien bedreift dës Installatioun?",
+      "Dës Bearings-Installatioun gëtt vum CIRCL bedriwwen, dem Computer Incident Response Center Luxembourg: dem CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg, am Optrag vum Wirtschaftsministère. Bearings ass Open-Source-Software; aner Installatioune kënnen aner Bedreiwer hunn."
+    ]
+  },
+  {
     "id": "free",
     "en": [
       "Is company registration free?",
