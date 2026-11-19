@@ -207,4 +207,4 @@ class CIRCLMapTests(Fixture):
         self.assertEqual(payload["summary"]["companies"], 13)
         self.assertEqual(payload["summary"]["missing_address"], 6)
         self.assertLessEqual(len(many), len(first) + 1)
-        self.assertLessEqual(len(many), 22)
+        self.assertLessEqual(len(many), 28)  # Bounded timeout and prepared-summary availability probes.

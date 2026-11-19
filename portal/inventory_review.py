@@ -50,7 +50,18 @@ def snapshot(org):
     installed = Installation.objects.filter(asset__in=assets, product__organization=org)
     configuration = OrganizationConfiguration.objects.filter(organization=org)
     queries = [
-        ("configuration", configuration.values("id", "pgp_public_key", "smime_certificate", "ail_enabled", "ail_keywords", "ail_honeytokens", "ail_notification_email")),
+        (
+            "configuration",
+            configuration.values(
+                "id",
+                "pgp_public_key",
+                "smime_certificate",
+                "ail_enabled",
+                "ail_keywords",
+                "ail_honeytokens",
+                "ail_notification_email",
+            ),
+        ),
         (
             "contacts",
             Contact.objects.filter(organization=org).values(
@@ -201,7 +212,14 @@ def confirm_review(user, org, token):
     key = hashlib.sha256(f"{policy.pk}|{timezone.localdate()}|{digest}".encode()).hexdigest()
     record, created = InventoryReviewConfirmation.objects.get_or_create(
         fingerprint=key,
-        defaults={"policy": policy, "actor": user, "data_digest": digest, "counts": counts, "next_due": due, "review_due_date": policy.next_due},
+        defaults={
+            "policy": policy,
+            "actor": user,
+            "data_digest": digest,
+            "counts": counts,
+            "next_due": due,
+            "review_due_date": policy.next_due,
+        },
     )
     if created:
         policy.last_reviewed_at, policy.last_reviewed_by, policy.next_due = now, user, due
@@ -234,8 +252,15 @@ def reminder_recipients(policy):
     for owner in owners:
         if owner.user.email.casefold() == owner.email:
             contacts.add(owner.email)
-    feedback = InventoryReviewDelivery.objects.filter(policy__organization=org,recipient=OuterRef("recipient"),feedback_at__isnull=False).order_by("-feedback_at","-pk")
-    blocked=set(InventoryReviewDelivery.objects.filter(policy__organization=org).annotate(latest_outcome=Subquery(feedback.values("delivery_outcome")[:1])).filter(latest_outcome="bounced").values_list("recipient",flat=True))
+    feedback = InventoryReviewDelivery.objects.filter(
+        policy__organization=org, recipient=OuterRef("recipient"), feedback_at__isnull=False
+    ).order_by("-feedback_at", "-pk")
+    blocked = set(
+        InventoryReviewDelivery.objects.filter(policy__organization=org)
+        .annotate(latest_outcome=Subquery(feedback.values("delivery_outcome")[:1]))
+        .filter(latest_outcome="bounced")
+        .values_list("recipient", flat=True)
+    )
     return sorted({email.casefold() for email in contacts if email and email.casefold() not in blocked})
 
 

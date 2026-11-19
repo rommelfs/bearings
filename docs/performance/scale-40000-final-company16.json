@@ -1,0 +1,4007 @@
+{
+  "label": "final-company16",
+  "dataset": {
+    "counts": {
+      "users": 40000,
+      "assets": 1200000,
+      "issues": 360000,
+      "findings": 240000,
+      "products": 120000,
+      "installations": 1200000,
+      "organizations": 40000,
+      "discovery_matches": 240000
+    },
+    "companies": 40000,
+    "seed_seconds": 520.2,
+    "seed_version": 1,
+    "synthetic_only": true,
+    "assets_per_company": 30
+  },
+  "environment": {
+    "postgres": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "database_bytes": 1993586355,
+    "python": "3.12.14",
+    "host_cpus": 5,
+    "debug": false,
+    "diagnostic_statement_timeout_ms": 5000,
+    "diagnostic_query_limit": 1000,
+    "diagnostic_wall_budget_seconds": 12,
+    "sso": false,
+    "transport": "file only",
+    "postgres_cpus": 4.0,
+    "postgres_memory_gib": 3
+  },
+  "tables": [
+    {
+      "table": "portal_asset",
+      "estimated_rows": 1199957,
+      "bytes": 454565888
+    },
+    {
+      "table": "portal_installation",
+      "estimated_rows": 1200000,
+      "bytes": 255688704
+    },
+    {
+      "table": "portal_assetissue",
+      "estimated_rows": 360000,
+      "bytes": 173719552
+    },
+    {
+      "table": "portal_discoveryrevision",
+      "estimated_rows": 480000,
+      "bytes": 158564352
+    },
+    {
+      "table": "portal_issuerevision",
+      "estimated_rows": 360000,
+      "bytes": 149012480
+    },
+    {
+      "table": "portal_nationalversion",
+      "estimated_rows": 360000,
+      "bytes": 147824640
+    },
+    {
+      "table": "portal_nationalactivity",
+      "estimated_rows": 466160,
+      "bytes": 107872256
+    },
+    {
+      "table": "portal_finding",
+      "estimated_rows": 240000,
+      "bytes": 83001344
+    },
+    {
+      "table": "portal_sourcerecordrevision",
+      "estimated_rows": 120000,
+      "bytes": 64774144
+    },
+    {
+      "table": "portal_discoverymatch",
+      "estimated_rows": 240000,
+      "bytes": 60751872
+    },
+    {
+      "table": "portal_sourcerecord",
+      "estimated_rows": 120000,
+      "bytes": 59260928
+    },
+    {
+      "table": "portal_nationalproductversion",
+      "estimated_rows": 360000,
+      "bytes": 52977664
+    },
+    {
+      "table": "portal_nationalproblem",
+      "estimated_rows": 200000,
+      "bytes": 51109888
+    },
+    {
+      "table": "portal_product",
+      "estimated_rows": 120000,
+      "bytes": 28254208
+    },
+    {
+      "table": "portal_contact",
+      "estimated_rows": 80000,
+      "bytes": 20848640
+    }
+  ],
+  "serial": [
+    {
+      "name": "company_overview",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 378.4,
+          "status": 200,
+          "queries": 36,
+          "sql_ms": 247.4,
+          "guard": null,
+          "bytes": 16436,
+          "process_peak_rss_mib": 75.2,
+          "server_timing": "overview;dur=373.2, database;dur=246.4, dbmax;dur=140.0, scope;dur=7.3, companies;dur=49.5, priority;dur=297.9, render;dur=17.3, ranking;dur=44.7, issuepreviews;dur=208.7, legacypreviews;dur=22.0"
+        },
+        {
+          "ms": 156.7,
+          "status": 200,
+          "queries": 36,
+          "sql_ms": 100.8,
+          "guard": null,
+          "bytes": 16436,
+          "process_peak_rss_mib": 75.6,
+          "server_timing": "overview;dur=154.1, database;dur=100.0, dbmax;dur=14.3, scope;dur=5.7, companies;dur=49.7, priority;dur=92.8, render;dur=5.0, ranking;dur=43.8, issuepreviews;dur=26.0, legacypreviews;dur=21.6"
+        },
+        {
+          "ms": 165.8,
+          "status": 200,
+          "queries": 36,
+          "sql_ms": 105.5,
+          "guard": null,
+          "bytes": 16436,
+          "process_peak_rss_mib": 75.7,
+          "server_timing": "overview;dur=163.8, database;dur=104.7, dbmax;dur=11.9, scope;dur=4.5, companies;dur=50.8, priority;dur=100.2, render;dur=7.0, ranking;dur=50.7, issuepreviews;dur=26.7, legacypreviews;dur=20.7"
+        }
+      ],
+      "median_ms": 165.8
+    },
+    {
+      "name": "company_inventory",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 18.0,
+          "status": 200,
+          "queries": 15,
+          "sql_ms": 6.4,
+          "guard": null,
+          "bytes": 8032,
+          "process_peak_rss_mib": 75.7,
+          "server_timing": ""
+        },
+        {
+          "ms": 15.8,
+          "status": 200,
+          "queries": 15,
+          "sql_ms": 6.4,
+          "guard": null,
+          "bytes": 8032,
+          "process_peak_rss_mib": 75.7,
+          "server_timing": ""
+        },
+        {
+          "ms": 15.6,
+          "status": 200,
+          "queries": 15,
+          "sql_ms": 6.8,
+          "guard": null,
+          "bytes": 8032,
+          "process_peak_rss_mib": 75.7,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 15.8
+    },
+    {
+      "name": "company_detail",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 107.3,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 13.1,
+          "guard": null,
+          "bytes": 53002,
+          "process_peak_rss_mib": 76.3,
+          "server_timing": ""
+        },
+        {
+          "ms": 45.1,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 12.4,
+          "guard": null,
+          "bytes": 53002,
+          "process_peak_rss_mib": 77.0,
+          "server_timing": ""
+        },
+        {
+          "ms": 44.1,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 10.4,
+          "guard": null,
+          "bytes": 53002,
+          "process_peak_rss_mib": 77.6,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 45.1
+    },
+    {
+      "name": "company_asset",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 28.2,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 9.3,
+          "guard": null,
+          "bytes": 11125,
+          "process_peak_rss_mib": 77.8,
+          "server_timing": ""
+        },
+        {
+          "ms": 20.4,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 8.2,
+          "guard": null,
+          "bytes": 11125,
+          "process_peak_rss_mib": 77.8,
+          "server_timing": ""
+        },
+        {
+          "ms": 22.3,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 10.2,
+          "guard": null,
+          "bytes": 11125,
+          "process_peak_rss_mib": 77.8,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 22.3
+    },
+    {
+      "name": "company_issues",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 49.6,
+          "status": 200,
+          "queries": 28,
+          "sql_ms": 22.4,
+          "guard": null,
+          "bytes": 16452,
+          "process_peak_rss_mib": 78.2,
+          "server_timing": ""
+        },
+        {
+          "ms": 47.6,
+          "status": 200,
+          "queries": 28,
+          "sql_ms": 22.1,
+          "guard": null,
+          "bytes": 16452,
+          "process_peak_rss_mib": 78.5,
+          "server_timing": ""
+        },
+        {
+          "ms": 45.0,
+          "status": 200,
+          "queries": 28,
+          "sql_ms": 20.6,
+          "guard": null,
+          "bytes": 16452,
+          "process_peak_rss_mib": 78.8,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 47.6
+    },
+    {
+      "name": "company_reviews",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 38.3,
+          "status": 200,
+          "queries": 36,
+          "sql_ms": 14.8,
+          "guard": null,
+          "bytes": 19061,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": ""
+        },
+        {
+          "ms": 33.5,
+          "status": 200,
+          "queries": 36,
+          "sql_ms": 14.3,
+          "guard": null,
+          "bytes": 19061,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": ""
+        },
+        {
+          "ms": 34.7,
+          "status": 200,
+          "queries": 36,
+          "sql_ms": 15.2,
+          "guard": null,
+          "bytes": 19061,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 34.7
+    },
+    {
+      "name": "company_actions",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 34.0,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 15.9,
+          "guard": null,
+          "bytes": 9094,
+          "process_peak_rss_mib": 79.3,
+          "server_timing": ""
+        },
+        {
+          "ms": 32.9,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 15.2,
+          "guard": null,
+          "bytes": 9094,
+          "process_peak_rss_mib": 79.3,
+          "server_timing": ""
+        },
+        {
+          "ms": 33.1,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 14.8,
+          "guard": null,
+          "bytes": 9094,
+          "process_peak_rss_mib": 79.3,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 33.1
+    },
+    {
+      "name": "company_wizard",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 20.6,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 5.5,
+          "guard": null,
+          "bytes": 10786,
+          "process_peak_rss_mib": 79.7,
+          "server_timing": ""
+        },
+        {
+          "ms": 15.6,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 4.1,
+          "guard": null,
+          "bytes": 10786,
+          "process_peak_rss_mib": 79.7,
+          "server_timing": ""
+        },
+        {
+          "ms": 21.5,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 5.7,
+          "guard": null,
+          "bytes": 10786,
+          "process_peak_rss_mib": 79.7,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 20.6
+    },
+    {
+      "name": "national_shell",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 10.7,
+          "status": 200,
+          "queries": 7,
+          "sql_ms": 3.5,
+          "guard": null,
+          "bytes": 12406,
+          "process_peak_rss_mib": 80.1,
+          "server_timing": "national;dur=4.5, nationalshell;dur=4.5"
+        },
+        {
+          "ms": 6.6,
+          "status": 200,
+          "queries": 7,
+          "sql_ms": 2.3,
+          "guard": null,
+          "bytes": 12406,
+          "process_peak_rss_mib": 80.1,
+          "server_timing": "national;dur=3.1, nationalshell;dur=3.1"
+        },
+        {
+          "ms": 6.0,
+          "status": 200,
+          "queries": 7,
+          "sql_ms": 2.0,
+          "guard": null,
+          "bytes": 12406,
+          "process_peak_rss_mib": 80.1,
+          "server_timing": "national;dur=3.0, nationalshell;dur=3.0"
+        }
+      ],
+      "median_ms": 6.6
+    },
+    {
+      "name": "national_summary",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 217.9,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 196.1,
+          "guard": null,
+          "bytes": 1990,
+          "process_peak_rss_mib": 80.2,
+          "server_timing": "national;dur=214.0, database;dur=194.3, dbmax;dur=77.8, nationalcounts;dur=96.4"
+        },
+        {
+          "ms": 256.8,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 230.9,
+          "guard": null,
+          "bytes": 1990,
+          "process_peak_rss_mib": 80.2,
+          "server_timing": "national;dur=252.2, database;dur=228.9, dbmax;dur=89.4, nationalcounts;dur=115.8"
+        },
+        {
+          "ms": 221.7,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 199.3,
+          "guard": null,
+          "bytes": 1990,
+          "process_peak_rss_mib": 80.2,
+          "server_timing": "national;dur=217.8, database;dur=197.5, dbmax;dur=70.0, nationalcounts;dur=107.0"
+        }
+      ],
+      "median_ms": 221.7
+    },
+    {
+      "name": "national_problems",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 412.1,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 275.9,
+          "guard": null,
+          "bytes": 1230,
+          "process_peak_rss_mib": 80.2,
+          "server_timing": "national;dur=280.8, database;dur=239.9, dbmax;dur=146.2"
+        },
+        {
+          "ms": 170.9,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 158.1,
+          "guard": null,
+          "bytes": 1230,
+          "process_peak_rss_mib": 80.2,
+          "server_timing": "national;dur=166.8, database;dur=156.3, dbmax;dur=131.6"
+        },
+        {
+          "ms": 181.5,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 165.4,
+          "guard": null,
+          "bytes": 1230,
+          "process_peak_rss_mib": 80.2,
+          "server_timing": "national;dur=177.1, database;dur=163.2, dbmax;dur=134.8"
+        }
+      ],
+      "median_ms": 181.5
+    },
+    {
+      "name": "national_versions",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 273.0,
+          "status": 200,
+          "queries": 21,
+          "sql_ms": 258.0,
+          "guard": null,
+          "bytes": 6590,
+          "process_peak_rss_mib": 80.5,
+          "server_timing": "national;dur=267.8, database;dur=255.7, dbmax;dur=232.0"
+        },
+        {
+          "ms": 272.2,
+          "status": 200,
+          "queries": 21,
+          "sql_ms": 259.8,
+          "guard": null,
+          "bytes": 6590,
+          "process_peak_rss_mib": 80.5,
+          "server_timing": "national;dur=267.2, database;dur=257.5, dbmax;dur=229.7"
+        },
+        {
+          "ms": 286.5,
+          "status": 200,
+          "queries": 21,
+          "sql_ms": 276.0,
+          "guard": null,
+          "bytes": 6590,
+          "process_peak_rss_mib": 80.5,
+          "server_timing": "national;dur=282.5, database;dur=274.1, dbmax;dur=246.2"
+        }
+      ],
+      "median_ms": 273.0
+    },
+    {
+      "name": "national_activity",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 257.9,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 240.0,
+          "guard": null,
+          "bytes": 3755,
+          "process_peak_rss_mib": 80.6,
+          "server_timing": "national;dur=249.4, database;dur=236.4, dbmax;dur=207.4"
+        },
+        {
+          "ms": 235.9,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 222.0,
+          "guard": null,
+          "bytes": 3755,
+          "process_peak_rss_mib": 80.6,
+          "server_timing": "national;dur=231.4, database;dur=219.8, dbmax;dur=195.4"
+        },
+        {
+          "ms": 447.8,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 410.7,
+          "guard": null,
+          "bytes": 3755,
+          "process_peak_rss_mib": 80.6,
+          "server_timing": "national;dur=443.7, database;dur=408.9, dbmax;dur=374.6"
+        }
+      ],
+      "median_ms": 257.9
+    },
+    {
+      "name": "national_map",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 1536.9,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 547.1,
+          "guard": null,
+          "bytes": 939354,
+          "process_peak_rss_mib": 100.8,
+          "server_timing": "mapdatabase;dur=544.5, dbmax;dur=410.7"
+        },
+        {
+          "ms": 1501.4,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 604.1,
+          "guard": null,
+          "bytes": 939354,
+          "process_peak_rss_mib": 103.7,
+          "server_timing": "mapdatabase;dur=601.9, dbmax;dur=472.0"
+        },
+        {
+          "ms": 1582.4,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 532.5,
+          "guard": null,
+          "bytes": 939354,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": "mapdatabase;dur=530.0, dbmax;dur=392.8"
+        }
+      ],
+      "median_ms": 1536.9
+    },
+    {
+      "name": "national_findings",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 639.4,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 616.4,
+          "guard": null,
+          "bytes": 17890,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 622.7,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 600.9,
+          "guard": null,
+          "bytes": 17890,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 876.1,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 853.0,
+          "guard": null,
+          "bytes": 17890,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 639.4
+    },
+    {
+      "name": "national_company_search",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 362.1,
+          "status": 200,
+          "queries": 47,
+          "sql_ms": 280.6,
+          "guard": null,
+          "bytes": 50346,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": "overview;dur=358.9, database;dur=279.5, dbmax;dur=89.1, scope;dur=118.3, companies;dur=89.6, priority;dur=138.0, render;dur=10.5, ranking;dur=73.7, issuepreviews;dur=31.5, legacypreviews;dur=26.5"
+        },
+        {
+          "ms": 347.8,
+          "status": 200,
+          "queries": 47,
+          "sql_ms": 270.1,
+          "guard": null,
+          "bytes": 50346,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": "overview;dur=345.3, database;dur=269.1, dbmax;dur=90.5, scope;dur=118.0, companies;dur=79.8, priority;dur=135.6, render;dur=9.6, ranking;dur=72.4, issuepreviews;dur=30.9, legacypreviews;dur=28.3"
+        },
+        {
+          "ms": 378.7,
+          "status": 200,
+          "queries": 47,
+          "sql_ms": 293.4,
+          "guard": null,
+          "bytes": 50346,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": "overview;dur=376.2, database;dur=292.5, dbmax;dur=91.9, scope;dur=117.1, companies;dur=87.4, priority;dur=157.1, render;dur=12.3, ranking;dur=86.3, issuepreviews;dur=37.4, legacypreviews;dur=29.6"
+        }
+      ],
+      "median_ms": 362.1
+    },
+    {
+      "name": "national_inventory",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 118.8,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 93.9,
+          "guard": null,
+          "bytes": 24789,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 100.1,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 77.3,
+          "guard": null,
+          "bytes": 24789,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 290.3,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 145.5,
+          "guard": null,
+          "bytes": 24789,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 118.8
+    },
+    {
+      "name": "national_issues",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 1187.1,
+          "status": 200,
+          "queries": 31,
+          "sql_ms": 1083.4,
+          "guard": null,
+          "bytes": 66094,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 1053.4,
+          "status": 200,
+          "queries": 31,
+          "sql_ms": 1006.6,
+          "guard": null,
+          "bytes": 66094,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 1039.0,
+          "status": 200,
+          "queries": 31,
+          "sql_ms": 980.9,
+          "guard": null,
+          "bytes": 66094,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 1053.4
+    },
+    {
+      "name": "national_reviews",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 962.1,
+          "status": 200,
+          "queries": 40,
+          "sql_ms": 894.0,
+          "guard": null,
+          "bytes": 141425,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 1026.5,
+          "status": 200,
+          "queries": 40,
+          "sql_ms": 957.9,
+          "guard": null,
+          "bytes": 141425,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 1098.1,
+          "status": 200,
+          "queries": 40,
+          "sql_ms": 1039.1,
+          "guard": null,
+          "bytes": 141425,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 1026.5
+    },
+    {
+      "name": "research_exact",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 705.5,
+          "status": 200,
+          "queries": 28,
+          "sql_ms": 671.0,
+          "guard": null,
+          "bytes": 26330,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 667.1,
+          "status": 200,
+          "queries": 28,
+          "sql_ms": 640.1,
+          "guard": null,
+          "bytes": 26330,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 939.5,
+          "status": 200,
+          "queries": 28,
+          "sql_ms": 907.3,
+          "guard": null,
+          "bytes": 26330,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 705.5
+    },
+    {
+      "name": "research_range",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 883.6,
+          "status": 200,
+          "queries": 29,
+          "sql_ms": 855.0,
+          "guard": null,
+          "bytes": 26344,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 1004.3,
+          "status": 200,
+          "queries": 29,
+          "sql_ms": 973.2,
+          "guard": null,
+          "bytes": 26344,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 808.1,
+          "status": 200,
+          "queries": 29,
+          "sql_ms": 781.9,
+          "guard": null,
+          "bytes": 26344,
+          "process_peak_rss_mib": 104.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 883.6
+    }
+  ],
+  "checks": [
+    {
+      "name": "exact_company_count",
+      "passed": true
+    },
+    {
+      "name": "exact_asset_count",
+      "passed": true
+    },
+    {
+      "name": "anonymous_login_required",
+      "passed": true
+    },
+    {
+      "name": "one_company_per_owner",
+      "passed": true
+    },
+    {
+      "name": "foreign_asset_denied",
+      "passed": true
+    },
+    {
+      "name": "national_denied_to_owner",
+      "passed": true
+    },
+    {
+      "name": "national_map_denied_to_owner",
+      "passed": true
+    },
+    {
+      "name": "foreign_company_denied",
+      "passed": true
+    },
+    {
+      "name": "private_company_denied_to_analyst",
+      "passed": true
+    },
+    {
+      "name": "national_scope_company_count",
+      "passed": true
+    },
+    {
+      "name": "national_scope_asset_count",
+      "passed": true
+    },
+    {
+      "name": "owner_inventory_contains_only_own_assets",
+      "passed": true
+    },
+    {
+      "name": "owner_asset_write",
+      "passed": true
+    },
+    {
+      "name": "local_review_reminder_delivery",
+      "passed": true
+    },
+    {
+      "name": "concurrent_owner_writes",
+      "passed": true
+    },
+    {
+      "name": "committed_owner_write",
+      "passed": true
+    },
+    {
+      "name": "committed_owner_read",
+      "passed": true
+    },
+    {
+      "name": "committed_probe_cleanup",
+      "passed": true
+    }
+  ],
+  "workflows": [
+    {
+      "name": "company_asset_write_rolled_back",
+      "ms": 15.9
+    },
+    {
+      "name": "process_jobs",
+      "ms": 2.3,
+      "queries": 2,
+      "result": "ok"
+    },
+    {
+      "name": "remind_inventory",
+      "ms": 161.2,
+      "queries": 159,
+      "result": "ok"
+    }
+  ],
+  "http": {
+    "concurrency": 16,
+    "profile": "company",
+    "repeats_per_route": 50,
+    "owner_identities": 16,
+    "requests": 400,
+    "seconds": 19.83,
+    "requests_per_second": 20.17,
+    "p50_ms": 547.8,
+    "p95_ms": 2090.2,
+    "failures": 0,
+    "results": [
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1469.6,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 516.7,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 553.3,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 571.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 1250.2,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1435.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 1047.8,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 537.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1554.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 457.7,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1437.0,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 543.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 706.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1518.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 1036.3,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 553.6,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1287.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 506.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2340.7,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 576.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 773.3,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1077.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 578.4,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 397.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 868.3,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 206.5,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1795.7,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 326.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 536.6,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 854.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 458.1,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 396.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 860.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 311.0,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1993.3,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 419.7,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 580.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1017.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 511.1,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 339.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 997.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 275.2,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2008.0,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 331.1,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 399.0,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1058.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 333.7,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 278.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1242.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 453.7,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2047.7,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 520.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 679.6,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1198.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 514.3,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 472.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1186.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 207.4,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2105.6,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 316.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 617.1,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 937.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 319.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 289.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1168.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 394.5,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2103.6,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 449.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 546.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 926.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 378.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 362.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 963.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 314.7,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2378.6,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 412.6,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 569.3,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1236.6,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 403.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 315.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1312.6,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 235.2,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2063.3,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 347.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 605.3,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1254.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 407.2,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 349.6,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1313.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 222.7,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2090.2,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 623.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 865.2,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1246.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 649.4,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 588.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1293.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 436.1,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2346.7,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 443.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 524.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 975.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 412.7,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 418.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1026.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 345.0,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2337.5,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 430.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 473.0,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 802.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 433.7,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 323.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1129.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 225.3,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2231.8,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 377.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 697.5,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1377.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 452.3,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 399.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1392.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 173.0,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2186.2,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 482.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 938.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1301.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 591.5,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 445.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1449.3,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 387.4,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2355.7,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 590.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 958.1,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1249.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 724.2,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 622.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1304.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 349.4,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2238.9,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 414.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 542.6,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 980.6,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 370.8,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 386.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 950.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 202.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1966.3,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 462.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 595.9,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 957.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 480.2,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 327.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 951.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 240.7,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2340.2,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 360.1,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 544.6,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1257.3,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 446.5,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 310.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1285.3,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 220.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2196.1,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 344.1,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 635.4,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1247.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 520.0,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 458.7,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1368.4,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 357.5,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2165.8,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 682.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 801.9,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1393.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 697.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 589.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1154.4,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 504.0,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2158.2,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 472.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 654.9,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 900.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 449.8,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 455.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1124.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 343.5,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2056.3,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 434.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 445.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 854.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 380.5,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 307.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1004.3,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 246.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1979.2,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 375.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 527.8,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 946.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 260.8,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 265.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1151.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 248.6,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2008.2,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 324.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 544.4,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1144.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 404.9,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 302.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1235.4,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 285.8,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2238.4,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 415.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 668.9,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1067.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 506.4,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 548.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1200.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 427.7,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2056.9,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 517.6,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 578.2,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 945.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 436.2,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 380.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 975.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 189.6,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1846.7,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 389.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 570.4,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 949.4,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 347.3,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 362.1,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1002.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 225.4,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1769.6,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 322.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 656.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 982.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 507.0,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 444.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 991.4,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 167.5,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1827.6,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 499.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 643.9,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1000.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 369.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 320.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1006.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 170.3,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1865.6,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 341.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 527.5,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 802.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 288.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 223.7,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 992.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 218.5,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1785.1,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 336.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 520.0,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 974.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 327.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 298.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1133.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 193.6,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2025.0,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 338.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 559.5,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1108.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 507.2,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 301.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1084.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 372.5,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1947.0,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 490.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 601.2,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 998.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 414.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 313.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1080.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 251.3,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1725.0,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 334.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 494.5,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1020.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 416.4,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 358.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1029.9,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 218.8,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1969.4,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 328.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 625.3,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 974.3,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 411.0,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 383.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 880.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 336.2,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1995.6,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 396.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 523.9,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1005.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 426.4,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 275.6,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1089.6,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 171.3,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2172.1,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 382.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 726.3,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1061.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 389.2,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 299.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1094.4,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 252.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2082.4,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 273.6,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 589.0,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1082.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 632.1,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 442.1,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1146.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 479.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2478.3,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 391.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 572.0,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 998.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 460.9,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 232.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1038.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 185.5,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2301.2,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 511.2,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 618.2,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1046.6,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 451.1,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 422.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1069.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 265.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2247.8,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 399.4,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 518.2,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1010.6,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 321.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 325.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1330.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 295.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2071.0,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 343.5,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 639.0,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1124.7,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 273.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 284.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1154.4,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 205.3,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 2176.8,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 668.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 853.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1201.6,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 763.5,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 615.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1420.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 398.2,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1941.4,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 363.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 477.3,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 987.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 387.7,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 244.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1014.8,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 198.3,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1534.2,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 401.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 618.8,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 1066.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 427.9,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 351.0,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 1055.5,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 342.1,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 1222.3,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 314.1,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 541.9,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 923.0,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 422.9,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 338.8,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 848.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 248.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 821.6,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 383.9,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 539.0,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 615.2,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 315.6,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 333.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 575.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_inventory",
+        "status": 200,
+        "ms": 266.9,
+        "queries": 15,
+        "guard": "none"
+      },
+      {
+        "name": "company_detail",
+        "status": 200,
+        "ms": 420.8,
+        "queries": 27,
+        "guard": "none"
+      },
+      {
+        "name": "company_asset",
+        "status": 200,
+        "ms": 297.3,
+        "queries": 16,
+        "guard": "none"
+      },
+      {
+        "name": "company_issues",
+        "status": 200,
+        "ms": 326.7,
+        "queries": 28,
+        "guard": "none"
+      },
+      {
+        "name": "company_reviews",
+        "status": 200,
+        "ms": 290.1,
+        "queries": 36,
+        "guard": "none"
+      },
+      {
+        "name": "company_actions",
+        "status": 200,
+        "ms": 221.3,
+        "queries": 23,
+        "guard": "none"
+      },
+      {
+        "name": "company_wizard",
+        "status": 200,
+        "ms": 198.4,
+        "queries": 16,
+        "guard": "none"
+      }
+    ],
+    "excluded_serial_failures": []
+  },
+  "concurrent_writes": {
+    "concurrency": 4,
+    "requests": 40,
+    "failures": 0,
+    "p95_ms": 74.4,
+    "results": [
+      {
+        "ms": 111.7,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 67.6,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 89.1,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 74.4,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 51.1,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 52.2,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 52.3,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 52.4,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 51.1,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 50.7,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 48.8,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 51.0,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 51.5,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 51.5,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 55.9,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 52.5,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 60.4,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 59.3,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 56.2,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 61.9,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 53.8,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 57.4,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 58.4,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 51.4,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 61.8,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 63.1,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 65.0,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 66.3,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 59.3,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 58.3,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 56.0,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 52.5,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 53.2,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 51.7,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 53.2,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 51.4,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 50.8,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 49.5,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 42.7,
+        "passed": true,
+        "status": 302
+      },
+      {
+        "ms": 42.2,
+        "passed": true,
+        "status": 302
+      }
+    ],
+    "inventory_count_preserved": true
+  },
+  "acceptance_passed": true
+}

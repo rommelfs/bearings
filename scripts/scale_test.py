@@ -76,6 +76,7 @@ def environment():
         DJANGO_SETTINGS_MODULE="scripts.scale_settings",
         DJANGO_SECRET_KEY=state["secret"],
         BEARINGS_SCALE_TEST="1",
+        BEARINGS_SCALE_DB_CPUS=str(config["HostConfig"]["NanoCpus"] / 1000000000),
         UV_CACHE_DIR=os.getenv("UV_CACHE_DIR", "/tmp/bearings-uv-cache"),
     )
     return env
@@ -89,6 +90,20 @@ def main():
     parser.add_argument("--label", default="baseline")
     parser.add_argument("--samples", type=int, default=3)
     parser.add_argument("--concurrency", type=int, default=4)
+    parser.add_argument(
+        "--database-cpus",
+        type=int,
+        choices=[2, 4],
+        default=None,
+        help="CPU limit for this owned database only; retained across runs",
+    )
+    parser.add_argument("--http-profile", choices=["national", "company", "full"], default="national")
+    parser.add_argument("--http-repeats", type=int, default=4)
+    parser.add_argument(
+        "--churn",
+        action="store_true",
+        help="Commit one synthetic software change repeatedly while reading and refreshing",
+    )
     args = parser.parse_args()
     if args.action == "stop":
         owned()
@@ -140,12 +155,17 @@ def main():
             stdout=subprocess.DEVNULL,
         )
         private(LOCAL / "state.json", json.dumps(state))
+    if args.database_cpus is not None:
+        owned()
+        docker("update", "--cpus", str(args.database_cpus), NAME, stdout=subprocess.DEVNULL)
     env = environment()
     base = ["uv", "run", "--frozen", "python", "manage.py"]
-    if args.action == "seed":
+    if args.action in {"seed", "measure", "workflows"}:
         subprocess.run(
             base + ["migrate", "--noinput"], cwd=ROOT, env=env, check=True, stdout=subprocess.DEVNULL
         )
+    if args.action == "measure":
+        subprocess.run(base + ["refresh_national", "--limit", "100000"], cwd=ROOT, env=env, check=True)
     subprocess.run(
         base
         + [
@@ -161,7 +181,12 @@ def main():
             str(args.samples),
             "--concurrency",
             str(args.concurrency),
-        ],
+            "--http-profile",
+            args.http_profile,
+            "--http-repeats",
+            str(args.http_repeats),
+        ]
+        + (["--churn"] if args.churn else []),
         cwd=ROOT,
         env=env,
         check=True,

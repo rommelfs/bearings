@@ -14,6 +14,13 @@ class Command(BaseCommand):
         parser.add_argument("--label", default="baseline")
         parser.add_argument("--samples", type=int, default=3)
         parser.add_argument("--concurrency", type=int, default=4)
+        parser.add_argument("--http-profile", choices=["national", "company", "full"], default="national")
+        parser.add_argument("--http-repeats", type=int, default=4)
+        parser.add_argument(
+            "--churn",
+            action="store_true",
+            help="Commit one synthetic software change repeatedly while reading and refreshing",
+        )
 
     def handle(self, *args, **options):
         run(options)

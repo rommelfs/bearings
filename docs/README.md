@@ -20,7 +20,7 @@ Reviewed 19 November 2026. Bearings is a runnable development/pilot workspace; p
 | Personal intelligence and monitoring | [Personal MISP](user-guide/personal-misp.md), [MISP contract](integrations/misp.md), [AIL configuration/export](user-guide/company-configuration.md) |
 | Platform operator | [Administration](user-guide/platform-administration.md), [development stack](operations/development-stack.md), [deployment](operations/deployment.md), [backup/restore](operations/backup-restore.md), [SSO operation](operations/sso.md) |
 | Integrator / developer | [Architecture](architecture.md), [authorization](authorization.md), [data model](data-model.md), [NetBox](integrations/netbox.md), [Vulnerability-Lookup](integrations/vulnerability-lookup.md), [MOSP](integrations/mosp.md), [federation](integrations/federation.md) |
-| Evaluate the project | [Validation evidence](validation.md), [40,000-company scale test](performance/scale-test.md), [historical roadmap](roadmap.md), [current priorities](product/next-priorities.md), [backlog](backlog.md), [license](licensing.md) |
+| Evaluate the project | [Validation evidence](validation.md), [40,000-company baseline](performance/scale-test.md), [measured scale improvements](performance/scale-improvements.md), [historical roadmap](roadmap.md), [current priorities](product/next-priorities.md), [backlog](backlog.md), [license](licensing.md) |
 
 ## Project website — local preview
 

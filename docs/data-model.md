@@ -36,3 +36,10 @@ Migrations are committed. Evidence/finding/time fields form the initial correlat
 `OrganizationInvitation` stores an expiring one-use digest, inviter, recipient, company role and mail/consumed/revoked state. `Organization.merged_into` archives a reviewed source; transfer IDs/original member roles are retained in audit metadata. These change Bearings permissions only. See [membership workflow](user-guide/company-members.md).
 
 `MISPServer` is the approved destination catalog. Personal customer `MISPInstance` records bind the active owner, company, native user ID, credential nonce and encrypted write-only key; their `MISPEvent` caches are not shared with company peers or CIRCL sources. Native permission freshness is bounded, not instantaneous. See [MISP integration](integrations/misp.md).
+
+
+## Disposable national projections
+
+`NationalState` is one-to-one with an organization: dirty flag, projection version, oldest refresh information, inventory coverage and operator/shared evidence counters. `NationalVersion` groups normalized display identities; `NationalProductVersion` retains the exact original Product identity for research; `NationalProblem` retains outstanding CVE groups per audience; `NationalActivity` retains daily first-evidence/closure groups per audience. These are derived data, never evidence, applicability decisions or authoritative inventory.
+
+PostgreSQL migrations install transactional invalidation for relevant source, asset, product, installation, finding and history changes; truncation/reset recovery is covered. Child cache references deliberately have no database foreign-key constraints to avoid cache-refresh key-share locks deadlocking against inventory writes. ORM cascades remain, and organization DELETE/TRUNCATE triggers remove derived data even for administrative SQL. Authoritative business foreign keys remain unchanged. Merges and provenance-based synthetic cleanup treat only these explicitly named models as replaceable caches, while still protecting unrelated business references. See [capacity validation](performance/scale-improvements.md).

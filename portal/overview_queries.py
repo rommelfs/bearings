@@ -1,6 +1,7 @@
 """Bound dashboard query latency without caching scoped data or changing global DB settings."""
 
 from contextlib import contextmanager
+from contextvars import ContextVar
 from time import perf_counter
 from django.db import connection, transaction, OperationalError
 
@@ -74,3 +75,47 @@ def overview_queries(*, query_timeout_ms=None, budget_ms=None, planning_limit=No
                 if previous_timeout is not None:
                     cursor.execute("SELECT set_config('statement_timeout', %s, true)", [previous_timeout])
                 cursor.execute("SELECT set_config('jit', %s, true)", [previous])
+
+
+def bounded_list(view):
+    """Keep expensive global lists bounded and disable unsuitable per-request JIT."""
+    from functools import wraps
+    from django.http import HttpResponse
+    from django.template.loader import get_template
+
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        from .access import audit, is_analyst
+
+        try:
+            if request.user.is_superuser or is_analyst(request.user):
+                audit(request.user, None, "operator.list_read", target=view.__name__)
+            with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
+                response = view(request, *args, **kwargs)
+        except OperationalError:
+            # Render without request context processors, also when the DB is unavailable.
+            response = HttpResponse(get_template("portal/query_unavailable.html").render({}), status=503)
+            response["Retry-After"] = "5"
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        return response
+
+    return wrapped
+
+
+READ_SNAPSHOT = ContextVar("bearings_read_snapshot", default=False)
+
+
+@contextmanager
+def read_snapshot():
+    """Coherent cache/live partition for one bounded read, never a session-level setting."""
+    if connection.vendor != "postgresql" or connection.in_atomic_block:
+        yield
+        return
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        token = READ_SNAPSHOT.set(True)
+        try:
+            yield
+        finally:
+            READ_SNAPSHOT.reset(token)

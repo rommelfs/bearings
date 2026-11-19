@@ -69,6 +69,7 @@ def review(request, slug):
         else None
     )
     from .review_followup import deliveries_for, delivery_label
+
     deliveries = list(deliveries_for(policy)[:10]) if policy else []
     for item in deliveries:
         item.display_status = delivery_label(item)

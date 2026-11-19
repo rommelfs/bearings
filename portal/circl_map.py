@@ -37,13 +37,19 @@ def grouped(qs, field, levels):
 
 
 def map_data(user):
-    reviews = grouped(
-        outstanding(findings_for(user)),
-        "record__source_severity",
-        {"critical": 5, "high": 4, "medium": 3, "low": 2},
-    )
+    from .national_snapshots import snapshot_map_reviews
+
+    reviews = snapshot_map_reviews(user)
+    if reviews is None:
+        reviews = grouped(
+            outstanding(findings_for(user)),
+            "record__source_severity",
+            {"critical": 5, "high": 4, "medium": 3, "low": 2},
+        )
     other = grouped(
-        visible_issues(user).filter(finding__isnull=True, asset__lifecycle="active", status__in=OPEN),
+        visible_issues(user, standalone=True).filter(
+            finding__isnull=True, asset__lifecycle="active", status__in=OPEN
+        ),
         "priority",
         {"critical": 5, "high": 4, "review": 3, "low": 2},
     )
@@ -74,12 +80,7 @@ def map_data(user):
                 "rank": rank,
                 "reviews": review.get("total", 0),
                 "issues": issue.get("total", 0),
-                "company_url": reverse("organization", args=[org.slug]),
-                "reviews_url": reverse("circl-findings") + "?organization=" + org.slug,
-                "issues_url": reverse("issues") + "?organization=" + org.slug + "&state=map-open",
-                "location_url": reverse("circl-map-location", args=[org.slug])
-                if user.is_superuser or org.operator_visibility
-                else "",
+                "location_editable": user.is_superuser or org.operator_visibility,
             }
             point = getattr(org, "map_location", None)
             if point and point.address_digest != address_digest(org.postal_address):
@@ -102,6 +103,15 @@ def map_data(user):
         markers(),
         key=lambda p: (-p["rank"], -p["reviews"] - p["issues"], p["name"].casefold(), p["id"]),
     )
+    for item in [*points, *unlocated]:
+        item.update(
+            company_url=reverse("organization", args=[item["slug"]]),
+            reviews_url=reverse("circl-findings") + "?organization=" + item["slug"],
+            issues_url=reverse("issues") + "?organization=" + item["slug"] + "&state=map-open",
+            location_url=reverse("circl-map-location", args=[item["slug"]])
+            if item.pop("location_editable")
+            else "",
+        )
     summary["shown"] = len(points)
     summary["omitted"] = summary["located"] - len(points)
     return {"summary": summary, "points": points, "unlocated": unlocated, "limit": MAX_POINTS}

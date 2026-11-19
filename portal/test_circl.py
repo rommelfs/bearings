@@ -282,3 +282,25 @@ class CIRCLTests(Fixture):
         self.login(self.admin)
         for section in ["summary", "problems", "versions", "activity"]:
             self.assertEqual(self.client.get(reverse("circl-panel", args=[section])).status_code, 403)
+
+
+class ResearchOverloadTests(Fixture):
+    def test_timeout_is_private_retryable_and_never_a_partial_result(self):
+        from django.db import OperationalError
+
+        self.login(self.analyst)
+        with patch("portal.circl_views.research", side_effect=OperationalError("synthetic timeout")):
+            response = self.client.post(
+                "/circl/research/",
+                dict(
+                    product="confidential fixture",
+                    product_match="exact",
+                    mode="exact",
+                    version="1",
+                    bucket="matches",
+                ),
+            )
+        self.assertEqual(response.status_code, 503)
+        self.assertContains(response, "no partial results", status_code=503)
+        self.assertNotIn("page", response.context)
+        self.assertIn("no-store", response["Cache-Control"])

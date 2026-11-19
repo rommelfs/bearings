@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
 from .access import audit, require
+from .national_snapshots import DERIVED_MODELS
 from .models import Organization, Membership, InventorySource, OrganizationInvitation
 
 MOVERS = {"Contact", "InfrastructureClaim", "Asset", "Product", "SourceRecord", "Finding", "AssetIssue"}
@@ -33,6 +34,8 @@ def plan(actor, source, target):
     for org in (source, target):
         for relation in Organization._meta.related_objects:
             model = relation.related_model
+            if model.__name__ in DERIVED_MODELS:
+                continue  # Recomputable caches cannot block or invalidate a business-data preview.
             if relation.many_to_many:
                 qs = model.objects.filter(**{relation.field.name: org})
             else:
@@ -179,6 +182,13 @@ def merge(actor, ticket):
     except signing.BadSignature:
         raise ValidationError("Merge preview expired; prepare a new preview") from None
     require(data["actor"] == actor.pk)
+    from .models import NationalState
+
+    list(
+        NationalState.objects.select_for_update()
+        .filter(organization_id__in=[data["source"], data["target"]])
+        .order_by("organization_id")
+    )
     orgs = {
         o.pk: o
         for o in Organization.objects.select_for_update()
@@ -238,6 +248,9 @@ def merge(actor, ticket):
     source.merged_into = target
     source.operator_visibility = False
     source.save(update_fields=["merged_into", "operator_visibility"])
+    NationalState.objects.filter(organization__in=[source, target]).update(dirty=True)
+    for name in DERIVED_MODELS - {"NationalState"}:
+        apps.get_model("portal", name).objects.filter(organization__in=[source, target]).delete()
     audit(
         actor,
         target,

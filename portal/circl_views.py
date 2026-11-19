@@ -2,7 +2,6 @@
 
 from time import perf_counter
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.db import OperationalError
 from django.shortcuts import render
 from django.utils import timezone
@@ -12,8 +11,10 @@ from django.views.decorators.http import require_GET, require_http_methods
 from .access import audit, is_analyst, require
 from .circl import dashboard, findings_for, outstanding, research
 from .circl_forms import ResearchForm
-from .overview_queries import overview_queries
+from .overview_queries import overview_queries, bounded_list, read_snapshot
+from .national_snapshots import PendingSnapshot
 from .presentation import severity_first
+from .pagination import object_page
 
 
 def authorize(request, action):
@@ -60,7 +61,7 @@ def panel(request, section):
         with overview_queries(query_timeout_ms=3000, budget_ms=8000, planning_limit=4) as database:
             context = dashboard(request.user, timings=timings, section=section)
             response = render(request, "portal/circl_panel_" + section + ".html", context)
-    except OperationalError:
+    except (OperationalError, PendingSnapshot):
         response = render(request, "portal/circl_panel_error.html", status=503)
     response["Server-Timing"] = f"national;dur={(perf_counter() - started) * 1000:.1f}"
     if database:
@@ -74,6 +75,7 @@ def panel(request, section):
 @login_required
 @never_cache
 @require_GET
+@bounded_list
 def findings(request):
     authorize(request, "operator.national_findings")
     qs = outstanding(findings_for(request.user))
@@ -94,14 +96,15 @@ def findings(request):
         return private_response(
             render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
         )
-    page = Paginator(
+    page = object_page(
         severity_first(
             qs.select_related(
                 "organization", "record", "installation__product", "installation__asset__responsible_contact"
             )
         ),
         25,
-    ).get_page(request.GET.get("page"))
+        request.GET.get("page"),
+    )
     return private_response(
         render(
             request,
@@ -120,18 +123,29 @@ def inventory_research(request):
     # Confidential criteria stay out of URLs, sessions, audits and upstream requests.
     form = ResearchForm(request.POST if request.method == "POST" else None)
     context = {"form": form, "updated_at": timezone.now()}
-    if request.method == "POST" and form.is_valid():
-        with overview_queries():
-            try:
-                selected, context["match_counts"] = research(request.user, form.cleaned_data)
-            except ValueError as error:
-                form.add_error(None, str(error))
-            else:
-                context["page"] = Paginator(
-                    selected.select_related(
-                        "product", "asset__organization", "asset__responsible_contact"
-                    ).order_by("asset__organization__name", "asset__name", "pk"),
-                    25,
-                ).get_page(form.cleaned_data.get("page"))
-                context["bucket"] = form.cleaned_data["bucket"]
-    return private_response(render(request, "portal/circl_research.html", context))
+    status = 200
+    try:
+        if request.method == "POST" and form.is_valid():
+            with read_snapshot(), overview_queries(planning_limit=4, query_timeout_ms=5000, budget_ms=12000):
+                try:
+                    selected, context["match_counts"] = research(request.user, form.cleaned_data)
+                except ValueError as error:
+                    form.add_error(None, str(error))
+                else:
+                    context["page"] = object_page(
+                        selected.select_related(
+                            "product", "asset__organization", "asset__responsible_contact"
+                        ).order_by("asset__organization__name", "asset__name", "pk"),
+                        25,
+                        form.cleaned_data.get("page"),
+                        count=context["match_counts"][form.cleaned_data["bucket"]],
+                    )
+                    context["bucket"] = form.cleaned_data["bucket"]
+    except OperationalError:
+        context = {"form": form, "updated_at": timezone.now()}
+        form.add_error(
+            None,
+            "Research is temporarily busy. Refine your query or retry shortly; no partial results are shown.",
+        )
+        status = 503
+    return private_response(render(request, "portal/circl_research.html", context, status=status))

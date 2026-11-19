@@ -3,21 +3,34 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, F
+from django.db.models.functions import Coalesce, Upper
 from django.utils import timezone
 
 
 class Organization(models.Model):
-    merged_into = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="merged_organizations", editable=False)
+    merged_into = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="merged_organizations",
+        editable=False,
+    )
     name = models.CharField(max_length=180)
     postal_address = models.TextField(max_length=1000, blank=True)
     slug = models.SlugField(unique=True)
     misp_org_uuid = models.UUIDField(
-        null=True, blank=True, unique=True,
+        null=True,
+        blank=True,
+        unique=True,
         help_text="Optional MISP organization reference, manually checked by the platform operator. This is not proof of a user's membership.",
     )
     misp_uuid_attested_at = models.DateTimeField(null=True, blank=True)
     misp_uuid_attested_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="misp_organization_attestations",
     )
     operator_visibility = models.BooleanField(
@@ -400,6 +413,10 @@ class Product(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["organization", "name", "identifier"], name="unique_product")
         ]
+        indexes = [
+            models.Index(Upper("name"), name="product_name_upper_idx"),
+            models.Index(Upper("identifier"), name="product_ident_upper_idx"),
+        ]
 
 
 class ProductWatch(models.Model):
@@ -545,6 +562,9 @@ class Installation(models.Model):
         max_length=10, default="software", choices=[("software", "Software"), ("firmware", "Firmware")]
     )
     is_operating_system = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [models.Index(fields=["product", "version", "asset"], name="installed_product_ver_idx")]
 
     def clean(self):
         if self.asset_id and self.product_id and self.asset.organization_id != self.product.organization_id:
@@ -1090,7 +1110,22 @@ class AssetIssue(models.Model):
                 name="issue_vulnerability_reference",
             )
         ]
-        indexes = [models.Index(fields=["organization", "status", "event_date"])]
+        indexes = [
+            models.Index(fields=["organization", "status", "event_date"]),
+            models.Index(
+                models.Case(
+                    models.When(priority="critical", then=models.Value(0)),
+                    models.When(priority="high", then=models.Value(1)),
+                    models.When(priority="review", then=models.Value(2)),
+                    default=models.Value(3),
+                    output_field=models.IntegerField(),
+                ),
+                Coalesce("action_due", "event_date"),
+                F("updated_at").desc(),
+                F("id"),
+                name="issue_attention_order_idx",
+            ),
+        ]
 
 
 class IssueRevision(models.Model):
@@ -1548,7 +1583,10 @@ class InfrastructureRegistration(models.Model):
     )
     manually_activated_at = models.DateTimeField(null=True, blank=True)
     manually_activated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="manually_activated_registrations",
     )
     manual_activation_note = models.TextField(max_length=2000, blank=True)
@@ -1629,12 +1667,32 @@ class InventoryReviewDelivery(models.Model):
     next_attempt = models.DateTimeField(default=timezone.now, db_index=True)
     sent_at = models.DateTimeField(null=True, blank=True)
     error = models.CharField(max_length=200, blank=True)
-    transport = models.CharField(max_length=10, default="unknown", choices=[("unknown","Legacy / unknown"),("file","Local file"),("smtp","SMTP relay")])
-    delivery_outcome = models.CharField(max_length=10, default="unknown", choices=[("unknown","Not known"),("bounced","Bounce reported"),("delivered","Delivery reported")])
+    transport = models.CharField(
+        max_length=10,
+        default="unknown",
+        choices=[("unknown", "Legacy / unknown"), ("file", "Local file"), ("smtp", "SMTP relay")],
+    )
+    delivery_outcome = models.CharField(
+        max_length=10,
+        default="unknown",
+        choices=[
+            ("unknown", "Not known"),
+            ("bounced", "Bounce reported"),
+            ("delivered", "Delivery reported"),
+        ],
+    )
     feedback_at = models.DateTimeField(null=True, blank=True)
-    feedback_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    feedback_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
     feedback_note = models.CharField(max_length=1000, blank=True)
-    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="requested_review_followups")
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="requested_review_followups",
+    )
     created_at = models.DateTimeField(default=timezone.now)
 
 
@@ -1670,7 +1728,9 @@ class OrganizationConfiguration(models.Model):
 
 
 class ConfigurationSection(models.Model):
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="configuration_sections")
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="configuration_sections"
+    )
     section = models.CharField(max_length=20)
     revision = models.PositiveIntegerField(default=0)
     draft = models.JSONField(default=dict)
@@ -1679,11 +1739,14 @@ class ConfigurationSection(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["organization", "section"], name="unique_configuration_section")]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "section"], name="unique_configuration_section")
+        ]
 
 
 class MISPServer(models.Model):
     """Operator-approved destinations offered for optional customer-owned API credentials."""
+
     name = models.CharField(max_length=100, unique=True)
     base_url = models.URLField(max_length=250, default="https://misppriv.circl.lu", unique=True)
     enabled = models.BooleanField(default=False)
@@ -1694,27 +1757,45 @@ class MISPServer(models.Model):
 
     def clean(self):
         from .connectors.http import validate_base, ConnectorError
+
         try:
             validate_base(self.base_url)
         except ConnectorError:
             raise ValidationError("Use an operator-approved credential-free HTTPS MISP URL") from None
         if self.pk:
-            old=MISPServer.objects.get(pk=self.pk)
+            old = MISPServer.objects.get(pk=self.pk)
             if old.base_url != self.base_url:
-                raise ValidationError("A saved MISP endpoint cannot be repointed; create a new approved server")
+                raise ValidationError(
+                    "A saved MISP endpoint cannot be repointed; create a new approved server"
+                )
 
 
 class MISPInstance(models.Model):
     """An operator-approved read-only cache source; disabled until explicitly configured."""
 
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
-                              related_name="personal_misp_sources")
-    misp_user_id = models.PositiveBigIntegerField(null=True, blank=True, help_text="Operator-verified MISP user ID owning this personal key; checked with users/view/me on every refresh")
-    organization = models.ForeignKey(Organization,null=True,blank=True,on_delete=models.PROTECT,related_name="personal_misp_sources")
-    server = models.ForeignKey(MISPServer,null=True,blank=True,on_delete=models.PROTECT)
-    credential_kind = models.CharField(max_length=12,default="environment",choices=[("environment","Operator secret reference"),("encrypted","Personal encrypted key")])
-    credential_nonce = models.UUIDField(default=uuid.uuid4,editable=False)
-    credential_ciphertext = models.TextField(blank=True,editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="personal_misp_sources",
+    )
+    misp_user_id = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Operator-verified MISP user ID owning this personal key; checked with users/view/me on every refresh",
+    )
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, on_delete=models.PROTECT, related_name="personal_misp_sources"
+    )
+    server = models.ForeignKey(MISPServer, null=True, blank=True, on_delete=models.PROTECT)
+    credential_kind = models.CharField(
+        max_length=12,
+        default="environment",
+        choices=[("environment", "Operator secret reference"), ("encrypted", "Personal encrypted key")],
+    )
+    credential_nonce = models.UUIDField(default=uuid.uuid4, editable=False)
+    credential_ciphertext = models.TextField(blank=True, editable=False)
     name = models.CharField(max_length=100, unique=True)
     base_url = models.URLField(max_length=250, default="https://misppriv.circl.lu")
     token_env_var = models.CharField(max_length=100, unique=True, default="MISP_CIRCL_TOKEN")
@@ -1738,28 +1819,61 @@ class MISPInstance(models.Model):
         try:
             validate_base(self.base_url)
         except ConnectorError:
-            raise ValidationError("MISP requires an operator-approved credential-free HTTPS base URL") from None
+            raise ValidationError(
+                "MISP requires an operator-approved credential-free HTTPS base URL"
+            ) from None
         if not re.fullmatch(r"MISP_[A-Z0-9_]*TOKEN", self.token_env_var):
             raise ValidationError("Use a server-side MISP_*TOKEN credential reference")
         if not 5 <= self.refresh_minutes <= 60 or not self.refresh_minutes <= self.max_age_minutes <= 60:
             raise ValidationError("Refresh must be 5–60 minutes and maximum cache age refresh–60 minutes")
         if self.organization_id and (self.credential_kind != "encrypted" or not self.server_id):
-            raise ValidationError("Customer connections require the customer's own encrypted key and an approved endpoint; operator/CIRCL environment keys cannot be assigned to a company")
+            raise ValidationError(
+                "Customer connections require the customer's own encrypted key and an approved endpoint; operator/CIRCL environment keys cannot be assigned to a company"
+            )
         if self.enabled:
             from .misp import owner_eligible, endpoint_eligible
-            if not self.owner_id or not self.misp_user_id or not owner_eligible(self) or not endpoint_eligible(self):
-                raise ValidationError("An enabled MISP source requires its current personal owner, company membership where applicable, approved endpoint and pinned native user ID")
-            if self.credential_kind == "encrypted" and (not self.organization_id or not self.credential_ciphertext):
-                raise ValidationError("Personal customer connections require an encrypted key and company context")
+
+            if (
+                not self.owner_id
+                or not self.misp_user_id
+                or not owner_eligible(self)
+                or not endpoint_eligible(self)
+            ):
+                raise ValidationError(
+                    "An enabled MISP source requires its current personal owner, company membership where applicable, approved endpoint and pinned native user ID"
+                )
+            if self.credential_kind == "encrypted" and (
+                not self.organization_id or not self.credential_ciphertext
+            ):
+                raise ValidationError(
+                    "Personal customer connections require an encrypted key and company context"
+                )
         if self.pk:
             old = MISPInstance.objects.get(pk=self.pk)
-            protected = old.credential_kind == "encrypted" or MISPEvent.objects.filter(source_id=self.pk).exists()
-            if protected and (old.base_url != self.base_url or old.token_env_var != self.token_env_var or old.owner_id != self.owner_id or old.misp_user_id != self.misp_user_id or old.organization_id != self.organization_id or old.server_id != self.server_id or old.credential_nonce != self.credential_nonce):
-                raise ValidationError("A source with a personal key or cached events cannot be repointed; create a new source")
-
+            protected = (
+                old.credential_kind == "encrypted" or MISPEvent.objects.filter(source_id=self.pk).exists()
+            )
+            if protected and (
+                old.base_url != self.base_url
+                or old.token_env_var != self.token_env_var
+                or old.owner_id != self.owner_id
+                or old.misp_user_id != self.misp_user_id
+                or old.organization_id != self.organization_id
+                or old.server_id != self.server_id
+                or old.credential_nonce != self.credential_nonce
+            ):
+                raise ValidationError(
+                    "A source with a personal key or cached events cannot be repointed; create a new source"
+                )
 
     class Meta:
-        constraints=[models.UniqueConstraint(fields=["owner","organization","server"],condition=Q(enabled=True),name="personal_customer_misp_connection")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "organization", "server"],
+                condition=Q(enabled=True),
+                name="personal_customer_misp_connection",
+            )
+        ]
 
 
 class MISPEvent(models.Model):
@@ -1779,12 +1893,16 @@ class MISPEvent(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     review_note = models.CharField(max_length=1000, blank=True)
     readers = models.ManyToManyField(
-        settings.AUTH_USER_MODEL, blank=True, related_name="permitted_misp_events",
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="permitted_misp_events",
         help_text="Explicit authorized CIRCL recipients for this exact event revision, including all nested restrictions. No participant access.",
     )
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["source", "event_uuid"], name="misp_source_event_uuid")]
+        constraints = [
+            models.UniqueConstraint(fields=["source", "event_uuid"], name="misp_source_event_uuid")
+        ]
         indexes = [models.Index(fields=["source", "available", "-timestamp"])]
 
     def __str__(self):
@@ -1828,3 +1946,77 @@ class OrganizationInvitation(models.Model):
     mail_error = models.BooleanField(default=False)
     consumed_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
+
+
+class NationalState(models.Model):
+    organization = models.OneToOneField(
+        Organization, primary_key=True, on_delete=models.CASCADE, related_name="national_state"
+    )
+    dirty = models.BooleanField(default=True, db_index=True)
+    projection_version = models.PositiveSmallIntegerField(null=True)
+    refreshed_at = models.DateTimeField(null=True)
+    operator_counts = models.JSONField(default=dict)
+    shared_counts = models.JSONField(default=dict)
+    inventory_assets = models.PositiveIntegerField(default=0)
+    installations = models.PositiveIntegerField(default=0)
+    unknown_versions = models.PositiveIntegerField(default=0)
+
+
+class NationalVersion(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    product_name = models.CharField(max_length=180)
+    identity = models.CharField(max_length=255)
+    name = models.CharField(max_length=180)
+    version = models.CharField(max_length=120)
+    assets = models.PositiveIntegerField()
+    total = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "product_name", "identity", "version"], name="national_org_version"
+            )
+        ]
+
+
+class NationalProblem(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    shared = models.BooleanField()
+    external_id = models.CharField(max_length=120)
+    reviews = models.PositiveIntegerField()
+    assets = models.PositiveIntegerField()
+    affected = models.PositiveIntegerField()
+    accepted = models.PositiveIntegerField()
+    severity_rank = models.PositiveSmallIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "shared", "external_id"], name="national_org_problem"
+            )
+        ]
+
+
+class NationalActivity(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    shared = models.BooleanField()
+    day = models.DateField(db_index=True)
+    new = models.PositiveIntegerField(default=0)
+    closed = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "shared", "day"], name="national_org_activity")
+        ]
+
+
+class NationalProductVersion(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, db_constraint=False)
+    version = models.CharField(max_length=120)
+    total = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["product", "version"], name="national_product_version")
+        ]

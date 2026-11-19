@@ -1,3 +1,4 @@
+{% if coverage %}<p class="muted">Prepared data: {{ coverage.companies }} / {{ coverage.total }} companies · oldest refresh {{ coverage.refreshed_at }}.{% if coverage.pending %} <strong>{{ coverage.pending }} companies pending refresh; totals below are incomplete.</strong>{% endif %}</p>{% endif %}
 <p class="muted">Updated {{ updated_at }} · {{ counts.organizations }} permitted companies. This covers inventory you may access through operator visibility or membership; it is not a complete census of the country.</p>
 <section aria-label="National indicators" class="national-metrics">
 <a href="{% url 'circl-findings' %}?bucket=affected"><strong>{{ counts.affected }}</strong><span>Confirmed affected reviews · unresolved</span></a>

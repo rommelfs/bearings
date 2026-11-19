@@ -40,8 +40,12 @@ urlpatterns = [
     path("actions/", company_work_views.actions, name="company-actions"),
     path("organizations/<slug:slug>/start-small/", company_work_views.start, name="company-start"),
     path("organizations/<slug:slug>/import-csv/", company_work_views.csv_upload, name="csv-upload"),
-    path("organizations/<slug:slug>/import-csv/template/", company_work_views.csv_template, name="csv-template"),
-    path("organizations/<slug:slug>/import-csv/<uuid:pk>/", company_work_views.csv_preview, name="csv-preview"),
+    path(
+        "organizations/<slug:slug>/import-csv/template/", company_work_views.csv_template, name="csv-template"
+    ),
+    path(
+        "organizations/<slug:slug>/import-csv/<uuid:pk>/", company_work_views.csv_preview, name="csv-preview"
+    ),
     path("organizations/<slug:slug>/issues/<uuid:pk>/action/", company_work_views.act, name="company-action"),
     path("misp/", misp_views.center, name="misp"),
     path("misp/connections/", misp_connection_views.connections, name="misp-connections"),
@@ -51,11 +55,24 @@ urlpatterns = [
     path("account/sso/", sso_onboarding.settings_view, name="sso-settings"),
     path("operator/service-mail/", service_mail_views.outbox, name="service-mail"),
     path("operator/service-mail/<slug:key>/", service_mail_views.outbox, name="service-mail-message"),
-    path("organizations/<slug:slug>/configuration-export/ail/", configuration_views.export_ail, name="configuration-ail-export"),
+    path(
+        "organizations/<slug:slug>/configuration-export/ail/",
+        configuration_views.export_ail,
+        name="configuration-ail-export",
+    ),
     path("organizations/<slug:slug>/configuration/", configuration_views.center, name="configuration"),
-    path("organizations/<slug:slug>/configuration/<slug:section>/", configuration_views.section, name="configuration-section"),
+    path(
+        "organizations/<slug:slug>/configuration/<slug:section>/",
+        configuration_views.section,
+        name="configuration-section",
+    ),
     path("organizations/<slug:slug>/setup/", configuration_views.resume, name="setup-resume"),
-    path("organizations/<slug:slug>/setup/<slug:section>/", configuration_views.section, {"guided": True}, name="setup-section"),
+    path(
+        "organizations/<slug:slug>/setup/<slug:section>/",
+        configuration_views.section,
+        {"guided": True},
+        name="setup-section",
+    ),
     path("circl/panels/<slug:section>/", circl_views.panel, name="circl-panel"),
     path("circl/map/data/", circl_map_views.data, name="circl-map-data"),
     path("circl/map/<slug:slug>/location/", circl_map_views.location, name="circl-map-location"),

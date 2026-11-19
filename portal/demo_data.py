@@ -13,6 +13,7 @@ from django.db.models.deletion import ProtectedError
 from django.db.models.signals import post_save
 from django.utils import timezone
 from .access import audit, require
+from .national_snapshots import DERIVED_MODELS
 from .models import AuditEvent, DemoDataset, DemoObject
 
 KEY = "explore-v1"
@@ -47,6 +48,15 @@ def owned(dataset, *, lock=False):
     groups = defaultdict(set)
     for label, pk in dataset.entries.values_list("model_label", "object_pk"):
         groups[apps.get_model(label)].add(str(pk))
+    organization = apps.get_model("portal", "Organization")
+    state = apps.get_model("portal", "NationalState")
+    if groups.get(organization):
+        groups[state].update(
+            str(pk)
+            for pk in state.objects.filter(organization_id__in=groups[organization]).values_list(
+                "pk", flat=True
+            )
+        )
     for model in sorted(groups, key=lambda model: model._meta.label):
         rows = model.objects.filter(pk__in=groups[model]).order_by("pk")
         if lock:
@@ -66,6 +76,17 @@ def owned(dataset, *, lock=False):
             if lock:
                 rows = rows.select_for_update()
             groups[model].update(str(value) for value in rows.values_list("pk", flat=True))
+    if groups.get(organization):
+        # The state lock precedes the organization lock; refreshers hold it too.
+        # Once locked, collect replaceable child rows without locking children first.
+        for name in DERIVED_MODELS - {"NationalState"}:
+            model = apps.get_model("portal", name)
+            groups[model].update(
+                str(pk)
+                for pk in model.objects.filter(organization_id__in=groups[organization]).values_list(
+                    "pk", flat=True
+                )
+            )
     return groups
 
 
@@ -175,7 +196,9 @@ def removal_plan(dataset, *, lock=False):
     delivery = apps.get_model("portal", "NotificationDelivery")
     if groups.get(delivery) and receipt.objects.filter(delivery_id__in=groups[delivery]).exists():
         blockers.append("Notification receipts/outbox artifacts require separate retention review")
-    manifest = sorted((m._meta.label_lower, sorted(ids)) for m, ids in groups.items())
+    manifest = sorted(
+        (m._meta.label_lower, sorted(ids)) for m, ids in groups.items() if m.__name__ not in DERIVED_MODELS
+    )
     fingerprint = hashlib.sha256(json.dumps(manifest).encode()).hexdigest()
     return {
         "dataset": dataset.key,

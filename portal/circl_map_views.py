@@ -4,7 +4,7 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import signing
-from django.db import transaction
+from django.db import transaction, OperationalError
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
@@ -15,7 +15,7 @@ from .circl_views import authorize, private_response
 from .geography import address_digest
 from .inventory_review import can_configure_review
 from .models import Organization, OrganizationLocation
-from .overview_queries import overview_queries
+from .overview_queries import overview_queries, read_snapshot
 from .views import organization
 
 SALT = "company-map-address/v1"
@@ -32,12 +32,22 @@ class LocationForm(forms.Form):
 @require_GET
 def data(request):
     authorize(request, "operator.national_map")
-    with overview_queries(planning_limit=4) as database:
-        payload = map_data(request.user)
-    response = private_response(JsonResponse(payload))
-    response["Server-Timing"] = (
-        f"mapdatabase;dur={database.seconds * 1000:.1f}, dbmax;dur={database.slowest * 1000:.1f}"
-    )
+    database = None
+    try:
+        with (
+            read_snapshot(),
+            overview_queries(planning_limit=4, query_timeout_ms=3000, budget_ms=8000) as database,
+        ):
+            payload = map_data(request.user)
+        response = private_response(JsonResponse(payload))
+    except OperationalError:
+        response = private_response(
+            JsonResponse({"error": "Map temporarily unavailable; retry shortly."}, status=503)
+        )
+    if database:
+        response["Server-Timing"] = (
+            f"mapdatabase;dur={database.seconds * 1000:.1f}, dbmax;dur={database.slowest * 1000:.1f}"
+        )
     return response
 
 

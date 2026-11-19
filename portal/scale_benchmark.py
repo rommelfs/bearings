@@ -537,6 +537,7 @@ def measure(options):
     import threading
     import urllib.error
     import urllib.request
+    import urllib.parse
     from socketserver import ThreadingMixIn
     from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
     from django.core.management import call_command
@@ -549,8 +550,16 @@ def measure(options):
 
     if not re.fullmatch(r"[a-zA-Z0-9_-]{1,50}", options["label"]):
         raise CommandError("Report label must be 1–50 simple filename characters")
+    if not 1 <= options["http_repeats"] <= 50:
+        raise CommandError("Use 1–50 HTTP repeats per route")
     if not 1 <= options["samples"] <= 10 or not 1 <= options["concurrency"] <= 16:
         raise CommandError("Use 1–10 samples and 1–16 concurrent clients")
+    # Refresh planner statistics after new indexes/read-model backfills, before timing requests.
+    from .overview_queries import overview_queries
+
+    with overview_queries(query_timeout_ms=30000):
+        with connection.cursor() as cursor:
+            cursor.execute("ANALYZE")
     with connection.cursor() as cursor:
         cursor.execute("SELECT data FROM bearings_scale_manifest WHERE id=1")
         manifest = cursor.fetchone()[0]
@@ -591,7 +600,7 @@ def measure(options):
             "diagnostic_wall_budget_seconds": 12,
             "sso": False,
             "transport": "file only",
-            "postgres_cpus": 2,
+            "postgres_cpus": float(os.environ.get("BEARINGS_SCALE_DB_CPUS", "2")),
             "postgres_memory_gib": 3,
         },
         "tables": tables,
@@ -762,6 +771,15 @@ def measure(options):
         # This is a diagnostic threaded WSGI server, not a production web-server claim.
         class Server(ThreadingMixIn, WSGIServer):
             daemon_threads = True
+            request_queue_size = 128
+
+            def process_request_thread(self, request, client_address):
+                try:
+                    super().process_request_thread(request, client_address)
+                finally:
+                    from django.db import connections
+
+                    connections.close_all()
 
         class QuietHandler(WSGIRequestHandler):
             def log_message(self, *args):
@@ -772,19 +790,74 @@ def measure(options):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         origin = f"http://127.0.0.1:{server.server_port}"
+        national_names = {
+            "company_overview",
+            "national_shell",
+            "national_summary",
+            "national_versions",
+            "national_problems",
+            "national_activity",
+        }
         cases = [
-            ("company_overview", "owner", "/"),
-            ("national_shell", "analyst", "/circl/"),
-            ("national_summary", "analyst", "/circl/panels/summary/"),
-            ("national_versions", "analyst", "/circl/panels/versions/"),
-            ("national_problems", "analyst", "/circl/panels/problems/"),
-            ("national_activity", "analyst", "/circl/panels/activity/"),
+            (name, role, url, method, data)
+            for name, role, method, url, data in endpoints(org, asset)
+            if options["http_profile"] == "full"
+            or (options["http_profile"] == "company" and role == "owner")
+            or (options["http_profile"] == "national" and name in national_names)
         ]
-        cookies = {role: client.cookies["sessionid"].value for role, client in clients.items()}
+        # Obtain ordinary CSRF cookies before real HTTP POST research requests.
+        clients["analyst"].get("/circl/research/")
+        cookies = {
+            role: "; ".join(f"{key}={value.value}" for key, value in client.cookies.items())
+            for role, client in clients.items()
+        }
+        csrf = {
+            role: client.cookies.get("csrftoken").value if client.cookies.get("csrftoken") else ""
+            for role, client in clients.items()
+        }
 
-        def fetch(case):
-            name, role, url = case
-            request = urllib.request.Request(origin + url, headers={"Cookie": "sessionid=" + cookies[role]})
+        owner_fixtures = []
+        for membership in (
+            m.Membership.objects.filter(
+                role="admin",
+                user__username__startswith="scale-owner-",
+                organization__operator_visibility=True,
+            )
+            .select_related("user", "organization")
+            .order_by("organization_id")[: options["concurrency"]]
+        ):
+            fixture_client = Client(raise_request_exception=False)
+            fixture_client.force_login(membership.user)
+            fixture_client.get("/register/")
+            first_asset = membership.organization.assets.order_by("name", "pk").first()
+            owner_fixtures.append(
+                {
+                    "cookie": "; ".join(
+                        f"{key}={value.value}" for key, value in fixture_client.cookies.items()
+                    ),
+                    "csrf": fixture_client.cookies.get("csrftoken").value
+                    if fixture_client.cookies.get("csrftoken")
+                    else "",
+                    "slug": membership.organization.slug,
+                    "asset": str(first_asset.pk),
+                }
+            )
+
+        def fetch(index_case):
+            index, case = index_case
+            name, role, url, method, data = case
+            token = csrf[role]
+            cookie = cookies[role]
+            if role == "owner" and owner_fixtures:
+                fixture = owner_fixtures[index % len(owner_fixtures)]
+                url = url.replace(org.slug, fixture["slug"]).replace(str(asset.pk), fixture["asset"])
+                cookie, token = fixture["cookie"], fixture["csrf"]
+            headers = {"Cookie": cookie}
+            body = None
+            if method == "post":
+                headers.update({"X-CSRFToken": token, "Content-Type": "application/x-www-form-urlencoded"})
+                body = urllib.parse.urlencode(data).encode()
+            request = urllib.request.Request(origin + url, headers=headers, data=body, method=method.upper())
             started = perf_counter()
             try:
                 response = urllib.request.urlopen(request, timeout=25)
@@ -807,18 +880,65 @@ def measure(options):
                 "guard": response.headers.get("X-Scale-Guard"),
             }
 
+        churn_stop = threading.Event()
+        churn_errors = []
+        churn_updates = []
+        churn_refreshes = []
+        churn_target = None
+        churn_threads = []
+        if options.get("churn"):
+            churn_target = (
+                m.Installation.objects.filter(asset__organization=org, version="2.14.1").first()
+                or m.Installation.objects.filter(asset__organization=org).first()
+            )
+            churn_original = churn_target.version
+
+            def mutate():
+                close_old_connections()
+                try:
+                    while not churn_stop.wait(0.1):
+                        m.Installation.objects.filter(pk=churn_target.pk).update(
+                            version="9.99.99" if len(churn_updates) % 2 == 0 else churn_original
+                        )
+                        churn_updates.append(1)
+                except Exception as error:
+                    churn_errors.append(type(error).__name__)
+                finally:
+                    connection.close()
+
+            def rebuild():
+                from .national_snapshots import refresh_pending
+
+                close_old_connections()
+                try:
+                    while not churn_stop.wait(0.25):
+                        churn_refreshes.append(refresh_pending(limit=50, batch_size=50))
+                except Exception as error:
+                    churn_errors.append(type(error).__name__)
+                finally:
+                    connection.close()
+
+            churn_threads = [
+                threading.Thread(target=mutate, daemon=True),
+                threading.Thread(target=rebuild, daemon=True),
+            ]
+            for worker in churn_threads:
+                worker.start()
         try:
             # Do not flood endpoints already known to exceed the diagnostic guard.
             serial_status = {i["name"]: i["samples"][-1]["status"] for i in report["serial"]}
             healthy = [c for c in cases if serial_status[c[0]] == 200]
-            total = healthy * 4
+            total = healthy * options["http_repeats"]
             started = perf_counter()
             with concurrent.futures.ThreadPoolExecutor(max_workers=options["concurrency"]) as pool:
-                results = list(pool.map(fetch, total))
+                results = list(pool.map(fetch, enumerate(total)))
             duration = perf_counter() - started
             latencies = sorted(r["ms"] for r in results)
             report["http"] = {
                 "concurrency": options["concurrency"],
+                "profile": options["http_profile"],
+                "repeats_per_route": options["http_repeats"],
+                "owner_identities": len(owner_fixtures),
                 "requests": len(results),
                 "seconds": round(duration, 2),
                 "requests_per_second": round(len(results) / duration, 2),
@@ -829,10 +949,131 @@ def measure(options):
                 "excluded_serial_failures": [c[0] for c in cases if serial_status[c[0]] != 200],
             }
         finally:
+            churn_stop.set()
+            for worker in churn_threads:
+                worker.join(35)
+            if any(worker.is_alive() for worker in churn_threads):
+                raise CommandError("Synthetic churn worker did not stop; inspect owned scale lab")
+            if churn_target:
+                m.Installation.objects.filter(pk=churn_target.pk).update(version=churn_original)
+                from .national_snapshots import refresh_pending
+
+                refresh_pending(limit=500)
+                report["churn"] = {
+                    "updates": len(churn_updates),
+                    "refreshes": sum(churn_refreshes),
+                    "errors": churn_errors,
+                    "original_version_restored": m.Installation.objects.get(pk=churn_target.pk).version
+                    == churn_original,
+                }
+                check(
+                    "concurrent_changes_and_refresh",
+                    bool(churn_updates)
+                    and bool(sum(churn_refreshes))
+                    and not churn_errors
+                    and report["churn"]["original_version_restored"],
+                )
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
             close_old_connections()
+
+        def write_probe(index):
+            close_old_connections()
+            from django.test import RequestFactory
+            from django.contrib.messages.storage.fallback import FallbackStorage
+            from django.middleware.csrf import CsrfViewMiddleware
+            from .views import create_asset
+
+            request = RequestFactory().post(
+                f"/organizations/{org.slug}/assets/new/",
+                dict(
+                    name=f"SYNTHETIC concurrent write {index}",
+                    kind="server",
+                    criticality="normal",
+                    lifecycle="active",
+                    responsible_team="Scale test",
+                ),
+                HTTP_X_CSRFTOKEN=csrf["owner"],
+            )
+            request.user = owner
+            request.session = {}
+            request.COOKIES["csrftoken"] = csrf["owner"]
+            request._messages = FallbackStorage(request)
+            started = perf_counter()
+            try:
+                with transaction.atomic():
+                    rejected = CsrfViewMiddleware(lambda r: None).process_view(
+                        request, create_asset, (), {"slug": org.slug}
+                    )
+                    response = rejected if rejected is not None else create_asset(request, slug=org.slug)
+                    passed = (
+                        response.status_code == 302
+                        and org.assets.count() == manifest["assets_per_company"] + 1
+                    )
+                    transaction.set_rollback(True)
+                return {
+                    "ms": round((perf_counter() - started) * 1000, 1),
+                    "passed": passed,
+                    "status": response.status_code,
+                }
+            except Exception as error:
+                return {
+                    "ms": round((perf_counter() - started) * 1000, 1),
+                    "passed": False,
+                    "error": type(error).__name__,
+                }
+            finally:
+                connection.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            writes = list(pool.map(write_probe, range(40)))
+        report["concurrent_writes"] = {
+            "concurrency": 4,
+            "requests": 40,
+            "failures": sum(not w["passed"] for w in writes),
+            "p95_ms": sorted(w["ms"] for w in writes)[37],
+            "results": writes,
+            "inventory_count_preserved": m.Asset.objects.count()
+            == manifest["companies"] * manifest["assets_per_company"],
+        }
+        check(
+            "concurrent_owner_writes",
+            report["concurrent_writes"]["failures"] == 0
+            and report["concurrent_writes"]["inventory_count_preserved"],
+        )
+        import uuid
+
+        durable_client = Client(enforce_csrf_checks=True, raise_request_exception=False)
+        for key, value in clients["owner"].cookies.items():
+            durable_client.cookies[key] = value.value
+        marker = "SYNTHETIC committed probe " + uuid.uuid4().hex
+        response = durable_client.post(
+            f"/organizations/{org.slug}/assets/new/",
+            dict(
+                name=marker,
+                kind="server",
+                criticality="normal",
+                lifecycle="active",
+                responsible_team="Scale test",
+            ),
+            HTTP_X_CSRFTOKEN=csrf["owner"],
+        )
+        created = m.Asset.objects.filter(organization=org, name=marker).first()
+        check("committed_owner_write", response.status_code == 302 and created is not None)
+        if created:
+            check(
+                "committed_owner_read",
+                durable_client.get(f"/organizations/{org.slug}/assets/{created.pk}/").status_code == 200,
+            )
+            created.delete()  # Only this exact probe identity; preserve the retained fixture.
+        from .national_snapshots import refresh_pending
+
+        refresh_pending(limit=500)
+        check(
+            "committed_probe_cleanup",
+            m.Asset.objects.count() == manifest["companies"] * manifest["assets_per_company"],
+        )
         report["acceptance_passed"] = (
             all(c["passed"] for c in report["checks"])
             and all(sample["status"] == 200 for row in report["serial"] for sample in row["samples"])

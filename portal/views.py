@@ -1,3 +1,4 @@
+from .overview_queries import bounded_list
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -13,6 +14,7 @@ from django.views.decorators.debug import sensitive_post_parameters
 from .access import (
     audit,
     audit_operator_access,
+    audit_organizations,
     can_edit,
     can_operator_review,
     can_review_contact,
@@ -36,7 +38,8 @@ from .forms import (
 )
 from .presentation import ACTIVE_REVIEWS, decorate_finding, severity_first
 from .asset_context import asset_context
-from .models import Asset, Contact, ContactToken, InfrastructureClaim, Installation, Product
+from .pagination import object_page
+from .models import Asset, Contact, ContactToken, InfrastructureClaim, Installation, Product, Membership
 from .services import (
     issue_contact_token,
     lookup_for_installation,
@@ -53,34 +56,53 @@ def organization(request, slug):
     return org
 
 
+def company_cards(user, orgs, page_number):
+    page = Paginator(orgs, 24).get_page(page_number)
+    page.object_list = list(
+        page.object_list.select_related("inventory_source__instance").prefetch_related("contacts")
+    )
+    ids = [org.pk for org in page]
+    asset_counts = dict(
+        Asset.objects.filter(organization_id__in=ids)
+        .values("organization_id")
+        .annotate(total=Count("pk"))
+        .values_list("organization_id", "total")
+    )
+    finding_counts = dict(
+        visible_findings_for(user)
+        .filter(organization_id__in=ids, status__in=ACTIVE_REVIEWS)
+        .order_by()
+        .values("organization_id")
+        .annotate(total=Count("pk"))
+        .values_list("organization_id", "total")
+    )
+    audit_organizations(user, page.object_list)
+    for org in page:
+        org.asset_count = asset_counts.get(org.pk, 0)
+        org.overdue_count = sum(c.overdue for c in org.contacts.all())
+        org.finding_count = finding_counts.get(org.pk, 0)
+    return page
+
+
 @login_required
 def inventory(request):
     query = request.GET.get("q", "")[:160].strip()
     orgs = organizations_for(request.user).order_by("name", "pk")
     if query:
         orgs = orgs.filter(Q(name__icontains=query) | Q(slug__icontains=query))
-    page = Paginator(
-        orgs.prefetch_related("contacts", "inventory_source__instance").annotate(
-            asset_count=Count("assets", distinct=True)
-        ),
-        24,
-    ).get_page(request.GET.get("page"))
-    for org in page:
-        audit_operator_access(request.user, org)
-        org.overdue_count = sum(contact.overdue for contact in org.contacts.all())
-        org.finding_count = visible_findings(request.user, org).filter(status__in=ACTIVE_REVIEWS).count()
+    page = company_cards(request.user, orgs, request.GET.get("page"))
     return render(request, "portal/inventory.html", {"page": page, "query": query})
 
 
 @login_required
+@bounded_list
 def home(request):
-    orgs = list(
-        organizations_for(request.user).prefetch_related("contacts", "assets", "inventory_source__instance")
+    org_page = company_cards(
+        request.user, organizations_for(request.user).order_by("name", "pk"), request.GET.get("org_page")
     )
-    for org in orgs:
-        audit_operator_access(request.user, org)
-        org.overdue_count = sum(c.overdue for c in org.contacts.all())
-        org.finding_count = visible_findings(request.user, org).filter(status__in=ACTIVE_REVIEWS).count()
+    orgs = org_page.object_list
+    if request.user.is_superuser or is_analyst(request.user):
+        audit(request.user, None, "operator.review_queue")
     query = request.GET.get("q", "")[:160].strip()
     severity = request.GET.get("severity", "").lower()
     severity_choices = ["critical", "high", "medium", "low", "none", "unknown"]
@@ -124,23 +146,33 @@ def home(request):
     review_total = sum(counts.values())
     if severity:
         reviews = reviews.filter(record__source_severity=severity)
-    review_page = Paginator(reviews, 25).get_page(request.GET.get("review_page"))
+    review_page = object_page(
+        reviews,
+        25,
+        request.GET.get("review_page"),
+        count=counts.get(severity, 0) if severity else review_total,
+    )
+    audit_organizations(request.user, [finding.organization for finding in review_page])
+    operator = request.user.is_superuser or is_analyst(request.user)
+    roles = dict(
+        Membership.objects.filter(
+            user=request.user, organization_id__in=[finding.organization_id for finding in review_page]
+        ).values_list("organization_id", "role")
+    )
     for finding in review_page:
         decorate_finding(finding)
         finding.notification_mode = ""
         if finding.record.shareable and finding.analyst_applicability != "not_affected":
-            if (
-                can_operator_review(request.user, finding.organization)
-                and finding.organization.operator_visibility
-            ):
+            if operator and finding.organization.operator_visibility:
                 finding.notification_mode = "circl"
-            elif can_edit(request.user, finding.organization):
+            elif request.user.is_superuser or roles.get(finding.organization_id) in {"admin", "editor"}:
                 finding.notification_mode = "company"
     return render(
         request,
         "portal/home.html",
         {
             "orgs": orgs,
+            "org_page": org_page,
             "operator": request.user.is_superuser or is_analyst(request.user),
             "review_page": review_page,
             "query": query,

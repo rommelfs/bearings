@@ -101,6 +101,18 @@ def main():
             from docker.dev.rtir_smoke import main as rtir_smoke
 
             rtir_smoke()
+    elif mode == "national-worker":
+        from django.db import OperationalError, connections
+
+        while True:
+            try:
+                call_command("refresh_national", limit=500)
+            except OperationalError:
+                print("National refresh deferred; retained summaries remain explicitly pending.", flush=True)
+                connections.close_all()
+            else:
+                Path("/tmp/bearings-national-heartbeat").touch()
+            time.sleep(1)
     elif mode == "worker":
         while True:
             call_command("process_jobs")

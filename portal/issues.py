@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Exists, F, OuterRef, Q
 from django.utils import timezone
+from .query_integrity import consistent
 from .access import audit, can_edit, can_operator_review, is_analyst, organizations_for, require
 from .models import AssetIssue, ExposureReview, IssueHistory, IssueRevision, IssueRiskLink
 
@@ -34,26 +35,26 @@ FACT_FIELDS = [
 ]
 
 
-def visible_issues(user):
+def visible_issues(user, *, standalone=False):
+    analyst = is_analyst(user) if not user.is_superuser else False
+    orgs = organizations_for(user)
     issues = (
         AssetIssue.objects.filter(
-            organization__in=organizations_for(user),
-            asset__organization_id=F("organization_id"),
-            asset__source__organization_id=F("organization_id"),
+            organization__in=orgs,
         )
         .filter(
-            Q(installation__isnull=True)
-            | Q(
-                installation__asset_id=F("asset_id"),
-                installation__product__organization_id=F("organization_id"),
+            consistent(
+                asset__organization_id=F("organization_id"),
+                asset__source__organization_id=F("organization_id"),
             )
         )
         .filter(
-            Q(finding__isnull=True)
-            | Q(
-                finding__organization_id=F("organization_id"),
-                finding__record__organization_id=F("organization_id"),
-                finding__installation_id=F("installation_id"),
+            consistent(
+                Q(installation__isnull=True)
+                | Q(
+                    installation__asset_id=F("asset_id"),
+                    installation__product__organization_id=F("organization_id"),
+                )
             )
         )
         .select_related(
@@ -64,9 +65,37 @@ def visible_issues(user):
             "finding__installation__product",
         )
     )
+    if standalone:
+        issues = issues.filter(finding__isnull=True)
+    else:
+        issues = issues.filter(
+            consistent(
+                Q(finding__isnull=True)
+                | Q(
+                    finding__organization_id=F("organization_id"),
+                    finding__record__organization_id=F("organization_id"),
+                    finding__installation_id=F("installation_id"),
+                )
+            )
+        )
+    if not user.is_superuser and not analyst:
+        ids = list(orgs.values_list("pk", flat=True)[:101])
+        if len(ids) <= 100:
+            # Redundant ownership bounds give the planner selective index paths;
+            # all cross-object equality checks above remain mandatory.
+            issues = issues.filter(asset__organization_id__in=ids, asset__source__organization_id__in=ids)
+            issues = issues.filter(
+                Q(installation__isnull=True) | Q(installation__product__organization_id__in=ids)
+            )
+            issues = issues.filter(
+                Q(finding__isnull=True)
+                | Q(finding__organization_id__in=ids, finding__record__organization_id__in=ids)
+            )
     if not user.is_superuser:
-        allowed = Q(operator_only=False) & (Q(finding__isnull=True) | Q(finding__record__shareable=True))
-        if is_analyst(user):
+        allowed = Q(operator_only=False)
+        if not standalone:
+            allowed &= Q(finding__isnull=True) | Q(finding__record__shareable=True)
+        if analyst:
             allowed |= Q(organization__operator_visibility=True)
         issues = issues.filter(allowed)
     from .plum import visible_snapshots

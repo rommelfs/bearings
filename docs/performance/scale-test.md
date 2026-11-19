@@ -1,5 +1,7 @@
 # Synthetic PostgreSQL scale acceptance
 
+**Follow-up implemented:** the baseline below is preserved as the original failure record. See [iterative improvements and current capacity evidence](scale-improvements.md) for the fixes, repeated unchanged dataset, concurrent writes and remaining operational release gates.
+
 This test creates **40,000 companies × 30 assets = 1,200,000 assets** in a separate, explicitly owned PostgreSQL container. The ordinary development database, worker, passwords, native SSO grants and upstream systems are not changed.
 
 ## Reproduce
@@ -15,7 +17,7 @@ python3 scripts/scale_test.py stop
 
 Seeding requires an empty dedicated database. An existing dataset is never erased/reseeded automatically; use `measure` to repeat on it. `measure` restarts the owned container if it was stopped. Reports and private ownership/password state live in ignored `.local/scale-test/`. Do not publish the private state or PostgreSQL environment file. `stop` retains the synthetic named volume and reports, so another measurement uses exactly the same records. The runner refuses an unrelated container occupying its name. A completed diagnostic is not a passing acceptance test: inspect `acceptance_passed`, all HTTP statuses and correctness checks in its report.
 
-The container publishes PostgreSQL on an automatically assigned loopback-only port (also suitable for Docker Desktop), uses an internal Docker network, and has limits of two CPU cores and 3 GiB RAM. PostgreSQL 17 uses 256 MiB shared buffers and 16 MiB work memory. The Python application runs on the host. The shared development environment is not a dedicated capacity lab. The fixture is created in batches of 500 companies, with database statistics refreshed before measuring.
+The container publishes PostgreSQL on an automatically assigned loopback-only port (also suitable for Docker Desktop), uses an internal Docker network, and initially has limits of two CPU cores and 3 GiB RAM. The explicit `--database-cpus 4` option changes only this owned test container; every new report records its actual limit. PostgreSQL 17 uses 256 MiB shared buffers and 16 MiB work memory. The Python application runs on the host. The shared development environment is not a dedicated capacity lab. The fixture is created in batches of 500 companies, with database statistics refreshed before measuring.
 
 ## Workload
 
@@ -95,4 +97,4 @@ A due-reminder batch of ten policies completed in **159 ms / 159 SQL statements*
 4. **Make national failures recoverable.** The map needs the same graceful unavailable/retry behavior as other panels. A shell rendering successfully must not count as a passing overall overview.
 5. **Repeat this unchanged dataset, then broaden acceptance.** Require all functional checks and panels to succeed before a longer 16/32-client read/write soak. Add more installations per asset, a large-tenant distribution, accumulated history and real deployed web/SSO/connector/SMTP paths separately.
 
-This change provides the reproducible benchmark and evidence. It does **not** claim those production blockers have already been fixed.
+This baseline established the reproducible benchmark and original blockers. The subsequent implementation and repeated acceptance results are recorded separately in [scale-improvements.md](scale-improvements.md).

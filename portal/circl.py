@@ -15,12 +15,14 @@ from django.db.models import (
     OuterRef,
     Q,
     Subquery,
+    Sum,
     Value,
     When,
 )
-from django.db.models.functions import Cast, Lower, TruncDate
+from django.db.models.functions import Cast, Lower, TruncDate, Coalesce
 from django.utils import timezone
 from .access import organizations_for, visible_findings_for
+from .query_integrity import consistent
 from .discovery import semver
 from .models import (
     Asset,
@@ -43,18 +45,28 @@ def installations_for(user):
     return Installation.objects.filter(
         asset__organization__in=organizations_for(user),
         asset__lifecycle="active",
-        asset__source__organization_id=F("asset__organization_id"),
-        product__organization_id=F("asset__organization_id"),
+    ).filter(
+        consistent(
+            asset__source__organization_id=F("asset__organization_id"),
+            product__organization_id=F("asset__organization_id"),
+        )
     )
 
 
 def findings_for(user):
-    return visible_findings_for(user).filter(
-        installation__asset__lifecycle="active",
-        installation__asset__organization_id=F("organization_id"),
-        installation__asset__source__organization_id=F("organization_id"),
-        installation__product__organization_id=F("organization_id"),
-        record__organization_id=F("organization_id"),
+    return (
+        visible_findings_for(user)
+        .filter(
+            installation__asset__lifecycle="active",
+        )
+        .filter(
+            consistent(
+                installation__asset__organization_id=F("organization_id"),
+                installation__asset__source__organization_id=F("organization_id"),
+                installation__product__organization_id=F("organization_id"),
+                record__organization_id=F("organization_id"),
+            )
+        )
     )
 
 
@@ -75,8 +87,12 @@ def trend(findings):
     new = (
         DiscoveryMatch.objects.filter(
             finding__in=findings,
-            watch__product_id=F("finding__installation__product_id"),
-            evidence_revision__record_id=F("finding__record_id"),
+        )
+        .filter(
+            consistent(
+                watch__product_id=F("finding__installation__product_id"),
+                evidence_revision__record_id=F("finding__record_id"),
+            )
         )
         .annotate(first_at=Subquery(first))
         .filter(first_at__gte=start)
@@ -91,7 +107,11 @@ def trend(findings):
             for row in qs.order_by().annotate(day=TruncDate(field)).values("day").annotate(total=Count("pk"))
         }
 
-    discovered, resolved = daily(new, "first_at"), daily(closed)
+    return trend_result(daily(new, "first_at"), daily(closed))
+
+
+def trend_result(discovered, resolved):
+    today = timezone.localdate()
     days = [
         {
             "day": today - timedelta(days=29 - i),
@@ -120,27 +140,35 @@ def trend(findings):
 def dashboard(user, *, timings=None, section="all"):
     timings = {} if timings is None else timings
     result = {"updated_at": timezone.now()}
+    from .national_snapshots import snapshot_panel
+
+    snapshot = snapshot_panel(user, section)
+    if snapshot:
+        result.update(snapshot)
     findings = findings_for(user) if section in {"all", "summary", "problems", "activity"} else None
     open_reviews = outstanding(findings) if findings is not None else None
     if section in {"all", "summary"}:
         orgs = organizations_for(user)
-        assets = Asset.objects.filter(
-            organization__in=orgs, source__organization_id=F("organization_id"), lifecycle="active"
+        assets = Asset.objects.filter(organization__in=orgs, lifecycle="active").filter(
+            consistent(source__organization_id=F("organization_id"))
         )
         installed = installations_for(user)
         started = perf_counter()
-        counts = open_reviews.aggregate(
-            reviews=Count("pk"),
-            assets=Count("installation__asset_id", distinct=True),
-            companies=Count("organization_id", distinct=True),
-            affected=Count("pk", filter=Q(analyst_applicability="affected")),
-            critical=Count("pk", filter=Q(record__source_severity="critical")),
-            accepted=Count("pk", filter=Q(status="accepted_risk")),
-        )
-        counts.update(
-            installed.aggregate(installations=Count("pk"), unknown=Count("pk", filter=Q(version="")))
-        )
-        counts.update(organizations=orgs.count(), inventory_assets=assets.count())
+        if snapshot:
+            counts = snapshot["counts"]
+        else:
+            counts = open_reviews.aggregate(
+                reviews=Count("pk"),
+                assets=Count("installation__asset_id", distinct=True),
+                companies=Count("organization_id", distinct=True),
+                affected=Count("pk", filter=Q(analyst_applicability="affected")),
+                critical=Count("pk", filter=Q(record__source_severity="critical")),
+                accepted=Count("pk", filter=Q(status="accepted_risk")),
+            )
+            counts.update(
+                installed.aggregate(installations=Count("pk"), unknown=Count("pk", filter=Q(version="")))
+            )
+            counts.update(organizations=orgs.count(), inventory_assets=assets.count())
         sources = InventorySource.objects.filter(organization__in=orgs).annotate(
             deadline=ExpressionWrapper(
                 F("last_import_success")
@@ -181,7 +209,7 @@ def dashboard(user, *, timings=None, section="all"):
         counts["no_contact"] = orgs.filter(~Exists(contacts)).count()
         timings["nationalcounts"] = (perf_counter() - started) * 1000
         result.update(counts=counts, sources=source_counts)
-    if section in {"all", "versions"}:
+    if section in {"all", "versions"} and not snapshot:
         started = perf_counter()
         installed = installations_for(user)
         versions = list(
@@ -198,7 +226,7 @@ def dashboard(user, *, timings=None, section="all"):
         )
         timings["nationalversions"] = (perf_counter() - started) * 1000
         result["versions"] = versions
-    if section in {"all", "problems"}:
+    if section in {"all", "problems"} and not snapshot:
         started = perf_counter()
         vulnerabilities = list(
             open_reviews.order_by()
@@ -223,7 +251,7 @@ def dashboard(user, *, timings=None, section="all"):
             row["severity"] = SEVERITIES[row["severity_rank"]]
         timings["nationalvulns"] = (perf_counter() - started) * 1000
         result["vulnerabilities"] = vulnerabilities
-    if section in {"all", "activity"}:
+    if section in {"all", "activity"} and not snapshot:
         started = perf_counter()
         result["trend"] = trend(findings)
         timings["nationaltrend"] = (perf_counter() - started) * 1000
@@ -236,15 +264,45 @@ def research(user, data):
     candidates = installations_for(user).filter(
         Q(**{f"product__name__{lookup}": text}) | Q(**{f"product__identifier__{lookup}": text})
     )
+    from .national_snapshots import research_projection
+
+    projection = research_projection(user, data)
+    pending_candidates = (
+        candidates.filter(
+            asset__organization_id__in=projection[3],
+            asset__source__organization_id__in=projection[3],
+            product__organization_id__in=projection[3],
+        )
+        if projection and projection[3]
+        else None
+    )
     known = candidates.exclude(version="")
     unknown = candidates.filter(version="")
     unsupported = candidates.none()
     if data["mode"] == "exact":
         matches = known.filter(version=data["version"])
     elif data["mode"] == "range":
+        version_source = projection[0].exclude(version="") if projection else known
         versions = list(
-            known.order_by("version").values_list("version", flat=True).distinct()[: MAX_RANGE_VERSIONS + 1]
+            version_source.order_by("version")
+            .values_list("version", flat=True)
+            .distinct()[: MAX_RANGE_VERSIONS + 1]
         )
+        if pending_candidates is not None:
+            pending_versions = list(
+                pending_candidates.exclude(version="")
+                .order_by("version")
+                .values_list("version", flat=True)
+                .distinct()[: MAX_RANGE_VERSIONS + 1]
+            )
+            versions = sorted(set(versions) | set(pending_versions))
+        if projection and not projection[4] and projection[1].count() != projection[2]:
+            projection = None
+            versions = list(
+                known.order_by("version")
+                .values_list("version", flat=True)
+                .distinct()[: MAX_RANGE_VERSIONS + 1]
+            )
         if len(versions) > MAX_RANGE_VERSIONS:
             raise ValueError(
                 f"More than {MAX_RANGE_VERSIONS} distinct versions match this product query. Refine it; no partial results are shown."
@@ -261,6 +319,33 @@ def research(user, data):
         unsupported = known.filter(version__in=unparsed)
     else:
         matches = known
-    counts = {"matches": matches.count(), "unknown": unknown.count(), "unsupported": unsupported.count()}
+    if data["mode"] == "exact":
+        matching_rule = ~Q(version="") & Q(version=data["version"])
+    elif data["mode"] == "range":
+        matching_rule = ~Q(version="") & Q(version__in=matched)
+    else:
+        matching_rule = ~Q(version="")
+    aggregate_source = projection[0] if projection else candidates
+
+    def counted(rule):
+        return Coalesce(Sum("total", filter=rule), 0) if projection else Count("pk", filter=rule)
+
+    unsupported_rule = Q(version__in=unparsed) if data["mode"] == "range" else Q(pk__in=[])
+    counts = aggregate_source.aggregate(
+        matches=counted(matching_rule), unknown=counted(Q(version="")), unsupported=counted(unsupported_rule)
+    )
+    if pending_candidates is not None:
+        added = pending_candidates.aggregate(
+            matches=Count("pk", filter=matching_rule),
+            unknown=Count("pk", filter=Q(version="")),
+            unsupported=Count("pk", filter=unsupported_rule),
+        )
+        counts = {key: value + added[key] for key, value in counts.items()}
+    if projection and not projection[4] and projection[1].count() != projection[2]:
+        counts = candidates.aggregate(
+            matches=Count("pk", filter=matching_rule),
+            unknown=Count("pk", filter=Q(version="")),
+            unsupported=Count("pk", filter=unsupported_rule),
+        )
     selected = {"matches": matches, "unknown": unknown, "unsupported": unsupported}[data["bucket"]]
     return selected, counts
