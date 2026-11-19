@@ -86,7 +86,14 @@ class PlatformAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Organization, PlatformAdmin)
-admin.site.register(Membership, PlatformAdmin)
+@admin.register(Membership)
+class MembershipAdmin(PlatformAdmin):
+    list_display = ["user", "organization", "role"]
+    list_select_related = ["user", "organization"]
+    search_fields = ["user__username", "user__email", "user__first_name", "user__last_name", "organization__name"]
+    list_filter = ["role"]
+    ordering = ["organization__name", "user__username", "pk"]
+
 
 
 @admin.register(InventorySource)

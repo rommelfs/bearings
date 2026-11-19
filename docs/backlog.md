@@ -293,3 +293,5 @@ Implemented [optional personal customer MISP connections](user-guide/personal-mi
 ## Company membership and consolidation
 
 Implemented OrgAdmin-managed invitations for existing/new users and reviewed platform-only local company consolidation. Existing target roles win on overlap; source/history are archived. Native identities, sources, delivery state and data collisions require separate reconciliation. See [company members guide](user-guide/company-members.md).
+
+Membership administration now uses readable user/company/role labels and separate searchable list columns with a role filter.

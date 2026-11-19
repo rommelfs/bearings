@@ -34,6 +34,9 @@ class Membership(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     role = models.CharField(max_length=10, choices=ROLES)
 
+    def __str__(self):
+        return f"{self.user.get_username()} · {self.organization.name} · {self.get_role_display()}"
+
     class Meta:
         constraints = [models.UniqueConstraint(fields=["organization", "user"], name="unique_membership")]
 
