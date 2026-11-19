@@ -21,20 +21,20 @@
   {
     "id": "operator",
     "en": [
-      "Who operates this installation?",
-      "This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy. Bearings is open-source software; other installations can have different operators."
+      "Who operates the Bearings service?",
+      "This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy."
     ],
     "de": [
-      "Wer betreibt diese Installation?",
-      "Diese Bearings-Installation wird von CIRCL betrieben, dem Computer Incident Response Center Luxembourg: dem CERT für die Privatwirtschaft und Kommunen in Luxemburg, mandatiert vom Wirtschaftsministerium. Bearings ist Open-Source-Software; andere Installationen können andere Betreiber haben."
+      "Wer betreibt den Bearings-Dienst?",
+      "Diese Bearings-Installation wird von CIRCL betrieben, dem Computer Incident Response Center Luxembourg: dem CERT für die Privatwirtschaft und Kommunen in Luxemburg, mandatiert vom Wirtschaftsministerium."
     ],
     "fr": [
-      "Qui exploite cette installation ?",
-      "Cette installation Bearings est exploitée par CIRCL, le Computer Incident Response Center Luxembourg : le CERT du secteur privé et des communes au Luxembourg, mandaté par le ministère de l’Économie. Bearings est un logiciel open source ; d’autres installations peuvent avoir d’autres opérateurs."
+      "Qui exploite le service Bearings ?",
+      "Cette installation Bearings est exploitée par CIRCL, le Computer Incident Response Center Luxembourg : le CERT du secteur privé et des communes au Luxembourg, mandaté par le ministère de l’Économie."
     ],
     "lb": [
-      "Wien bedreift dës Installatioun?",
-      "Dës Bearings-Installatioun gëtt vum CIRCL bedriwwen, dem Computer Incident Response Center Luxembourg: dem CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg, am Optrag vum Wirtschaftsministère. Bearings ass Open-Source-Software; aner Installatioune kënnen aner Bedreiwer hunn."
+      "Wien bedreift de Bearings-Service?",
+      "Dës Bearings-Installatioun gëtt vum CIRCL bedriwwen, dem Computer Incident Response Center Luxembourg: dem CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg, am Optrag vum Wirtschaftsministère."
     ]
   },
   {
@@ -117,19 +117,19 @@
     "id": "inventory",
     "en": [
       "Can we reuse NetBox or import a spreadsheet?",
-      "Yes. Operator-approved NetBox connections import devices, VMs, IPs and prefixes. A local manual inventory supports reviewed CSV imports up to 500 rows / 1 MB. Each company has one authoritative inventory source. A CSV upload does not write to NetBox; software/version details are separate from basic network discovery."
+      "Yes. Operator-approved NetBox connections import devices, VMs, IPs and prefixes. A manually maintained inventory supports reviewed CSV imports up to 500 rows / 1 MB. Each company has one authoritative inventory source. A CSV upload does not write to NetBox; software/version details are separate from basic network discovery."
     ],
     "de": [
       "Können wir NetBox oder Tabellen weiterverwenden?",
-      "Ja. Freigegebene NetBox-Verbindungen importieren Geräte, VMs, IPs und Präfixe. Für lokales manuelles Inventar gibt es einen CSV-Import mit Vorschau bis 500 Zeilen / 1 MB. Jede Firma hat eine maßgebliche Inventarquelle. Ein CSV-Upload schreibt nicht in NetBox; Software- und Versionsangaben sind von den grundlegenden Netzobjekten getrennt."
+      "Ja. Freigegebene NetBox-Verbindungen importieren Geräte, VMs, IPs und Präfixe. Für manuell gepflegtes Inventar gibt es einen CSV-Import mit Vorschau bis 500 Zeilen / 1 MB. Jede Firma hat eine maßgebliche Inventarquelle. Ein CSV-Upload schreibt nicht in NetBox; Software- und Versionsangaben sind von den grundlegenden Netzobjekten getrennt."
     ],
     "fr": [
       "Peut-on réutiliser NetBox ou importer un tableau ?",
-      "Oui. Des connexions NetBox approuvées importent les équipements, VM, IP et préfixes. L’inventaire manuel local accepte des imports CSV avec prévisualisation, limités à 500 lignes / 1 Mo. Chaque entreprise possède une seule source d’inventaire faisant autorité. Un import CSV n’écrit pas dans NetBox ; les logiciels et versions sont distincts des objets réseau de base."
+      "Oui. Des connexions NetBox approuvées importent les équipements, VM, IP et préfixes. L’inventaire géré manuellement accepte des imports CSV avec prévisualisation, limités à 500 lignes / 1 Mo. Chaque entreprise possède une seule source d’inventaire faisant autorité. Un import CSV n’écrit pas dans NetBox ; les logiciels et versions sont distincts des objets réseau de base."
     ],
     "lb": [
       "Kënne mir NetBox weiderbenotzen oder eng Tabell importéieren?",
-      "Jo. Fräiginn NetBox-Verbindungen importéieren Apparater, VM-en, IPen a Präfixer. Fir lokalen, manuell gefouerten Inventar gëtt et e CSV-Import mat Virschau bis 500 Zeilen / 1 MB. All Firma huet eng eenzeg verbindlech Inventarquell. E CSV-Import schreift net an NetBox; Software- a Versiounsangabe si vun de Basis-Netzobjekter getrennt."
+      "Jo. Fräiginn NetBox-Verbindungen importéieren Apparater, VM-en, IPen a Präfixer. Fir manuell gefouerten Inventar gëtt et e CSV-Import mat Virschau bis 500 Zeilen / 1 MB. All Firma huet eng eenzeg verbindlech Inventarquell. E CSV-Import schreift net an NetBox; Software- a Versiounsangabe si vun de Basis-Netzobjekter getrennt."
     ]
   },
   {
@@ -250,19 +250,19 @@
     "id": "mail",
     "en": [
       "How do data reviews and the email reaction test work?",
-      "An administrator-configured schedule asks responsible people to review current contacts and inventory and confirm a snapshot through a link. Company users cannot disable required review emails for registered companies. Local file mail is the development default; operational SMTP needs configuration and acceptance. Prepared mail, relay acceptance, delivery and an actual owner response remain separate states."
+      "The service asks responsible people by email to review current contacts and inventory and confirm a snapshot through a link. The platform administration sets the review schedule; registered companies cannot disable required review emails. Message preparation, delivery and an actual response remain separate evidence, so a sent message alone does not count as confirmation."
     ],
     "de": [
       "Wie funktionieren Datenprüfung und E-Mail-Reaktionstest?",
-      "Ein administrativ festgelegter Rhythmus fordert Verantwortliche auf, Kontakte und Inventar zu prüfen und einen Datenstand über einen Link zu bestätigen. Verpflichtende Prüf-E-Mails registrierter Firmen sind nicht durch Firmenbenutzer abwählbar. Standard im Entwicklungsbetrieb sind lokale Maildateien; operatives SMTP benötigt Konfiguration und Abnahme. Erzeugte Mail, Relay-Annahme, Zustellung und tatsächliche Antwort bleiben getrennte Zustände."
+      "Der Dienst fordert Verantwortliche per E-Mail auf, Kontakte und Inventar zu prüfen und einen Datenstand über einen Link zu bestätigen. Den Rhythmus legt die Plattformverwaltung fest; registrierte Firmen können verpflichtende Prüf-E-Mails nicht abwählen. Versandvorbereitung, Zustellung und tatsächliche Reaktion bleiben getrennte Nachweise. Eine versendete Mail allein zählt nicht als Bestätigung."
     ],
     "fr": [
       "Comment fonctionnent la revue des données et le test de réaction par e-mail ?",
-      "Selon une périodicité définie par l’administration, les responsables vérifient les contacts et l’inventaire puis confirment un état des données via un lien. Les entreprises inscrites ne peuvent pas désactiver ces e-mails obligatoires. En développement, les messages sont enregistrés dans des fichiers locaux ; le SMTP opérationnel nécessite configuration et validation. Message préparé, acceptation par le relais, livraison et réponse du responsable restent des états distincts."
+      "Le service demande par e-mail aux responsables de vérifier les contacts et l’inventaire, puis de confirmer un état des données via un lien. L’administration fixe la périodicité ; les entreprises inscrites ne peuvent pas désactiver les e-mails de revue obligatoires. Préparation, livraison et réponse effective restent des éléments distincts : un message envoyé n’est pas une confirmation."
     ],
     "lb": [
       "Wéi funktionéieren d’Datekontroll an den E-Mail-Reaktiounstest?",
-      "An engem administrativ festgeluechte Rhythmus iwwerpréiwen déi Verantwortlech d’Kontakter an den Inventar a bestätegen en Donnéeëstand iwwer e Link. Registréiert Firme kënnen dës obligatoresch E-Mailen net ausschalten. An der Entwécklung ginn d’Mails standardméisseg a lokal Dateie geschriwwen. Operative SMTP brauch Konfiguratioun an Ofnam. Preparéiert Mail, Unhuele vum Relay, Zoustellung an eng tatsächlech Äntwert si verschidden Zoustänn."
+      "De Service fuerdert Responsabel per E-Mail op, Kontakter an Inventar ze kontrolléieren an en Donnéeëstand iwwer e Link ze bestätegen. D’Plattformverwaltung leet de Rhythmus fest; registréiert Firme kënnen obligatoresch Kontrollmails net ausschalten. Virbereedung, Zoustellung an tatsächlech Reaktioun bleiwen getrennten Noweiser. Eng verschéckte Mail eleng ass keng Bestätegung."
     ]
   },
   {
@@ -288,19 +288,19 @@
     "id": "sso",
     "en": [
       "Is SSO available across the ecosystem?",
-      "Optional OIDC SSO and explicit identity bindings are implemented, with a tested bundled lab for Bearings, NetBox, FlowIntel and RT/RTIR. Each application keeps its own permissions. Inviting or removing a Bearings member does not automatically provision or revoke independent native accounts or sessions. External deployment and global lifecycle acceptance are still required."
+      "Your company uses its Bearings account to access the CIRCL-operated workspace. Optional single sign-on depends on the login methods enabled by the operator. Connected applications keep their own permissions; a company invitation does not automatically grant access to MISP, NetBox or incident-coordination tools."
     ],
     "de": [
       "Gibt es SSO im Ökosystem?",
-      "Optionales OIDC-SSO und explizite Identitätsbindungen sind implementiert, mit geprüftem lokalen Verbund für Bearings, NetBox, FlowIntel und RT/RTIR. Jede Anwendung behält ihre eigenen Rechte. Einladungen oder entfernte Bearings-Mitgliedschaften legen native Konten nicht automatisch an und widerrufen deren Sitzungen nicht automatisch. Externe Bereitstellung und ein übergreifender Kontenlebenszyklus benötigen weitere Abnahme."
+      "Ihr Team nutzt sein Bearings-Konto für den von CIRCL betriebenen Firmenbereich. Optionales Single Sign-on hängt von den freigeschalteten Anmeldeverfahren ab. Angebundene Anwendungen behalten ihre eigenen Rechte; eine Firmeneinladung erteilt nicht automatisch Zugang zu MISP, NetBox oder Werkzeugen zur Vorfallkoordination."
     ],
     "fr": [
       "Le SSO est-il disponible dans l’écosystème ?",
-      "Le SSO OIDC facultatif et les associations explicites d’identités sont implémentés, avec un environnement local testé pour Bearings, NetBox, FlowIntel et RT/RTIR. Chaque application conserve ses propres droits. Ajouter ou retirer un membre Bearings ne crée ni ne révoque automatiquement les comptes ou sessions des applications natives. Les déploiements externes et le cycle de vie global nécessitent encore une validation."
+      "Votre équipe utilise son compte Bearings pour accéder à l’espace exploité par CIRCL. Le SSO facultatif dépend des méthodes de connexion activées par l’opérateur. Les applications connectées conservent leurs propres droits ; une invitation n’accorde pas automatiquement l’accès à MISP, NetBox ou aux outils de coordination."
     ],
     "lb": [
       "Gëtt et SSO am Ökosystem?",
-      "Optionalen OIDC-SSO an explizitt Identitéitsverknëppunge sinn ëmgesat, mat engem getestete lokale Verbond fir Bearings, NetBox, FlowIntel an RT/RTIR. All Applikatioun behält hir eege Rechter. Eng Bearings-Memberschaft unzeleeën oder ze läsche leet nativ Konten net automatesch un a widderruff hir Sessiounen net automatesch. Extern Installatiounen an de globale Konteliewenszyklus brauchen nach eng Ofnam."
+      "Äert Team benotzt säi Bearings-Kont fir de vum CIRCL bedriwwene Firmeberäich. Optionalen SSO hänkt vun den aktivéierten Umeldemethoden of. Ugebonnen Applikatioune behalen hir eege Rechter; eng Firmeninvitatioun gëtt net automatesch Zougang zu MISP, NetBox oder Koordinatiounsinstrumenter."
     ]
   },
   {
@@ -320,25 +320,6 @@
     "lb": [
       "Wat geschitt bei Duebelregistréierungen oder Firmefusiounen?",
       "E Plattformadministrateur kann eng Firmenzesummeféierung iwwerpréiwen. Membere vun der Quell trieden der Zielfirma bäi; Benotzer, déi schonn do sinn, behalen hir Zilroll. Ënnerstëtzte lokalen, manuell gefouerten Inventar a Beleeër ginn atomar iwwerdroen, d’Quell gëtt archivéiert. Nativ Identitéiten, extern Quellverbindungen an Datekonflikter brauche separat Ofstëmmung. Änlech Firmennimm verginn ni automatesch Rechter a léise keng automatesch Zesummeféierung aus."
-    ]
-  },
-  {
-    "id": "federation",
-    "en": [
-      "Can a company run its own Bearings installation?",
-      "A bounded read-only snapshot federation pilot exists with explicit grants and source provenance. It is not unrestricted database replication, native MISP synchronization or a scalable delta federation service. Independent deployment, revocation/retention and larger-corpus synchronization need further operational acceptance."
-    ],
-    "de": [
-      "Kann eine Firma ihre eigene Bearings-Installation betreiben?",
-      "Es gibt einen begrenzten Read-only-Piloten für Snapshot-Föderation mit expliziten Freigaben und Herkunftsnachweis. Das ist keine unbeschränkte Datenbankreplikation, native MISP-Synchronisierung oder skalierbare Delta-Föderation. Unabhängiger Betrieb, Widerruf/Aufbewahrung und die Synchronisierung größerer Datenmengen benötigen weitere operative Abnahme."
-    ],
-    "fr": [
-      "Une entreprise peut-elle exploiter sa propre installation Bearings ?",
-      "Un pilote limité de fédération par instantanés en lecture seule existe, avec autorisations explicites et traçabilité des sources. Il ne s’agit ni d’une réplication illimitée de bases de données, ni d’une synchronisation MISP native, ni d’un service de fédération incrémentale à grande échelle. L’exploitation indépendante, la révocation, la conservation et les volumes plus importants nécessitent des validations supplémentaires."
-    ],
-    "lb": [
-      "Kann eng Firma hir eege Bearings-Installatioun bedreiwen?",
-      "Et gëtt e begrenzte Pilot fir Snapshot-Federatioun mat Liesrechter, explizitte Fräigaben an engem Hierkonftsnoweis. Dat ass keng onbegrenzten Datebankreplikatioun, keng nativ MISP-Synchroniséierung a kee skaléierbaren Delta-Federatiounsservice. Eegenen operative Betrib, Widderruff, Späicherfristen a méi grouss Datemenge brauche weider Ofnam."
     ]
   },
   {

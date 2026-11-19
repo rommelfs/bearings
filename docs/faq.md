@@ -6,9 +6,9 @@ Reviewed 2026-11-19. This FAQ describes implemented development/pilot behavior, 
 
 Bearings connects a company's infrastructure inventory with vulnerability evidence, business risk, accountable contacts and follow-up. It gives company teams a view of what needs attention and gives authorized CIRCL analysts a view across participating organizations.
 
-## Who operates this installation?
+## Who operates the Bearings service?
 
-This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy. Bearings is open-source software; other installations can have different operators.
+This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy.
 
 ## Is company registration free?
 
@@ -28,7 +28,7 @@ Email confirmation opens the private company workspace. CIRCL reviews sharing se
 
 ## Can we reuse NetBox or import a spreadsheet?
 
-Yes. Operator-approved NetBox connections import devices, VMs, IPs and prefixes. A local manual inventory supports reviewed CSV imports up to 500 rows / 1 MB. Each company has one authoritative inventory source. A CSV upload does not write to NetBox; software/version details are separate from basic network discovery.
+Yes. Operator-approved NetBox connections import devices, VMs, IPs and prefixes. A manually maintained inventory supports reviewed CSV imports up to 500 rows / 1 MB. Each company has one authoritative inventory source. A CSV upload does not write to NetBox; software/version details are separate from basic network discovery.
 
 ## Does a CVE match mean a server needs a patch?
 
@@ -56,7 +56,7 @@ No. Companies can supply optional keywords, separate Honeytoken indicators and a
 
 ## How do data reviews and the email reaction test work?
 
-An administrator-configured schedule asks responsible people to review current contacts and inventory and confirm a snapshot through a link. Company users cannot disable required review emails for registered companies. Local file mail is the development default; operational SMTP needs configuration and acceptance. Prepared mail, relay acceptance, delivery and an actual owner response remain separate states.
+The service asks responsible people by email to review current contacts and inventory and confirm a snapshot through a link. The platform administration sets the review schedule; registered companies cannot disable required review emails. Message preparation, delivery and an actual response remain separate evidence, so a sent message alone does not count as confirmation.
 
 ## Can a security team or DPO be included?
 
@@ -64,15 +64,11 @@ A separate team mailbox can be supplied, for example security@, abuse@ or noc@. 
 
 ## Is SSO available across the ecosystem?
 
-Optional OIDC SSO and explicit identity bindings are implemented, with a tested bundled lab for Bearings, NetBox, FlowIntel and RT/RTIR. Each application keeps its own permissions. Inviting or removing a Bearings member does not automatically provision or revoke independent native accounts or sessions. External deployment and global lifecycle acceptance are still required.
+Your company uses its Bearings account to access the CIRCL-operated workspace. Optional single sign-on depends on the login methods enabled by the operator. Connected applications keep their own permissions; a company invitation does not automatically grant access to MISP, NetBox or incident-coordination tools.
 
 ## What happens if a company is registered twice or companies merge?
 
 A platform administrator can review a company merge. Source members join the target; duplicate users retain their target role. Supported local manual inventory and evidence transfer atomically, while the source is archived. Native identities, source-side external bindings and conflicting data require separate reconciliation. Similar company names never automatically grant membership or trigger a merge.
-
-## Can a company run its own Bearings installation?
-
-A bounded read-only snapshot federation pilot exists with explicit grants and source provenance. It is not unrestricted database replication, native MISP synchronization or a scalable delta federation service. Independent deployment, revocation/retention and larger-corpus synchronization need further operational acceptance.
 
 ## Is Bearings ready for production?
 

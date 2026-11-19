@@ -9,9 +9,9 @@
       "FAQ",
       "Documentation"
     ],
-    "eyebrow": "FOR COMPANY TEAMS · OPEN SOURCE",
+    "eyebrow": "THE CIRCL SERVICE FOR COMPANY TEAMS",
     "hero": "See what needs attention.<br><em>Know who can act.</em>",
-    "intro": "Which servers need an urgent review? Who should act? Bearings brings your inventory, vulnerability evidence and responsible contacts together, so your team can take the next step.",
+    "intro": "Your infrastructure inventory, vulnerability reviews and responsible contacts in one workspace operated by CIRCL. See what needs attention, assign the next step and keep your team reachable.",
     "primary": "Register for free",
     "secondary": "See how it works",
     "status": "Development & pilot stage",
@@ -104,7 +104,7 @@
       [
         "MOSP / MONARC",
         "Risk context",
-        "Public scenario definitions and reviewed local business context."
+        "Public scenario definitions and reviewed company-specific business context."
       ],
       [
         "MISP",
@@ -149,10 +149,10 @@
     "results": "questions shown",
     "nojs": "All answers are available below; search is an optional browser enhancement.",
     "closing": "Your first step is free.",
-    "closing_body": "Register your company, confirm your email and add a responsible contact plus one domain or network. Your private workspace opens after confirmation; CIRCL sharing is reviewed separately.",
-    "get_started": "Get started locally",
+    "closing_body": "Register with CIRCL, confirm your email and add a responsible contact plus one domain or network. Your private company workspace opens after confirmation; sharing with CIRCL is reviewed separately.",
+    "get_started": "Create your free company workspace",
     "source": "Explore the source",
-    "footer": "An open-source project for company infrastructure and CIRCL-oriented workflows.",
+    "footer": "The CIRCL-operated workspace for company infrastructure, vulnerability review and responsible contacts.",
     "reviewed": "Content reviewed 19 November 2026",
     "license": "Source licensed AGPL-3.0-or-later",
     "privacy": "Static information website · no visitor analytics or advertising cookies",
@@ -172,14 +172,14 @@
     "fiction": "Fictional vulnerability quote",
     "advisory": "Source advisory",
     "source_note": "Sources checked 19 November 2026. Historical examples, not a live threat feed. Actual affectedness and fixes require the current vendor guidance.",
-    "local_note": "Local preview: registration opens the local Bearings installation. A public registration address will be configured before launch.",
     "languages": "Choose language",
     "context_link": "Additional source",
     "operator_short": "by CIRCL",
     "operator_label": "Operated by CIRCL",
     "operator_body": "CIRCL is the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy.",
     "operator_link": "About CIRCL and its mission",
-    "analysis_link": "CIRCL analysis"
+    "analysis_link": "CIRCL analysis",
+    "testimonials_link": "What the vulnerabilities have to say"
   },
   "de": {
     "title": "Infrastruktur, Risiken & Reaktion",
@@ -191,9 +191,9 @@
       "FAQ",
       "Dokumentation"
     ],
-    "eyebrow": "FÜR FIRMENVERANTWORTLICHE · OPEN SOURCE",
+    "eyebrow": "DER CIRCL-DIENST FÜR FIRMENVERANTWORTLICHE",
     "hero": "Sehen, wo es dringend ist.<br><em>Wissen, wer handeln kann.</em>",
-    "intro": "Welche Server brauchen eine dringende Prüfung? Wer kümmert sich darum? Bearings bringt Inventar, Schwachstellenbelege und verantwortliche Kontakte zusammen – damit Ihr Team den nächsten Schritt machen kann.",
+    "intro": "Firmeninventar, Schwachstellenprüfungen und verantwortliche Kontakte in einem von CIRCL betriebenen Workspace. Handlungsbedarf erkennen, nächste Schritte zuweisen und als Team erreichbar bleiben.",
     "primary": "Kostenlos registrieren",
     "secondary": "So funktioniert es",
     "status": "Entwicklungs- & Pilotphase",
@@ -286,7 +286,7 @@
       [
         "MOSP / MONARC",
         "Risikokontext",
-        "Öffentliche Szenariodefinitionen und geprüfter lokaler Geschäftskontext."
+        "Öffentliche Szenariodefinitionen und geprüfter firmenspezifischer Geschäftskontext."
       ],
       [
         "MISP",
@@ -331,10 +331,10 @@
     "results": "Fragen angezeigt",
     "nojs": "Alle Antworten stehen unten; die Suche ist eine optionale Browserfunktion.",
     "closing": "Der erste Schritt ist kostenlos.",
-    "closing_body": "Firma registrieren, E-Mail bestätigen und einen Verantwortlichen sowie eine Domain oder ein Netz hinterlegen. Nach der Bestätigung öffnet sich Ihr privater Bereich; die Freigabe für CIRCL erfolgt gesondert.",
-    "get_started": "Lokal starten",
+    "closing_body": "Bei CIRCL registrieren, E-Mail bestätigen und einen Verantwortlichen sowie eine Domain oder ein Netz hinterlegen. Nach der Bestätigung öffnet sich Ihr privater Firmenbereich; die Freigabe für CIRCL erfolgt gesondert.",
+    "get_started": "Kostenlosen Firmenbereich anlegen",
     "source": "Quellcode ansehen",
-    "footer": "Ein Open-Source-Projekt für Firmeninfrastruktur und CIRCL-orientierte Abläufe.",
+    "footer": "Der von CIRCL betriebene Dienst für Firmeninventar, Schwachstellenprüfung und verantwortliche Kontakte.",
     "reviewed": "Inhalt geprüft am 19. November 2026",
     "license": "Quellcode unter AGPL-3.0-or-later",
     "privacy": "Statische Informationswebsite · keine Besucheranalyse oder Werbe-Cookies",
@@ -354,14 +354,14 @@
     "fiction": "Erfundene Aussage der Schwachstelle",
     "advisory": "Zum Sicherheitshinweis",
     "source_note": "Quellen geprüft am 19. November 2026. Historische Beispiele, kein Live-Bedrohungsfeed. Tatsächliche Betroffenheit und Maßnahmen anhand aktueller Herstellerhinweise prüfen.",
-    "local_note": "Lokale Vorschau: Die Registrierung öffnet die lokale Bearings-Installation. Vor dem öffentlichen Start wird die öffentliche Registrierungsadresse hinterlegt.",
     "languages": "Sprache wählen",
     "context_link": "Zusätzliche Quelle",
     "operator_short": "von CIRCL",
     "operator_label": "Betrieben von CIRCL",
     "operator_body": "CIRCL ist das CERT für die Privatwirtschaft und Kommunen in Luxemburg, mandatiert vom Wirtschaftsministerium.",
     "operator_link": "Über CIRCL und seinen Auftrag",
-    "analysis_link": "CIRCL-Analyse"
+    "analysis_link": "CIRCL-Analyse",
+    "testimonials_link": "Was die Schwachstellen dazu sagen"
   },
   "fr": {
     "title": "Infrastructure, risques et réponse",
@@ -373,9 +373,9 @@
       "FAQ",
       "Documentation"
     ],
-    "eyebrow": "POUR LES ENTREPRISES · OPEN SOURCE",
+    "eyebrow": "LE SERVICE CIRCL POUR LES ENTREPRISES",
     "hero": "Identifiez les priorités.<br><em>Sachez qui peut agir.</em>",
-    "intro": "Quels serveurs méritent une vérification urgente ? Qui doit s’en occuper ? Bearings rassemble votre inventaire, les informations sur les vulnérabilités et vos contacts pour vous aider à passer à l’action.",
+    "intro": "Votre inventaire, vos revues de vulnérabilités et vos contacts responsables dans un espace exploité par CIRCL. Identifiez les priorités, attribuez la prochaine action et gardez votre équipe joignable.",
     "primary": "S’inscrire gratuitement",
     "secondary": "Découvrir le fonctionnement",
     "status": "Développement et phase pilote",
@@ -468,7 +468,7 @@
       [
         "MOSP / MONARC",
         "Contexte de risque",
-        "Définitions publiques de scénarios et contexte métier local revu."
+        "Définitions publiques de scénarios et contexte métier propre à l’entreprise."
       ],
       [
         "MISP",
@@ -513,10 +513,10 @@
     "results": "questions affichées",
     "nojs": "Toutes les réponses figurent ci-dessous ; la recherche est une fonction facultative du navigateur.",
     "closing": "Votre premier pas est gratuit.",
-    "closing_body": "Inscrivez votre entreprise, confirmez votre e-mail et ajoutez un responsable ainsi qu’un domaine ou réseau. Votre espace privé s’ouvre après confirmation ; le partage avec le CIRCL reste distinct.",
-    "get_started": "Démarrer en local",
+    "closing_body": "Inscrivez-vous auprès du CIRCL, confirmez votre e-mail et ajoutez un responsable ainsi qu’un domaine ou réseau. Votre espace privé s’ouvre après confirmation ; le partage avec le CIRCL est validé séparément.",
+    "get_started": "Créer votre espace entreprise gratuit",
     "source": "Consulter le code source",
-    "footer": "Un projet open source pour l’infrastructure des entreprises et les processus orientés CIRCL.",
+    "footer": "Le service exploité par CIRCL pour l’inventaire des entreprises, les revues de vulnérabilités et les contacts responsables.",
     "reviewed": "Contenu vérifié le 19 novembre 2026",
     "license": "Code sous AGPL-3.0-or-later",
     "privacy": "Site d’information statique · sans analyse des visiteurs ni cookies publicitaires",
@@ -536,14 +536,14 @@
     "fiction": "Citation fictive de la vulnérabilité",
     "advisory": "Consulter l’avis de sécurité",
     "source_note": "Sources vérifiées le 19 novembre 2026. Exemples historiques, pas un flux de menaces en direct. Vérifiez l’exposition et les mesures à partir des consignes actuelles de l’éditeur.",
-    "local_note": "Aperçu local : l’inscription ouvre l’installation Bearings locale. Une adresse publique sera configurée avant le lancement.",
     "languages": "Choisir la langue",
     "context_link": "Source complémentaire",
     "operator_short": "par CIRCL",
     "operator_label": "Exploité par CIRCL",
     "operator_body": "CIRCL est le CERT du secteur privé et des communes au Luxembourg, mandaté par le ministère de l’Économie.",
     "operator_link": "À propos du CIRCL et de sa mission",
-    "analysis_link": "Analyse du CIRCL"
+    "analysis_link": "Analyse du CIRCL",
+    "testimonials_link": "Ce qu’en disent les vulnérabilités"
   },
   "lb": {
     "title": "Infrastruktur, Risiken a Reaktioun",
@@ -555,9 +555,9 @@
       "FAQ",
       "Dokumentatioun"
     ],
-    "eyebrow": "FIR FIRMEN · OPEN SOURCE",
+    "eyebrow": "DE CIRCL-SERVICE FIR FIRMEN",
     "hero": "Prioritéiten erkennen.<br><em>Zilgeriicht handelen.</em>",
-    "intro": "Wéi eng Servere brauchen eng dréngend Iwwerpréiwung? Wien ass dofir zoustänneg? Bearings bréngt Ären Inventar, Schwachstelleninformatiounen a Kontakter zesummen, fir datt Dir de nächste Schrëtt maache kënnt.",
+    "intro": "Firmeninventar, Schwachstellekontrollen a verantwortlech Kontakter an engem vum CIRCL bedriwwene Workspace. Handlungsbedarf erkennen, déi nächst Schrëtt verdeelen an als Team erreechbar bleiwen.",
     "primary": "Gratis registréieren",
     "secondary": "Den Oflaf entdecken",
     "status": "Entwécklungs- a Pilotphas",
@@ -650,7 +650,7 @@
       [
         "MOSP / MONARC",
         "Risikokontext",
-        "Ëffentlech Szenariodefinitiounen a gepréifte lokale Geschäftskontext."
+        "Ëffentlech Szenariodefinitiounen a gepréifte firmespezifesche Geschäftskontext."
       ],
       [
         "MISP",
@@ -695,10 +695,10 @@
     "results": "Froe gewisen",
     "nojs": "All Äntwerte stinn hei drënner; d’Sich ass eng optional Browserfunktioun.",
     "closing": "Den éischte Schrëtt ass gratis.",
-    "closing_body": "Registréiert Är Firma, bestätegt Är E-Mail a gitt eng zoustänneg Persoun an eng Domain oder en Netz un. Äre private Beräich geet no der Bestätegung op; d’Fräigab fir de CIRCL bleift separat.",
-    "get_started": "Lokal ufänken",
+    "closing_body": "Beim CIRCL registréieren, Är E-Mail bestätegen an eng zoustänneg Persoun souwéi eng Domain oder en Netz uginn. Duerno geet Äre private Firmeberäich op; d’Fräigab fir de CIRCL gëtt separat iwwerpréift.",
+    "get_started": "Äre gratis Firmeberäich uleeën",
     "source": "Quellcode ukucken",
-    "footer": "En Open-Source-Projet fir Firmeninfrastruktur a CIRCL-orientéiert Oflafprozesser.",
+    "footer": "De vum CIRCL bedriwwene Service fir Firmeninventar, Schwachstellekontrollen a verantwortlech Kontakter.",
     "reviewed": "Inhalt iwwerpréift den 19. November 2026",
     "license": "Quellcode ënner AGPL-3.0-or-later",
     "privacy": "Statesch Informatiounssäit · keng Visiteursanalys oder Reklamm-Cookien",
@@ -718,13 +718,13 @@
     "fiction": "Erfonnten Ausso vun der Schwachstell",
     "advisory": "De Sécherheetshinweis liesen",
     "source_note": "Quellen iwwerpréift den 19. November 2026. Historesch Beispiller, kee Live-Bedrohungsfeed. Reell Betroffenheet a Moossnamen no den aktuelle Fabrikanthinweiser iwwerpréiwen.",
-    "local_note": "Lokal Virschau: D’Registréierung mécht déi lokal Bearings-Installatioun op. Eng ëffentlech Registréierungsadress gëtt virum Start agestallt.",
     "languages": "Sprooch wielen",
     "context_link": "Weider Quell",
     "operator_short": "vum CIRCL",
     "operator_label": "Bedriwwe vum CIRCL",
     "operator_body": "De CIRCL ass de CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg, am Optrag vum Wirtschaftsministère.",
     "operator_link": "Iwwer de CIRCL a säin Optrag",
-    "analysis_link": "CIRCL-Analys"
+    "analysis_link": "CIRCL-Analys",
+    "testimonials_link": "Wat d’Schwachstellen dovun halen"
   }
 }
