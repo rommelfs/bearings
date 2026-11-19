@@ -163,6 +163,10 @@ def main():
             target = out / (lang if lang != "en" else "") / ("faq" if faq else "")
             target.mkdir(parents=True, exist_ok=True)
             (target / "index.html").write_text(page(lang, faq, base, args.registration_url))
+    # Keep the canonical English URL at / while accepting the intuitive /en/ alias.
+    (out / "en" / "faq").mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(out / "index.html", out / "en" / "index.html")
+    shutil.copyfile(out / "faq" / "index.html", out / "en" / "faq" / "index.html")
     for file in ["style.css", "site.js"]:
         shutil.copyfile(ROOT / file, out / file)
     shutil.copytree(ROOT / "assets", out / "assets", dirs_exist_ok=True)

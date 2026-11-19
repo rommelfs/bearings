@@ -9,19 +9,20 @@ Company-first introduction in **English, German, French and Luxembourgish**. Inc
 From the repository root:
 
 ```sh
-python3 website/build.py
-python3 -m http.server 8050 --directory website/dist --bind 127.0.0.1
+python3 website/serve.py
 ```
+
+This command builds the pages first and serves an absolute output directory, independent of the caller’s working directory. Stop an older server on port 8050 with Ctrl+C first; it cannot pick up a different serving directory automatically. If the port belongs to another service, use `--port 8051`.
 
 Open:
 
-- English: `http://localhost:8050/`
+- English: `http://localhost:8050/` (also `/en/`)
 - Deutsch: `http://localhost:8050/de/`
 - Français: `http://localhost:8050/fr/`
 - Lëtzebuergesch: `http://localhost:8050/lb/`
 - FAQ: add `faq/` to any language path.
 
-The registration buttons point to **`https://localhost:9441/register/`**. Start the existing lab with `python3 scripts/dev.py up --no-build` and trust its CA if necessary. For a lab without the integrated HTTPS entrance, use `python3 website/build.py --registration-url http://localhost:8000/register/`. This changes only the site's links; it does not create users, change the application registration policy or send mail.
+The registration buttons point to **`https://localhost:9441/register/`**. Start the existing lab with `python3 scripts/dev.py up --no-build` and trust its CA if necessary. For a lab without the integrated HTTPS entrance, use `python3 website/serve.py --registration-url http://localhost:8000/register/`. This changes only the site's links; it does not create users, change the application registration policy or send mail.
 
 ## Prepare a later public deployment
 
@@ -49,6 +50,7 @@ The NGINX2Root and Java examples also link directly to CIRCL’s [TR-105](https:
 - `faq.json`: all four FAQ translations; also generates the canonical English `docs/faq.md`.
 - `examples.json`: real CVE IDs, dates, source URLs, factual summaries and separately labeled invented quotes. [Source review](../docs/product/website-examples.md).
 - `build.py`: dependency-free HTML and metadata generation.
+- `serve.py`: build-before-serve, absolute-directory loopback preview with explicit occupied-port diagnostics.
 - `style.css`, `site.js`: responsive presentation and progressive enhancements.
 - `assets/`: optimized WebP copies of documented synthetic screenshots and a local SVG mark.
 - `dist/`: generated, ignored by Git; building does not modify application data.

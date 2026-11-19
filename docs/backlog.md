@@ -300,3 +300,5 @@ Membership administration now uses readable user/company/role labels and separat
 ## Project communication, FAQ and local static website
 
 Added a documentation index and shared twenty-question FAQ; reconciled stale overview/policy statements. A local-only static website in English, German, French and Luxembourgish explains immediate company benefits and free registration with synthetic product images. Five real vulnerability examples (including November 2026 NGINX2Root and Java/Java4Shell) have source links and visibly fictional humorous quotes. Public deployment is deferred at the owner’s request. See [website guide](../website/README.md), [source review](product/website-examples.md) and [next acceptance steps](product/next-priorities.md).
+
+Local website recovery: `python3 website/serve.py` builds before serving the absolute output path, avoids working-directory 404s, reports occupied ports and accepts `/en/` as an English alias.
