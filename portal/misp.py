@@ -6,15 +6,36 @@ import uuid
 from datetime import timedelta
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
-from .access import audit, is_analyst, require
+from .access import audit, is_analyst, require, ANALYST_GROUP
 from .connectors.http import ConnectorError
 from .connectors.misp import snapshot
-from .models import MISPEvent, MISPInstance
+from .models import MISPEvent, MISPInstance, Membership
 
 
 def digest(event):
     return hashlib.sha256(json.dumps(event, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def owner_eligible(source):
+    if not source.owner_id or not source.owner.is_active:
+        return False
+    if source.organization_id:
+        if source.credential_kind != "encrypted" or not source.credential_ciphertext or not source.server_id:
+            return False
+        return Membership.objects.filter(
+            user_id=source.owner_id, organization_id=source.organization_id
+        ).exists()
+    return source.owner.is_superuser or is_analyst(source.owner)
+
+
+def endpoint_eligible(source):
+    return not source.server_id or (
+        source.server.enabled
+        and source.server.base_url.rstrip("/") == source.base_url.rstrip("/")
+        and source.server.allow_private == source.allow_private
+    )
 
 
 def ready(source):
@@ -22,8 +43,8 @@ def ready(source):
         source.enabled
         and source.owner_id
         and source.misp_user_id
-        and source.owner.is_active
-        and (source.owner.is_superuser or is_analyst(source.owner))
+        and owner_eligible(source)
+        and endpoint_eligible(source)
         and source.last_success
         and not source.error
         and not source.syncing_until
@@ -35,16 +56,24 @@ def visible_events(actor):
     qs = MISPEvent.objects.filter(
         available=True, source__enabled=True, source__error="", source__syncing_until__isnull=True
     )
-    if not actor.is_authenticated or not actor.is_active or not (actor.is_superuser or is_analyst(actor)):
+    if not actor.is_authenticated or not actor.is_active:
         return qs.none()
     # Apply each operator source's own freshness bound before listing event rows.
     sources = [
         s.pk
-        for s in MISPInstance.objects.filter(enabled=True, owner=actor).select_related("owner")
+        for s in MISPInstance.objects.filter(enabled=True, owner=actor).select_related(
+            "owner", "organization", "server"
+        )
         if ready(s)
     ]
     qs = qs.filter(source_id__in=sources)
-    qs = qs.filter(source__owner=actor)
+    context = Q(source__organization__membership__user=actor) | (
+        Q(source__organization__isnull=True)
+        & (Q(source__owner__is_superuser=True) | Q(source__owner__groups__name=ANALYST_GROUP))
+    )
+    qs = qs.filter(context, source__owner=actor, source__owner__is_active=True).filter(
+        Q(source__server__isnull=True) | Q(source__server__enabled=True)
+    )
     return qs.select_related("source").defer("payload").distinct()
 
 
@@ -88,6 +117,10 @@ def sync_source(pk, *, due=False):
                 or current.token_env_var != source.token_env_var
                 or current.owner_id != source.owner_id
                 or current.misp_user_id != source.misp_user_id
+                or current.organization_id != source.organization_id
+                or current.server_id != source.server_id
+                or current.credential_kind != source.credential_kind
+                or current.credential_ciphertext != source.credential_ciphertext
             ):
                 raise ConnectorError("MISP source changed during refresh; snapshot refused")
             current.full_clean()
@@ -172,9 +205,12 @@ def research(actor, event):
             except (ValidationError, ValueError):
                 continue
     now = timezone.now()
+    company_scope = organizations_for(actor)
+    if event.source.organization_id:
+        company_scope = company_scope.filter(pk=event.source.organization_id)
     claims = list(
         InfrastructureClaim.objects.filter(
-            organization__in=organizations_for(actor),
+            organization__in=company_scope,
             status="verified",
             valid_from__lte=now,
         )

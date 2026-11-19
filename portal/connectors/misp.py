@@ -4,6 +4,7 @@ import json
 import os
 import time
 import uuid
+from django.views.decorators.debug import sensitive_variables
 from .http import ConnectorError, approved_base, request_json
 
 PAGE_SIZE = 10
@@ -12,11 +13,17 @@ MAX_BYTES = 20_000_000
 MAX_SECONDS = 30
 
 
+@sensitive_variables()
 def snapshot(source):
     source.full_clean()
     if not source.enabled:
         raise ConnectorError("MISP source is disabled")
-    token = os.getenv(source.token_env_var, "").strip()
+    if source.credential_kind == "encrypted":
+        from portal.misp_credentials import decrypt
+
+        token = decrypt(source)
+    else:
+        token = os.getenv(source.token_env_var, "").strip()
     if not token or "\r" in token or "\n" in token:
         raise ConnectorError("MISP credential reference is unavailable or invalid")
     base = approved_base(source.base_url, source.allow_private)

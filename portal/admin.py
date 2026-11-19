@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from .access import audit
 from .models import (
     MISPInstance,
+    MISPServer,
     RTInstance,
     CompanyInstance,
     FederationGrant,
@@ -313,8 +314,17 @@ class RegistrationAdmin(PlatformAdmin):
 
 @admin.register(MISPInstance)
 class MISPAdmin(PlatformAdmin):
+    exclude = ["credential_ciphertext"]
     list_display = ["name", "owner", "misp_user_id", "base_url", "enabled", "last_success", "error"]
-    readonly_fields = ["last_attempt", "last_success", "error", "generation", "syncing_until"]
+    readonly_fields = [
+        "last_attempt",
+        "last_success",
+        "error",
+        "generation",
+        "syncing_until",
+        "credential_nonce",
+        "credential_kind",
+    ]
 
     def save_model(self, request, obj, form, change):
         with transaction.atomic():
@@ -324,8 +334,18 @@ class MISPAdmin(PlatformAdmin):
                     setattr(current, field, getattr(obj, field))
                 current.full_clean()
                 fields = list(form.changed_data)
-                if set(fields) & {"enabled", "base_url", "token_env_var", "allow_private", "owner", "misp_user_id"}:
+                if set(fields) & {
+                    "enabled",
+                    "base_url",
+                    "token_env_var",
+                    "allow_private",
+                    "owner",
+                    "misp_user_id",
+                    "organization",
+                    "server",
+                }:
                     import uuid
+
                     current.generation, current.syncing_until = uuid.uuid4(), None
                     current.last_success, current.last_attempt = None, None
                     current.error = "Awaiting a complete refresh after source policy change"
@@ -336,3 +356,21 @@ class MISPAdmin(PlatformAdmin):
                 obj.full_clean()
                 obj.save()
             audit(request.user, None, "misp.configuration_changed", obj.pk, fields=form.changed_data)
+
+
+@admin.register(MISPServer)
+class MISPServerAdmin(PlatformAdmin):
+    list_display = ["name", "base_url", "enabled"]
+
+    def save_model(self, request, obj, form, change):
+        with transaction.atomic():
+            if change:
+                current = MISPServer.objects.select_for_update().get(pk=obj.pk)
+                for field in form.changed_data:
+                    setattr(current, field, getattr(obj, field))
+                current.full_clean()
+                current.save(update_fields=form.changed_data)
+            else:
+                obj.full_clean()
+                obj.save()
+            audit(request.user, None, "misp.server_configured", obj.pk, fields=form.changed_data)

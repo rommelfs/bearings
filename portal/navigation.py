@@ -4,6 +4,7 @@ from django.urls import reverse
 
 
 AREAS = {
+    "misp": ("My MISP", "misp", "assess"),
     "registrations": ("Registrations", "registration-applications", ""),
     "national": ("National overview", "circl-overview", ""),
     "overview": ("Infrastructure overview", "overview", ""),
@@ -25,9 +26,22 @@ AREAS = {
 }
 
 ROUTES = {
+    "misp": {"misp", "misp-event", "misp-connections", "misp-legacy", "misp-event-legacy"},
     "actions": {"company-actions", "company-action"},
-    "registrations": {"registration-applications", "registration-application", "service-mail", "service-mail-message"},
-    "national": {"review-followups", "review-followup","misp", "misp-event", "circl-overview", "circl-research", "circl-findings", "circl-map-location"},
+    "registrations": {
+        "registration-applications",
+        "registration-application",
+        "service-mail",
+        "service-mail-message",
+    },
+    "national": {
+        "review-followups",
+        "review-followup",
+        "circl-overview",
+        "circl-research",
+        "circl-findings",
+        "circl-map-location",
+    },
     "overview": {"overview"},
     "risks": {"risk-register", "business-risk", "automatic-scenario"},
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
@@ -37,7 +51,10 @@ ROUTES = {
         "inventory",
         "organization",
         "company-address",
-        "company-start", "csv-upload", "csv-preview", "csv-template",
+        "company-start",
+        "csv-upload",
+        "csv-preview",
+        "csv-template",
         "configuration",
         "configuration-section",
         "setup-resume",
@@ -89,7 +106,10 @@ def workspace(request):
             "Act",
             ["notifications"] + (["response"] if operator else []),
         ),
-        ("Workspace", ["applications", "companies", "explore"] + (["registrations"] if operator else [])),
+        (
+            "Workspace",
+            ["applications", "misp", "companies", "explore"] + (["registrations"] if operator else []),
+        ),
     ]
     if request.user.is_superuser:
         sections.append(("Administration", ["platform", "administration"]))

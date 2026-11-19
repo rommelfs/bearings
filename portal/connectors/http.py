@@ -8,6 +8,7 @@ import time
 from urllib.parse import urlsplit
 import httpx
 from django.conf import settings
+from django.views.decorators.debug import sensitive_variables
 
 
 class ConnectorError(Exception):
@@ -67,6 +68,7 @@ def approved_base(url, allow_private=False, *, proxy_dns=None):
     return url.rstrip("/")
 
 
+@sensitive_variables()
 def request_json(method, url, *, allow_list=False, deadline=None, **kwargs):
     try:
         with httpx.Client(timeout=15, follow_redirects=False) as client:

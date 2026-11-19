@@ -1678,12 +1678,39 @@ class ConfigurationSection(models.Model):
         constraints = [models.UniqueConstraint(fields=["organization", "section"], name="unique_configuration_section")]
 
 
+class MISPServer(models.Model):
+    """Operator-approved destinations offered for optional customer-owned API credentials."""
+    name = models.CharField(max_length=100, unique=True)
+    base_url = models.URLField(max_length=250, default="https://misppriv.circl.lu", unique=True)
+    enabled = models.BooleanField(default=False)
+    allow_private = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        from .connectors.http import validate_base, ConnectorError
+        try:
+            validate_base(self.base_url)
+        except ConnectorError:
+            raise ValidationError("Use an operator-approved credential-free HTTPS MISP URL") from None
+        if self.pk:
+            old=MISPServer.objects.get(pk=self.pk)
+            if old.base_url != self.base_url:
+                raise ValidationError("A saved MISP endpoint cannot be repointed; create a new approved server")
+
+
 class MISPInstance(models.Model):
     """An operator-approved read-only cache source; disabled until explicitly configured."""
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
                               related_name="personal_misp_sources")
     misp_user_id = models.PositiveBigIntegerField(null=True, blank=True, help_text="Operator-verified MISP user ID owning this personal key; checked with users/view/me on every refresh")
+    organization = models.ForeignKey(Organization,null=True,blank=True,on_delete=models.PROTECT,related_name="personal_misp_sources")
+    server = models.ForeignKey(MISPServer,null=True,blank=True,on_delete=models.PROTECT)
+    credential_kind = models.CharField(max_length=12,default="environment",choices=[("environment","Operator secret reference"),("encrypted","Personal encrypted key")])
+    credential_nonce = models.UUIDField(default=uuid.uuid4,editable=False)
+    credential_ciphertext = models.TextField(blank=True,editable=False)
     name = models.CharField(max_length=100, unique=True)
     base_url = models.URLField(max_length=250, default="https://misppriv.circl.lu")
     token_env_var = models.CharField(max_length=100, unique=True, default="MISP_CIRCL_TOKEN")
@@ -1712,14 +1739,23 @@ class MISPInstance(models.Model):
             raise ValidationError("Use a server-side MISP_*TOKEN credential reference")
         if not 5 <= self.refresh_minutes <= 60 or not self.refresh_minutes <= self.max_age_minutes <= 60:
             raise ValidationError("Refresh must be 5–60 minutes and maximum cache age refresh–60 minutes")
+        if self.organization_id and (self.credential_kind != "encrypted" or not self.server_id):
+            raise ValidationError("Customer connections require the customer's own encrypted key and an approved endpoint; operator/CIRCL environment keys cannot be assigned to a company")
         if self.enabled:
-            from .access import is_analyst
-            if not self.owner_id or not self.misp_user_id or not self.owner.is_active or not (self.owner.is_superuser or is_analyst(self.owner)):
-                raise ValidationError("An enabled MISP source requires an active analyst owner and pinned MISP user ID")
-        if self.pk and MISPEvent.objects.filter(source_id=self.pk).exists():
+            from .misp import owner_eligible, endpoint_eligible
+            if not self.owner_id or not self.misp_user_id or not owner_eligible(self) or not endpoint_eligible(self):
+                raise ValidationError("An enabled MISP source requires its current personal owner, company membership where applicable, approved endpoint and pinned native user ID")
+            if self.credential_kind == "encrypted" and (not self.organization_id or not self.credential_ciphertext):
+                raise ValidationError("Personal customer connections require an encrypted key and company context")
+        if self.pk:
             old = MISPInstance.objects.get(pk=self.pk)
-            if old.base_url != self.base_url or old.token_env_var != self.token_env_var or old.owner_id != self.owner_id or old.misp_user_id != self.misp_user_id:
-                raise ValidationError("A source with cached events cannot be repointed; create a new source")
+            protected = old.credential_kind == "encrypted" or MISPEvent.objects.filter(source_id=self.pk).exists()
+            if protected and (old.base_url != self.base_url or old.token_env_var != self.token_env_var or old.owner_id != self.owner_id or old.misp_user_id != self.misp_user_id or old.organization_id != self.organization_id or old.server_id != self.server_id or old.credential_nonce != self.credential_nonce):
+                raise ValidationError("A source with a personal key or cached events cannot be repointed; create a new source")
+
+
+    class Meta:
+        constraints=[models.UniqueConstraint(fields=["owner","organization","server"],condition=Q(enabled=True),name="personal_customer_misp_connection")]
 
 
 class MISPEvent(models.Model):

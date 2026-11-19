@@ -256,7 +256,7 @@ def main():
     up.add_argument("--no-build", action="store_true")
     up.add_argument("--timeout", type=int, default=600)
     misp = commands.add_parser("configure-misp", help="Configure a disabled MISP cache source and private key; no upstream request")
-    misp.add_argument("--owner", required=True, help="Bearings analyst owning this personal key")
+    misp.add_argument("--owner", required=True, help="Individual Bearings user owning this personal key")
     misp.add_argument("--misp-user-id", type=int, required=True, help="Pinned native MISP user ID for this key")
     misp.add_argument("--url", default="https://misppriv.circl.lu")
     misp.add_argument("--name")

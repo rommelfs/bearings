@@ -5,13 +5,13 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 from . import misp
-from .access import audit, is_analyst, require
+from .access import audit, require
 from .circl_views import private_response
 from .models import MISPInstance
 
 
 def authorize(user):
-    require(user.is_active and (user.is_superuser or is_analyst(user)))
+    require(user.is_active)
 
 
 @login_required
@@ -29,7 +29,10 @@ def center(request):
                 "page": Paginator(events, 25).get_page(request.GET.get("page")),
                 "sources": MISPInstance.objects.all()
                 if request.user.is_superuser
-                else MISPInstance.objects.filter(owner=request.user),
+                else MISPInstance.objects.filter(owner=request.user).filter(organization__isnull=True)
+                | MISPInstance.objects.filter(
+                    owner=request.user, organization__membership__user=request.user
+                ),
             },
         )
     )
