@@ -46,7 +46,9 @@ class RegistrationReviewTests(Fixture):
         self.data = {
             "username": "new-responsible",
             "company_name": "New reporting company",
-            "contact_name": "Reporting owner",
+            "first_name": "Reporting",
+            "last_name": "Owner",
+            "job_title": "IT manager",
             "email": "owner@example.invalid",
             "emergency_phone": "+352 123 456",
             "periodic_consent": "on",
@@ -120,6 +122,58 @@ class RegistrationReviewTests(Fixture):
         )
         self.assertFalse(item.organization.claims.exists())
         self.assertEqual(Membership.objects.filter(user=user).count(), 1)
+
+    def test_separate_names_and_job_title_required_without_legacy_name_fallback(self):
+        response = self.client.get(reverse("registration"))
+        self.assertNotIn("contact_name", response.context["form"].fields)
+        for field in ["first_name", "last_name", "job_title"]:
+            with self.subTest(field=field):
+                response = self.client.post(
+                    reverse("registration"),
+                    {
+                        **self.data,
+                        field: "  ",
+                        "contact_name": "Old full name must not replace required fields",
+                    },
+                )
+                self.assertIn(field, response.context["form"].errors)
+        self.assertFalse(InfrastructureRegistration.objects.exists())
+        response = self.client.post(
+            reverse("registration"), {**self.data, "first_name": "A" * 100, "last_name": "B" * 100}
+        )
+        self.assertTrue(response.context["form"].non_field_errors())
+        self.assertFalse(InfrastructureRegistration.objects.exists())
+
+    def test_unicode_names_and_declared_title_copy_without_granting_operator_privileges(self):
+        self.data.update(
+            first_name="  Anne-Marie  ", last_name="de la Côte", job_title="Platform administrator"
+        )
+        item, org = self.workspace()
+        self.assertEqual((item.first_name, item.last_name), ("Anne-Marie", "de la Côte"))
+        self.assertEqual((item.user.first_name, item.user.last_name), ("Anne-Marie", "de la Côte"))
+        self.assertEqual(item.contact_name, "Anne-Marie de la Côte")
+        contact = org.contacts.get()
+        self.assertEqual(contact.name, item.contact_name)
+        self.assertEqual(contact.role, "Platform administrator")
+        self.assertIsNone(contact.reviewed_at)
+        self.assertFalse(item.user.is_superuser or item.user.is_staff or item.user.groups.exists())
+        self.login(self.analyst)
+        response = self.client.get(reverse("registration-application", args=[item.pk]))
+        self.assertContains(response, "Platform administrator")
+        self.assertContains(response, "Anne-Marie de la Côte")
+
+    def test_legacy_full_name_not_split_and_pending_activation_preserves_existing_contact(self):
+        item, code = self.signup()
+        InfrastructureRegistration.objects.filter(pk=item.pk).update(
+            first_name="", last_name="", job_title="", contact_name="Historical full name"
+        )
+        get_user_model().objects.filter(pk=item.user_id).update(first_name="", last_name="")
+        item = verify_registration(code, PASSWORD)
+        self.assertTrue(item)
+        self.assertEqual((item.first_name, item.last_name, item.job_title), ("", "", ""))
+        self.assertEqual(item.organization.contacts.get().name, "Historical full name")
+        self.assertEqual(item.organization.contacts.get().role, "Registered infrastructure responsible")
+        self.assertEqual((item.user.first_name, item.user.last_name), ("", ""))
 
     def test_registration_defers_scope_and_rejects_duplicate_email(self):
         response = self.client.get(reverse("registration"))
@@ -500,6 +554,7 @@ class RegistrationReviewTests(Fixture):
     def test_scope_correction_expires_old_proof_without_verifying_replacement(self):
         item, org = self.workspace()
         from .models import InfrastructureClaim
+
         claim = InfrastructureClaim.objects.create(organization=org, kind="ip", value="198.51.100.17")
         claim.status = "verified"
         claim.method = "Synthetic old operator check"

@@ -322,7 +322,9 @@ class PublicKeyTests(Fixture):
             {
                 "username": "new-owner",
                 "company_name": "New company",
-                "contact_name": "Owner",
+                "first_name": "Synthetic",
+                "last_name": "Owner",
+                "job_title": "Security officer",
                 "email": "new@example.invalid",
                 "emergency_phone": "+352123456",
                 "pgp_public_key": pgp,

@@ -256,3 +256,7 @@ Implemented [#51](https://github.com/rommelfs/bearings/issues/51): service-group
 ## Bearings administration appearance — 2026-11-19
 
 Implemented [#52](https://github.com/rommelfs/bearings/issues/52): Bearings branding/browser titles and matching system font, teal/navy palette, surfaces/sidebar/forms for the administration backend. Add direct workspace/registration/outbox links while preserving native forms, permissions, CSRF, filtered selectors, popups and light/dark controls. Use an explicit portal template search directory so mounted lab code also receives the override. See [platform administration](user-guide/platform-administration.md).
+
+## Registration first/last name and company title — 2026-11-19
+
+Implemented explicit required first/last names and declared company role/job title. Persist names on the local account and submission; copy the combined name/title into the company contact through both mail-proof and administrative-activation paths. Free-text titles do not grant privileges or verify contact roles. Legacy full names/contacts remain intact without inferred splits or invented titles. See [registration](user-guide/reporting-registration.md).

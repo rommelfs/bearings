@@ -35,7 +35,9 @@ class RegistrationOverrideTests(Fixture):
             {
                 "username": "pending-owner",
                 "company_name": "Synthetic Pending",
-                "contact_name": "Synthetic Owner",
+                "first_name": "Synthetic",
+                "last_name": "Owner",
+                "job_title": "System administrator",
                 "email": "owner@example.invalid",
                 "emergency_phone": "+352123456",
                 "consent": "on",
@@ -61,6 +63,9 @@ class RegistrationOverrideTests(Fixture):
         self.assertTrue(item.user.is_active)
         self.assertFalse(item.user.has_usable_password())
         self.assertEqual(item.status, "awaiting_review")
+        self.assertEqual((item.user.first_name, item.user.last_name), ("Synthetic", "Owner"))
+        self.assertEqual(item.organization.contacts.get().name, "Synthetic Owner")
+        self.assertEqual(item.organization.contacts.get().role, "System administrator")
         self.assertIsNone(item.email_verified_at)
         self.assertFalse(item.organization.operator_visibility)
         self.assertIsNone(item.organization.contacts.get().reachable_at)

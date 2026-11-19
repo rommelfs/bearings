@@ -1506,6 +1506,9 @@ class InfrastructureRegistration(models.Model):
     company_name = models.CharField(max_length=180)
     company_address = models.TextField(max_length=1000, blank=True)
     contact_name = models.CharField(max_length=180)
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    job_title = models.CharField(max_length=120, blank=True)
     email = models.EmailField(unique=True)
     notification_email = models.EmailField(blank=True)
     notification_contact = models.ForeignKey(

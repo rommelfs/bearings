@@ -66,6 +66,10 @@
       {
         "title": "Brand the administration backend as Bearings and align its visual style",
         "body": "Implemented Bearings administration titles/header, system font, teal/navy palette, matching surfaces/sidebar/forms and explicit workspace/registration/outbox navigation through the supported Django base_site template and a separate admin stylesheet. Keep native admin forms, permissions, CSRF, filtered widgets, popup behavior, responsive layout and light/dark/theme controls. Explicit portal template search precedence makes the override work with the existing mounted lab paths; no migrations, user/role changes or external dependencies. Actual synthetic browser user save/reload and light/dark desktop/mobile/popup checks; existing access/registration tests remain green. See docs/user-guide/platform-administration.md."
+      },
+      {
+        "title": "Collect first and last names and declared company job title at registration",
+        "body": "Implemented separate required first/last name and company role/job-title fields, account/submission persistence and company-contact copying for both mailbox-confirmed and administrative activation. Unicode/multiword names supported with contact-name length bounds; free-text title grants no privileges or verified contact role. Additive blank legacy fields preserve old complete names, contacts and pending activation behavior without inferred splits/backfill. Show title in operator application/list. See docs/user-guide/reporting-registration.md."
       }
     ]
   },

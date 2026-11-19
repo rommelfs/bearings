@@ -20,7 +20,18 @@ class InfrastructureRegistrationForm(PublicKeysForm, forms.ModelForm):
         widget=forms.Textarea(attrs={"rows": 3, "autocomplete": "street-address"}),
         help_text="Street, postal code, city and country. You can add this later.",
     )
-    contact_name = forms.CharField(max_length=180, label="Responsible person's name")
+    first_name = forms.CharField(
+        max_length=150, label="First name", widget=forms.TextInput(attrs={"autocomplete": "given-name"})
+    )
+    last_name = forms.CharField(
+        max_length=150, label="Last name", widget=forms.TextInput(attrs={"autocomplete": "family-name"})
+    )
+    job_title = forms.CharField(
+        max_length=120,
+        label="Role / job title within the organization",
+        widget=forms.TextInput(attrs={"autocomplete": "organization-title"}),
+        help_text="For example, IT manager, system administrator or security officer. This is your declared company role, not a portal permission.",
+    )
     email = forms.EmailField(
         label="Your email address",
         help_text="Used to confirm your personal account. Add a shared team mailbox below if needed.",
@@ -56,7 +67,9 @@ class InfrastructureRegistrationForm(PublicKeysForm, forms.ModelForm):
             "username",
             "company_name",
             "company_address",
-            "contact_name",
+            "first_name",
+            "last_name",
+            "job_title",
             "email",
             "notification_email",
             "emergency_phone",
@@ -67,6 +80,14 @@ class InfrastructureRegistrationForm(PublicKeysForm, forms.ModelForm):
             "periodic_consent",
             "updates_consent",
         ]
+
+    def clean(self):
+        data = super().clean()
+        full_name = " ".join(part for part in [data.get("first_name", ""), data.get("last_name", "")] if part)
+        if len(full_name) > 180:
+            self.add_error(None, "The combined first and last name must be at most 180 characters.")
+        data["contact_name"] = full_name
+        return data
 
     def clean_notification_email(self):
         return self.cleaned_data["notification_email"].casefold()
