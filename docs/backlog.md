@@ -313,3 +313,5 @@ Marketing scope: focus on the CIRCL-operated SaaS and free company registration.
 Registration no longer silently sends signed-in visitors through dashboard aggregates. Anonymous form display has no showcase/inventory query; existing sessions get a bounded account entry and explicit account-switch form. Numerical Server-Timing and `web-timing --registration` separate public HTTP/HTTPS from SSO request times. See [registration guide](user-guide/reporting-registration.md).
 
 Website follow-up: all four closing headlines explicitly include continued free use of the CIRCL-operated service. `python3 scripts/dev.py website --language de` builds and opens the local preview; `--no-open` supports headless use. The HTTP numeric loopback address avoids localhost HTTPS upgrades in Safari. See [website guide](../website/README.md).
+
+The use-case headline now adds the benefit to Luxembourg as a third line in EN/DE/FR/LB, retaining the existing company and CIRCL lines.
