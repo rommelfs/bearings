@@ -317,3 +317,7 @@ Website follow-up: all four closing headlines explicitly include continued free 
 The use-case headline now adds the benefit to Luxembourg as a third line in EN/DE/FR/LB, retaining the existing company and CIRCL lines.
 
 Branding: the website now uses a CIRCL-derived Bearings design with a connecting ring, the original supplied CIRCL operator logo and nine original project logos hosted locally. Source/checksum provenance and ownership notes are in [branding documentation](../website/branding/README.md); integration maturity descriptions remain unchanged.
+
+## Measured 40,000-company scale acceptance
+
+Executed an isolated PostgreSQL test with 40,000 companies, 1.2 million assets/installations, 240,000 findings and 360,000 issues. The company overview is fast, but action/national aggregate timeouts, unbounded global review prefetch (>3 GiB), per-company issue loops (>1,000 queries) and 14-second software research block this scale. Four-client HTTP traffic produced three failures in twelve requests. Eleven of twelve function/scope checks passed; summary availability failed. Benchmark scripts, actual samples, query-plan evidence and independent local reminder delivery are documented in [scale acceptance](performance/scale-test.md). Follow-ups are bounded global pages, scoped-query redesign, current-policy national read models and repeated/longer scale acceptance; these application fixes are not implemented by the benchmark.

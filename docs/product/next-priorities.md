@@ -1,5 +1,7 @@
 # Next priorities: low effort, useful outcomes, dependable operation
 
+Measured scale gate (19 November 2026): the [40,000-company / 1.2-million-asset baseline](../performance/scale-test.md) failed national/action availability and exposed unbounded global review/issue work. Resolve those documented blockers and repeat the retained fixture before claiming production readiness at this cardinality. The benchmark is implemented; the listed query/read-model/global-pagination fixes are still pending.
+
 Reviewed 2026-11-19 against the current implementation. This is a product/implementation recommendation, not a claim of production acceptance or measured usability. Existing guides and validation record what is implemented.
 
 ## The next practical steps
