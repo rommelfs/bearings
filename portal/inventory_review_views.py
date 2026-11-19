@@ -68,6 +68,10 @@ def review(request, slug):
         if policy and editable
         else None
     )
+    from .review_followup import deliveries_for, delivery_label
+    deliveries = list(deliveries_for(policy)[:10]) if policy else []
+    for item in deliveries:
+        item.display_status = delivery_label(item)
     return private_response(
         render(
             request,
@@ -88,7 +92,7 @@ def review(request, slug):
                 "history": policy.confirmations.select_related("actor").order_by("-reviewed_at", "-pk")[:10]
                 if policy
                 else [],
-                "deliveries": policy.deliveries.order_by("-created_at", "-pk")[:10] if policy else [],
+                "deliveries": deliveries,
             },
         )
     )

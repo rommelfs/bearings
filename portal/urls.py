@@ -1,6 +1,8 @@
 from django.urls import path
 from . import (
     views,
+    review_followup_views,
+    company_work_views,
     misp_views,
     demo_views,
     intelligence_views,
@@ -28,6 +30,14 @@ from . import (
 )
 
 urlpatterns = [
+    path("circl/review-followups/", review_followup_views.center, name="review-followups"),
+    path("organizations/<slug:slug>/review/followup/", review_followup_views.detail, name="review-followup"),
+    path("actions/", company_work_views.actions, name="company-actions"),
+    path("organizations/<slug:slug>/start-small/", company_work_views.start, name="company-start"),
+    path("organizations/<slug:slug>/import-csv/", company_work_views.csv_upload, name="csv-upload"),
+    path("organizations/<slug:slug>/import-csv/template/", company_work_views.csv_template, name="csv-template"),
+    path("organizations/<slug:slug>/import-csv/<uuid:pk>/", company_work_views.csv_preview, name="csv-preview"),
+    path("organizations/<slug:slug>/issues/<uuid:pk>/action/", company_work_views.act, name="company-action"),
     path("circl/misp/", misp_views.center, name="misp"),
     path("circl/misp/<int:pk>/", misp_views.detail, name="misp-event"),
     path("account/sso/", sso_onboarding.settings_view, name="sso-settings"),

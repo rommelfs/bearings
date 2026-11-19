@@ -26,6 +26,8 @@ class Command(BaseCommand):
                 if source is None:
                     source = MISPInstance(name=values["name"])
                 source.base_url, source.token_env_var = values["base_url"], values["token_env_var"]
+                source.owner = get_user_model().objects.get(username=values["owner"], is_active=True)
+                source.misp_user_id = int(values["misp_user_id"])
                 source.allow_private = values.get("allow_private", False)
                 source.enabled, source.last_success, source.last_attempt = False, None, None
                 source.generation, source.syncing_until = uuid.uuid4(), None

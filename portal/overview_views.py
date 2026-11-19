@@ -52,6 +52,20 @@ def _overview_response(request):
     scoped = perf_counter()
     evidence = OverviewEvidence.for_page(request.user, page.object_list)
     companies = company_states(request.user, page.object_list, evidence=evidence)
+    roles = dict(
+        Membership.objects.filter(user=request.user, organization__in=page.object_list).values_list(
+            "organization_id", "role"
+        )
+    )
+    for state in companies:
+        role = roles.get(state["org"].pk)
+        source = getattr(state["org"], "inventory_source", None)
+        state["setup_editable"] = request.user.is_superuser or role == "admin"
+        state["csv_editable"] = (
+            (request.user.is_superuser or role in {"admin", "editor"})
+            and source is not None
+            and source.mode == "manual"
+        )
     aggregated = perf_counter()
     priority_timings = {}
     assets = priority_assets(

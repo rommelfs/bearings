@@ -1,37 +1,13 @@
-from django import forms
-from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 from . import misp
-from .access import ANALYST_GROUP, audit, is_analyst, require
+from .access import audit, is_analyst, require
 from .circl_views import private_response
 from .models import MISPInstance
-
-
-class ReaderForm(forms.Form):
-    expected_digest = forms.RegexField(regex=r"^[a-f0-9]{64}$", widget=forms.HiddenInput)
-    readers = forms.ModelMultipleChoiceField(
-        queryset=get_user_model().objects.none(),
-        required=False,
-        label="Authorized CIRCL recipients for this exact revision",
-    )
-    note = forms.CharField(
-        max_length=1000, widget=forms.Textarea, label="Recipient and handling justification"
-    )
-    acknowledged = forms.BooleanField(
-        label="I checked the event and all nested restrictions, including TLP and sharing groups, for these recipients. This grants no company-facing redistribution."
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["readers"].queryset = (
-            get_user_model().objects.filter(is_active=True, groups__name=ANALYST_GROUP).distinct()
-        )
 
 
 def authorize(user):
@@ -51,7 +27,9 @@ def center(request):
             "portal/misp.html",
             {
                 "page": Paginator(events, 25).get_page(request.GET.get("page")),
-                "sources": MISPInstance.objects.all() if request.user.is_superuser else [],
+                "sources": MISPInstance.objects.all()
+                if request.user.is_superuser
+                else MISPInstance.objects.filter(owner=request.user),
             },
         )
     )
@@ -65,32 +43,9 @@ def detail(request, pk):
     authorize(request.user)
     event = get_object_or_404(misp.visible_events(request.user).defer(None), pk=pk)
     audit(request.user, None, "misp.event_read", event.pk)
-    form = (
-        ReaderForm(
-            request.POST if request.method == "POST" and request.POST.get("action") == "grant" else None,
-            initial={"expected_digest": event.digest},
-        )
-        if request.user.is_superuser
-        else None
-    )
     matches, truncated = None, False
     if request.method == "POST":
-        if request.POST.get("action") == "grant":
-            require(request.user.is_superuser)
-            if form.is_valid():
-                try:
-                    misp.grant_readers(
-                        request.user,
-                        event.pk,
-                        list(form.cleaned_data["readers"]),
-                        form.cleaned_data["note"],
-                        expected_digest=form.cleaned_data["expected_digest"],
-                    )
-                except ValidationError as error:
-                    form.add_error(None, error)
-                else:
-                    return redirect("misp-event", pk=event.pk)
-        elif request.POST.get("action") == "research":
+        if request.POST.get("action") == "research":
             matches, truncated = misp.research(request.user, event)
             audit(request.user, None, "misp.infrastructure_research", event.pk)
         else:
@@ -106,7 +61,6 @@ def detail(request, pk):
             "portal/misp_event.html",
             {
                 "event": event,
-                "reader_form": form,
                 "matches": matches,
                 "truncated": truncated,
                 "payload_text": raw[:50000],

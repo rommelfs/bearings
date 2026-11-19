@@ -1,6 +1,7 @@
 """Configure a disabled source and private bundled secret without logging or contacting MISP."""
 
 import getpass
+import hashlib
 import json
 import re
 import subprocess
@@ -15,6 +16,13 @@ def execute(args):
         raise SystemExit(
             "This secret installer supports the bundled lab only; external operators inject their own runtime secret"
         )
+    args.name = args.name or "MISP · " + args.owner
+    args.credential_ref = (
+        args.credential_ref
+        or "MISP_USER_" + hashlib.sha256(args.owner.encode()).hexdigest()[:24].upper() + "_TOKEN"
+    )
+    if args.misp_user_id < 1:
+        raise SystemExit("Use the native positive MISP user ID owning this key")
     try:
         url = urlsplit(args.url)
         if (
@@ -65,6 +73,8 @@ def execute(args):
             input=json.dumps(
                 {
                     "name": args.name,
+                    "owner": args.owner,
+                    "misp_user_id": args.misp_user_id,
                     "base_url": args.url.rstrip("/"),
                     "token_env_var": args.credential_ref,
                     "allow_private": args.allow_private,

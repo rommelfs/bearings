@@ -38,6 +38,27 @@ def board(request):
     if org_id:
         org = get_object_or_404(orgs, slug=org_id)
         base = base.filter(organization=org)
+    representative = request.GET.get("group_issue", "")
+    if representative:
+        import uuid
+
+        try:
+            group_id = uuid.UUID(representative)
+        except ValueError:
+            raise Http404 from None
+        group = get_object_or_404(issues.visible_issues(request.user), pk=group_id)
+        base = base.filter(
+            organization=group.organization,
+            kind=group.kind,
+            installation__product_id=group.installation.product_id if group.installation_id else None,
+        )
+        if not group.finding_id:
+            base = base.filter(title=group.title)
+    product_id = request.GET.get("product", "")
+    if product_id:
+        if not product_id.isdigit() or len(product_id) > 10:
+            raise Http404
+        base = base.filter(installation__product_id=int(product_id))
     asset = None
     if request.GET.get("asset"):
         import uuid

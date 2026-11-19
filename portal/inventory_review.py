@@ -4,8 +4,10 @@ import hashlib
 import json
 from datetime import datetime, time, timedelta
 from django.core import signing
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import OuterRef, Subquery
 from django.utils import timezone
 from .access import audit, is_analyst, require, role_for
 from .models import (
@@ -199,7 +201,7 @@ def confirm_review(user, org, token):
     key = hashlib.sha256(f"{policy.pk}|{timezone.localdate()}|{digest}".encode()).hexdigest()
     record, created = InventoryReviewConfirmation.objects.get_or_create(
         fingerprint=key,
-        defaults={"policy": policy, "actor": user, "data_digest": digest, "counts": counts, "next_due": due},
+        defaults={"policy": policy, "actor": user, "data_digest": digest, "counts": counts, "next_due": due, "review_due_date": policy.next_due},
     )
     if created:
         policy.last_reviewed_at, policy.last_reviewed_by, policy.next_due = now, user, due
@@ -232,7 +234,9 @@ def reminder_recipients(policy):
     for owner in owners:
         if owner.user.email.casefold() == owner.email:
             contacts.add(owner.email)
-    return sorted({email.casefold() for email in contacts if email})
+    feedback = InventoryReviewDelivery.objects.filter(policy__organization=org,recipient=OuterRef("recipient"),feedback_at__isnull=False).order_by("-feedback_at","-pk")
+    blocked=set(InventoryReviewDelivery.objects.filter(policy__organization=org).annotate(latest_outcome=Subquery(feedback.values("delivery_outcome")[:1])).filter(latest_outcome="bounced").values_list("recipient",flat=True))
+    return sorted({email.casefold() for email in contacts if email and email.casefold() not in blocked})
 
 
 @transaction.atomic
@@ -288,6 +292,7 @@ def deliver_review_reminder(pk):
             item.next_attempt = timezone.now() + timedelta(minutes=15 * 2 ** (item.attempts - 1))
         else:
             item.status, item.error, item.sent_at = "sent", "", timezone.now()
+            item.transport = "smtp" if settings.SERVICE_MAIL_TRANSPORT == "smtp" else "file"
     item.save()
     audit(
         None,

@@ -6,7 +6,6 @@ import uuid
 from datetime import timedelta
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F
 from django.utils import timezone
 from .access import audit, is_analyst, require
 from .connectors.http import ConnectorError
@@ -21,6 +20,10 @@ def digest(event):
 def ready(source):
     return bool(
         source.enabled
+        and source.owner_id
+        and source.misp_user_id
+        and source.owner.is_active
+        and (source.owner.is_superuser or is_analyst(source.owner))
         and source.last_success
         and not source.error
         and not source.syncing_until
@@ -32,13 +35,16 @@ def visible_events(actor):
     qs = MISPEvent.objects.filter(
         available=True, source__enabled=True, source__error="", source__syncing_until__isnull=True
     )
-    # Apply each operator source's own freshness bound before listing event rows.
-    sources = [s.pk for s in MISPInstance.objects.filter(enabled=True) if ready(s)]
-    qs = qs.filter(source_id__in=sources)
-    if not actor.is_active or not (actor.is_superuser or is_analyst(actor)):
+    if not actor.is_authenticated or not actor.is_active or not (actor.is_superuser or is_analyst(actor)):
         return qs.none()
-    if not actor.is_superuser:
-        qs = qs.filter(readers=actor, review_digest=F("digest"), reviewed_by__isnull=False)
+    # Apply each operator source's own freshness bound before listing event rows.
+    sources = [
+        s.pk
+        for s in MISPInstance.objects.filter(enabled=True, owner=actor).select_related("owner")
+        if ready(s)
+    ]
+    qs = qs.filter(source_id__in=sources)
+    qs = qs.filter(source__owner=actor)
     return qs.select_related("source").defer("payload").distinct()
 
 
@@ -80,6 +86,8 @@ def sync_source(pk, *, due=False):
                 or not current.enabled
                 or current.base_url != source.base_url
                 or current.token_env_var != source.token_env_var
+                or current.owner_id != source.owner_id
+                or current.misp_user_id != source.misp_user_id
             ):
                 raise ConnectorError("MISP source changed during refresh; snapshot refused")
             current.full_clean()
@@ -125,27 +133,8 @@ def sync_source(pk, *, due=False):
 
 
 def grant_readers(actor, event_id, readers, note, *, expected_digest):
-    require(actor.is_active and actor.is_superuser)
-    if not note.strip():
-        raise ValidationError(
-            "Record the authorized recipients and handling decision for all event/attribute restrictions"
-        )
-    with transaction.atomic():
-        source_id = MISPEvent.objects.values_list("source_id", flat=True).get(pk=event_id)
-        source = MISPInstance.objects.select_for_update().get(pk=source_id)
-        event = MISPEvent.objects.select_for_update().get(pk=event_id)
-        require(event.source_id == source.pk and event.available and ready(source))
-        if expected_digest != event.digest:
-            raise ValidationError(
-                "Event changed since this review form was opened. Reload and review the current revision."
-            )
-        if any(not u.is_active or not is_analyst(u) for u in readers):
-            raise ValidationError("Only explicitly authorized active CIRCL analysts may be selected")
-        event.readers.set(readers)
-        event.review_digest, event.review_note = event.digest, note.strip()[:1000]
-        event.reviewed_by, event.reviewed_at = actor, timezone.now()
-        event.save(update_fields=["review_digest", "review_note", "reviewed_by", "reviewed_at"])
-        audit(actor, None, "misp.readers_attested", event.pk, reader_ids=[u.pk for u in readers])
+    # Old callers must fail closed; no Bearings grant substitutes for personal upstream authorization.
+    require(False)
 
 
 def research(actor, event):

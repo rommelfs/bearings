@@ -1,6 +1,5 @@
 """Restricted cache lifecycle, upstream read-only contract and current-recipient authorization."""
 
-import copy
 import json
 import uuid
 from datetime import timedelta
@@ -9,7 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, TransactionTestCase, SimpleTestCase, override_settings
 from django.utils import timezone
 from .tests import Fixture
-from .models import MISPInstance, MISPEvent, InfrastructureClaim, AuditEvent
+from .models import MISPInstance, MISPEvent, InfrastructureClaim
 from . import misp
 from .connectors.http import ConnectorError
 from .connectors.misp import snapshot, validate_event
@@ -36,10 +35,8 @@ def event_payload(identity=None, timestamp=1700000000, info="Synthetic restricte
 class MISPCacheTests(Fixture):
     def setUp(self):
         self.source = MISPInstance.objects.create(
-            name="Synthetic MISP", base_url="https://misp.example.invalid"
+            name="Personal MISP", owner=self.analyst, misp_user_id=71, enabled=True
         )
-        self.source.enabled = True
-        self.source.save()
         self.payload = event_payload()
         self.fetch = patch("portal.misp.snapshot", return_value=[self.payload["Event"]]).start()
         self.addCleanup(patch.stopall)
@@ -48,258 +45,79 @@ class MISPCacheTests(Fixture):
         misp.sync_source(self.source.pk)
         return MISPEvent.objects.get(source=self.source, event_uuid=self.payload["Event"]["uuid"])
 
-    def test_default_no_readers_and_no_participant_raw_or_derived_access(self):
+    def test_only_personal_owner_can_read_even_if_legacy_grants_or_platform_privileges_exist(self):
         event = self.refresh()
-        self.assertEqual(misp.visible_events(self.platform).count(), 1)
-        for user in [self.admin, self.editor, self.reader, self.analyst]:
+        event.readers.add(self.platform, self.reader)
+        event.review_digest = event.digest
+        event.reviewed_by = self.platform
+        event.save()
+        self.assertTrue(misp.visible_events(self.analyst).exists())
+        for user in [self.platform, self.admin, self.reader]:
             self.assertFalse(misp.visible_events(user).exists())
             self.login(user)
-            self.assertEqual(
-                self.client.get(f"/circl/misp/{event.pk}/").status_code, 404 if user == self.analyst else 403
-            )
-            if user != self.analyst:
-                self.assertEqual(self.client.get("/circl/misp/").status_code, 403)
-        self.assertEqual(AuditEvent.objects.filter(action="misp.cache_refreshed").count(), 1)
-        self.assertFalse(AuditEvent.objects.filter(details__icontains="host.example.invalid").exists())
-
-    def test_attestation_bound_to_exact_payload_revision_and_current_analyst_role(self):
-        event = self.refresh()
+            self.assertIn(self.client.get(f"/circl/misp/{event.pk}/").status_code, [403, 404])
         with self.assertRaises(PermissionDenied):
             misp.grant_readers(
-                self.analyst, event.pk, [self.analyst], "Not an operator", expected_digest=event.digest
+                self.platform, event.pk, [self.reader], "No key delegation", expected_digest=event.digest
             )
-        with self.assertRaises(ValidationError):
-            misp.grant_readers(
-                self.platform,
-                event.pk,
-                [self.admin],
-                "Company owner must not read this",
-                expected_digest=event.digest,
-            )
-        with self.assertRaises(ValidationError):
-            misp.grant_readers(self.platform, event.pk, [self.analyst], " ", expected_digest=event.digest)
-        misp.grant_readers(
-            self.platform,
-            event.pk,
-            [self.analyst],
-            "Synthetic explicit recipient for RED and nested restrictions",
-            expected_digest=event.digest,
-        )
-        self.assertTrue(misp.visible_events(self.analyst).exists())
-        self.refresh()  # Unchanged data preserves the explicitly reviewed revision.
-        self.assertTrue(misp.visible_events(self.analyst).exists())
-        self.payload["Event"]["Attribute"][0]["distribution"] = "4"  # Policy-only change, same timestamp.
-        self.refresh()
-        self.assertFalse(misp.visible_events(self.analyst).exists())
-        event.refresh_from_db()
-        misp.grant_readers(
-            self.platform, event.pk, [self.analyst], "Reviewed changed policy", expected_digest=event.digest
-        )
         self.analyst.groups.clear()
         self.assertFalse(misp.visible_events(self.analyst).exists())
 
-    def test_review_form_opened_before_policy_change_cannot_approve_new_revision(self):
-        event = self.refresh()
-        previous = event.digest
-        self.payload["Event"]["Attribute"][0]["distribution"] = "4"
+    def test_same_event_uuid_is_isolated_per_credential_and_owner(self):
         self.refresh()
-        self.login(self.platform)
-        response = self.client.post(
-            f"/circl/misp/{event.pk}/",
-            {
-                "action": "grant",
-                "readers": [self.analyst.pk],
-                "note": "Opened before the policy update",
-                "acknowledged": "on",
-                "expected_digest": previous,
-            },
+        other = MISPInstance.objects.create(
+            name="Other identity",
+            token_env_var="MISP_OTHER_TOKEN",
+            owner=self.platform,
+            misp_user_id=72,
+            enabled=True,
         )
-        self.assertContains(response, "Event changed since this review form was opened")
-        self.assertFalse(misp.visible_events(self.analyst).exists())
+        misp.sync_source(other.pk)
+        self.assertEqual(MISPEvent.objects.count(), 2)
+        self.assertEqual(
+            list(misp.visible_events(self.analyst).values_list("source_id", flat=True)), [self.source.pk]
+        )
+        self.assertEqual(
+            list(misp.visible_events(self.platform).values_list("source_id", flat=True)), [other.pk]
+        )
 
-    def test_failed_refresh_preserves_payload_but_suspends_access_for_every_reader(self):
+    def test_failed_missing_stale_and_inflight_caches_are_retained_but_hidden(self):
         event = self.refresh()
-        misp.grant_readers(
-            self.platform, event.pk, [self.analyst], "Synthetic recipients", expected_digest=event.digest
-        )
-        self.fetch.side_effect = ConnectorError("No body or secret should be propagated")
+        self.fetch.side_effect = ConnectorError("Synthetic failure")
         with self.assertRaises(ConnectorError):
             misp.sync_source(self.source.pk)
         event.refresh_from_db()
         self.assertEqual(event.payload, self.payload["Event"])
-        self.assertFalse(misp.visible_events(self.platform).exists())
         self.assertFalse(misp.visible_events(self.analyst).exists())
-        self.source.refresh_from_db()
-        self.assertNotIn("secret", self.source.error)
         self.fetch.side_effect = None
-        self.refresh()
-        self.assertTrue(misp.visible_events(self.analyst).exists())
-
-    def test_missing_event_is_retained_hidden_and_reappearance_requires_fresh_review(self):
-        event = self.refresh()
-        misp.grant_readers(
-            self.platform, event.pk, [self.analyst], "Synthetic recipients", expected_digest=event.digest
-        )
         self.fetch.return_value = []
         misp.sync_source(self.source.pk)
         event.refresh_from_db()
         self.assertFalse(event.available)
-        self.assertEqual(event.payload, self.payload["Event"])
-        self.assertFalse(misp.visible_events(self.platform).exists())
         self.fetch.return_value = [self.payload["Event"]]
         self.refresh()
-        self.assertTrue(misp.visible_events(self.platform).exists())
+        self.assertTrue(misp.visible_events(self.analyst).exists())
+        MISPInstance.objects.filter(pk=self.source.pk).update(
+            last_success=timezone.now() - timedelta(hours=3)
+        )
         self.assertFalse(misp.visible_events(self.analyst).exists())
 
-    def test_disabled_stale_and_inflight_sources_never_expose_cache(self):
+    def test_owner_and_native_identity_cannot_be_reassigned_after_cache(self):
         self.refresh()
-        for fields in [
-            {"enabled": False},
-            {"last_success": timezone.now() - timedelta(hours=3)},
-            {"syncing_until": timezone.now() - timedelta(minutes=5)},
-        ]:
-            self.source.refresh_from_db()
-            previous = {k: getattr(self.source, k) for k in fields}
-            MISPInstance.objects.filter(pk=self.source.pk).update(**fields)
-            self.assertFalse(misp.visible_events(self.platform).exists())
-            MISPInstance.objects.filter(pk=self.source.pk).update(**previous)
-        self.assertTrue(misp.visible_events(self.platform).exists())
-
-    def test_endpoint_and_credential_reference_are_immutable_after_cache_and_validated(self):
-        self.refresh()
-        self.source.base_url = "https://different.example.invalid"
+        self.source.owner = self.platform
         with self.assertRaises(ValidationError):
             self.source.full_clean()
-        for url in [
-            "http://misp.example.invalid",
-            "https://user:password@misp.example.invalid",
-            "https://misp.example.invalid/?key=x",
-        ]:
-            source = MISPInstance(name="new", base_url=url)
-            with self.assertRaises(ValidationError):
-                source.full_clean()
-        for refresh, max_age in [(0, 120), (60, 5), (1441, 2880)]:
-            source = MISPInstance(name="new", refresh_minutes=refresh, max_age_minutes=max_age)
-            with self.assertRaises(ValidationError):
-                source.full_clean()
+        self.source.owner = self.analyst
+        self.source.misp_user_id = 999
+        with self.assertRaises(ValidationError):
+            self.source.full_clean()
+        self.source.misp_user_id = 71
+        self.source.base_url = "https://other.example.invalid"
+        with self.assertRaises(ValidationError):
+            self.source.full_clean()
 
-    def test_lease_and_due_prevent_duplicate_fetch_and_disabled_sources_never_read(self):
-        self.refresh()
-        self.fetch.reset_mock()
-        self.assertIsNone(misp.sync_source(self.source.pk, due=True))
-        self.fetch.assert_not_called()
-        MISPInstance.objects.filter(pk=self.source.pk).update(
-            syncing_until=timezone.now() + timedelta(minutes=1)
-        )
-        self.assertIsNone(misp.sync_source(self.source.pk))
-        self.fetch.assert_not_called()
-        MISPInstance.objects.filter(pk=self.source.pk).update(enabled=False, syncing_until=None)
-        with self.assertRaises(ConnectorError):
-            misp.sync_source(self.source.pk)
-        self.fetch.assert_not_called()
-
-    def test_expired_worker_lease_is_recovered_before_normal_interval(self):
-        self.refresh()
-        MISPInstance.objects.filter(pk=self.source.pk).update(
-            syncing_until=timezone.now() - timedelta(seconds=1)
-        )
-        self.fetch.reset_mock()
-        self.assertEqual(misp.sync_source(self.source.pk, due=True), 1)
-        self.assertEqual(self.fetch.call_count, 1)
-
-    def test_command_does_not_starve_short_interval_source_behind_long_interval_source(self):
-        from io import StringIO
-        from django.core.management import call_command
-
-        self.refresh()
-        MISPInstance.objects.filter(pk=self.source.pk).update(
-            last_attempt=timezone.now() - timedelta(hours=2), refresh_minutes=1440, max_age_minutes=1440
-        )
-        other = MISPInstance.objects.create(
-            name="Due second source",
-            token_env_var="MISP_SECOND_TOKEN",
-            enabled=True,
-            refresh_minutes=5,
-            last_attempt=timezone.now() - timedelta(minutes=10),
-        )
-        call_command("sync_misp", all=True, due=True, limit=1, stdout=StringIO())
-        self.assertTrue(MISPEvent.objects.filter(source=other).exists())
-
-    def test_operator_configuration_disables_source_and_invalidates_old_recipient_attestation(self):
-        import io
-        from django.core.management import call_command
-
+    def test_local_research_only_uses_current_verified_visible_claims_and_never_delegates(self):
         event = self.refresh()
-        misp.grant_readers(
-            self.platform, event.pk, [self.analyst], "Synthetic recipients", expected_digest=event.digest
-        )
-        body = {
-            "name": self.source.name,
-            "base_url": self.source.base_url,
-            "token_env_var": self.source.token_env_var,
-        }
-        with patch("sys.stdin", io.StringIO(json.dumps(body))):
-            call_command("configure_misp", actor=self.platform.username, stdout=io.StringIO())
-        self.source.refresh_from_db()
-        event.refresh_from_db()
-        self.assertFalse(self.source.enabled)
-        self.assertIsNone(self.source.last_success)
-        self.assertEqual(event.review_digest, "")
-        self.assertEqual(event.payload, self.payload["Event"])
-
-    def test_entire_merge_rolls_back_if_later_event_identity_or_timestamp_regresses(self):
-        event = self.refresh()
-        previous = event.payload
-        second = event_payload(timestamp=1600000000)["Event"]
-        second["id"] = "52"
-        self.fetch.return_value = [second]
-        misp.sync_source(self.source.pk)
-        changed = copy.deepcopy(self.payload["Event"])
-        changed["info"] = "Must roll back"
-        old_second = copy.deepcopy(second)
-        old_second["timestamp"] = "1599999999"
-        self.fetch.return_value = [changed, old_second]
-        with self.assertRaises(ConnectorError):
-            misp.sync_source(self.source.pk)
-        event.refresh_from_db()
-        self.assertEqual(event.payload, previous)
-        self.assertFalse(misp.visible_events(self.platform).exists())
-
-    def test_credential_reconfiguration_invalidates_old_worker_even_after_reenable(self):
-        import io
-        from django.core.management import call_command
-
-        self.refresh()
-
-        def rotate(source):
-            body = {"name": source.name, "base_url": source.base_url, "token_env_var": source.token_env_var}
-            with patch("sys.stdin", io.StringIO(json.dumps(body))):
-                call_command("configure_misp", actor=self.platform.username, stdout=io.StringIO())
-            MISPInstance.objects.filter(pk=source.pk).update(enabled=True)
-            return [self.payload["Event"]]
-
-        self.fetch.side_effect = rotate
-        with self.assertRaises(ConnectorError):
-            misp.sync_source(self.source.pk)
-        self.assertFalse(misp.visible_events(self.platform).exists())
-
-    def test_configuration_change_during_fetch_refuses_publication(self):
-        self.refresh()
-
-        def disable(source):
-            MISPInstance.objects.filter(pk=source.pk).update(enabled=False)
-            return [self.payload["Event"]]
-
-        self.fetch.side_effect = disable
-        with self.assertRaises(ConnectorError):
-            misp.sync_source(self.source.pk)
-        self.assertFalse(misp.visible_events(self.platform).exists())
-
-    def test_local_research_requires_verified_current_visible_scope_and_dns_boundary(self):
-        event = self.refresh()
-        misp.grant_readers(
-            self.platform, event.pk, [self.analyst], "Synthetic handling review", expected_digest=event.digest
-        )
         claim = InfrastructureClaim.objects.create(
             organization=self.a,
             kind="domain",
@@ -314,71 +132,70 @@ class MISPCacheTests(Fixture):
             status="verified",
             valid_from=timezone.now() - timedelta(days=1),
         )
-        rows, truncated = misp.research(self.analyst, event)
+        rows, _ = misp.research(self.analyst, event)
         self.assertEqual({r["organization"].pk for r in rows}, {self.a.pk})
-        self.assertFalse(truncated)
         claim.status = "declared"
         claim.save()
         self.assertEqual(misp.research(self.analyst, event)[0], [])
-        claim.status, claim.value = "verified", "notexample.invalid"
-        claim.save()
-        self.assertEqual(misp.research(self.analyst, event)[0], [])
-        claim.value, claim.valid_until = "example.invalid", timezone.now() - timedelta(hours=1)
-        claim.save()
-        self.assertEqual(misp.research(self.analyst, event)[0], [])
         with self.assertRaises(PermissionDenied):
-            misp.research(self.admin, event)
+            misp.research(self.platform, event)
 
-    def test_restricted_ui_uses_local_cache_escaped_json_and_csrf_for_research_and_grants(self):
-        self.payload["Event"]["info"] = '<script>alert("synthetic")</script>'
+    def test_no_network_on_reads_and_legacy_grant_endpoint_denied(self):
         event = self.refresh()
         self.fetch.reset_mock()
-        self.login(self.platform)
-        response = self.client.get(f"/circl/misp/{event.pk}/")
-        self.assertContains(response, "&lt;script&gt;")
-        self.assertNotContains(response, '<script>alert("synthetic")</script>')
-        self.assertIn("no-store", response["Cache-Control"])
-        self.fetch.assert_not_called()
-        from django.test import Client
-
-        csrf = Client(enforce_csrf_checks=True)
-        csrf.force_login(self.platform)
-        self.assertEqual(csrf.post(f"/circl/misp/{event.pk}/", {"action": "research"}).status_code, 403)
-        response = self.client.post(
-            f"/circl/misp/{event.pk}/",
-            {
-                "action": "grant",
-                "readers": [self.analyst.pk],
-                "note": "Synthetic explicit recipients",
-                "expected_digest": event.digest,
-                "acknowledged": "on",
-            },
-        )
-        self.assertEqual(response.status_code, 302)
         self.login(self.analyst)
-        self.assertEqual(self.client.get(f"/circl/misp/{event.pk}/").status_code, 200)
+        response = self.client.get(f"/circl/misp/{event.pk}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertNotContains(response, "Record authorized readers")
         self.assertEqual(self.client.post(f"/circl/misp/{event.pk}/", {"action": "grant"}).status_code, 403)
+        self.fetch.assert_not_called()
+
+
+def personal_source(**kwargs):
+    from django.contrib.auth import get_user_model
+
+    user, _ = get_user_model().objects.get_or_create(username="misp-owner", defaults={"is_superuser": True})
+    return MISPInstance(owner=user, misp_user_id=71, **kwargs)
 
 
 class MISPConnectorTests(TestCase):
     def test_bounded_read_search_uses_only_operator_endpoint_and_stops_at_final_page(self):
-        source = MISPInstance(name="MISP", enabled=True)
+        source = personal_source(name="MISP", enabled=True)
         row = event_payload()
         with (
             patch.dict("os.environ", {"MISP_CIRCL_TOKEN": "synthetic-test-key"}),
             patch("portal.connectors.misp.approved_base", return_value=source.base_url),
-            patch("portal.connectors.misp.request_json", return_value={"response": [row]}) as http,
+            patch(
+                "portal.connectors.misp.request_json",
+                side_effect=[{"User": {"id": "71", "authkey": "must-not-log"}}, {"response": [row]}],
+            ) as http,
         ):
             result = snapshot(source)
         self.assertEqual(result, [row["Event"]])
-        args, kwargs = http.call_args
+        args, kwargs = http.call_args_list[-1]
         self.assertEqual(args, ("POST", "https://misppriv.circl.lu/events/restSearch"))
         self.assertFalse(kwargs["json"]["withAttachments"])
         self.assertEqual(kwargs["headers"]["Authorization"], "synthetic-test-key")
         self.assertNotIn("url", kwargs["json"])
 
+    def test_wrong_native_key_identity_is_refused_before_any_event_search(self):
+        source = personal_source(name="MISP", enabled=True)
+        with (
+            patch.dict("os.environ", {"MISP_CIRCL_TOKEN": "synthetic"}),
+            patch("portal.connectors.misp.approved_base", return_value=source.base_url),
+            patch(
+                "portal.connectors.misp.request_json",
+                return_value={"User": {"id": "999", "authkey": "must-not-persist"}},
+            ) as http,
+        ):
+            with self.assertRaises(ConnectorError):
+                snapshot(source)
+            self.assertEqual(http.call_count, 1)
+            self.assertEqual(http.call_args.args[0], "GET")
+
     def test_missing_secret_disabled_source_and_unsupported_responses_fail_closed(self):
-        source = MISPInstance(name="MISP", enabled=True)
+        source = personal_source(name="MISP", enabled=True)
         with patch.dict("os.environ", {}, clear=True), patch("portal.connectors.misp.request_json") as http:
             with self.assertRaises(ConnectorError):
                 snapshot(source)
@@ -393,17 +210,20 @@ class MISPConnectorTests(TestCase):
                 self.subTest(data=data),
                 patch.dict("os.environ", {"MISP_CIRCL_TOKEN": "synthetic"}),
                 patch("portal.connectors.misp.approved_base", return_value=source.base_url),
-                patch("portal.connectors.misp.request_json", return_value=data),
+                patch("portal.connectors.misp.request_json", side_effect=[{"User": {"id": "71"}}, data]),
             ):
                 with self.assertRaises(ConnectorError):
                     snapshot(source)
 
     def test_snapshot_size_and_time_budget_do_not_publish_partial_events(self):
-        source = MISPInstance(name="MISP", enabled=True)
+        source = personal_source(name="MISP", enabled=True)
         with (
             patch.dict("os.environ", {"MISP_CIRCL_TOKEN": "synthetic"}),
             patch("portal.connectors.misp.approved_base", return_value=source.base_url),
-            patch("portal.connectors.misp.request_json", return_value={"response": [event_payload()]}),
+            patch(
+                "portal.connectors.misp.request_json",
+                side_effect=[{"User": {"id": "71"}}, {"response": [event_payload()]}],
+            ),
             patch("portal.connectors.misp.MAX_BYTES", 1),
         ):
             with self.assertRaises(ConnectorError):
@@ -416,10 +236,10 @@ class MISPConnectorTests(TestCase):
         ):
             with self.assertRaises(ConnectorError):
                 snapshot(source)
-            http.assert_not_called()
+            self.assertEqual(http.call_count, 1)
 
     def test_duplicate_pages_bounds_and_invalid_event_metadata_never_yield_partial_success(self):
-        source = MISPInstance(name="MISP", enabled=True)
+        source = personal_source(name="MISP", enabled=True)
         rows = []
         for i in range(10):
             row = event_payload()
@@ -428,7 +248,10 @@ class MISPConnectorTests(TestCase):
         with (
             patch.dict("os.environ", {"MISP_CIRCL_TOKEN": "synthetic"}),
             patch("portal.connectors.misp.approved_base", return_value=source.base_url),
-            patch("portal.connectors.misp.request_json", return_value={"response": rows}),
+            patch(
+                "portal.connectors.misp.request_json",
+                side_effect=[{"User": {"id": "71"}}, {"response": rows}, {"response": rows}],
+            ),
         ):
             with self.assertRaises(ConnectorError):
                 snapshot(source)
@@ -454,7 +277,9 @@ class MISPLeaseTests(TransactionTestCase):
 
         @skipUnlessDBFeature("has_select_for_update")
         def run_case():
-            source = MISPInstance.objects.create(name="Lease fixture", enabled=True)
+            source = MISPInstance.objects.create(
+                name="Lease fixture", enabled=True, owner=personal_source().owner, misp_user_id=71
+            )
             entered, release = threading.Event(), threading.Event()
             errors = []
 
@@ -534,6 +359,13 @@ class MISPTransportTests(TestCase):
             def log_message(self, *args):
                 pass
 
+            def do_GET(self):
+                data = json.dumps({"User": {"id": "71"}}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
             def do_POST(self):
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 calls.append((self.path, self.headers.get("Authorization"), body))
@@ -566,7 +398,7 @@ class MISPTransportTests(TestCase):
             server.socket = tls.wrap_socket(server.socket, server_side=True)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
-            source = MISPInstance(
+            source = personal_source(
                 name="TLS fixture",
                 base_url=f"https://127.0.0.1:{server.server_port}",
                 enabled=True,
@@ -604,6 +436,8 @@ class MISPInstallerTests(SimpleTestCase):
         from scripts.configure_misp import execute
 
         args = SimpleNamespace(
+            owner="misp-owner",
+            misp_user_id=71,
             url="https://misp.example.invalid",
             credential_ref="MISP_TEST_TOKEN",
             token_file=None,

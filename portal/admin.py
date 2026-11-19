@@ -313,7 +313,7 @@ class RegistrationAdmin(PlatformAdmin):
 
 @admin.register(MISPInstance)
 class MISPAdmin(PlatformAdmin):
-    list_display = ["name", "base_url", "enabled", "last_success", "error"]
+    list_display = ["name", "owner", "misp_user_id", "base_url", "enabled", "last_success", "error"]
     readonly_fields = ["last_attempt", "last_success", "error", "generation", "syncing_until"]
 
     def save_model(self, request, obj, form, change):
@@ -324,7 +324,7 @@ class MISPAdmin(PlatformAdmin):
                     setattr(current, field, getattr(obj, field))
                 current.full_clean()
                 fields = list(form.changed_data)
-                if set(fields) & {"enabled", "base_url", "token_env_var", "allow_private"}:
+                if set(fields) & {"enabled", "base_url", "token_env_var", "allow_private", "owner", "misp_user_id"}:
                     import uuid
                     current.generation, current.syncing_until = uuid.uuid4(), None
                     current.last_success, current.last_attempt = None, None

@@ -1,6 +1,6 @@
 # Ecosystem accounts and intelligence integration proposal
 
-Status: **design proposal**, researched 2026-11-19. Existing public Vulnerability-Lookup reads/product discovery and explicit Bearings/NetBox SSO are implemented separately. No authenticated Vulnerability-Lookup community action, external account provisioning or production service modification is enabled by this proposal. A subsequent [bounded restricted MISP cache pilot](misp.md) now implements configurable read-only searches and local current verified IP/domain assignment leads; broader correlation, redistribution and feedback below remain future work. No supplied API key was requested, used or stored during research.
+Status: **design proposal**, researched 2026-11-19. Existing public Vulnerability-Lookup reads/product discovery and explicit Bearings/NetBox SSO are implemented separately. No authenticated Vulnerability-Lookup community action, external account provisioning or production service modification is enabled by this proposal. A subsequent [bounded restricted MISP cache pilot](misp.md) now implements configurable read-only searches and local current verified IP/domain assignment leads; broader correlation, redistribution and feedback below remain future work. The cache now binds a separate personal key/native MISP user ID to each analyst; shared-key reader grants were removed. No supplied API key was requested, used or stored during research.
 
 ## One company-facing workspace
 

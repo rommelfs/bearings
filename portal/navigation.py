@@ -12,6 +12,7 @@ AREAS = {
     "review": ("Vulnerability review", "home", "assess"),
     "discovery": ("Automatic CVE discovery", "discovery", "assess"),
     "risks": ("Company risk register", "risk-register", "assess"),
+    "actions": ("What needs attention?", "company-actions", "assess"),
     "issues": ("Asset issues & lifecycle", "issues", "assess"),
     "exposure": ("Exposure history", "plum", "assess"),
     "notifications": ("Notifications", "notifications", "respond"),
@@ -24,8 +25,9 @@ AREAS = {
 }
 
 ROUTES = {
+    "actions": {"company-actions", "company-action"},
     "registrations": {"registration-applications", "registration-application", "service-mail", "service-mail-message"},
-    "national": {"misp", "misp-event", "circl-overview", "circl-research", "circl-findings", "circl-map-location"},
+    "national": {"review-followups", "review-followup","misp", "misp-event", "circl-overview", "circl-research", "circl-findings", "circl-map-location"},
     "overview": {"overview"},
     "risks": {"risk-register", "business-risk", "automatic-scenario"},
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
@@ -35,6 +37,7 @@ ROUTES = {
         "inventory",
         "organization",
         "company-address",
+        "company-start", "csv-upload", "csv-preview", "csv-template",
         "configuration",
         "configuration-section",
         "setup-resume",
@@ -81,7 +84,7 @@ def workspace(request):
         stage = "respond"
     sections = [
         ("Start", (["national"] if operator else []) + ["overview", "start"]),
-        ("Understand", ["inventory", "discovery", "review", "issues", "risks", "exposure"]),
+        ("Understand", ["actions", "inventory", "discovery", "review", "issues", "risks", "exposure"]),
         (
             "Act",
             ["notifications"] + (["response"] if operator else []),

@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from portal.models import InventoryWrite
+from portal.models import InventoryWrite, InventoryCSVBatch
 from portal.services import process_write
 
 
@@ -13,6 +13,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # Keep small import receipts, discard expired private upload contents in bounded batches.
+        expired = list(
+            InventoryCSVBatch.objects.filter(expires_at__lt=timezone.now())
+            .exclude(rows=[], errors=[])
+            .values_list("pk", flat=True)[:100]
+        )
+        InventoryCSVBatch.objects.filter(pk__in=expired).update(rows=[], errors=[])
         jobs = InventoryWrite.objects.filter(completed_at__isnull=True)
         if not options["retry_now"]:
             jobs = jobs.filter(next_attempt__lte=timezone.now())

@@ -21,6 +21,17 @@ def snapshot(source):
         raise ConnectorError("MISP credential reference is unavailable or invalid")
     base = approved_base(source.base_url, source.allow_private)
     started, total_bytes, result, identities, remote_ids = time.monotonic(), 0, [], set(), set()
+    identity = request_json(
+        "GET",
+        base + "/users/view/me",
+        headers={"Authorization": token, "Accept": "application/json"},
+        timeout=10,
+        deadline=started + MAX_SECONDS,
+    )
+    # The response can contain secrets: whitelist only the pinned ID, never persist/log the response.
+    user = identity.get("User", {})
+    if not isinstance(user, dict) or str(user.get("id")) != str(source.misp_user_id):
+        raise ConnectorError("MISP key owner does not match the pinned personal identity")
     for page in range(1, MAX_EVENTS // PAGE_SIZE + 2):
         if time.monotonic() - started > MAX_SECONDS:
             raise ConnectorError("MISP snapshot time budget exceeded")

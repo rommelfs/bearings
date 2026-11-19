@@ -97,3 +97,8 @@ Migration 0036 adds blank-compatible submission fields without splitting existin
 ## Shared sign-in after approval
 
 Registration creates a local account. After CIRCL approval, **SSO & access** offers explicit linking to the configured identity provider. Local password confirmation and signed IdP authentication are both required; application memberships remain independent. The operator can provision a dedicated company NetBox account in the bundled lab. See [company SSO and application access](company-sso.md), including restrictions for existing inventory and independently deployed providers.
+
+
+## Minimal setup, inventory and response follow-through
+
+[Start small and import inventory](company-first-steps.md) describes the additive one-scope path, reviewed manual CSV import and compact company action workflow. [Review follow-through](review-followups.md) distinguishes local output, SMTP acceptance, reported bounce/delivery and actual cycle confirmation, with authorized previewed repeats and no automatic DPO escalation.

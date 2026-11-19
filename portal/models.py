@@ -1604,6 +1604,7 @@ class InventoryReviewConfirmation(models.Model):
     policy = models.ForeignKey(InventoryReviewPolicy, on_delete=models.PROTECT, related_name="confirmations")
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     reviewed_at = models.DateTimeField(default=timezone.now)
+    review_due_date = models.DateField(null=True, blank=True)
     data_digest = models.CharField(max_length=64)
     fingerprint = models.CharField(max_length=64, unique=True)
     counts = models.JSONField(default=dict)
@@ -1624,6 +1625,12 @@ class InventoryReviewDelivery(models.Model):
     next_attempt = models.DateTimeField(default=timezone.now, db_index=True)
     sent_at = models.DateTimeField(null=True, blank=True)
     error = models.CharField(max_length=200, blank=True)
+    transport = models.CharField(max_length=10, default="unknown", choices=[("unknown","Legacy / unknown"),("file","Local file"),("smtp","SMTP relay")])
+    delivery_outcome = models.CharField(max_length=10, default="unknown", choices=[("unknown","Not known"),("bounced","Bounce reported"),("delivered","Delivery reported")])
+    feedback_at = models.DateTimeField(null=True, blank=True)
+    feedback_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    feedback_note = models.CharField(max_length=1000, blank=True)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="requested_review_followups")
     created_at = models.DateTimeField(default=timezone.now)
 
 
@@ -1674,13 +1681,16 @@ class ConfigurationSection(models.Model):
 class MISPInstance(models.Model):
     """An operator-approved read-only cache source; disabled until explicitly configured."""
 
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+                              related_name="personal_misp_sources")
+    misp_user_id = models.PositiveBigIntegerField(null=True, blank=True, help_text="Operator-verified MISP user ID owning this personal key; checked with users/view/me on every refresh")
     name = models.CharField(max_length=100, unique=True)
     base_url = models.URLField(max_length=250, default="https://misppriv.circl.lu")
     token_env_var = models.CharField(max_length=100, unique=True, default="MISP_CIRCL_TOKEN")
     enabled = models.BooleanField(default=False)
     allow_private = models.BooleanField(default=False)
-    refresh_minutes = models.PositiveIntegerField(default=60)
-    max_age_minutes = models.PositiveIntegerField(default=120)
+    refresh_minutes = models.PositiveIntegerField(default=5)
+    max_age_minutes = models.PositiveIntegerField(default=10)
     last_attempt = models.DateTimeField(null=True, blank=True)
     last_success = models.DateTimeField(null=True, blank=True)
     error = models.CharField(max_length=250, blank=True)
@@ -1700,11 +1710,15 @@ class MISPInstance(models.Model):
             raise ValidationError("MISP requires an operator-approved credential-free HTTPS base URL") from None
         if not re.fullmatch(r"MISP_[A-Z0-9_]*TOKEN", self.token_env_var):
             raise ValidationError("Use a server-side MISP_*TOKEN credential reference")
-        if not 5 <= self.refresh_minutes <= 1440 or not self.refresh_minutes <= self.max_age_minutes <= 2880:
-            raise ValidationError("Refresh must be 5–1440 minutes and maximum cache age refresh–2880 minutes")
+        if not 5 <= self.refresh_minutes <= 60 or not self.refresh_minutes <= self.max_age_minutes <= 60:
+            raise ValidationError("Refresh must be 5–60 minutes and maximum cache age refresh–60 minutes")
+        if self.enabled:
+            from .access import is_analyst
+            if not self.owner_id or not self.misp_user_id or not self.owner.is_active or not (self.owner.is_superuser or is_analyst(self.owner)):
+                raise ValidationError("An enabled MISP source requires an active analyst owner and pinned MISP user ID")
         if self.pk and MISPEvent.objects.filter(source_id=self.pk).exists():
             old = MISPInstance.objects.get(pk=self.pk)
-            if old.base_url != self.base_url or old.token_env_var != self.token_env_var:
+            if old.base_url != self.base_url or old.token_env_var != self.token_env_var or old.owner_id != self.owner_id or old.misp_user_id != self.misp_user_id:
                 raise ValidationError("A source with cached events cannot be repointed; create a new source")
 
 
@@ -1735,3 +1749,28 @@ class MISPEvent(models.Model):
 
     def __str__(self):
         return str(self.event_uuid)
+
+
+class InventoryCSVBatch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    rows = models.JSONField(default=list)
+    errors = models.JSONField(default=list)
+    baseline = models.CharField(max_length=64)
+    status = models.CharField(max_length=12, default="preview")
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(db_index=True)
+
+
+class CSVAssetBinding(models.Model):
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    asset = models.OneToOneField(Asset, on_delete=models.PROTECT, related_name="csv_binding")
+    key = models.CharField(max_length=100)
+    managed_digest = models.CharField(max_length=64)
+    installations = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["source", "key"], name="csv_source_key")]
