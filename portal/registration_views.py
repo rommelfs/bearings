@@ -1,5 +1,8 @@
 """Public email-confirmed reporting applications and operator-only approvals."""
 
+import os
+import shlex
+from social_django.models import UserSocialAuth
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -253,6 +256,16 @@ def application(request, pk):
                 if request.user.is_superuser and item.status == "awaiting_email"
                 else None,
                 "local_mail": settings.SERVICE_MAIL_TRANSPORT == "file",
+                "company_sso_binding": UserSocialAuth.objects.filter(
+                    user=item.user, provider="oidc"
+                ).first(),
+                "company_sso_command": "python3 scripts/dev.py enroll-company-sso --username="
+                + shlex.quote(item.user.username)
+                if request.user.is_superuser
+                and settings.DEBUG
+                and os.getenv("BEARINGS_SSO_LAB") == "1"
+                and item.status == "approved"
+                else "",
             },
         )
     )

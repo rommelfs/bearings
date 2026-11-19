@@ -10,6 +10,15 @@ class Organization(models.Model):
     name = models.CharField(max_length=180)
     postal_address = models.TextField(max_length=1000, blank=True)
     slug = models.SlugField(unique=True)
+    misp_org_uuid = models.UUIDField(
+        null=True, blank=True, unique=True,
+        help_text="Optional MISP organization reference, manually checked by the platform operator. This is not proof of a user's membership.",
+    )
+    misp_uuid_attested_at = models.DateTimeField(null=True, blank=True)
+    misp_uuid_attested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="misp_organization_attestations",
+    )
     operator_visibility = models.BooleanField(
         default=False, help_text="Allow CIRCL analysts to access this organization"
     )

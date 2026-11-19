@@ -259,4 +259,14 @@ Implemented [#52](https://github.com/rommelfs/bearings/issues/52): Bearings bran
 
 ## Registration first/last name and company title — 2026-11-19
 
-Implemented explicit required first/last names and declared company role/job title. Persist names on the local account and submission; copy the combined name/title into the company contact through both mail-proof and administrative-activation paths. Free-text titles do not grant privileges or verify contact roles. Legacy full names/contacts remain intact without inferred splits or invented titles. See [registration](user-guide/reporting-registration.md).
+Implemented [#53](https://github.com/rommelfs/bearings/issues/53): explicit required first/last names and declared company role/job title. Persist names on the local account and submission; copy the combined name/title into the company contact through both mail-proof and administrative-activation paths. Free-text titles do not grant privileges or verify contact roles. Legacy full names/contacts remain intact without inferred splits or invented titles. See [registration](user-guide/reporting-registration.md).
+
+## Registered company SSO and own-inventory native access — 2026-11-19
+
+Implemented [#54](https://github.com/rommelfs/bearings/issues/54), [company SSO](user-guide/company-sso.md): explicit approved-owner local reauthentication plus signed provider identity linking, unchanged local roles/passwords, and a bundled-lab operator plan/apply for new IdP accounts and dedicated NetBox own-inventory view/add/change permissions. Existing demo grants stay unchanged; nonempty manual inventories require separate migration or `--without-netbox`. Private receipts support owned stage retries without restoring disabled accounts/bindings/policies. Credentials list managed native human accounts. Production provider provisioning, centralized lifecycle/revocation and populated source migration remain separate.
+
+An optional unique, platform-attested MISP organization UUID anchors future company correlation; it never grants personal login/membership, auto-merges companies or invokes a MISP connector. Applicant forms cannot set it.
+
+## Vulnerability-Lookup and MISP ecosystem proposal — 2026-11-19
+
+Planned [#55](https://github.com/rommelfs/bearings/issues/55), [ecosystem integration](integrations/ecosystem-accounts.md): keep company watches and remediation inside Bearings, add source-linked public Vulnerability-Lookup community evidence, and offer native shared SSO only where contributors need it. Start MISP with CIRCL-only read/search and explained, restricted company/asset correlations, including no-CVE research. Feedback/publication is a separate reviewed step. Current upstream OIDC support was source-reviewed for both projects; deployed versions, service capabilities, account mapping and lifecycle remain unvalidated. No key, live MISP access, account provisioning or external write was used for this proposal.

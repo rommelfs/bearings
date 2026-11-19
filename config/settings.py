@@ -146,8 +146,10 @@ SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
     "social_core.pipeline.social_auth.social_uid",
     "social_core.pipeline.social_auth.social_user",
+    "portal.sso_onboarding.link_verified_identity",
     "config.oidc.require_approved_user",
 )
+SOCIAL_AUTH_OIDC_CONSTITUENT_ONBOARDING = True
 SOCIAL_AUTH_MAX_SESSION_LENGTH = SSO_SESSION_SECONDS
 SOCIAL_AUTH_SESSION_EXPIRATION = True
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = "/"

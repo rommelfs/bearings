@@ -7,3 +7,7 @@ Expected boundary: server-side API key over approved HTTPS, least-privilege read
 Permission for CIRCL to read an event is not permission to redistribute it. Evaluate distribution, sharing group, handling markings, attribute overrides and operator rules for raw evidence **and derived summaries/counts/notifications**. When eligibility is ambiguous, deny participant redistribution. Current SourceRecord shareability defaults false and participant finding queries exclude restricted records; this is groundwork, not a complete MISP policy engine.
 
 Distinguish victim/malicious/contextual roles where structured data permits and retain ambiguity otherwise. Preserve observation times and infrastructure responsibility at those times. A CVE mention alone is not exploitation; technology overlap alone is not a sighting or compromise. Never publish inventories or findings back to MISP automatically. Implement pagination, origin deduplication, restriction-propagation and partial-response tests before enabling live ingestion.
+
+## Concrete integration sequence
+
+See the [ecosystem proposal](ecosystem-accounts.md) for platform-attested company UUID correlation, CIRCL-only restricted read/search, explained IP/domain/software matches, no-CVE research, reviewed outreach and separately approved feedback. Current upstream has an OIDC plugin, but native deployment setup and API integration are separate work. No live key or MISP instance was used for the source review.

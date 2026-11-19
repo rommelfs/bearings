@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.db import transaction
+from django.utils import timezone
 from django.urls import reverse
 from django.utils.html import format_html
 from .access import audit
@@ -40,10 +41,22 @@ class PlatformAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if self.model is Organization:
+            fields += ["misp_uuid_attested_at", "misp_uuid_attested_by"]
+        return fields
+
     def save_model(self, request, obj, form, change):
+        previous_misp = None
         previous = None
         if isinstance(obj, Organization) and change:
-            previous = Organization.objects.get(pk=obj.pk).operator_visibility
+            old_org = Organization.objects.get(pk=obj.pk)
+            previous = old_org.operator_visibility
+            previous_misp = old_org.misp_org_uuid
+        if isinstance(obj, Organization) and obj.misp_org_uuid != previous_misp:
+            obj.misp_uuid_attested_at = timezone.now() if obj.misp_org_uuid else None
+            obj.misp_uuid_attested_by = request.user if obj.misp_org_uuid else None
         previous_access_mode = previous_enabled = None
         if isinstance(obj, NetBoxInstance) and change:
             old_instance = NetBoxInstance.objects.get(pk=obj.pk)
@@ -63,6 +76,10 @@ class PlatformAdmin(admin.ModelAdmin):
             access_mode=obj.access_mode if isinstance(obj, NetBoxInstance) else None,
             previous_visibility=previous,
             visibility=obj.operator_visibility if isinstance(obj, Organization) else None,
+            previous_misp_reference=str(previous_misp) if previous_misp else None,
+            misp_reference=str(obj.misp_org_uuid)
+            if isinstance(obj, Organization) and obj.misp_org_uuid
+            else None,
         )
 
 

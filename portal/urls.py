@@ -21,11 +21,13 @@ from . import (
     circl_map_views,
     registration_views,
     service_mail_views,
+    sso_onboarding,
     inventory_review_views,
     configuration_views,
 )
 
 urlpatterns = [
+    path("account/sso/", sso_onboarding.settings_view, name="sso-settings"),
     path("operator/service-mail/", service_mail_views.outbox, name="service-mail"),
     path("operator/service-mail/<slug:key>/", service_mail_views.outbox, name="service-mail-message"),
     path("organizations/<slug:slug>/configuration-export/ail/", configuration_views.export_ail, name="configuration-ail-export"),

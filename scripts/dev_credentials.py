@@ -52,15 +52,19 @@ def directory(state, base, run, external_config):
     print("  Current Bearings accounts (own/retained passwords):")
     code = (
         "from docker.dev.entrypoint import environment; environment(); import django; django.setup(); "
-        "from django.contrib.auth import get_user_model; import json; "
-        "print(json.dumps(list(get_user_model().objects"
-        ".order_by('username').values('username','is_active'))))"
+        "from django.contrib.auth import get_user_model; from pathlib import Path; import json; "
+        "users=list(get_user_model().objects.order_by('username').values('username','is_active')); "
+        "profiles=[json.loads(p.read_text()) for p in Path('/run/bearings/secrets').glob('company-sso-*.json')]; "
+        "print(json.dumps({'users':users,'native':[{'username':p.get('username'),'registration':p['registration']} for p in profiles]}))"
     )
+    native_accounts = []
     try:
         result = run(
             base + ["exec", "-T", "web", "/app/.venv/bin/python", "-c", code], capture_output=True, text=True
         )
-        users = json.loads(result.stdout)
+        payload = json.loads(result.stdout)
+        users = payload.get("users", []) if isinstance(payload, dict) else payload
+        native_accounts = payload.get("native", []) if isinstance(payload, dict) else []
         for user in users:
             print(
                 "    "
@@ -87,7 +91,7 @@ def directory(state, base, run, external_config):
     if state.get("sso"):
         print("  HTTP development listener (plain HTTP): " + url(http, "/accounts/login/"))
     secret(
-        "  Generated initial Bearings / NetBox / SSO user password:",
+        "  Generated initial starter-user password (not self-registered/enrolled users):",
         "web",
         "/run/bearings/secrets/demo_password",
     )
@@ -99,6 +103,13 @@ def directory(state, base, run, external_config):
         print("  netbox-admin — local administrator; generated password shown above")
         if state.get("sso"):
             print("  company-admin, circl-analyst — OpenID Connect button; scoped read-only human access")
+        for account in native_accounts:
+            if account.get("username"):
+                print(
+                    "  Enrolled company native account "
+                    + json.dumps(account["username"])
+                    + " — SSO only; use the linked IdP credentials"
+                )
         print("  Inventory: " + url(netbox, "/dcim/devices/"))
     else:
         print("\nEXTERNAL NETBOX — operator-managed accounts/passwords, unchanged")

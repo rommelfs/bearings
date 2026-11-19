@@ -295,6 +295,14 @@ def main():
         "manage", help="Run a Bearings management command with stack credentials/trust loaded"
     )
     manage.add_argument("arguments", nargs=argparse.REMAINDER)
+    enrollment = commands.add_parser(
+        "enroll-company-sso",
+        help="Plan/apply approved constituent SSO and own-tenant NetBox access in the bundled lab",
+    )
+    enrollment.add_argument("--username", required=True)
+    enrollment.add_argument("--actor", default="platform-admin")
+    enrollment.add_argument("--without-netbox", action="store_true")
+    enrollment.add_argument("--apply", action="store_true")
     timing = commands.add_parser("web-timing", help="Measure the running bundled SSO lab over HTTP/HTTPS")
     timing.add_argument(
         "--national", action="store_true", help="Measure the CIRCL national page as circl-analyst"
@@ -492,7 +500,14 @@ def main():
         state.get("rt", False),
         state.get("rtir", False),
     )
-    if args.action == "example-exchange":
+    if args.action == "enroll-company-sso":
+        import sys
+
+        sys.path.insert(0, str(ROOT))
+        from scripts.enroll_company_sso import execute
+
+        execute(args)
+    elif args.action == "example-exchange":
         exchange_example(base, state["mode"], inventory_only=args.inventory_only)
     elif args.action == "flowintel-sso":
         if state["mode"] != "bundled" or not state.get("flowintel") or not state.get("sso"):

@@ -1820,3 +1820,4 @@ input:focus-visible {
 [data-save-errors]{color:#a10c2f}[data-setup-celebration][hidden]{display:none}
 
 .public-material{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
+.account-menu > a {font-size:12px; white-space:nowrap;}
