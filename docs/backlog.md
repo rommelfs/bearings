@@ -442,3 +442,8 @@ Company and machine software tables distinguish installed software, cached autom
 Migration 0062 adds bounded current package-check receipts, including native fixed-version proof, report/feed provenance, outcome counts and recent examples. Discovery/inventory separate technical results from retained human reviews; stale/failed/pending/unsupported checks do not imply safety. Existing devices are queued without client reinstallation. Nonmatching/absent rules do not imply explicit manufacturer non-applicability. See [distro integration](integrations/distro-cves.md#package-check-results-versus-human-reviews).
 
 Company maps repair canvas/vector geometry after container resize, font loading and hidden-page restoration while preserving center/zoom. Singular/plural company summaries are corrected. Local real-renderer browser validation covers resizing, restoration and heatmap; target Safari idle acceptance remains to be confirmed.
+
+
+## Company inventory latency and readable CVE summary — 2026-11-20
+
+Replace the unbounded company CVE/history/form dump with a scoped workflow summary and dedicated review link. Bound contact/scope pages, avoid full snapshot payloads and whole-inventory count joins, and reuse request-local authorization. Synthetic single-asset and larger PostgreSQL evidence is recorded in [company inventory performance](performance/company-inventory.md); production network latency is not inferred. Local-only agent hosts are identified without changing connector capabilities.

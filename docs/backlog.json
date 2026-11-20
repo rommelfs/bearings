@@ -352,6 +352,10 @@
       {
         "title": "Redraw company maps after container resize and browser restoration",
         "body": "Implemented ResizeObserver plus font-ready, pageshow and visibility restoration repaint with public Leaflet methods, coalesced frames and unload cleanup. Preserve center/zoom and current layers; explicit Fit remains separate. Correct singular/plural company filter summary and version map-script URLs for both overview and location editor. Actual local Leaflet canvas/heatmap browser acceptance exercises width/height changes, hidden restoration and preserved center/zoom with synthetic same-origin data; target Safari idle behavior remains operator acceptance."
+      },
+      {
+        "title": "Bound company inventory rendering and avoid whole-inventory CVE count joins",
+        "body": "Implemented scoped workflow summary instead of a full company CVE/history/form dump, independent contact/scope pagination, projected NetBox status and omitted unused package/network blobs. Reuse request-local findings authorization and count only concrete authorized installation/company IDs; preserve raw visibility and filter mismatched product organizations. Reproduced 7.21s / 2031 queries for one asset with 1000 reviews; isolated signed-agent and 101-asset/100900-installation/10000-review benchmarks verify bounded results after a second nested-loop count fix. Existing local-only host labeling clarifies the lack of a confirmed NetBox object. No schema, policy or upstream-write change. See docs/performance/company-inventory.md and validation.md."
       }
     ]
   }

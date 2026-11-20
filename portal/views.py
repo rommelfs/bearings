@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, Count, IntegerField, Prefetch, Q, TextField, Value, When
+from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, TextField, Value, When
 from django.db.models.functions import Cast
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -197,12 +197,29 @@ def detail(request, slug):
     from .models import OrganizationConfiguration
 
     org = organization(request, slug)
+    role = org.membership_set.filter(user=request.user).values_list("role", flat=True).first()
+    editable = request.user.is_superuser or role in {"admin", "editor"}
+    finding_summary = (
+        visible_findings(request.user, org)
+        .order_by()
+        .aggregate(
+            total=Count("pk"),
+            pending=Count("pk", filter=Q(status__in=["new", "under_review"])),
+            confirmed=Count("pk", filter=Q(status="confirmed")),
+            accepted_risk=Count("pk", filter=Q(status="accepted_risk")),
+            closed=Count("pk", filter=Q(status__in=["resolved", "false_positive"])),
+        )
+    )
     inventory_page = Paginator(
         org.assets.select_related("source__instance")
+        .annotate(upstream_status=F("upstream_data__status"))
+        .defer("upstream_data")
         .prefetch_related(
             Prefetch(
                 "installations",
-                queryset=Installation.objects.select_related("product").order_by("product__name", "pk")[:10],
+                queryset=Installation.objects.filter(product__organization=org)
+                .select_related("product")
+                .order_by("product__name", "pk")[:10],
                 to_attr="software_preview",
             )
         )
@@ -211,7 +228,7 @@ def detail(request, slug):
     ).get_page(request.GET.get("inventory_page"))
     inventory_page.object_list = list(inventory_page.object_list)
     counts = dict(
-        Installation.objects.filter(asset_id__in=[a.pk for a in inventory_page])
+        Installation.objects.filter(asset_id__in=[a.pk for a in inventory_page], product__organization=org)
         .values("asset_id")
         .annotate(total=Count("pk"))
         .values_list("asset_id", "total")
@@ -226,20 +243,24 @@ def detail(request, slug):
         "portal/detail.html",
         {
             "org": org,
-            "editable": can_edit(request.user, org),
-            "inventory_writable": can_edit(request.user, org)
+            "editable": editable,
+            "inventory_writable": editable
             and hasattr(org, "inventory_source")
             and org.inventory_source.can_write,
             "public_keys": OrganizationConfiguration.objects.filter(organization=org)
             .values("pgp_public_key", "smime_certificate")
             .first(),
-            "contact_reviewer": can_review_contact(request.user, org),
-            "member_admin": org.membership_set.filter(user=request.user, role="admin").exists(),
+            "contact_reviewer": request.user.is_superuser or role == "admin",
+            "member_admin": role == "admin",
             "operator_reviewer": can_operator_review(request.user, org),
-            "findings": severity_first(visible_findings(request.user, org)),
+            "finding_summary": finding_summary,
+            "contact_page": Paginator(org.contacts.order_by("name", "pk"), 25).get_page(
+                request.GET.get("contact_page")
+            ),
+            "scope_page": Paginator(org.claims.order_by("kind", "value", "pk"), 25).get_page(
+                request.GET.get("scope_page")
+            ),
             "claim_review_form": ClaimReviewForm(),
-            "finding_review_form": FindingReviewForm(),
-            "lookup_form": VulnerabilityForm(),
             "missing_review_form": MissingReviewForm(),
             "inventory_page": inventory_page,
         },
@@ -638,8 +659,10 @@ def asset_detail(request, slug, pk):
         .filter(installation__asset=asset)
         .order_by("-evaluated_at", "pk")
     )
-    software = asset.installations.select_related("product", "agent_component__device").order_by(
-        "product__name", "pk"
+    software = (
+        asset.installations.filter(product__organization=org)
+        .select_related("product", "agent_component__device")
+        .order_by("product__name", "pk")
     )
     software_query = request.GET.get("software_q", "")[:128].strip()
     if software_query:

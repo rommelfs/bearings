@@ -10,7 +10,7 @@ from .access import visible_findings_for
 from .models import AgentComponent, AgentReport, DistroFeed, DistroAdvisoryPackage
 
 
-def decorate(user, products, installation_ids=None):
+def decorate(user, products, installation_ids=None, finding_scope=None):
     products = {p.pk: p for p in products if p.distro_package}
     for p in products.values():
         p.distro_devices = []
@@ -38,6 +38,7 @@ def decorate(user, products, installation_ids=None):
         )
         .filter(position__lte=5 if installation_ids is None else len(installation_ids))
         .select_related("device__asset", "device__source", "device__organization", "installation")
+        .defer("binary", "device__reported_network", "device__services", "device__asset__upstream_data")
         .order_by("installation__product_id", "device_id", "pk")
     )
     pending_reports = set(
@@ -67,10 +68,11 @@ def decorate(user, products, installation_ids=None):
         .values("feed_id", "manager", "name")
         .annotate(total=Count("advisory_id", distinct=True))
     }
+    if finding_scope is None:
+        finding_scope = visible_findings_for(user)
     reviews = {
         r["distro_match__component_id"]: r
-        for r in visible_findings_for(user)
-        .filter(
+        for r in finding_scope.filter(
             distro_match__component_id__in=[c.pk for c in components],
             installation_id=F("distro_match__component__installation_id"),
             organization_id=F("distro_match__component__device__organization_id"),
@@ -186,18 +188,25 @@ def decorate_installations(user, installations):
     # Each displayed installation needs its own status, even when a product occurs on >5 assets.
     for installation in installations:
         installation.distro_package = installation.product.distro_package
-    decorate(user, products.values(), installation_ids=[i.pk for i in installations])
+    finding_scope = visible_findings_for(user)
+    decorate(
+        user, products.values(), installation_ids=[i.pk for i in installations], finding_scope=finding_scope
+    )
     components = {
         c.installation_id: c for p in products.values() if p.distro_package for c in p.distro_devices
     }
+    # Callers select installations through an authorized asset and matching product
+    # organization. Bind those concrete IDs to their concrete company again here:
+    # joining the complete inventory into a grouped count can yield a catastrophic
+    # nested-loop plan after a bulk import, even for a small displayed page.
+    review_groups = defaultdict(list)
+    for installation in installations:
+        review_groups[installation.product.organization_id].append(installation.pk)
+    review_scope = Q(pk__in=[])
+    for org_id, ids in review_groups.items():
+        review_scope |= Q(installation_id__in=ids, organization_id=org_id, record__organization_id=org_id)
     counts = dict(
-        visible_findings_for(user)
-        .filter(
-            installation_id__in=[i.pk for i in installations],
-            installation__asset__organization_id=F("organization_id"),
-            installation__product__organization_id=F("organization_id"),
-            record__organization_id=F("organization_id"),
-        )
+        finding_scope.filter(review_scope)
         .values("installation_id")
         .annotate(total=Count("pk"))
         .values_list("installation_id", "total")

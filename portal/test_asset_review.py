@@ -280,7 +280,8 @@ class CompanyFindingOrderTests(Fixture):
         expected = [reviews[i].pk for i in [4, 3, 2, 1, 5, 0]]
         self.login()
         company = self.client.get(self.url("organization"))
-        self.assertEqual([f.pk for f in company.context["findings"]], expected)
+        self.assertEqual(company.context["finding_summary"]["total"], 6)
+        self.assertNotContains(company, "CVE-2026-")
         for name, kwargs in [("asset", {"pk": self.asset.pk}), ("intelligence", {})]:
             response = self.client.get(self.url(name, **kwargs))
             self.assertEqual([f.pk for f in response.context["page"]], expected)
