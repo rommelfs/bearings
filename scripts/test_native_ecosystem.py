@@ -155,6 +155,23 @@ class NativeDeploymentTests(unittest.TestCase):
         self.assertNotIn("--pty", run.call_args.args[0])
         self.assertTrue(run.call_args.kwargs["capture"])
 
+    def test_batch_commands_from_terminal_use_pipes_and_password_prompts_keep_pty(self):
+        with patch.object(sys.stdin, "isatty", return_value=True), patch.object(native, "run") as run:
+            for args in (
+                ["migrate", "--noinput"],
+                ["collectstatic", "--noinput"],
+                ["check"],
+                ["shell", "-c", "print('synthetic')"],
+                ["createsuperuser", "--noinput"],
+            ):
+                native.django("netbox", args)
+                self.assertIn("--pipe", run.call_args.args[0])
+                self.assertNotIn("--pty", run.call_args.args[0])
+            native.django("netbox", ["createsuperuser", "--username", "platform-admin"])
+            self.assertIn("--pty", run.call_args.args[0])
+            native.service_run("flowintel", ["synthetic-init"])
+            self.assertIn("--pipe", run.call_args.args[0])
+
     def test_explicit_self_signed_flag_is_relay_bound_and_keeps_starttls(self):
         with (
             patch.object(native, "protected_read", return_value="DJANGO_SECRET_KEY=kept\n"),

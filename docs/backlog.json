@@ -324,6 +324,10 @@
       {
         "title": "Serve the public Bearings website at the service origin with statutory CIRCL identity",
         "body": "Implemented public marketing root and EN/DE/FR/LB pages/FAQs through the existing web service with same-origin Login and free Registration, curated local assets, and authenticated overview moved to /infrastructure/. Operator copy names CIRCL under the Luxembourg NIS2 law of 5 May 2026, Article 9 CVD role, scanning and voluntary information sharing, linked to official law/RFC2350. No customer inventory or new scanning operation is exposed/triggered. Static standalone preview remains available. Operator deployment required; see website/README.md and docs/operations/ubuntu24.md."
+      },
+      {
+        "title": "Avoid native batch-command pseudo-terminal hangs after successful completion",
+        "body": "Implemented pipe-based native Bearings/NetBox/FlowIntel batch management, reserving PTYs for interactive Django commands. Preserve root-only protected EnvironmentFile parsing, service identity, no-new-privileges, wait/collect and exit status. Regression covers SSH-terminal batch calls, captured credentials, explicit shell commands and password prompts. Target migration 0060 was independently confirmed successful with inactive transient unit and exit 0 while the PTY forwarder remained waiting. Recovery checks completion before interrupting the forwarder; documented old-helper stdin redirection avoids re-running an uncertain migration. Real native systemd target completion remains operator acceptance."
       }
     ]
   }

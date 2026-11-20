@@ -437,7 +437,7 @@ def nginx(name, *, tls):
     )
 
 
-def service_run(name, args, *, input=None, capture=False):
+def service_run(name, args, *, input=None, capture=False, interactive=False):
     directory = APPS / name / ("netbox" if name == "netbox" else "")
     return run(
         [
@@ -445,7 +445,7 @@ def service_run(name, args, *, input=None, capture=False):
             "--quiet",
             "--wait",
             "--collect",
-            "--pty" if sys.stdin.isatty() and input is None and not capture else "--pipe",
+            "--pty" if interactive and sys.stdin.isatty() and input is None and not capture else "--pipe",
             "--property=User=" + USERS[name],
             "--property=Group=www-data",
             "--property=WorkingDirectory=" + str(directory),
@@ -466,6 +466,14 @@ def django(name, args, *, input=None, capture=False):
         [APPS / name / ".venv/bin/python", APPS / name / "netbox/manage.py", *args],
         input=input,
         capture=capture,
+        interactive=bool(
+            args
+            and args[0] in {"createsuperuser", "changepassword", "shell", "dbshell"}
+            and not any(
+                a in {"--noinput", "--no-input", "-c", "--command"} or a.startswith("--command=")
+                for a in args[1:]
+            )
+        ),
     )
 
 

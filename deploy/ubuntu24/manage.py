@@ -7,6 +7,18 @@ import stat
 import sys
 
 
+def interactive_command(arguments):
+    """Only commands which need a prompt/editor get a controlling terminal."""
+    return bool(
+        arguments
+        and arguments[0] in {"createsuperuser", "changepassword", "shell", "dbshell"}
+        and not any(
+            a in {"--noinput", "--no-input", "-c", "--command"} or a.startswith("--command=")
+            for a in arguments[1:]
+        )
+    )
+
+
 def main():
     if os.geteuid() != 0 or len(sys.argv) < 2:
         raise SystemExit("Use sudo /opt/bearings/deploy/ubuntu24/manage.py COMMAND [ARGS]")
@@ -30,7 +42,7 @@ def main():
         "--quiet",
         "--wait",
         "--collect",
-        "--pty" if sys.stdin.isatty() else "--pipe",
+        "--pty" if sys.stdin.isatty() and interactive_command(sys.argv[1:]) else "--pipe",
         "--property=User=bearings",
         "--property=Group=www-data",
         f"--property=WorkingDirectory={root}",

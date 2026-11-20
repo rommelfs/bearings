@@ -3,6 +3,7 @@
 from io import StringIO
 import os
 import json
+import runpy
 from pathlib import Path
 import subprocess
 import sys
@@ -18,6 +19,26 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ProductionTests(SimpleTestCase):
+    def test_native_management_uses_terminal_only_for_interactive_commands(self):
+        interactive = runpy.run_path(str(ROOT / "deploy/ubuntu24/manage.py"))["interactive_command"]
+        for args in (
+            ["migrate", "--noinput"],
+            ["collectstatic", "--noinput"],
+            ["check"],
+            ["sync_distro_cves"],
+            ["shell", "-c", "print('synthetic')"],
+            ["createsuperuser", "--no-input"],
+        ):
+            with self.subTest(args=args):
+                self.assertFalse(interactive(args))
+        for args in (
+            ["createsuperuser", "--username", "platform-admin"],
+            ["changepassword", "platform-admin"],
+            ["shell"],
+            ["dbshell"],
+        ):
+            self.assertTrue(interactive(args))
+
     def test_installer_probes_unprivileged_sandbox_and_propagates_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             runner = Path(directory) / "systemd-run"

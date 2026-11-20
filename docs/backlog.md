@@ -410,3 +410,8 @@ Default dpkg/RPM package-to-inventory assignment is implemented, including alrea
 Supported distribution packages are evaluated automatically using shared bounded Canonical/Debian/Red Hat OVAL caches, exact Debian source metadata and native EVR comparisons. Scoped CVE findings preserve manual review, immutable evidence and explicit partial/unknown/failure coverage. See [the implementation contract](integrations/distro-cves.md). Repository/runtime/signature predicates and sustained fleet throughput remain follow-ups.
 
 The existing web service serves the multilingual marketing website at `/`, with same-origin Login/Registration; private overview is `/infrastructure/`. All four translations link CIRCL’s statutory NIS2/CSIRT/CVD role and describe scanning and voluntary sharing. No production deployment, scans or notifications are performed by local validation.
+
+
+## Native management terminal completion — 2026-11-20
+
+Batch management now uses systemd pipes even from SSH terminals. Interactive account/password/shell commands retain PTYs; non-interactive NetBox and FlowIntel work uses pipes. Protected environment parsing, service identity, wait/exit status and security properties are preserved. See the [native recovery guide](operations/ubuntu24.md#completed-management-command-with-a-stuck-terminal).
