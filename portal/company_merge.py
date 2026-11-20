@@ -26,6 +26,26 @@ RETAIN = {
     "OrganizationInvitation",
 }
 
+# These fields report background work; they do not change the facts, identities,
+# permissions or settings reviewed for transfer. Actual business rows stay pinned.
+BACKGROUND_FIELDS = {
+    "InventorySource": {
+        "last_read_attempt",
+        "last_read_success",
+        "read_error",
+        "last_attempt",
+        "last_success",
+        "error",
+        "import_requested",
+        "last_import_attempt",
+        "last_import_success",
+        "import_error",
+        "import_summary",
+    },
+    "InventoryReviewPolicy": {"next_reminder_at"},
+    "MISPInstance": {"last_attempt", "last_success", "error", "generation", "syncing_until"},
+}
+
 
 def plan(actor, source, target, retire_personal_misp=False):
     require(actor.is_active and actor.is_superuser)
@@ -45,8 +65,16 @@ def plan(actor, source, target, retire_personal_misp=False):
             if count > 5000:
                 blockers.append(f"{org.name}: {model.__name__} exceeds the 5,000-row reviewed merge limit")
                 continue
-            # Fingerprint remains server-side; neither credentials nor confidential payloads enter the form.
-            state.append((org.pk, model._meta.label, list(qs.order_by("pk").values())))
+            # Append-only audits remain archived; opening a detail page or worker
+            # status updates must not invalidate an otherwise unchanged preview.
+            # Fingerprints remain server-side, including protected credential policy.
+            if model.__name__ != "AuditEvent":
+                fields = [
+                    field.attname
+                    for field in model._meta.concrete_fields
+                    if field.attname not in BACKGROUND_FIELDS.get(model.__name__, set())
+                ]
+                state.append((org.pk, model._meta.label, list(qs.order_by("pk").values(*fields))))
             personal_misp = model.__name__ == "MISPInstance" and retire_personal_misp
             if org.pk == source.pk and personal_misp and count:
                 if qs.filter(syncing_until__gt=timezone.now()).exists():

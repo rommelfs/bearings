@@ -1,5 +1,5 @@
 {% extends 'portal/base.html' %}{% block content %}
-<h1>Members of {{ org.name }}</h1>
+<h1>Members of {{ org.name }}</h1>{% if operation_error %}<aside class="message message-error" role="alert">{{ operation_error }}</aside>{% endif %}
 <p>Invite people to this existing company. Company administrators can assign administrator, inventory editor or reader access. This does not grant platform, CIRCL, MISP or native application permissions. Membership changes apply to Bearings; manage existing native application permissions and sessions separately.</p>
 <h2>Invite a member</h2><p>Invitations expire after 72 hours. Existing users sign in to their own account; new users choose their own password. Re-inviting revokes the previous code.</p>
 <form method="post">{% csrf_token %}<input type="hidden" name="action" value="invite">{{ form.as_p }}<button class="primary">Send invitation</button></form>

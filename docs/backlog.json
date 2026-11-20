@@ -106,6 +106,10 @@
       {
         "title": "Support distinguishable company merges and dual company/platform navigation",
         "body": "Implemented stable name/slug/ID labels, bounded searchable company selectors, explicit signed-preview retirement of personal encrypted MISP connections with retained keys/cache and no reassignment, lock-safe rollback, preserved mandatory review mail/schedule and native target source. Add authorized company/platform workspace launcher with reauthorized remembered company; navigation preserves existing account/native permissions and is not impersonation or role reduction. Native CIRCL retry ignores archived duplicate names. Remaining: actual operator CIRCL merge acceptance, independent native lifecycle and full least-privilege persona switching if desired."
+      },
+      {
+        "title": "Recover merge confirmation errors and retain safe production diagnostics",
+        "body": "Reproduced AttributeError in unbound MergeForm.add_error after a stale confirmation; show operation errors separately for commit and membership actions. Preserve atomic refusal and sensitive-data-free error text. Exclude append-only audit and selected background health/scheduling fields from preview fingerprint while pinning actual data/roles/source policy/credentials; active source leases/row locks still block. Add production django.request stderr diagnostics with exception type and code positions, no exception messages/request payload/locals. Actual target journal lacked a traceback; verify target state before retry and use sanitized journal if failure persists."
       }
     ]
   },

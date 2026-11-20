@@ -81,7 +81,7 @@ class ProductionTests(SimpleTestCase):
                 [
                     sys.executable,
                     "-c",
-                    "import django;django.setup();from django.conf import settings;assert settings.SECURE_SSL_REDIRECT;assert settings.CSRF_TRUSTED_ORIGINS==['https://bearings.circl.lu'];assert not settings.PUBLIC_REGISTRATION_ENABLED",
+                    "import django;django.setup();from django.conf import settings;assert settings.SECURE_SSL_REDIRECT;assert settings.CSRF_TRUSTED_ORIGINS==['https://bearings.circl.lu'];assert not settings.PUBLIC_REGISTRATION_ENABLED;import logging;log=logging.getLogger('django.request');assert not log.propagate;assert len(log.handlers)==1;assert type(log.handlers[0].formatter).__name__=='SafeRequestErrorFormatter'",
                 ],
                 cwd=ROOT,
                 env=env,

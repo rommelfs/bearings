@@ -36,3 +36,10 @@ Use **Platform overview** and **Company workspace** in the account header, or `/
 This is navigation between tasks with the account's existing permissions. It does not impersonate another user, reduce a platform administrator to a company member, grant membership, or change NetBox/MISP/FlowIntel/SSO rights. Other pages retain their existing authorization and scope selectors. For customer-level acceptance, use an account with an explicit company membership and no platform role. Only eligible operators see the national entry point; ordinary company users cannot open it through the switcher.
 
 For the CIRCL duplicate beside the native pilot, keep **CIRCL · circl · #1 · Central NetBox** (verify your actual IDs), archive the newly registered manual duplicate, and explicitly retire its personal MISP connections if required. Preview the member roles and visibility policy before confirming. NetBox endpoint, tenant and service credential stay with the retained company. The archived original remains available for administrative history, and native pilot retries ignore archived duplicate names.
+
+
+### If a merge confirmation fails
+
+A stale/expired preview, busy background source or data-identity conflict is shown as an operation error; no data is transferred by the refused transaction. Prepare a fresh preview. Append-only audit events and background source health/review scheduling do not invalidate the review, while data, membership, credential and source-policy changes do. A real active refresh/row lock still requires waiting and retrying.
+
+An earlier error handler could itself raise `AttributeError` while showing a refused confirmation. If an unexpected 500 occurs, inspect the current active/archived company IDs and the `organization.merged` audit before repeating a merge: a redirect destination may fail after a commit. Native production request diagnostics are written to the systemd journal as exception types/code positions, without request bodies, raw exception messages or local variables. Keep DEBUG disabled.

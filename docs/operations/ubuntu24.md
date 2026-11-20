@@ -123,3 +123,7 @@ A persistent 502 needs the current journal and Nginx error, not a reinstall. Pre
 ## Add NetBox, FlowIntel and shared SSO
 
 Use the separate [native ecosystem extension](native-ecosystem.md) for the existing server. It retains Bearings state and installs additional pinned services in stages; do not run the developer stack or repeat the base first installer.
+
+### Request errors in the journal
+
+The production profile writes Django request errors to stderr/systemd even with DEBUG disabled. `journalctl -u bearings-web --since '-10 minutes' --no-pager -n 120` shows status, resolved route, exception types and file/line/function positions. It deliberately omits raw exception messages, request paths/queries/bodies, code text and local variables. Startup-only output from an older profile does not establish that a merge succeeded or failed. Inspect the active/archived organization rows and the `organization.merged` audit before replaying an uncertain merge; never enable DEBUG or log credentials to diagnose it.

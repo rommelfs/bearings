@@ -51,6 +51,23 @@ MIDDLEWARE = ["portal.production_edge.ClientAddress", *base.MIDDLEWARE]
 # Initial domain-only, non-preload policy is intentional; do not hide any other deploy warning.
 SILENCED_SYSTEM_CHECKS = ["security.W005", "security.W021"]
 
+# Default Django console errors are filtered out when DEBUG=False. Keep useful
+# request stack locations in the systemd journal without logging payloads/keys.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"request_safe": {"()": "config.request_errors.SafeRequestErrorFormatter"}},
+    "handlers": {
+        "request_stderr": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr",
+            "formatter": "request_safe",
+            "level": "ERROR",
+        }
+    },
+    "loggers": {"django.request": {"handlers": ["request_stderr"], "level": "ERROR", "propagate": False}},
+}
+
 # Collectstatic may run under a private administrative umask; only static output is public.
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},

@@ -105,6 +105,17 @@ class CompanyMembersTests(Fixture):
         with self.assertRaises(PermissionDenied):
             invite(self.admin, self.b, "new@example.invalid", "admin")
 
+    def test_last_admin_http_error_does_not_crash_unbound_invitation_form(self):
+        self.client.force_login(self.admin)
+        member = Membership.objects.get(user=self.admin, organization=self.a)
+        response = self.client.post(
+            reverse("company-members", args=[self.a.slug]),
+            {"action": "member", "member": member.pk, "role": "remove"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["operation_error"])
+        self.assertTrue(Membership.objects.filter(pk=member.pk, role="admin").exists())
+
     def test_last_admin_and_foreign_member_guard(self):
         with self.assertRaises(ValidationError):
             change_member(
@@ -189,6 +200,67 @@ class CompanyMergeTests(Fixture):
         self.assertEqual(Membership.objects.get(organization=self.target, user=self.admin).role, "reader")
         self.assertFalse(self.source.membership_set.exists())
         self.assertTrue(AuditEvent.objects.filter(organization=self.source, action="before").exists())
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
+    def test_stale_commit_renders_retry_error_instead_of_server_error(self):
+        self.client.force_login(self.platform)
+        ticket = plan(self.platform, self.source, self.target)["ticket"]
+        Contact.objects.create(
+            organization=self.source, name="Changed after preview", email="changed@example.invalid"
+        )
+        response = self.client.post(
+            reverse("company-merge"), {"action": "commit", "ticket": ticket, "confirmed": "yes"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Prepare a new merge preview")
+        self.source.refresh_from_db()
+        self.assertIsNone(self.source.merged_into_id)
+
+    def test_expired_or_invalid_confirmation_shows_a_safe_retry_message(self):
+        self.client.force_login(self.platform)
+        response = self.client.post(
+            reverse("company-merge"), {"action": "commit", "ticket": "invalid-preview", "confirmed": "yes"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Merge preview expired")
+        self.source.refresh_from_db()
+        self.assertIsNone(self.source.merged_into_id)
+
+    def test_integrity_error_confirmation_does_not_crash_its_error_handler(self):
+        from django.db import IntegrityError
+
+        self.client.force_login(self.platform)
+        with patch(
+            "portal.company_merge.merge", side_effect=IntegrityError("synthetic private database detail")
+        ):
+            response = self.client.post(
+                reverse("company-merge"), {"action": "commit", "ticket": "fixture", "confirmed": "yes"}
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nothing was transferred")
+        self.assertNotContains(response, "synthetic private database detail")
+
+    def test_background_health_and_operator_audits_do_not_invalidate_preview(self):
+        from .models import InventoryReviewPolicy
+
+        policy = InventoryReviewPolicy.objects.create(organization=self.source)
+        preview = plan(self.platform, self.source, self.target)
+        AuditEvent.objects.create(organization=self.source, actor=self.platform, action="operator.access")
+        InventorySource.objects.filter(pk=self.ssource.pk).update(
+            last_import_attempt=timezone.now(), import_summary={"total": 0}
+        )
+        InventoryReviewPolicy.objects.filter(pk=policy.pk).update(
+            next_reminder_at=timezone.now() + timedelta(days=1)
+        )
+        self.assertEqual(plan(self.platform, self.source, self.target)["digest"], preview["digest"])
+        merge(self.platform, preview["ticket"])
+        self.source.refresh_from_db()
+        self.assertEqual(self.source.merged_into_id, self.target.pk)
+
+    def test_inventory_policy_change_still_invalidates_confirmation(self):
+        preview = plan(self.platform, self.source, self.target)
+        InventorySource.objects.filter(pk=self.ssource.pk).update(import_enabled=False)
         with self.assertRaises(ValidationError):
             merge(self.platform, preview["ticket"])
 
@@ -433,6 +505,28 @@ class PersonalMISPMergeTests(Fixture):
         self.misp.refresh_from_db()
         self.assertFalse(self.misp.enabled)
 
+    def test_misp_health_changes_are_ignored_but_personal_key_changes_invalidate_preview(self):
+        import uuid
+        from .models import MISPInstance
+        from .misp_credentials import encrypt
+
+        preview = plan(self.platform, self.source, self.target, retire_personal_misp=True)
+        MISPInstance.objects.filter(pk=self.misp.pk).update(
+            last_attempt=timezone.now(),
+            last_success=timezone.now(),
+            generation=uuid.uuid4(),
+            error="Background refresh status",
+        )
+        self.assertEqual(
+            plan(self.platform, self.source, self.target, retire_personal_misp=True)["digest"],
+            preview["digest"],
+        )
+        MISPInstance.objects.filter(pk=self.misp.pk).update(
+            credential_ciphertext=encrypt(self.misp, "new-synthetic-personal-key")
+        )
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
 
 class MergedReviewScheduleTests(Fixture):
     def setUp(self):
@@ -485,6 +579,7 @@ class MergeBusySourceTests(TransactionTestCase):
         InventorySource.objects.create(organization=target, mode="manual")
         Membership.objects.create(organization=source, user=actor, role="admin")
         ticket = plan(actor, source, target)["ticket"]
+        self.client.force_login(actor)
         acquired, release = threading.Event(), threading.Event()
 
         def hold():
@@ -497,7 +592,9 @@ class MergeBusySourceTests(TransactionTestCase):
                     acquired.set()
                     release.wait(5)
             finally:
-                close_old_connections()
+                # CONN_MAX_AGE keeps a healthy connection alive; this short-lived
+                # test thread must close its own connection before DB teardown.
+                connection.close()
 
         thread = threading.Thread(target=hold, daemon=True)
         thread.start()
@@ -505,6 +602,11 @@ class MergeBusySourceTests(TransactionTestCase):
             self.assertTrue(acquired.wait(3))
             with self.assertRaisesMessage(ValidationError, "currently changing"):
                 merge(actor, ticket)
+            response = self.client.post(
+                reverse("company-merge"), {"action": "commit", "ticket": ticket, "confirmed": "yes"}
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "currently changing")
             source.refresh_from_db()
             self.assertIsNone(source.merged_into_id)
             self.assertTrue(source.membership_set.exists())

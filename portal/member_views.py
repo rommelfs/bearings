@@ -18,6 +18,14 @@ from .models import Organization, OrganizationInvitation, Membership
 from .registration import permit_public_attempt
 
 
+def report_operation_error(form, error):
+    """Action POSTs do not necessarily bind the separate create/preview form."""
+    if form.is_bound:
+        form.add_error(None, error)
+        return ""
+    return " ".join(error.messages) if isinstance(error, ValidationError) else str(error)
+
+
 class InvitationForm(forms.Form):
     email = forms.EmailField()
     role = forms.ChoiceField(choices=Membership.ROLES, initial="reader")
@@ -48,6 +56,7 @@ def members(request, slug):
     org = get_object_or_404(Organization, slug=slug)
     require(admin(request.user, org) and not org.merged_into_id)
     form = InvitationForm(request.POST if request.POST.get("action") == "invite" else None)
+    operation_error = ""
     if request.method == "POST":
         try:
             action = request.POST.get("action")
@@ -77,7 +86,9 @@ def members(request, slug):
             elif action != "invite":
                 require(False)
         except (ValidationError, ValueError) as error:
-            form.add_error(None, error if isinstance(error, ValidationError) else "Invalid selection")
+            operation_error = report_operation_error(
+                form, error if isinstance(error, ValidationError) else "Invalid selection"
+            )
     return private_response(
         render(
             request,
@@ -85,6 +96,7 @@ def members(request, slug):
             {
                 "org": org,
                 "form": form,
+                "operation_error": operation_error,
                 "members": org.membership_set.select_related("user").order_by("user__username"),
                 "invitations": org.organizationinvitation_set.order_by("-created_at")[:50],
                 "roles": Membership.ROLES,
@@ -185,6 +197,7 @@ def merge_companies(request):
     query = request.GET.get("q", "")[:160].strip()
     form = MergeForm(request.POST if request.POST.get("action") == "preview" else None, query=query)
     preview = None
+    operation_error = ""
     if request.method == "POST":
         try:
             if request.POST.get("action") == "commit":
@@ -202,12 +215,16 @@ def merge_companies(request):
             if form.is_valid():
                 preview = plan(request.user, **form.cleaned_data)
         except ValidationError as error:
-            form.add_error(None, error)
+            operation_error = report_operation_error(form, error)
         except IntegrityError:
-            form.add_error(
-                None,
+            operation_error = report_operation_error(
+                form,
                 "A data identity conflict prevented the merge. Nothing was transferred; reconcile the conflict and preview again.",
             )
     return private_response(
-        render(request, "portal/company_merge.html", {"form": form, "preview": preview, "merge_query": query})
+        render(
+            request,
+            "portal/company_merge.html",
+            {"form": form, "preview": preview, "merge_query": query, "operation_error": operation_error},
+        )
     )

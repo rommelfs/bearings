@@ -375,3 +375,7 @@ Implemented the operator-requested self-signed relay acceptance through a dedica
 ## CIRCL company/platform workspaces and duplicate merge — 2026-11-20
 
 Implemented stable company labels and bounded searchable merge/workspace selectors, explicit archived personal-MISP retirement (retain keys/cache without transferring access), preserved native target bindings and mandatory review schedules/consent, busy-lock refusal and atomic rollback. Company/platform header navigation uses existing permissions; it is not impersonation or privilege reduction. Remembered company access is rechecked and archived duplicate names no longer block native pilot retries. See [members and merges](user-guide/company-members.md). Actual target merge and independent native-role acceptance remain operator actions.
+
+## Merge confirmation recovery and production diagnostics — 2026-11-20
+
+Reproduced and fixed an unbound form error-handler crash after stale merge confirmation; membership action errors use the same safe rendering. Refused transactions remain atomic. Ignore append-only audit and bounded background status/scheduling in preview hashes; actual facts, roles, source policies and credentials remain pinned, with active refresh/lock denial. Add sanitized production django.request journal diagnostics with exception types/code positions only. The reported server journal contained startup lines, so actual target state/remaining failures need target verification. See [merge recovery](user-guide/company-members.md#if-a-merge-confirmation-fails).
