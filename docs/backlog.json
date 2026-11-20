@@ -312,6 +312,14 @@
       {
         "title": "Validate sustained Linux fleet ingest and credential renewal",
         "body": "Follow up the implemented company-scoped rollout/bootstrap API and installer. Measure sustained and burst signed admission/report ingestion for 10000+ hosts behind NAT, queue capacity, backpressure/retention and service recovery using representative package inventories. Implement and validate current-policy per-device credential renewal before 90-day expiry. Review key-bound authoritative NetBox reconciliation and release signing separately. Existing 40000-company read benchmarks and twelve-client concurrent quota acceptance do not certify sustained agent ingest. No production enrollment, scans, native writes or mail are implied. See docs/integrations/linux-rollout.md."
+      },
+      {
+        "title": "Automatically inventory standard Debian and RPM package reports",
+        "body": "Implemented default automatic creation/update of separate package software records from signed dpkg/RPM facts, migration 0059 with fresh existing-report backfill, bounded bulk batches and indexed pending work. Stable Package URL products retain distribution namespace, package name and architecture; versioned evidence retains exact native version, epoch and report-time distro release. Parallel RPM kernels remain distinct slots. No manual/CSV name takeover, binary auto-binding, deletion, upstream product guessing, CVE affectedness or notifications. UI shows automatic provenance, Installed software links, search/pagination and bounded company previews. PostgreSQL, actual Go/TLS/bundled RPM and regression acceptance are documented in docs/validation.md. Distro advisory/source-package association remains separate."
+      },
+      {
+        "title": "Add distro-aware security advisory and binary-to-source package matching",
+        "body": "Follow up automatic Debian/RPM inventory with bounded operator-approved Ubuntu/Debian and Red Hat advisory sources, exact binary-to-source/repository provenance, release-aware package applicability and native dpkg/RPM EVR comparisons. Preserve backports, parallel kernel installs, third-party repository uncertainty, existing manual reviews and source isolation. Do not equate an upstream version interval or reported host namespace with distro vulnerability status. Validate real source schemas and offline reproducible advisory fixtures before automatic CVE affectedness. See docs/integrations/linux-agent.md."
       }
     ]
   }

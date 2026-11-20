@@ -176,6 +176,8 @@ class AgentClientTests(TransactionTestCase):
         )
         self.assertEqual(enrolled["state"], "enrolled")
         self.device = AgentDevice.objects.get(pk=enrolled["device_id"])
+        # Explicit single-host binding tests retain the available opt-out policy.
+        AgentDevice.objects.filter(pk=self.device.pk).update(auto_software=False)
         return init
 
     def test_fleet_bootstrap_recovers_lost_responses_without_duplicate_identity(self):
@@ -217,7 +219,10 @@ class AgentClientTests(TransactionTestCase):
             self.assertFalse(InventoryWrite.objects.exists())
             self.cli("report", "--package", "bash")
             agents.process_pending()
-            self.assertEqual(AgentComponent.objects.get().name, "bash")
+            component = AgentComponent.objects.select_related("installation__product").get()
+            self.assertEqual(component.name, "bash")
+            self.assertTrue(component.automatic_installation)
+            self.assertEqual(component.installation.version, component.version)
             self.assertNotIn(token, "".join(p.read_text() for p in self.state.glob("*.json")))
 
     def test_parallel_native_fleet_hosts_cannot_exceed_quota(self):

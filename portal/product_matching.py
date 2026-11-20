@@ -93,6 +93,9 @@ def enroll_products():
             installation__asset__organization_id=F("organization_id"),
             installation__asset__source__organization_id=F("organization_id"),
         )
+        # Distro packages require distro-aware advisories, never upstream name guesses.
+        .exclude(identifier__startswith="pkg:deb/")
+        .exclude(identifier__startswith="pkg:rpm/")
         .distinct()
         .order_by("pk")
     )

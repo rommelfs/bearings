@@ -308,6 +308,14 @@ def center(request, slug):
                 device = get_object_or_404(AgentDevice, pk=request.POST.get("device"), organization=org)
                 agents.revoke(request.user, org, device.pk)
                 messages.success(request, "Device revoked; pending observations cannot update software.")
+            elif action == "software-policy":
+                device = get_object_or_404(AgentDevice, pk=request.POST.get("device"), organization=org)
+                agents.software_policy(request.user, org, device.pk, request.POST.get("enabled") == "on")
+                messages.success(
+                    request,
+                    "Automatic package inventory updated. Existing manually assigned version ownership is retained.",
+                )
+                return redirect(request.path + "?device=" + str(device.pk))
             elif action == "detach":
                 c = get_object_or_404(
                     AgentComponent, pk=request.POST.get("component"), device__organization=org

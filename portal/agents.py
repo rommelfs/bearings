@@ -8,6 +8,7 @@ from datetime import timedelta
 from urllib.parse import quote
 from django.core.exceptions import ValidationError
 from django.db import transaction, OperationalError
+from . import package_inventory
 from django.utils import timezone
 from .access import audit, require, role_for
 from .agent_protocol import public_key, package_scope, report_data, identifier
@@ -378,6 +379,15 @@ def process_one(device_id, report_id):
                 for field in ("name", "manager", "architecture", "version"):
                     setattr(c, field, value[field])
                 c.binary = value.get("binary", {})
+                c.package_identity = package_inventory.identity(c, data["os"])
+                if (
+                    c.installation_id
+                    and c.automatic_installation
+                    and c.installation.product.identifier != c.package_identity.get("product")
+                ):
+                    raise ValidationError(
+                        "Package distribution identity changed; review existing software ownership"
+                    )
                 c.observed_at = row.observed_at
                 c.missing_since = None
                 c.last_report = row
@@ -400,6 +410,7 @@ def process_one(device_id, report_id):
                     "missing_since",
                     "last_report",
                     "binary",
+                    "package_identity",
                 ],
                 batch_size=250,
             )
@@ -429,6 +440,8 @@ def process_one(device_id, report_id):
             device.save(
                 update_fields=["os", "services", "last_observed_at", "last_complete_at", "applied_sequence"]
             )
+            package_inventory.project(device)
+            device.save(update_fields=["software_sync_pending"])
             row.status = "applied"
     row.processed_at = timezone.now()
     row.save(update_fields=["status", "error", "processed_at"])
@@ -455,7 +468,55 @@ def process_pending(limit=25):
         except OperationalError:
             # Rollback retains pending input. Database outage/deadlock cannot publish a partial state.
             continue
+    # Backfill already received reports after upgrade, in bounded indexed batches.
+    for pk in AgentDevice.objects.filter(
+        enabled=True,
+        auto_software=True,
+        software_sync_pending=True,
+        applied_sequence__gt=0,
+        last_observed_at__gte=timezone.now() - timedelta(hours=12),
+        expires_at__gt=timezone.now(),
+        organization__merged_into__isnull=True,
+    ).values_list("pk", flat=True)[:limit]:
+        try:
+            sync_software(pk)
+        except (OperationalError, ValidationError):
+            continue
     return total
+
+
+@transaction.atomic
+def sync_software(pk):
+    device = (
+        AgentDevice.objects.select_for_update(of=("self",))
+        .select_related("asset", "source", "organization")
+        .get(pk=pk)
+    )
+    if not current(device) or device.stale or not device.auto_software:
+        return 0
+    InventorySource.objects.select_for_update().get(pk=device.source_id)
+    device.asset.refresh_from_db()
+    if not current(device):
+        return 0
+    count = package_inventory.project(device)
+    device.save(update_fields=["software_sync_pending"])
+    return count
+
+
+@transaction.atomic
+def software_policy(actor, org, pk, enabled):
+    device = (
+        AgentDevice.objects.select_for_update(of=("self",))
+        .select_related("asset", "source", "organization")
+        .get(pk=pk, organization=org)
+    )
+    require(administrator(actor, org) and current(device))
+    device.auto_software = enabled
+    device.software_sync_pending = enabled
+    device.save(update_fields=["auto_software", "software_sync_pending"])
+    count = sync_software(pk) if enabled else 0
+    audit(actor, org, "agent.software_inventory_policy", device.pk, enabled=enabled, created=count)
+    return count
 
 
 @transaction.atomic
@@ -501,7 +562,9 @@ def bind(actor, org, component_id, installation_id=None, create=False):
             raise ValidationError("Reconcile CSV ownership before binding existing software")
     old = installation.version
     component.installation = installation
-    component.save(update_fields=["installation"])
+    component.automatic_installation = False
+    component.inventory_excluded = True
+    component.save(update_fields=["installation", "automatic_installation", "inventory_excluded"])
     component.device = device
     _project(component, installation)
     audit(
@@ -537,7 +600,9 @@ def detach(actor, org, component_id):
     component = AgentComponent.objects.select_for_update(of=("self",)).get(pk=component.pk)
     previous = component.installation_id
     component.installation = None
-    component.save(update_fields=["installation"])
+    component.inventory_excluded = True
+    component.automatic_installation = False
+    component.save(update_fields=["installation", "automatic_installation", "inventory_excluded"])
     audit(actor, org, "agent.software_detached", component.pk, installation=previous)
 
 

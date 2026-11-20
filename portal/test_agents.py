@@ -57,6 +57,9 @@ def signed(key, identity, path, data, *, headers=None, covered=COVERED, created=
 
 
 class AgentTests(Fixture):
+    # These cases exercise the retained explicit-binding/opt-out contract.
+    legacy_manual_projection = True
+
     def setUp(self):
         self.key = Ed25519PrivateKey.generate()
         self.public = base64.b64encode(self.key.public_key().public_bytes_raw()).decode()
@@ -87,6 +90,9 @@ class AgentTests(Fixture):
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.device = AgentDevice.objects.get(pk=r.json()["device_id"])
+        if self.legacy_manual_projection:
+            AgentDevice.objects.filter(pk=self.device.pk).update(auto_software=False)
+            self.device.auto_software = False
         return data
 
     def data(self, sequence=1, version="1:1.24.0-2ubuntu7.5", scope="system-packages"):

@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, Count, IntegerField, Q, TextField, Value, When
+from django.db.models import Case, Count, IntegerField, Prefetch, Q, TextField, Value, When
 from django.db.models.functions import Cast
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -39,7 +39,16 @@ from .forms import (
 from .presentation import ACTIVE_REVIEWS, decorate_finding, severity_first
 from .asset_context import asset_context
 from .pagination import object_page
-from .models import Asset, Contact, ContactToken, InfrastructureClaim, Installation, Product, Membership
+from .models import (
+    AgentDevice,
+    Asset,
+    Contact,
+    ContactToken,
+    InfrastructureClaim,
+    Installation,
+    Product,
+    Membership,
+)
 from .services import (
     issue_contact_token,
     lookup_for_installation,
@@ -188,6 +197,27 @@ def detail(request, slug):
     from .models import OrganizationConfiguration
 
     org = organization(request, slug)
+    inventory_page = Paginator(
+        org.assets.select_related("source__instance")
+        .prefetch_related(
+            Prefetch(
+                "installations",
+                queryset=Installation.objects.select_related("product").order_by("product__name", "pk")[:10],
+                to_attr="software_preview",
+            )
+        )
+        .order_by("name", "pk"),
+        50,
+    ).get_page(request.GET.get("inventory_page"))
+    inventory_page.object_list = list(inventory_page.object_list)
+    counts = dict(
+        Installation.objects.filter(asset_id__in=[a.pk for a in inventory_page])
+        .values("asset_id")
+        .annotate(total=Count("pk"))
+        .values_list("asset_id", "total")
+    )
+    for a in inventory_page:
+        a.software_count = counts.get(a.pk, 0)
     return render(
         request,
         "portal/detail.html",
@@ -208,12 +238,7 @@ def detail(request, slug):
             "finding_review_form": FindingReviewForm(),
             "lookup_form": VulnerabilityForm(),
             "missing_review_form": MissingReviewForm(),
-            "inventory_page": Paginator(
-                org.assets.select_related("source__instance")
-                .prefetch_related("installations__product")
-                .order_by("name", "pk"),
-                50,
-            ).get_page(request.GET.get("inventory_page")),
+            "inventory_page": inventory_page,
         },
     )
 
@@ -599,9 +624,7 @@ def api_evidence(request, slug, pk):
 def asset_detail(request, slug, pk):
     org = organization(request, slug)
     asset = get_object_or_404(
-        org.assets.select_related("source__instance").prefetch_related(
-            "installations__product", "installations__agent_component__device"
-        ),
+        org.assets.select_related("source__instance"),
         pk=pk,
     )
     findings = (
@@ -610,6 +633,14 @@ def asset_detail(request, slug, pk):
         .filter(installation__asset=asset)
         .order_by("-evaluated_at", "pk")
     )
+    software = asset.installations.select_related("product", "agent_component__device").order_by(
+        "product__name", "pk"
+    )
+    software_query = request.GET.get("software_q", "")[:128].strip()
+    if software_query:
+        software = software.filter(
+            Q(product__name__icontains=software_query) | Q(product__identifier__icontains=software_query)
+        )
     page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
@@ -620,6 +651,11 @@ def asset_detail(request, slug, pk):
             "org": org,
             "asset": asset,
             "facts": asset_context(asset, workspace=True),
+            "software_page": Paginator(software, 100).get_page(request.GET.get("software_page")),
+            "software_query": software_query,
+            "agent_device": AgentDevice.objects.filter(asset=asset, organization=org)
+            .order_by("-enabled", "-created_at")
+            .first(),
             "page": page,
             "editable": can_edit(request.user, org),
         },

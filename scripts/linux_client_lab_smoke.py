@@ -169,7 +169,7 @@ def main():
                 "assert not d.source.can_write and d.asset.state=='recorded' and d.asset.object_type=='bearings.agent_host' and not d.asset.external_id; "
                 "assert d.asset.upstream_data['agent_observed_only'] and not InventoryWrite.objects.filter(asset=d.asset).exists(); "
                 "refresh_inventory(d.source_id); d.asset.refresh_from_db(); assert d.asset.missing_since is None and d.asset.state=='recorded' and d.asset.upstream_data['agent_observed_only']; "
-                f"agents.process_one(d.pk,{receipt['report_id']!r}); assert d.components.get().name=='bash'; "
+                f"agents.process_one(d.pk,{receipt['report_id']!r}); c=d.components.select_related('installation__product').get(); assert c.name=='bash' and c.automatic_installation and c.installation.version==c.version and c.package_identity['purl'].startswith('pkg:rpm/rocky/bash@'); "
                 f"assert AgentFleet.objects.get(pk={rollout['id']!r}).issued_devices==1; "
                 "print(json.dumps({'synthetic_fleet_bootstrap':True,'native_tls':True,'read_only_source_retained':True,'no_netbox_write_queued':True,'retry_same_device':True,'report_applied':True}))"
             )

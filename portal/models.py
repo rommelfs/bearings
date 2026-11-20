@@ -421,6 +421,11 @@ class Product(models.Model):
         indexes = [
             models.Index(Upper("name"), name="product_name_upper_idx"),
             models.Index(Upper("identifier"), name="product_ident_upper_idx"),
+            models.Index(
+                fields=["id"],
+                condition=~Q(identifier__startswith="pkg:deb/") & ~Q(identifier__startswith="pkg:rpm/"),
+                name="product_upstream_candidates",
+            ),
         ]
 
 
@@ -2109,6 +2114,8 @@ class AgentDevice(models.Model):
     daily_bytes = models.PositiveBigIntegerField(default=0)
     daily_reports = models.PositiveIntegerField(default=0)
     applied_sequence = models.PositiveBigIntegerField(default=0)
+    auto_software = models.BooleanField(default=True)
+    software_sync_pending = models.BooleanField(default=True)
     last_received_at = models.DateTimeField(null=True, blank=True)
     last_observed_at = models.DateTimeField(null=True, blank=True)
     last_complete_at = models.DateTimeField(null=True, blank=True)
@@ -2117,6 +2124,13 @@ class AgentDevice(models.Model):
     services = models.JSONField(default=list, blank=True)
 
     class Meta:
+        indexes = [
+            models.Index(
+                fields=["id"],
+                condition=Q(enabled=True, auto_software=True, software_sync_pending=True),
+                name="agent_software_pending_idx",
+            )
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["asset"], condition=Q(enabled=True), name="one_active_agent_per_asset"
@@ -2174,6 +2188,9 @@ class AgentReport(models.Model):
 
 
 class AgentComponent(models.Model):
+    package_identity = models.JSONField(default=dict, blank=True)
+    automatic_installation = models.BooleanField(default=False)
+    inventory_excluded = models.BooleanField(default=False)
     binary = models.JSONField(default=dict, blank=True)
     device = models.ForeignKey(AgentDevice, on_delete=models.PROTECT, related_name="components")
     key = models.CharField(max_length=255)
@@ -2195,4 +2212,11 @@ class AgentComponent(models.Model):
         return self.observed_at < timezone.now() - timedelta(hours=12)
 
     class Meta:
+        indexes = [
+            models.Index(
+                fields=["device", "id"],
+                condition=Q(installation__isnull=True, inventory_excluded=False),
+                name="agent_unbound_inventory_idx",
+            )
+        ]
         constraints = [models.UniqueConstraint(fields=["device", "key"], name="agent_component_identity")]
