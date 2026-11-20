@@ -197,6 +197,45 @@ class CustomerMISPTests(Fixture):
             self.connected()
         self.assertFalse(MISPInstance.objects.exists())
 
+    def test_platform_account_does_not_inherit_the_other_accounts_company_membership(self):
+        self.login(self.platform)
+        response = self.client.get("/misp/connections/")
+        self.assertFalse(response.context["has_company_membership"])
+        self.assertContains(response, f"Signed in to Bearings as {self.platform.username}")
+        self.assertContains(response, f"No active company membership for {self.platform.username}")
+        self.assertContains(response, f"/admin/portal/membership/add/?user={self.platform.pk}")
+        self.assertNotContains(response, 'name="api_key"')
+        self.assertFalse(Membership.objects.filter(user=self.platform).exists())
+        self.http.assert_not_called()
+        Membership.objects.create(user=self.platform, organization=self.a, role="reader")
+        response = self.client.get("/misp/connections/")
+        self.assertTrue(response.context["has_company_membership"])
+        self.assertContains(response, 'name="api_key"')
+        self.assertEqual(list(response.context["form"].fields["organization"].queryset), [self.a])
+        self.assertTrue(
+            Membership.objects.filter(user=self.admin, organization=self.a, role="admin").exists()
+        )
+
+    def test_submitted_owner_cannot_assign_the_signed_in_accounts_key_to_someone_else(self):
+        Membership.objects.create(user=self.platform, organization=self.a, role="reader")
+        self.login(self.platform)
+        response = self.client.post(
+            "/misp/connections/",
+            {
+                "action": "connect",
+                "organization": self.a.pk,
+                "server": self.server.pk,
+                "api_key": self.key,
+                "consent": "on",
+                "owner": self.admin.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        source = MISPInstance.objects.get()
+        self.assertEqual(source.owner_id, self.platform.pk)
+        self.assertNotEqual(source.owner_id, self.admin.pk)
+        self.assertEqual(decrypt(source), self.key)
+
     def test_ui_is_optional_write_only_csrf_protected_and_rejects_foreign_company(self):
         self.login(self.admin)
         response = self.client.get("/misp/connections/")

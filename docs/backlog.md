@@ -383,3 +383,7 @@ Reproduced and fixed an unbound form error-handler crash after stale merge confi
 ## Visible organization archive status — 2026-11-20
 
 A successful merge retains both records. Improve the misleading generic admin list with explicit status/destination columns, stable IDs, search and active/archive filters; show readonly status and canonical target link on details and archive suffix in organization labels. Preserve registration/audit/disabled-connection history and existing authorization. This is presentation, with no merge replay or deletion. See [company merge administration](user-guide/company-members.md#active-company-versus-archived-source-in-administration).
+
+## Personal MISP account context — 2026-11-20
+
+Show the authenticated Bearings account and linked-SSO explanation, replace an empty company/key form with actionable membership guidance, and preselect the current account in platform-admin membership links. Company memberships and personal key ownership stay explicit and distinct across accounts; archived companies are excluded from the selector. Validated 72 relevant PostgreSQL tests, including alternate-owner POST isolation and no implicit platform membership.

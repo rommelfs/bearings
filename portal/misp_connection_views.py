@@ -4,6 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import Http404
+from django.urls import reverse
+from urllib.parse import urlencode
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_http_methods
@@ -34,7 +36,7 @@ class ConnectionForm(forms.Form):
 
     def __init__(self, *args, actor, **kwargs):
         super().__init__(*args, **kwargs)
-        companies = Organization.objects.filter(membership__user=actor).distinct()
+        companies = Organization.objects.filter(membership__user=actor, merged_into__isnull=True).distinct()
         self.fields["organization"].queryset = companies
         self.fields["server"].queryset = MISPServer.objects.filter(enabled=True)
         if companies.count() == 1:
@@ -121,6 +123,17 @@ def connections(request):
                 "sources": sources,
                 "revoked_sources": revoked,
                 "encryption_ready": encryption_ready(),
+                "has_company_membership": form.fields["organization"].queryset.exists(),
+                "my_memberships_url": reverse("admin:portal_membership_changelist")
+                + "?"
+                + urlencode({"user__id__exact": request.user.pk})
+                if request.user.is_superuser
+                else "",
+                "add_my_membership_url": reverse("admin:portal_membership_add")
+                + "?"
+                + urlencode({"user": request.user.pk})
+                if request.user.is_superuser
+                else "",
             },
         )
     )

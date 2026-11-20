@@ -50,3 +50,8 @@ An earlier error handler could itself raise `AttributeError` while showing a ref
 A merge archives the source rather than deleting it. Django administration therefore still lists both records. Organization administration now shows ID, name, slug, **Active** or **Archived (merged)**, and a clickable **Merged into** destination; use the merge-status filter to show active or archived records. The same status and destination are read-only fields on the detail page, and archived labels include `Archived → #ID` in other selectors. Company-facing lists continue to omit archived organizations.
 
 For a synthetic example, source #2 with `merged_into_id=1` is archived into active target #1. Seeing two rows in administration is not evidence of a failed merge. Preserve the archived source's original registration, audit and disabled connection history; use the retained company for current infrastructure and new personal MISP connections. Do not repeat the merge or delete the archived record.
+
+
+### Personal MISP setup uses the current Bearings account
+
+The personal connection page identifies the authenticated Bearings username and user ID. An SSO login can be explicitly linked to a differently named local Bearings account; that linked account owns the connection. Membership belonging to another username does not apply. The unusable key form is hidden until the current account has an active company membership. Platform administrators can open their own filtered membership list or add a membership with their current user preselected; company users request an invitation. Nothing grants membership automatically or transfers another account's key.

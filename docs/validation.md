@@ -960,3 +960,7 @@ Final relevant PostgreSQL suite passed 111 tests, including source-lock concurre
 ## Organization archive status in administration — 2026-11-20
 
 Validated 72 PostgreSQL membership/merge, company SSO/attestation, registration override and workspace/navigation tests. The existing reviewed-merge regression now opens the real administration changelist after the merge, verifies retained archive/target linkage, and exercises active/archive filters while preserving membership/history assertions. Django checks, migration drift, Ruff and formatting pass. Organization labels identify archives without an extra database query; the admin joins the retained destination once per list query. No new schema, merge replay, historical deletion, permissions change or connector operation is involved.
+
+## Personal MISP account mismatch guidance — 2026-11-20
+
+Validated 72 PostgreSQL personal/operator MISP, membership/merge and workspace tests. New scenarios distinguish a platform account from another account's existing membership, prove GET does not grant membership or probe MISP, verify the own-account admin link and restored company selector after explicit membership, and prove a submitted alternate owner cannot reassign the authenticated account's key. The setup page shows only the current account identity and authorized connection data; no credentials are rendered. Existing roles, SSO bindings and key ownership remain unchanged.

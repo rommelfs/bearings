@@ -114,6 +114,10 @@
       {
         "title": "Distinguish active and archived organizations in administration",
         "body": "A successful merge retains both records, while the generic admin list looked like two active companies. Implement explicit ID/name/slug/status/destination columns, active/archive filter, readonly detail status and canonical target link, and archive suffix in organization labels. Keep both records and historical data; no merge replay/deletion or permission change. Extend the existing reviewed-merge HTTP regression to verify admin archive retention and filters."
+      },
+      {
+        "title": "Clarify personal MISP key owner and missing company membership",
+        "body": "Display the authenticated Bearings account name/ID and linked-SSO explanation on personal MISP setup. When the account has no active company membership, hide the unusable key form and show role-appropriate help. Platform administrators get own-account-filtered membership links and an add form preselected to themselves; no implicit membership, other-user lookup, key reassignment or privilege bypass. Active-company choices exclude archived organizations. Tests cover distinct-account memberships and refusing a posted alternate key owner."
       }
     ]
   },
