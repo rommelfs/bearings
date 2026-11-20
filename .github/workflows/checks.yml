@@ -40,9 +40,21 @@ jobs:
       - run: python3 scripts/build_linux_client.py
       - run: python3 -m unittest discover -s clients/linux -p test_installer.py
       - run: uv sync --frozen
+      - run: uv run --frozen --extra production python -m gunicorn --version
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run python manage.py check
       - run: uv run python manage.py makemigrations --check --dry-run
       - run: uv run python manage.py test
       - run: uv run python manage.py collectstatic --noinput
+  production-profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --no-dev --extra production
+      - run: uv run --frozen --no-dev --extra production python scripts/production_smoke.py

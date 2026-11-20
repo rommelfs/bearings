@@ -1,4 +1,6 @@
-# Local deployment and production prerequisites
+# Deployment paths
+
+For a fresh Ubuntu 24.04 systemd host/container, use the [native deployment guide](ubuntu24.md) and reviewed `deploy/ubuntu24` templates. It provides Gunicorn/Nginx/HTTPS, local PostgreSQL peer authentication and independent workers, with no lab seeds and registration closed until service mail is accepted. This is a tested initial deployment path, not completed operational/recovery/provider acceptance.
 
 For the recommended complete Bearings + NetBox lab or an external backend, use [development-stack.md](development-stack.md). `python3 scripts/dev.py up` requires only Docker Compose and host Python. The minimal Compose workflow below remains supported separately.
 

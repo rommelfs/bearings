@@ -4,6 +4,7 @@ Reviewed 19 November 2026. Bearings is a runnable development/pilot workspace; p
 
 ## Start here
 
+- [Ubuntu 24.04 server installation](operations/ubuntu24.md): native systemd deployment for bearings.circl.lu, separate from the lab.
 - [Frequently asked questions](faq.md): access, company membership, inventory, CVEs, MISP, AIL, mail, SSO and current limits.
 - [Company first steps](user-guide/company-first-steps.md): minimal useful setup, reviewed CSV import and concrete actions.
 - [Company membership](user-guide/company-members.md): invitations, roles and reviewed organization merges.

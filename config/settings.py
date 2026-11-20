@@ -5,7 +5,7 @@ from urllib.parse import urlsplit, unquote
 from portal.browser_policy import origin as canvas_origin
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-LOCAL_DIR = BASE_DIR / ".local"
+LOCAL_DIR = Path(os.getenv("BEARINGS_DATA_DIR", str(BASE_DIR / ".local")))
 LOCAL_DIR.mkdir(exist_ok=True)
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "")
@@ -76,7 +76,7 @@ LANGUAGE_CODE = "en"
 TIME_ZONE = "UTC"
 USE_TZ = True
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = Path(os.getenv("DJANGO_STATIC_ROOT", str(BASE_DIR / "staticfiles")))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
