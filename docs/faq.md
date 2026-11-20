@@ -78,6 +78,10 @@ Bearings is a development and pilot project with automated tests and synthetic r
 
 The software is licensed under AGPL-3.0-or-later. Infrastructure and intelligence data retain their own access and redistribution rules. Every product image on this website uses synthetic example data. The website is static, has no application login, visitor analytics or advertising cookies, and does not connect to private CIRCL services.
 
+## Do we need a Linux client, and what does it do?
+
+The client is optional. It keeps Linux package versions current in the CIRCL service and can be deployed with a limited rollout code. Each machine uses its own signing key and HTTPS. Supported distribution CVE checks run in Bearings; the client does not patch your systems. Managed NetBox registration is available when enabled by the operator. CSV and existing NetBox connections remain available.
+
 See the [documentation index](README.md), [next steps](product/next-priorities.md) and [validation record](validation.md).
 
 Content source: `website/faq.json`; rebuild with `python3 website/build.py`. The tracking/privacy statement applies to the public static website, not to authentication or logs in a deployed Bearings application.

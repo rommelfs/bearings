@@ -396,7 +396,7 @@ Implement clean-source native artifact preparation with checksum-pinned Go, immu
 
 Company administrators can now authorize a rollout once (1–100,000 reservations, 1–168 hours). The installer accepts its secret via hidden prompt or protected stdin, generates each host's own key and registers without per-host UI steps. Lost-response retries retain identity/quota. Expiry/revocation/current permissions/source binding are checked; observed hosts work with read-only NetBox without writes or hostname takeover. The central downloads UI, company fleet UI, installer and Ansible reference describe the same flow. See [rollout contract](integrations/linux-rollout.md).
 
-Follow-up **Validate sustained Linux fleet ingest and credential renewal** separates proven bounded admission/replay/concurrency from 10,000-host sustained package-report capacity. Device credentials remain 90-day, with explicit revocation/replacement; automatic renewal, authoritative NetBox reconciliation and independent release signing remain planned. Existing read benchmarks are not agent ingestion evidence.
+Follow-up **Validate sustained Linux fleet ingest and credential renewal** separates proven bounded admission/replay/concurrency from 10,000-host sustained package-report capacity. Device credentials remain 90-day, with explicit revocation/replacement; automatic renewal and independent release signing remain planned. Explicit managed NetBox reconciliation is now implemented; see the managed NetBox section below. Existing read benchmarks are not agent ingestion evidence.
 
 ## Automatic standard package inventory — 2026-11-20
 
@@ -447,3 +447,10 @@ Company maps repair canvas/vector geometry after container resize, font loading 
 ## Company inventory latency and readable CVE summary — 2026-11-20
 
 Replace the unbounded company CVE/history/form dump with a scoped workflow summary and dedicated review link. Bound contact/scope pages, avoid full snapshot payloads and whole-inventory count joins, and reuse request-local authorization. Synthetic single-asset and larger PostgreSQL evidence is recorded in [company inventory performance](performance/company-inventory.md); production network latency is not inferred. Local-only agent hosts are identified without changing connector capabilities.
+
+
+## Managed native NetBox registration and optional public Linux client — 2026-11-20
+
+Migration 0063 adds explicit managed fleet policy and declared virtualization. The native helper preserves tenant, source, token and host UUID; enables narrow Device/VM capabilities; registers the existing host as VM+lxc; and verifies the upstream object and complete GET-only import. New managed codes support Incus/Proxmox/VMware and other explicit tags, while old codes remain observed-only. Real isolated HTTPS, signed registration, independent NetBox ORM and both application UIs validate the connection. Production activation remains operator acceptance. See [managed NetBox operations](operations/managed-netbox.md).
+
+The public website and FAQ describe the optional Linux client in all four languages, including recurring package versions, central rollout, signed reports and conditional NetBox integration. Browser checks cover desktop/mobile without external assets or tenant data. No production deployment is inferred from local validation.

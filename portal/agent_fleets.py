@@ -36,11 +36,12 @@ def active(fleet):
         and fleet.source.organization_id == fleet.organization_id
         and (not fleet.source.instance_id or fleet.source.instance.enabled)
         and fleet.source_fingerprint == fingerprint(fleet.source)
+        and (fleet.inventory_mode == "observed" or (fleet.source.agent_managed and fleet.source.can_write))
     )
 
 
 @transaction.atomic
-def create(actor, org, name, new_asset_kind, max_devices=1000, hours=24):
+def create(actor, org, name, new_asset_kind, max_devices=1000, hours=24, virtualization_type=""):
     org = Organization.objects.select_for_update(no_key=True).get(pk=org.pk)
     require(agents.administrator(actor, org))
     if (
@@ -55,6 +56,13 @@ def create(actor, org, name, new_asset_kind, max_devices=1000, hours=24):
     source = InventorySource.objects.select_related("instance").get(organization=org)
     if source.instance_id and not source.instance.enabled:
         raise ValidationError("Inventory connection is disabled")
+    managed = source.agent_managed and source.can_write and source.mode in {"central", "external"}
+    if virtualization_type and (
+        not managed
+        or new_asset_kind != "vm"
+        or virtualization_type not in source.instance.virtualization_tags
+    ):
+        raise ValidationError("Choose a configured virtualization type for a managed NetBox VM")
     secret = secrets.token_urlsafe(32)
     fleet = AgentFleet.objects.create(
         organization=org,
@@ -62,6 +70,8 @@ def create(actor, org, name, new_asset_kind, max_devices=1000, hours=24):
         created_by=actor,
         name=name.strip(),
         new_asset_kind=new_asset_kind,
+        inventory_mode="managed" if managed else "observed",
+        virtualization_type=virtualization_type,
         max_devices=max_devices,
         expires_at=timezone.now() + timedelta(hours=hours),
         token_hash=hashlib.sha256(secret.encode()).hexdigest(),
@@ -74,7 +84,7 @@ def create(actor, org, name, new_asset_kind, max_devices=1000, hours=24):
         fleet.pk,
         max_devices=max_devices,
         hours=hours,
-        mode="observed-only",
+        mode="managed" if managed else "observed-only",
     )
     return fleet, str(fleet.pk) + "." + secret
 
@@ -135,7 +145,7 @@ def issue(fleet_id, secret, key, request_id):
             key,
             fleet.new_asset_kind,
             fleet=fleet,
-            observed_only=True,
+            observed_only=fleet.inventory_mode != "managed",
         )
         derived = grant_secret(fleet, grant, settings.SECRET_KEY)
         grant.token_hash = hashlib.sha256(derived.encode()).hexdigest()

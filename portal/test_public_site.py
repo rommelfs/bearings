@@ -33,6 +33,10 @@ class PublicSiteTests(Fixture):
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, "/2026/05/05/a225/jo")
             self.assertContains(response, "CSIRT")
+            self.assertContains(response, 'id="linux-client"')
+            self.assertContains(response, "RPM")
+            self.assertContains(response, "HTTPS")
+            self.assertContains(response, "Incus")
             self.assertContains(response, 'href="/accounts/login/"')
             self.assertEqual(self.client.get("/" + lang + "/faq/").status_code, 200)
         for path in [

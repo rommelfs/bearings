@@ -49,7 +49,19 @@ def create_enrollment(actor, org, asset, key, new_asset_kind="", *, fleet=None, 
     org = Organization.objects.select_for_update(of=("self",), no_key=True).get(pk=org.pk)
     require(administrator(actor, org))
     public_key(key)
-    require((fleet is None and not observed_only) or (fleet is not None and observed_only and asset is None))
+    require(
+        (fleet is None and not observed_only)
+        or (
+            fleet is not None
+            and asset is None
+            and fleet.organization_id == org.pk
+            and fleet.created_by_id == actor.pk
+            and (
+                (fleet.inventory_mode == "observed" and observed_only)
+                or (fleet.inventory_mode == "managed" and not observed_only)
+            )
+        )
+    )
     if asset is None:
         source = InventorySource.objects.filter(organization=org).first()
         if source is None:
@@ -65,7 +77,17 @@ def create_enrollment(actor, org, asset, key, new_asset_kind="", *, fleet=None, 
                 and active(fleet)
             )
         else:
-            require(source.can_write and fleet is None)
+            require(source.can_write)
+            if fleet is not None:
+                from .agent_fleets import active, fingerprint
+
+                require(
+                    source.agent_managed
+                    and source.mode in {"central", "external"}
+                    and source.pk == fleet.source_id
+                    and fingerprint(source) == fleet.source_fingerprint
+                    and active(fleet)
+                )
     else:
         require(
             asset.organization_id == org.pk
@@ -83,6 +105,7 @@ def create_enrollment(actor, org, asset, key, new_asset_kind="", *, fleet=None, 
         organization=org,
         fleet=fleet,
         observed_only=observed_only,
+        virtualization_type=fleet.virtualization_type if fleet else "",
         asset=asset,
         source=source,
         new_asset_kind=new_asset_kind,
@@ -175,6 +198,7 @@ def redeem(grant_id, secret, raw, signature_input, signature, request_url):
             source=source,
             name=network["hostname"],
             kind=grant.new_asset_kind,
+            virtualization_type=grant.virtualization_type,
             object_type="bearings.agent_host"
             if grant.observed_only
             else "virtualization.virtualmachine"
@@ -186,7 +210,9 @@ def redeem(grant_id, secret, raw, signature_input, signature, request_url):
         asset.full_clean()
         asset.save()
         if source.mode != "manual" and not grant.observed_only:
-            InventoryWrite.objects.create(asset=asset)
+            InventoryWrite.objects.create(
+                asset=asset, agent_managed=bool(fleet and fleet.inventory_mode == "managed")
+            )
         grant.asset = asset
         grant.save(update_fields=["asset"])
         audit(

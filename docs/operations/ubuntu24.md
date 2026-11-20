@@ -174,3 +174,8 @@ A registration's current applicant membership is checked against its **original 
 ### Package-check receipt and map display update (migration 0062)
 
 This update **requires migration 0062**, unlike the earlier label-only inventory patch. Follow the backup/stop/update process above, then run `deploy/ubuntu24/manage.py migrate --noinput`, `collectstatic --noinput` and `check` before restarting web, worker and national services. No dependency change, client rebuild/reinstallation, connector reconfiguration or role update is required. Existing enabled devices are queued by the migration; the worker produces package-check receipts from current reports in bounded batches. Until reevaluation completes the UI shows an unavailable/pending current result, not an inferred clean state. Feed failures and stale inputs retain previous evidence without current-success claims. The map script and general stylesheet URLs are versioned to avoid retaining the older rendering code.
+
+
+### Enable managed CIRCL NetBox registration (migration 0063)
+
+The previous pilot is intentionally read-only. To register the existing LXC host as a NetBox VM with an `lxc` tag and enable managed registration for new rollout codes, follow [the staged plan, apply and bidirectional verification](managed-netbox.md). Migration 0063 adds explicit managed policy and virtualization metadata without changing client protocol, source identity or existing rollout authorization. Existing rollout codes stay observed-only. Do not rerun first-install or repoint the source. Host IP declarations and software/CVE records remain in Bearings; a physical host/cluster is not inferred.

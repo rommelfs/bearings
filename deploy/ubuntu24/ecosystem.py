@@ -241,6 +241,10 @@ def connect_circl(state, args):
     if not path.exists() and (plan["assets"] or plan.get("mode") not in {None, "manual"}):
         raise ValueError("Existing populated or authoritative source requires a reviewed migration")
     saved = json.loads(protected_read(path)) if path.exists() else {"key": str(uuid.uuid4())}
+    if saved.get("netbox", {}).get("managed"):
+        raise ValueError(
+            "Retained CIRCL inventory is managed; use manage-circl-inventory --verify. First-connect never downgrades it."
+        )
     # Persist marker before upstream mutations. A crash before credential receipt is
     # deliberately fail-closed: never adopt or reset an unrecorded upstream identity.
     write(path, json.dumps(saved))
@@ -295,6 +299,79 @@ def connect_circl(state, args):
     print(imported.stdout.strip())
     print(
         "CIRCL bindings ready; initial GET-only inventory import passed. Empty inventory means coverage is unknown. No cases or email sent."
+    )
+
+
+def managed_circl_inventory(state, args):
+    path = CONFIG / "circl-connection.json"
+    if not state.get("activated") or not path.is_file():
+        raise ValueError("Activate HTTPS/SSO and the retained native CIRCL connection first")
+    saved = json.loads(protected_read(path))
+    if not saved.get("netbox"):
+        raise ValueError("No retained native NetBox receipt; refusing identity adoption")
+    metadata = {"key": saved["key"], "tenant": saved["netbox"]["tenant"]}
+    command = [
+        "native_managed_netbox",
+        "--actor",
+        args.actor,
+        "--host",
+        args.host,
+        "--kind",
+        args.kind,
+        "--virtualization",
+        args.virtualization,
+    ]
+    plan = captured_json(bearings_manage(command, input=json.dumps(metadata)))
+    if not args.apply and not args.verify:
+        print(
+            json.dumps(
+                {
+                    **plan,
+                    "planned_mode": "tenant-scoped managed NetBox",
+                    "existing_rollout_codes": "retain original mode",
+                    "physical_host_cluster": "not inferred",
+                }
+            )
+        )
+        return
+    if args.verify and not saved["netbox"].get("managed"):
+        raise ValueError("Managed native policy has not been applied")
+    result = django(
+        "netbox",
+        [
+            "shell",
+            "--no-imports",
+            "-c",
+            f"exec(open({str(TEMPLATES / 'netbox_managed.py')!r}).read(), {{'__name__': '__main__'}})",
+        ],
+        input=json.dumps(
+            {
+                "key": saved["key"],
+                "saved": saved["netbox"],
+                "actor": args.netbox_actor,
+                "verify_only": args.verify,
+            }
+        ),
+        capture=True,
+    )
+    saved["netbox"] = captured_json(result)
+    write(path, json.dumps(saved))
+    metadata["defaults"] = saved["netbox"]["defaults"]
+    verified = captured_json(
+        bearings_manage([*command, "--verify" if args.verify else "--apply"], input=json.dumps(metadata))
+    )
+    if not verified.get("managed") or not all(
+        verified.get(k)
+        for k in ["uuid_match", "tenant_match", "import_match", "agent_software_reviews_preserved"]
+    ):
+        raise ValueError(
+            "Managed inventory remains unconfirmed; inspect locally without replacing identities"
+        )
+    if not args.verify:
+        run(["systemctl", "restart", "bearings-web", "bearings-worker", "bearings-national"])
+    print(json.dumps(verified))
+    print(
+        "Managed NetBox host and Bearings import verified. Existing device keys, software and reviews preserved. Existing rollout codes retain their original mode; new codes use managed registration."
     )
 
 
@@ -1119,6 +1196,19 @@ def main():
         help="Existing FlowIntel administrator email; defaults to recorded bootstrap email",
     )
     connect.add_argument("--apply", action="store_true")
+    managed = sub.add_parser(
+        "manage-circl-inventory", help="Plan, enable or verify the retained CIRCL managed NetBox host"
+    )
+    managed.add_argument("--actor", default="platform-admin")
+    managed.add_argument("--netbox-actor", default="platform-admin")
+    managed.add_argument("--host", default="bearings.circl.lu")
+    managed.add_argument("--kind", choices=["vm", "server", "desktop", "laptop"], default="vm")
+    managed.add_argument(
+        "--virtualization", choices=["", "lxc", "incus", "proxmox", "vmware", "kvm", "hyperv"], default="lxc"
+    )
+    managed_mode = managed.add_mutually_exclusive_group()
+    managed_mode.add_argument("--apply", action="store_true")
+    managed_mode.add_argument("--verify", action="store_true")
     link = sub.add_parser("link-netbox-sso")
     link.add_argument("--actor", required=True, help="Existing active NetBox superuser")
     link.add_argument("--username", required=True, help="Existing active NetBox account")
@@ -1181,6 +1271,8 @@ def main():
         prepare_linux_client()
     elif args.action == "configure-mail":
         configure_mail(allow_self_signed=args.allow_self_signed)
+    elif args.action == "manage-circl-inventory":
+        managed_circl_inventory(state, args)
     elif args.action == "connect-circl":
         connect_circl(state, args)
     elif args.action == "credentials":

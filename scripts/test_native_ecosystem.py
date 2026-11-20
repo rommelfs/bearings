@@ -11,6 +11,7 @@ import tempfile
 import ssl
 import socket
 import unittest
+import uuid
 from types import SimpleNamespace
 import io
 from unittest.mock import patch
@@ -350,6 +351,104 @@ class NativeDeploymentTests(unittest.TestCase):
             with patch.object(native, "run", side_effect=AssertionError("unexpected mutation")):
                 with self.assertRaises(ValueError):
                     native.main()
+
+
+class NativeManagedDeploymentTests(unittest.TestCase):
+    def test_managed_plan_has_no_upstream_mutations_or_secret_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory)
+            receipt = {
+                "key": str(uuid.uuid4()),
+                "netbox": {"tenant": 42, "value": "synthetic-private-token"},
+            }
+            (config / "circl-connection.json").write_text(json.dumps(receipt))
+            args = SimpleNamespace(
+                actor="operator",
+                netbox_actor="native-admin",
+                host="synthetic.example.invalid",
+                kind="vm",
+                virtualization="lxc",
+                apply=False,
+                verify=False,
+            )
+            output = io.StringIO()
+            with (
+                patch.object(native, "CONFIG", config),
+                patch.object(native, "protected_read", side_effect=lambda path: Path(path).read_text()),
+                patch.object(
+                    native,
+                    "bearings_manage",
+                    return_value=SimpleNamespace(stdout=json.dumps({"managed": False})),
+                ) as manage,
+                patch.object(native, "django") as upstream,
+                patch.object(native, "write") as write,
+                patch.object(native, "run") as run,
+                patch("sys.stdout", output),
+            ):
+                native.managed_circl_inventory({"activated": True}, args)
+                self.assertEqual(manage.call_count, 1)
+                upstream.assert_not_called()
+                write.assert_not_called()
+                run.assert_not_called()
+            self.assertNotIn(receipt["netbox"]["value"], output.getvalue())
+
+    def test_verify_keeps_native_calls_captured_and_does_not_restart_services(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory)
+            saved = {
+                "tenant": 42,
+                "managed": True,
+                "value": "synthetic-private-token",
+                "defaults": {"virtualization_tags": {"lxc": 7}},
+            }
+            (config / "circl-connection.json").write_text(
+                json.dumps({"key": str(uuid.uuid4()), "netbox": saved})
+            )
+            args = SimpleNamespace(
+                actor="operator",
+                netbox_actor="native-admin",
+                host="synthetic.example.invalid",
+                kind="vm",
+                virtualization="lxc",
+                apply=False,
+                verify=True,
+            )
+            result = {
+                key: True
+                for key in [
+                    "managed",
+                    "uuid_match",
+                    "tenant_match",
+                    "import_match",
+                    "agent_software_reviews_preserved",
+                ]
+            }
+            output = io.StringIO()
+            with (
+                patch.object(native, "CONFIG", config),
+                patch.object(native, "protected_read", side_effect=lambda path: Path(path).read_text()),
+                patch.object(
+                    native,
+                    "bearings_manage",
+                    side_effect=[
+                        SimpleNamespace(stdout='{"managed":true}'),
+                        SimpleNamespace(stdout=json.dumps(result)),
+                    ],
+                ) as manage,
+                patch.object(
+                    native, "django", return_value=SimpleNamespace(stdout=json.dumps(saved))
+                ) as upstream,
+                patch.object(native, "write"),
+                patch.object(native, "run") as run,
+                patch("sys.stdout", output),
+            ):
+                native.managed_circl_inventory({"activated": True}, args)
+                run.assert_not_called()
+                self.assertTrue(upstream.call_args.kwargs["capture"])
+                self.assertNotIn(saved["value"], str(upstream.call_args.args))
+                self.assertIn("--verify", manage.call_args.args[0])
+                self.assertNotIn(saved["value"], manage.call_args.kwargs["input"])
+            self.assertNotIn(saved["value"], output.getvalue())
 
 
 if __name__ == "__main__":

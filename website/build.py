@@ -125,6 +125,10 @@ def page(lang, faq=False, base="", registration="https://localhost:9441/register
             f'<article>{project_logos(name)}<p class="integration-role">{E(role)}</p><h3>{E(name)}</h3><p>{E(body)}</p></article>'
             for name, role, body in c["integrations"]
         )
+        agent_cards = "".join(
+            f'<article><span class="verb">{n + 1:02}</span><h3>{E(title)}</h3><p>{E(body)}</p></article>'
+            for n, (title, body) in enumerate(c["agent"]["cards"])
+        )
         trust = "".join(
             f"<article><h3>{E(title)}</h3><p>{E(body)}</p></article>" for title, body in c["trust"]
         )
@@ -138,6 +142,7 @@ def page(lang, faq=False, base="", registration="https://localhost:9441/register
 <section class="section real-examples" id="testimonials"><div class="wrap"><p class="eyebrow">{E(c["real_label"])}</p><h2>{E(c["real_title"])}</h2><p class="lead">{E(c["real_intro"])}</p><div class="vulnerabilities">{examples}</div><p class="small">{E(c["source_note"])}</p></div></section>
 <section class="section use-cases" id="use-cases"><div class="wrap"><p class="eyebrow">{E(c["cases_label"])}</p><h2>{c["cases_title"]}</h2>{cases}<p class="small map-note">{E(c["map_note"])}</p></div></section>
 <section class="section wrap" id="workflow"><div class="workflow-grid"><div><p class="eyebrow">{E(c["workflow_label"])}</p><h2>{E(c["workflow_title"])}</h2><ol class="steps">{steps}</ol><a class="text-link" href="{E(registration)}">{E(c["get_started"])}</a></div>{figure("wizard.webp", c["wizard_alt"], c, "wizard-shot")}</div></section>
+<section class="section wrap" id="linux-client"><div class="section-intro"><p class="eyebrow">{E(c["agent"]["label"])}</p><h2>{E(c["agent"]["title"])}</h2><p class="lead">{E(c["agent"]["intro"])}</p></div><div class="pillars">{agent_cards}</div><p>{E(c["agent"]["managed"])}</p><a class="button primary" href="{E(registration)}">{E(c["agent"]["cta"])}</a></section>
 <section class="section ecosystem"><div class="wrap"><p class="eyebrow">{E(c["ecosystem_label"])}</p><h2>{c["ecosystem_title"]}</h2><div class="integrations">{integrations}</div><p class="ecosystem-note">{E(c["ecosystem_note"])}</p></div></section>
 <section class="section wrap trust"><p class="eyebrow">{E(c["trust_label"])}</p><h2>{E(c["trust_title"])}</h2><div class="trust-grid">{trust}</div></section>
 <section class="section faq-preview"><div class="wrap faq-preview-grid"><div><p class="eyebrow">{E(c["faq_label"])}</p><h2>{E(c["faq_title"])}</h2><a class="text-link" href="{faq_url}">{E(c["faq_all"])}</a></div><div>{"".join(question(i, lang) for i in FAQ if i["id"] in ["operator", "free", "start", "updates", "production"])}</div></div></section>

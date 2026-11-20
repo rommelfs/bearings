@@ -359,5 +359,24 @@
       "Ass Bearings Open Source, a weist d’Websäit reell Firmendonnéeën?",
       "D’Software steet ënner AGPL-3.0-or-later. Fir Infrastruktur- a Sécherheetsinformatioune gëllen hir eege Zougangs- a Weidergabereegelen. All Produktbiller op dëser Websäit benotze synthetesch Beispilldaten. D’Websäit ass statesch, ouni Applikatiounslogin, Analys vum Visiteursverhalen oder Reklamm-Cookien, a verbënnt sech net mat private CIRCL-Servicer."
     ]
+  },
+  {
+    "id": "linux-client",
+    "en": [
+      "Do we need a Linux client, and what does it do?",
+      "The client is optional. It keeps Linux package versions current in the CIRCL service and can be deployed with a limited rollout code. Each machine uses its own signing key and HTTPS. Supported distribution CVE checks run in Bearings; the client does not patch your systems. Managed NetBox registration is available when enabled by the operator. CSV and existing NetBox connections remain available."
+    ],
+    "de": [
+      "Brauchen wir einen Linux-Client, und was macht er?",
+      "Der Client ist optional. Er hält Linux-Paketversionen im CIRCL-Dienst aktuell und lässt sich mit einem begrenzten Rollout-Code verteilen. Jeder Rechner nutzt einen eigenen Signaturschlüssel und HTTPS. Der CVE-Abgleich für unterstützte Distributionen läuft in Bearings; der Client installiert keine Patches. Verwaltete NetBox-Registrierung ist nach Freigabe durch den Betreiber möglich. CSV und bestehende NetBox-Anbindungen bleiben nutzbar."
+    ],
+    "fr": [
+      "Faut-il un client Linux et à quoi sert-il ?",
+      "Le client est facultatif. Il tient les versions des paquets Linux à jour dans le service CIRCL et se déploie avec un code limité. Chaque machine utilise sa propre clé de signature et HTTPS. La comparaison des CVE pour les distributions prises en charge se fait dans Bearings ; le client n’installe pas de correctifs. L’enregistrement NetBox géré nécessite l’activation par l’opérateur. Les imports CSV et les connexions NetBox existantes restent disponibles."
+    ],
+    "lb": [
+      "Brauche mir e Linux-Client, a wat mécht en?",
+      "De Client ass optional. Hien hält d’Linux-Pakversiounen am CIRCL-Service aktuell a ka mat engem begrenzte Rollout-Code verdeelt ginn. All Rechner benotzt säin eegene Signaturschlëssel an HTTPS. De CVE-Verglach fir ënnerstëtzt Distributioune leeft a Bearings; de Client installéiert keng Patches. Eng verwaltete NetBox-Registréierung ass méiglech, wann de Bedreiwer se aktivéiert. CSV an déi bestoend NetBox-Ubindungen kënne weider benotzt ginn."
+    ]
   }
 ]

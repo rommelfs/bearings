@@ -189,6 +189,7 @@ class NetBoxInstance(models.Model):
         blank=True,
         help_text="Dedicated organization, or blank for a shared instance requiring tenant-scoped bindings",
     )
+    virtualization_tags = models.JSONField(default=dict, blank=True, editable=False)
     site_id = models.PositiveIntegerField(null=True, blank=True)
     role_id = models.PositiveIntegerField(null=True, blank=True)
     device_type_id = models.PositiveIntegerField(null=True, blank=True)
@@ -228,6 +229,7 @@ class NetBoxInstance(models.Model):
 
 
 class InventorySource(models.Model):
+    agent_managed = models.BooleanField(default=False, editable=False)
     organization = models.OneToOneField(
         Organization, on_delete=models.CASCADE, related_name="inventory_source"
     )
@@ -320,7 +322,21 @@ class InventorySource(models.Model):
         )
 
 
+VIRTUALIZATION_TYPES = [
+    ("", "Not specified"),
+    ("lxc", "LXC"),
+    ("incus", "Incus"),
+    ("proxmox", "Proxmox"),
+    ("vmware", "VMware"),
+    ("kvm", "KVM"),
+    ("hyperv", "Hyper-V"),
+]
+
+
 class Asset(models.Model):
+    virtualization_type = models.CharField(
+        max_length=20, choices=VIRTUALIZATION_TYPES, blank=True, default=""
+    )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="assets")
     source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
@@ -388,6 +404,8 @@ class Asset(models.Model):
         ]
 
     def clean(self):
+        if self.virtualization_type and self.kind != "vm":
+            raise ValidationError("Virtualization type is only supported for virtual machines")
         if self.source_id and self.organization_id != self.source.organization_id:
             raise ValidationError("Asset and source must belong to the same organization")
         if self.responsible_contact_id and self.responsible_contact.organization_id != self.organization_id:
@@ -395,6 +413,7 @@ class Asset(models.Model):
 
 
 class InventoryWrite(models.Model):
+    agent_managed = models.BooleanField(default=False, editable=False)
     asset = models.OneToOneField(Asset, on_delete=models.CASCADE, related_name="write")
     attempts = models.PositiveIntegerField(default=0)
     error = models.CharField(max_length=200, blank=True)
@@ -2052,6 +2071,16 @@ class NationalProductVersion(models.Model):
 class AgentFleet(models.Model):
     """Expiring company-scoped rollout authorization; shared secret is never stored."""
 
+    inventory_mode = models.CharField(
+        max_length=12,
+        default="observed",
+        choices=[("observed", "Bearings only"), ("managed", "Managed NetBox")],
+        editable=False,
+    )
+    virtualization_type = models.CharField(
+        max_length=20, choices=VIRTUALIZATION_TYPES, blank=True, default=""
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
     source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
@@ -2087,6 +2116,10 @@ class AgentFleet(models.Model):
 
 class AgentEnrollment(models.Model):
     """One-use, public-key-bound authorization, created by a company administrator."""
+
+    virtualization_type = models.CharField(
+        max_length=20, choices=VIRTUALIZATION_TYPES, blank=True, default=""
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT)

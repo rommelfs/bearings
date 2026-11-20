@@ -44,3 +44,8 @@ Revoking the rollout stops new and pending registrations. Enrolled devices use i
 ## Explicit single-host alternative
 
 The previous `identity` → company UI → hidden `enroll --code` flow remains supported for binding an already imported asset or an explicitly managed new host. `enroll --code-stdin` and `--grant-file` remain available. The operator-only `issue_agent_enrollment --organization COMPANY --actor ADMIN --asset UUID --public-key KEY` command still creates one public-key-bound grant inside the trusted server administrative boundary. `--new-host-kind` requires an explicitly writable source; `--register-host` supplies client consent. Neither actor attribution nor rollout admission grants a customer shell access to the server.
+
+
+## Managed NetBox mode
+
+A platform operator may enable managed registration on an existing writable, tenant-scoped source. New rollout codes then record managed mode; existing codes keep their observed-only mode. VM rollouts can declare LXC, Incus, Proxmox, VMware, KVM or Hyper-V using the operator-provisioned tag taxonomy. The enrollment snapshots this declaration and queues a guarded NetBox job with the same local asset UUID. Standard clients need no rebuild. Source read-only/disabled policy, managed-policy revocation and revoked/expired devices are rechecked before writes; hostname matching never replaces UUID identity. See [native managed NetBox plan and verification](../operations/managed-netbox.md).

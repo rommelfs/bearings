@@ -356,6 +356,14 @@
       {
         "title": "Bound company inventory rendering and avoid whole-inventory CVE count joins",
         "body": "Implemented scoped workflow summary instead of a full company CVE/history/form dump, independent contact/scope pagination, projected NetBox status and omitted unused package/network blobs. Reuse request-local findings authorization and count only concrete authorized installation/company IDs; preserve raw visibility and filter mismatched product organizations. Reproduced 7.21s / 2031 queries for one asset with 1000 reviews; isolated signed-agent and 101-asset/100900-installation/10000-review benchmarks verify bounded results after a second nested-loop count fix. Existing local-only host labeling clarifies the lack of a confirmed NetBox object. No schema, policy or upstream-write change. See docs/performance/company-inventory.md and validation.md."
+      },
+      {
+        "title": "Enable tenant-scoped managed Linux host registration in native NetBox",
+        "body": "Implemented explicit platform-managed capability provisioning with retained native service identity/token/tenant and narrow Device/VM view/add/change permissions, no delete or IP allocation. Promote the existing observed host to VM+lxc with its original UUID, preserve device/software/reviews, reconcile writes by UUID and verify both NetBox and complete Bearings import. New fleet codes snapshot managed mode and virtualization tags; existing observed codes remain unchanged. Current source/device/role policies apply to admission and queued retries. Migration 0063. Real isolated NetBox HTTPS, signed Incus/physical enrollment, independent native ORM, browser and retained-stack validation pass; production activation/verification remains operator acceptance. See docs/operations/managed-netbox.md."
+      },
+      {
+        "title": "Explain the optional Linux client on the public CIRCL service website",
+        "body": "Implemented EN/DE/FR/LB client section and FAQ: recurring dpkg/RPM versions, configured additional binaries, bounded fleet rollout, signed HTTPS reports, server-side distribution CVE checks and conditional operator-managed NetBox registration. Keep uncertainty, optional use and existing inventory workflows clear; no Windows, patching or attestation claim. Eight desktop/mobile layouts and private/public separation verified locally. No public production deployment performed."
       }
     ]
   }

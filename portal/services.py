@@ -41,6 +41,20 @@ def process_write(pk, force=False):
         source.last_attempt = now
         job.attempts += 1
         try:
+            if job.agent_managed:
+                from .models import AgentDevice
+
+                if (
+                    not source.agent_managed
+                    or not AgentDevice.objects.filter(
+                        asset=asset,
+                        organization_id=source.organization_id,
+                        source=source,
+                        enabled=True,
+                        expires_at__gt=now,
+                    ).exists()
+                ):
+                    raise ConnectorError("Managed registration policy or device identity is no longer active")
             object_type, external_id = write_asset(asset)
         except (ConnectorError, ValueError):
             # No upstream bodies, credentials, URLs or untrusted exception messages in logs/state.

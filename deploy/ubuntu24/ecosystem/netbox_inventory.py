@@ -38,7 +38,7 @@ def provision(data):
             or tenant.slug != name
             or tenant.description != marker
             or token.user_id != user.pk
-            or token.write_enabled
+            or token.write_enabled != bool(saved.get("managed"))
             or not token.is_active
             or not token.validate(raw)
         ):

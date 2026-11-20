@@ -194,3 +194,6 @@ python3 scripts/dev.py manage sync_netbox --all
 ```
 
 Native development uses `DJANGO_DEBUG=1 uv run python manage.py sync_netbox --all`; schedule `sync_netbox --all --due` alongside `process_jobs` when running without the starter worker. A refresh performs GETs only for both read-only and read/write connections. Each source commits only after all four object types/pages validate; failures retain its last complete projection and success time while other sources continue. Missing objects are flagged for review rather than deleted. See [synchronization](docs/operations/synchronization.md) for field ownership, scheduling, freshness and limits. The inventory API now returns up to 100 assets per page (`?page=2`) with pagination metadata.
+
+
+Native CIRCL operators can enable [managed NetBox host registration with VM technology tags](docs/operations/managed-netbox.md) after the read-only pilot. The staged command verifies both the external object and Bearings import while preserving existing client keys and software/CVE records. Existing rollout codes retain their original mode.

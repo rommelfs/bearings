@@ -189,7 +189,28 @@
     ],
     "additional_cves": " + {count} more CVEs",
     "login": "Log in",
-    "legal_link": "NIS2 law · 5 May 2026"
+    "legal_link": "NIS2 law · 5 May 2026",
+    "agent": {
+      "label": "THE OPTIONAL LINUX CLIENT",
+      "title": "Your inventory keeps up. Your team gets time back.",
+      "intro": "Install once on your Linux servers. The Bearings client regularly reports software versions to the CIRCL service, so updates become visible without maintaining package lists by hand.",
+      "cards": [
+        [
+          "Stay current",
+          "Ubuntu, Debian and RPM package versions are collected automatically. Configured checks can also cover software installed outside the package manager."
+        ],
+        [
+          "Roll out once",
+          "Use a limited rollout code with your existing deployment process. Each host creates its own key and sends signed reports over HTTPS; no files need to be carried back for import."
+        ],
+        [
+          "Act on evidence",
+          "Bearings compares supported distribution packages with vendor security rules and separates potential issues, unresolved checks and fixes already present in the installed version."
+        ]
+      ],
+      "managed": "With operator-enabled managed NetBox, hosts can also register in the correct company inventory. VM tags such as LXC, Incus, Proxmox or VMware keep the deployment type visible. Existing read-only inventories remain read-only.",
+      "cta": "Get started with the free service"
+    }
   },
   "de": {
     "title": "Infrastruktur, Risiken & Reaktion",
@@ -381,7 +402,28 @@
     ],
     "additional_cves": " + {count} weitere CVEs",
     "login": "Anmelden",
-    "legal_link": "NIS2-Gesetz · 5. Mai 2026"
+    "legal_link": "NIS2-Gesetz · 5. Mai 2026",
+    "agent": {
+      "label": "DER OPTIONALE LINUX-CLIENT",
+      "title": "Das Inventar bleibt aktuell. Ihr Team gewinnt Zeit.",
+      "intro": "Einmal auf Ihren Linux-Servern installieren: Der Bearings-Client meldet regelmäßig Softwareversionen an den CIRCL-Dienst. Updates werden sichtbar, ohne Paketlisten von Hand zu pflegen.",
+      "cards": [
+        [
+          "Aktuell bleiben",
+          "Paketversionen von Ubuntu, Debian und RPM-Systemen werden automatisch erfasst. Konfigurierte Versionsprüfungen können auch Software außerhalb des Paketmanagers abdecken."
+        ],
+        [
+          "Einmal ausrollen",
+          "Nutzen Sie einen begrenzten Rollout-Code mit Ihrem vorhandenen Verteilprozess. Jeder Rechner erzeugt seinen eigenen Schlüssel und sendet signierte Meldungen über HTTPS. Keine Dateien zum Zurückkopieren und Importieren."
+        ],
+        [
+          "Gezielt handeln",
+          "Bearings gleicht unterstützte Distributionspakete mit Sicherheitsregeln der Hersteller ab und trennt potenzielle Probleme, ungeklärte Prüfungen und bereits im Paket enthaltene Korrekturen."
+        ]
+      ],
+      "managed": "Bei vom Betreiber freigegebener, verwalteter NetBox können Hosts auch im richtigen Firmeninventar registriert werden. VM-Tags wie LXC, Incus, Proxmox oder VMware machen die Betriebsart sichtbar. Bestehende nur lesende Inventare bleiben nur lesend.",
+      "cta": "Den kostenlosen Dienst nutzen"
+    }
   },
   "fr": {
     "title": "Infrastructure, risques et réponse",
@@ -573,7 +615,28 @@
     ],
     "additional_cves": " + {count} autres CVE",
     "login": "Se connecter",
-    "legal_link": "Loi NIS2 · 5 mai 2026"
+    "legal_link": "Loi NIS2 · 5 mai 2026",
+    "agent": {
+      "label": "LE CLIENT LINUX FACULTATIF",
+      "title": "Un inventaire à jour. Du temps rendu à votre équipe.",
+      "intro": "Installez-le une fois sur vos serveurs Linux. Le client Bearings transmet régulièrement les versions des logiciels au service CIRCL : les mises à jour deviennent visibles sans tenir des listes de paquets à la main.",
+      "cards": [
+        [
+          "Rester à jour",
+          "Les versions des paquets Ubuntu, Debian et des systèmes RPM sont collectées automatiquement. Des contrôles configurés peuvent aussi couvrir les logiciels installés hors du gestionnaire de paquets."
+        ],
+        [
+          "Déployer simplement",
+          "Utilisez un code de déploiement limité avec vos outils habituels. Chaque machine crée sa propre clé et transmet des rapports signés via HTTPS. Aucun fichier à rapporter pour importation."
+        ],
+        [
+          "Agir sur des éléments concrets",
+          "Bearings compare les paquets des distributions prises en charge aux règles de sécurité des éditeurs et distingue les problèmes potentiels, les vérifications non résolues et les correctifs déjà présents."
+        ]
+      ],
+      "managed": "Avec une intégration NetBox gérée et activée par l’opérateur, les machines peuvent aussi être enregistrées dans l’inventaire de leur entreprise. Des tags de VM tels que LXC, Incus, Proxmox ou VMware précisent le type de déploiement. Les inventaires existants en lecture seule le restent.",
+      "cta": "Utiliser le service gratuit"
+    }
   },
   "lb": {
     "title": "Infrastruktur, Risiken a Reaktioun",
@@ -765,6 +828,27 @@
     ],
     "additional_cves": " + {count} weider CVEen",
     "login": "Aloggen",
-    "legal_link": "NIS2-Gesetz · 5. Mee 2026"
+    "legal_link": "NIS2-Gesetz · 5. Mee 2026",
+    "agent": {
+      "label": "DEN OPTIONALE LINUX-CLIENT",
+      "title": "Den Inventar bleift aktuell. Äert Team gewënnt Zäit.",
+      "intro": "Installéiert en eemol op Äre Linux-Serveren. De Bearings-Client mellt reegelméisseg Softwareversiounen un de CIRCL-Service. Esou ginn Updates siichtbar, ouni Paklëschte vun Hand ze fleegen.",
+      "cards": [
+        [
+          "Aktuell bleiwen",
+          "D’Versioune vun Ubuntu-, Debian- a RPM-Pakete ginn automatesch erfaasst. Konfiguréiert Versiounspréifunge kënnen och Software ausserhalb vum Pakmanager ofdecken."
+        ],
+        [
+          "Einfach ausrullen",
+          "Benotzt e begrenzte Rollout-Code mat Ärem bestoende Verdeelungsprozess. All Rechner erstellt säin eegene Schlëssel a schéckt ënnerschriwwe Meldungen iwwer HTTPS. Keng Dateien zeréckkopéieren an importéieren."
+        ],
+        [
+          "Gezielt handelen",
+          "Bearings vergläicht ënnerstëtzt Distributiounspakete mat de Sécherheetsreegele vun den Hiersteller. Potenziell Problemer, ongekläerte Kontrollen a Korrekturen, déi schonn am Pak sinn, ginn getrennt ugewisen."
+        ]
+      ],
+      "managed": "Bei enger vum Bedreiwer aktivéierter, verwalteter NetBox kënnen d’Rechner och am richtege Firmeninventar registréiert ginn. VM-Tags wéi LXC, Incus, Proxmox oder VMware weisen d’Betribsart. Bestoend Inventaren am Liesmodus bleiwen am Liesmodus.",
+      "cta": "De gratis Service benotzen"
+    }
   }
 }

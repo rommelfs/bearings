@@ -11,7 +11,7 @@ from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_http_methods
 from .access import organizations_for, require
 from .circl_views import private_response
-from .models import AgentFleet, InventorySource
+from .models import AgentFleet, InventorySource, VIRTUALIZATION_TYPES
 from . import agents, agent_fleets
 
 
@@ -19,6 +19,9 @@ class FleetForm(forms.Form):
     name = forms.CharField(max_length=100, label="Rollout name")
     new_asset_kind = forms.ChoiceField(
         choices=AgentFleet._meta.get_field("new_asset_kind").choices, initial="server", label="Host type"
+    )
+    virtualization_type = forms.ChoiceField(
+        choices=VIRTUALIZATION_TYPES, required=False, label="Virtualization type (managed NetBox VMs only)"
     )
     max_devices = forms.IntegerField(min_value=1, max_value=100000, initial=1000, label="Maximum new devices")
     hours = forms.IntegerField(min_value=1, max_value=168, initial=24, label="Valid for hours")
@@ -35,6 +38,16 @@ def center(request, slug):
     org = get_object_or_404(organizations_for(request.user), slug=slug)
     require(agents.administrator(request.user, org))
     form = FleetForm(request.POST if request.POST.get("action") == "create" else None)
+    source = InventorySource.objects.select_related("instance").filter(organization=org).first()
+    if source and source.agent_managed and source.can_write:
+        form.fields[
+            "acknowledged"
+        ].label = "Authorize new self-reported hosts and tenant-scoped managed NetBox registration. IP declarations do not establish network ownership. Existing rollout codes retain their original mode."
+    else:
+        form.fields["virtualization_type"].disabled = True
+        form.fields[
+            "virtualization_type"
+        ].help_text = "Available when the operator enables managed NetBox VM registration."
     token = None
     if request.method == "POST":
         if request.POST.get("action") == "revoke":
