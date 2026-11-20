@@ -42,6 +42,54 @@ def fixture():
 
 
 class NativeDeploymentTests(unittest.TestCase):
+    def test_mail_environment_preserves_keys_and_quotes_bracket_relay_and_subject(self):
+        before = 'DJANGO_SECRET_KEY=retained-secret\nOTHER="retained value"\nSMTP_HOST=old\n'
+        result = native.merge_environment(
+            before,
+            {
+                "SMTP_HOST": "[cped.circl.lu]",
+                "BEARINGS_MAIL_SUBJECT_PREFIX": "[CIRCL BEARINGS]",
+                "SMTP_USER": "",
+            },
+        )
+        self.assertIn('DJANGO_SECRET_KEY=retained-secret\nOTHER="retained value"\n', result)
+        self.assertIn('SMTP_HOST="[cped.circl.lu]"\n', result)
+        self.assertIn('BEARINGS_MAIL_SUBJECT_PREFIX="[CIRCL BEARINGS]"\n', result)
+        self.assertNotIn("SMTP_HOST=old", result)
+        for value in ["x\ny", "$(whoami)", "x`id`", 'a"b', "a%u"]:
+            with self.assertRaises(ValueError):
+                native.merge_environment(before, {"SMTP_HOST": value})
+
+    def test_staged_mail_uses_actual_settings_names_without_releasing_delivery(self):
+        before = "DJANGO_SETTINGS_MODULE=config.production\nDJANGO_SECRET_KEY=kept\n"
+        with (
+            patch.object(native, "protected_read", return_value=before),
+            patch.object(native, "write") as write,
+            patch.object(native, "run"),
+            patch.object(Path, "exists", return_value=True),
+            patch("builtins.print"),
+        ):
+            native.configure_mail()
+        result = write.call_args.args[1]
+        for expected in [
+            'SMTP_HOST="[cped.circl.lu]"',
+            'SMTP_PORT="25"',
+            'SMTP_STARTTLS="1"',
+            'SMTP_PASSWORD=""',
+            'DJANGO_DEFAULT_FROM_EMAIL="info@circl.lu"',
+            'BEARINGS_SERVICE_MAIL_TRANSPORT="file"',
+            'BEARINGS_PUBLIC_REGISTRATION="0"',
+        ]:
+            self.assertIn(expected, result)
+        self.assertIn("DJANGO_SECRET_KEY=kept", result)
+
+    def test_captured_service_credentials_never_allocate_a_terminal(self):
+        with patch.object(sys.stdin, "isatty", return_value=True), patch.object(native, "run") as run:
+            native.service_run("netbox", ["synthetic-check"], capture=True)
+        self.assertIn("--pipe", run.call_args.args[0])
+        self.assertNotIn("--pty", run.call_args.args[0])
+        self.assertTrue(run.call_args.kwargs["capture"])
+
     def test_plan_requires_no_root_and_does_not_mutate(self):
         with patch.object(native, "run", side_effect=AssertionError("unexpected mutation")):
             with patch.object(sys, "argv", ["ecosystem.py", "plan"]), patch("builtins.print") as output:

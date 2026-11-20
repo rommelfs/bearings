@@ -102,7 +102,7 @@ Installation/SSO does **not** prove authorized inventory access. Do not connect 
 
 For FlowIntel, create a CIRCL service organization and a dedicated non-admin Editor bridge account within it. Store its API key server-side in the protected Bearings environment under a dedicated variable, then configure a `FlowIntelInstance` with that variable name, the HTTPS URL and the expected service organization ID. Do not reuse the recovery administrator key. Verify scope/current permissions and a controlled case before enabling operational exports. Existing visibility checks, analyst approval and notification policies continue to apply; installing FlowIntel does not authorize customer data export or delivery.
 
-Automatic native company/tenant/API provisioning and a one-command production connector rollout remain separate work. This deployment establishes the services and explicit identity linkage; it does not pretend the lab enrollment fixture is production onboarding.
+General native constituent company/tenant/API provisioning remains separate work. The explicit CIRCL pilot below now provides a bounded native connector rollout; it does not turn the lab enrollment fixture into production onboarding.
 
 ## Recovery and updates
 
@@ -149,3 +149,34 @@ systemctl restart bearings-flowintel
 ```
 
 Allow the service to load, then force-reload the FlowIntel login page to replace the old document/CSP and click SSO again. Keys, passwords, bindings, private configuration and database state are retained; do not repeat installation or linking. The guarded browser regression (`scripts/flowintel_browser_smoke.py`) runs only against the synthetic lab, reproduces the old policy block and completes real Chromium/WebKit login after the fix. It requires optional pinned Playwright tooling, not additional production packages.
+
+## First CIRCL inventory and case bridge
+
+The native operator helper now supports one explicit pilot: CIRCL on this installation. This is independent of constituent registration and does not manufacture consent, verified contacts, membership, addresses or scope attestations. It does not generalize the lab-only constituent SSO provisioner to production.
+
+As root in `/opt/bearings`, after the reviewed update:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py connect-circl
+python3 deploy/ubuntu24/ecosystem.py connect-circl --apply
+```
+
+The first command only reports the current organization/source and counts. Apply creates the missing organization, a distinct NetBox tenant, an API-only user with exactly tenant-constrained view permissions for devices/VMs/IPs/prefixes and that tenant, and a read-only token expiring after 90 days. An empty manual source may be converted under its source lock. Populated manual inventories or other authoritative sources require an explicit reviewed migration. The service cannot edit NetBox; existing human administrators can maintain the tenant's inventory. Constituent human read/write provisioning remains a separate lifecycle.
+
+FlowIntel gets a distinct service organization, a service-only identity with an unrecoverable random password and a separate non-admin editing role/API key. No recovery administrator key is reused. No cases, customer exports or notifications are created by this command; existing case approval and visibility rules remain required. Validate a controlled case separately before operational use.
+
+Credentials pass through captured stdin/stdout and the root-owned mode-0600 `/etc/bearings/ecosystem/circl-connection.json` receipt into the protected Bearings environment. They are not printed or copied by the operator. Repeat calls validate the recorded native identities, permissions, token activity and binding; they refuse changed/revoked policies instead of recreating them. Preserve this receipt with database/config backups. If interrupted between an upstream commit and saving its receipt, the next call refuses the unrecorded identity: inspect and reconcile locally, without deleting inventory or resetting identities. Automatic credential rotation is not implemented; schedule token renewal before the 90-day expiry.
+
+Apply restarts the Bearings services and runs the initial `sync_netbox --source SOURCE_UUID` through the native management wrapper. This performs the existing HTTPS, tenant-checked, GET-only import. Verify sustained service health; the same command can be repeated with the printed source UUID. An initial import failure stops the operation, retains the bindings/last-known data and records source health for diagnosis; a subsequent apply revalidates identities before retrying. An empty result means no inventory has been entered, not that infrastructure is secure. Source errors retain last-known projections.
+
+## Stage and test CIRCL service mail
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py configure-mail
+/opt/bearings/deploy/ubuntu24/manage.py service_mail_check --actor platform-admin --probe
+/opt/bearings/deploy/ubuntu24/manage.py service_mail_check --actor platform-admin --send-test-to sascha.rommelfangen@circl.lu
+```
+
+The approved relay is stored literally as `[cped.circl.lu]`; SMTP uses its unwrapped hostname for DNS/TLS. This brackets convention does not request MX routing. The staged profile assumes port 25 with mandatory STARTTLS and normal CA/hostname verification, no SMTP credentials, sender `info@circl.lu` and subject prefix `[CIRCL BEARINGS]`. A failure requires operator investigation; there is no plaintext or certificate-check fallback. The inspection command prints no passwords; the probe sends no email. The explicit test sends exactly one tagged message to the selected address. SMTP acceptance is not inbox receipt.
+
+Staging preserves other environment secrets and leaves `BEARINGS_SERVICE_MAIL_TRANSPORT=file` and `BEARINGS_PUBLIC_REGISTRATION=0`. Only after confirming inbox receipt should the operator set service transport to `smtp`, enable public registration if desired, and restart the three Bearings services. This does not change vulnerability outreach transport or release its queue. Existing file messages are not replayed automatically. The tag also appears in outreach previews and their approval fingerprints; changing it invalidates old approvals. Keycloak and FlowIntel's own outgoing mail settings remain independent and unchanged.

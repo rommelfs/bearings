@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 from portal.browser_policy import origin as canvas_origin
+from config.smtp import relay_hostname
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 LOCAL_DIR = Path(os.getenv("BEARINGS_DATA_DIR", str(BASE_DIR / ".local")))
@@ -91,7 +92,11 @@ CIRCL_CAMPAIGN_MAX_REVIEWS = int(os.getenv("BEARINGS_CIRCL_CAMPAIGN_MAX_REVIEWS"
 CIRCL_CAMPAIGN_MAX_RECIPIENTS = int(os.getenv("BEARINGS_CIRCL_CAMPAIGN_MAX_RECIPIENTS", "2000"))
 if not 1 <= CIRCL_CAMPAIGN_MAX_REVIEWS <= 50000 or not 1 <= CIRCL_CAMPAIGN_MAX_RECIPIENTS <= 10000:
     raise ValueError("Campaign limits must be 1–50000 reviews and 1–10000 recipients")
-EMAIL_HOST = os.getenv("SMTP_HOST", "")
+EMAIL_RELAY_HOST = os.getenv("SMTP_HOST", "")
+EMAIL_HOST = relay_hostname(EMAIL_RELAY_HOST)
+MAIL_SUBJECT_PREFIX = os.getenv("BEARINGS_MAIL_SUBJECT_PREFIX", "").strip()
+if any(char in MAIL_SUBJECT_PREFIX for char in "\r\n\x00") or len(MAIL_SUBJECT_PREFIX) > 80:
+    raise ValueError("Mail subject prefix must be one line of at most 80 characters")
 EMAIL_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("SMTP_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD", "")

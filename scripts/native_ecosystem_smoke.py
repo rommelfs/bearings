@@ -201,6 +201,15 @@ def main():
             run([*netbox, "collectstatic", "--noinput"], env=netbox_env)
             if not any((base / "static").rglob("*.css")) or (base / "netbox/netbox/static").exists():
                 raise RuntimeError("Static collection did not use the separate native destination")
+            inventory_checks = (ROOT / "scripts/native_inventory_checks.py").read_text()
+            inventory_source = (TEMPLATES / "netbox_inventory.py").read_text()
+            run(
+                [*netbox, "shell", "--no-imports", "-c", "import sys;exec(sys.stdin.read())"],
+                input=(
+                    "NATIVE_INVENTORY_SOURCE=" + repr(inventory_source) + "\n" + inventory_checks
+                ).encode(),
+                env=netbox_env,
+            )
             checks = (ROOT / "scripts/netbox_native_link_checks.py").read_text()
             link_source = (TEMPLATES / "netbox_link.py").read_text()
             run(
@@ -299,6 +308,38 @@ Path(NATIVE_TOKEN).write_text(token.get_auth_header_prefix()+'a'*40)
             after = run([base / "flowintel-venv/bin/python", "-c", verify], cwd=flow, env=flow_env).stdout
             if before != after:
                 raise RuntimeError("FlowIntel repeat changed retained identities")
+            bridge_check = """
+import runpy,uuid
+from app.extensions import db
+from app.db_class.db import Role
+from flowintel_wsgi import create_app
+app=create_app()
+with app.app_context():
+    module=runpy.run_path(BRIDGE_SOURCE)
+    provision=module['provision']
+    data={'key':str(uuid.uuid4()),'actor':'native-fixture@example.invalid'}
+    saved=provision(data)
+    assert provision({**data,'saved':saved}) == saved
+    role=db.session.get(Role,saved['role'])
+    assert not any(getattr(role,f) for f in module['FLAGS'])
+    role.admin=True
+    db.session.commit()
+    try:
+        provision({**data,'saved':saved})
+        raise AssertionError('Changed privilege policy accepted')
+    except ValueError:
+        pass
+print('Native non-admin FlowIntel bridge and changed-policy rejection passed')
+"""
+            run(
+                [
+                    base / "flowintel-venv/bin/python",
+                    "-c",
+                    "BRIDGE_SOURCE=" + repr(str(TEMPLATES / "flowintel_bridge.py")) + "\n" + bridge_check,
+                ],
+                cwd=flow,
+                env=flow_env,
+            )
             flow_socket = base / "flowintel.sock"
             log_flow = (base / "flowintel.log").open("wb")
             processes.append(

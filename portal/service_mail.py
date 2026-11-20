@@ -27,6 +27,15 @@ def public_base():
     return base.rstrip("/")
 
 
+def mail_subject(subject):
+    prefix = settings.MAIL_SUBJECT_PREFIX
+    return (
+        subject
+        if not prefix or subject == prefix or subject.startswith(prefix + " ")
+        else prefix + " " + subject
+    )
+
+
 def send_service_mail(subject, body, recipient, fingerprint=None):
     backend = (
         "django.core.mail.backends.smtp.EmailBackend"
@@ -40,7 +49,12 @@ def send_service_mail(subject, body, recipient, fingerprint=None):
         else {}
     )
     message = EmailMessage(
-        subject, body, settings.DEFAULT_FROM_EMAIL, [recipient], connection=connection, headers=headers
+        mail_subject(subject),
+        body,
+        settings.DEFAULT_FROM_EMAIL,
+        [recipient],
+        connection=connection,
+        headers=headers,
     )
     if message.send(fail_silently=False) != 1:
         raise OSError("Service message was not accepted")

@@ -608,7 +608,9 @@ def message_snapshot(mode, contact, findings, subject_template, body_template, f
         else "Internal security notification for your company.",
         "action": "Please review affectedness, assign an owner, plan remediation and acknowledge this notification in Bearings.",
     }
-    subject = render_text(subject_template, values)
+    from .service_mail import mail_subject
+
+    subject = mail_subject(render_text(subject_template, values))
     body = render_text(body_template, values)
     if len(body.encode("utf-8")) > 1_000_000:
         raise ValidationError("Rendered message exceeds 1 MB; narrow the filters before previewing")

@@ -25,6 +25,7 @@ import tempfile
 import time
 import urllib.request
 import urllib.error
+import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = Path(__file__).with_name("ecosystem")
@@ -91,6 +92,148 @@ def environment(values):
         if not re.fullmatch(r"[A-Z][A-Z0-9_]*", key) or not re.fullmatch(r"[a-zA-Z0-9_./:@?=+,-]+", value):
             raise ValueError("Unsafe generated environment value")
     return "".join(f"{key}={value}\n" for key, value in values.items())
+
+
+def merge_environment(current, additions):
+    """Preserve unrelated secrets byte-for-byte; encode controlled systemd values only."""
+    for line in current.splitlines():
+        if line.lstrip().startswith(("#", ";")) or not line.strip():
+            continue
+        if line.endswith("\\") or line.count('"') % 2 or line.count("'") % 2:
+            raise ValueError("Review multiline/escaped environment syntax before automated updates")
+    for key, value in additions.items():
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]*", key) or not re.fullmatch(
+            r"[a-zA-Z0-9_./:@?=+,\[\] -]*", value
+        ):
+            raise ValueError("Unsafe environment update")
+    kept = [
+        line for line in current.splitlines(keepends=True) if line.split("=", 1)[0].strip() not in additions
+    ]
+    retained = "".join(kept)
+    return (
+        retained
+        + ("\n" if retained and not retained.endswith("\n") else "")
+        + "".join(f'{key}="{value}"\n' for key, value in additions.items())
+    )
+
+
+def bearings_manage(args, *, input=None):
+    # Input forces the wrapper's pipe mode, including when capturing private metadata.
+    return run([ROOT / "deploy/ubuntu24/manage.py", *args], input=input or "", capture=True)
+
+
+def captured_json(result):
+    # Upstream FlowIntel prints a production-mode notice before the JSON result.
+    try:
+        return json.loads(result.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        raise ValueError(
+            "Native operation returned no valid receipt; inspect locally without publishing secrets"
+        ) from None
+
+
+def connect_circl(state, args):
+    plan = captured_json(bearings_manage(["native_circl", "--actor", args.actor]))
+    if not args.apply:
+        print(
+            json.dumps(
+                {
+                    "company": "CIRCL",
+                    **plan,
+                    "netbox": "tenant-scoped read only",
+                    "flowintel": "separate non-admin service",
+                    "delivery": "unchanged",
+                }
+            )
+        )
+        return
+    if not state.get("activated"):
+        raise ValueError("Activate and verify native HTTPS/SSO before connecting CIRCL")
+    path = CONFIG / "circl-connection.json"
+    if not path.exists() and (plan["assets"] or plan.get("mode") not in {None, "manual"}):
+        raise ValueError("Existing populated or authoritative source requires a reviewed migration")
+    saved = json.loads(protected_read(path)) if path.exists() else {"key": str(uuid.uuid4())}
+    # Persist marker before upstream mutations. A crash before credential receipt is
+    # deliberately fail-closed: never adopt or reset an unrecorded upstream identity.
+    write(path, json.dumps(saved))
+    for name in ["netbox", "flowintel"]:
+        data = {
+            "key": saved["key"],
+            "saved": saved.get(name),
+            "actor": args.netbox_actor
+            if name == "netbox"
+            else (args.flowintel_actor or state["admin_email"]),
+        }
+        if name == "netbox":
+            result = django(
+                name,
+                [
+                    "shell",
+                    "--no-imports",
+                    "-c",
+                    f"exec(open({str(TEMPLATES / 'netbox_inventory.py')!r}).read(), {{'__name__': '__main__'}})",
+                ],
+                input=json.dumps(data),
+                capture=True,
+            )
+        else:
+            result = service_run(
+                name,
+                [APPS / name / ".venv/bin/python", TEMPLATES / "flowintel_bridge.py"],
+                input=json.dumps(data),
+                capture=True,
+            )
+        saved[name] = captured_json(result)
+        write(path, json.dumps(saved))
+    env_path = Path("/etc/bearings/bearings.env")
+    current = protected_read(env_path)
+    additions = {
+        "NETBOX_NATIVE_CIRCL_TOKEN": saved["netbox"]["value"],
+        "FLOWINTEL_NATIVE_CIRCL_TOKEN": saved["flowintel"]["value"],
+    }
+    # Refuse overwriting a deliberately replaced credential, including an empty one.
+    for key, value in additions.items():
+        existing = [line for line in current.splitlines() if line.split("=", 1)[0].strip() == key]
+        if existing and existing != [f'{key}="{value}"']:
+            raise ValueError("Retained credential reference changed; no restoration")
+    write(env_path, merge_environment(current, additions))
+    data = {"key": saved["key"], "tenant": saved["netbox"]["tenant"], "flow_org": saved["flowintel"]["org"]}
+    result = captured_json(
+        bearings_manage(["native_circl", "--actor", args.actor, "--apply"], input=json.dumps(data))
+    )
+    run(["systemctl", "restart", "bearings-web", "bearings-worker", "bearings-national"])
+    print(json.dumps(result))
+    imported = bearings_manage(["sync_netbox", "--source", result["source"]])
+    print(imported.stdout.strip())
+    print(
+        "CIRCL bindings ready; initial GET-only inventory import passed. Empty inventory means coverage is unknown. No cases or email sent."
+    )
+
+
+def configure_mail():
+    path = Path("/etc/bearings/bearings.env")
+    current = protected_read(path)
+    backup = CONFIG / "bearings-before-mail.env"
+    if not backup.exists():
+        write(backup, current)
+    # A staged connection change must not accidentally release queued service mail.
+    additions = {
+        "SMTP_HOST": "[cped.circl.lu]",
+        "SMTP_PORT": "25",
+        "SMTP_STARTTLS": "1",
+        "SMTP_TLS": "0",
+        "SMTP_USER": "",
+        "SMTP_PASSWORD": "",
+        "DJANGO_DEFAULT_FROM_EMAIL": "info@circl.lu",
+        "BEARINGS_MAIL_SUBJECT_PREFIX": "[CIRCL BEARINGS]",
+        "BEARINGS_SERVICE_MAIL_TRANSPORT": "file",
+        "BEARINGS_PUBLIC_REGISTRATION": "0",
+    }
+    write(path, merge_environment(current, additions))
+    run(["systemctl", "restart", "bearings-web", "bearings-worker", "bearings-national"])
+    print(
+        "Relay configured with verified STARTTLS on port 25. Service delivery remains file-based; public signup remains disabled. Run service_mail_check before enabling delivery."
+    )
 
 
 def realm(state):
@@ -202,7 +345,7 @@ def nginx(name, *, tls):
     )
 
 
-def service_run(name, args, *, input=None):
+def service_run(name, args, *, input=None, capture=False):
     directory = APPS / name / ("netbox" if name == "netbox" else "")
     return run(
         [
@@ -210,7 +353,7 @@ def service_run(name, args, *, input=None):
             "--quiet",
             "--wait",
             "--collect",
-            "--pty" if sys.stdin.isatty() and input is None else "--pipe",
+            "--pty" if sys.stdin.isatty() and input is None and not capture else "--pipe",
             "--property=User=" + USERS[name],
             "--property=Group=www-data",
             "--property=WorkingDirectory=" + str(directory),
@@ -221,12 +364,16 @@ def service_run(name, args, *, input=None):
             *args,
         ],
         input=input,
+        capture=capture,
     )
 
 
-def django(name, args, *, input=None):
+def django(name, args, *, input=None, capture=False):
     return service_run(
-        name, [APPS / name / ".venv/bin/python", APPS / name / "netbox/manage.py", *args], input=input
+        name,
+        [APPS / name / ".venv/bin/python", APPS / name / "netbox/manage.py", *args],
+        input=input,
+        capture=capture,
     )
 
 
@@ -852,6 +999,17 @@ def main():
     )
     sub.add_parser("activate")
     sub.add_parser("credentials")
+    sub.add_parser("configure-mail", help="Stage the approved CIRCL relay without enabling delivery")
+    connect = sub.add_parser(
+        "connect-circl", help="Plan or apply the first isolated native CIRCL connections"
+    )
+    connect.add_argument("--actor", default="platform-admin")
+    connect.add_argument("--netbox-actor", default="platform-admin")
+    connect.add_argument(
+        "--flowintel-actor",
+        help="Existing FlowIntel administrator email; defaults to recorded bootstrap email",
+    )
+    connect.add_argument("--apply", action="store_true")
     link = sub.add_parser("link-netbox-sso")
     link.add_argument("--actor", required=True, help="Existing active NetBox superuser")
     link.add_argument("--username", required=True, help="Existing active NetBox account")
@@ -910,6 +1068,10 @@ def main():
     state = json.loads(protected_read(CONFIG / "state.json"))
     if args.action == "activate":
         activate(state)
+    elif args.action == "configure-mail":
+        configure_mail()
+    elif args.action == "connect-circl":
+        connect_circl(state, args)
     elif args.action == "credentials":
         if not sys.stdout.isatty():
             raise ValueError("Display initial recovery passwords only in an interactive terminal")

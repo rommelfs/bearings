@@ -80,6 +80,14 @@ class NotificationTests(tests.Fixture):
     def approve(self, batch, user=None):
         return approve_local(user or self.admin, batch.pk, set(batch.deliveries.values_list("pk", flat=True)))
 
+    def test_subject_tag_is_reviewed_and_changed_tag_invalidates_approval(self):
+        with override_settings(MAIL_SUBJECT_PREFIX="[CIRCL BEARINGS]"):
+            batch = self.preview()
+            self.assertTrue(batch.deliveries.first().subject.startswith("[CIRCL BEARINGS] "))
+        with override_settings(MAIL_SUBJECT_PREFIX="[CHANGED]"):
+            with self.assertRaises(ValidationError):
+                self.approve(batch)
+
     def test_home_prompts_authorized_reviewers_to_notify_scoped_contacts(self):
         self.login(self.analyst)
         response = self.client.get(reverse("home"))

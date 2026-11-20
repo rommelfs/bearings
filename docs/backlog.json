@@ -94,6 +94,10 @@
       {
         "title": "Keep registration entry fast for anonymous and already signed-in users",
         "body": "Implemented direct private signed-in registration entry instead of automatically loading overview aggregates, bounded actual-membership links, explicit CSRF-protected account switch and no duplicate account/organization creation from authenticated POSTs. Anonymous form rendering no longer queries showcase/inventory state. Numeric registration/database timings and bundled web-timing --registration compare anonymous HTTP/HTTPS and actual SSO HTTPS without returning through a dashboard. Current sharing/roles/closed-registration/email proof remain unchanged. SQL/no-redirect/CSRF/account integrity tests and real trusted-HTTPS SSO timing cover company/operator paths; remote user latency is not inferred from local measurements. See docs/user-guide/reporting-registration.md."
+      },
+      {
+        "title": "Accept native CIRCL inventory bridge and verified service mail",
+        "body": "Implemented bounded native CIRCL pilot command with separate tenant-constrained read-only NetBox identity/token, protected resumable receipts, non-admin FlowIntel bridge and source-locked Bearings binding. Stage bracketed CIRCL SMTP relay, verified STARTTLS, service subject tag and explicit one-message readiness check. No operational delivery, consent, contacts or populated-source migration inferred. Remaining acceptance: actual target HTTPS import, controlled case permissions, port/TLS and inbox delivery, explicit service-mail/public-registration enablement, scheduled token renewal and generalized constituent native read/write lifecycle."
       }
     ]
   },
