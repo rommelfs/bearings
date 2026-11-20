@@ -175,6 +175,8 @@ class SourceAdmin(PlatformAdmin):
 
     readonly_fields = [
         "id",
+        "agent_managed",
+        "agent_export_policy",
         "import_requested",
         "last_import_attempt",
         "last_import_success",

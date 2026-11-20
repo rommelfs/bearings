@@ -33,10 +33,71 @@ After enabling managed inventory, open the company's **Automatic Linux registrat
 
 ## Boundaries
 
-Reported interface/IP information remains a declaration in Bearings, not an automatic claim or allocation of NetBox IP addresses/prefixes. Software versions and CVE/human-review records remain in Bearings; this integration registers the host/VM in NetBox rather than inventing a NetBox software-inventory plugin. Hostnames are not identity proofs and existing external machines without the UUID marker are not silently adopted. No patches, probes, emails or changes to customers' existing read-only connectors are performed.
+Host registration alone leaves reported interface/IP information as a declaration in Bearings. The separately enabled inventory exporter below adds scoped native interfaces/IPs and a structured software snapshot; CVE/human-review records remain in Bearings. This does not invent a NetBox software-inventory plugin. Hostnames are not identity proofs and existing external machines without the UUID marker are not silently adopted. No patches, probes, emails or changes to customers' existing read-only connectors are performed.
 
 The native helper validates the retained receipt and fails closed on changed users, credentials, native permissions or owned reference records. The native database transaction is atomic; a subsequent Bearings failure can leave the explicit native managed capability provisioned but the host unconfirmed. Preserve the receipt and retry/inspect rather than resetting identities or replacing sources. Native token expiry and later renewal remain operational lifecycle work.
 
 ## Validation
 
 Local acceptance uses the real pinned NetBox over verified HTTPS and an explicitly synthetic isolated tenant. It checks retained-host promotion, tag visibility, same-UUID import, repeated apply/verify, signed automatic registration/reporting for an Incus VM and a physical host, lost enrollment acknowledgement recovery, preserved software, foreign-tenant rejection and denied deletion. Independent native NetBox ORM queries verify one object per UUID and the expected tags. The normal bundled NetBox/FlowIntel/RT/RTIR smoke is rerun; no production host or credential is touched. Production acceptance occurs when the operator runs the commands above and inspects their receipts.
+
+## Reported inventory export (migration 0064)
+
+Managed host registration can now be extended to recurring inventory export. This is explicit per **authoritative source**, independently of read/write connector capability. An existing read-only customer connection is never silently upgraded.
+
+| Client evidence | NetBox representation |
+| --- | --- |
+| Host / VM and declared virtualization | Native Device / VirtualMachine and tags |
+| Currently reported addressed interfaces | Native Interface / VMInterface, linked to the confirmed host |
+| Configured unicast IPs and subnet lengths | Native IPAddress, assigned to the interface in an explicitly selected VRF |
+| OS, kernel, software package/binary names, exact versions, runtime observations | JSON custom field `bearings_inventory` on the host, labeled **Bearings reported inventory** |
+| Observation dates, device/source/asset UUIDs, report references | In the same structured inventory, with a Bearings detail URL and export receipt |
+
+Software is exported, not merely linked. NetBox has no built-in full Linux package inventory model: the JSON field provides the complete bounded current component list without requiring an inventory plugin. It is not a separate native object per package and does not duplicate private CVE intelligence or human assessments. Export is capped at 5,000 current components / 1.5 MB; oversized snapshots fail visibly instead of silently truncating. MAC, MTU, unaddressed/down interfaces, CPU/RAM, physical host/cluster relationships and authoritative patch attestation are not collected by this client and are not invented.
+
+### Native CIRCL activation
+
+After normal backup, migrate/collectstatic/restart to the reviewed release:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py manage-circl-inventory --export-inventory --apply
+python3 deploy/ubuntu24/ecosystem.py manage-circl-inventory --export-inventory --verify
+./deploy/ubuntu24/manage.py process_netbox_exports --limit 2
+```
+
+The explicit extension provisions a retained **tenant-owned VRF with enforced address uniqueness**, narrowly scoped Interface/VMInterface/IPAddress view/add/change permissions and the typed custom fields. It preserves the existing native service/token/expiry and validates its retained permission receipt on repeat. The global IP table is not guessed as the target. The native verification checks retained provisioning/host binding and configured policy; export completion is separate and visible on the Bearings asset page. Check NetBox's host Interfaces tab, the assigned IP in the configured VRF, and its **Bearings reported inventory** custom field. A successful host registration alone is not proof that inventory export succeeded.
+
+Every newly accepted report queues a separate bounded worker export. The current Linux client adds an optional signed `host` field to reports, refreshing addresses on each collection. Deploy server support before rebuilding/publishing/upgrading clients using the existing central artifact workflow. Older clients remain accepted: software is exported, but enrollment-time network declarations are labeled with their original observation time and are not written to native IPAM once older than 12 hours. A client update is needed for recurring fresh network observations. Collection still makes no DNS/external-IP lookups or network probes.
+
+### Customer-owned NetBox / configurable RW access
+
+1. The platform operator creates an approved `NetBoxInstance` with the customer's HTTPS API endpoint, optional browser URL, dedicated organization or shared-tenant scope, separate `NETBOX_CUSTOMER_*TOKEN` environment reference, supported Token/Bearer scheme and explicit `read_write` capability. Token values remain in protected server configuration. The destination must pass the existing HTTPS/allowlist/private-network policy; per-customer input never creates arbitrary outbound URLs.
+2. Bind that organization's one authoritative `InventorySource` to the instance and tenant using operator administration. Existing bound endpoint/tenant identities are immutable; this is setup for an unbound source, not permission to repoint an existing CIRCL source. Configure site/role/device-type defaults for new physical hosts and approved virtualization tag IDs if needed. Current read-only customers can keep import-only operation.
+3. The customer's NetBox administrator provisions text custom field `bearings_id` on Device, VirtualMachine, Interface, VMInterface and IPAddress, and JSON custom field `bearings_inventory` on Device/VirtualMachine. Grant only the intended service account the required host/interface/IP view/add/change permissions, plus exact reference/VRF/tag reads. Constrain hosts by tenant, interfaces by parent tenant and IP writes by tenant plus chosen VRF. No delete or prefix allocation is required. Enable uniqueness on the tenant-owned VRF. The upstream permissions are an independent boundary, not replaced by Bearings filters.
+4. Plan, then explicitly apply source-owned export (replace the illustrative source UUID and VRF ID with reviewed actual values):
+
+```sh
+./deploy/ubuntu24/manage.py configure_netbox_export --actor platform-admin --source SOURCE_UUID --vrf VRF_ID
+./deploy/ubuntu24/manage.py configure_netbox_export --actor platform-admin --source SOURCE_UUID --vrf VRF_ID --apply
+```
+
+For a pre-existing imported host that already has an explicitly bound client, add `--bind-asset ASSET_UUID` to the plan/apply command. This authorizes setting an absent `bearings_id` on that exact source's already-confirmed external object. It never searches by hostname, creates a replacement host or overwrites a different UUID; unrelated custom fields remain. This is a per-host first-binding action, not recurring inventory work. Existing child interfaces/IPs still require separate reviewed ownership reconciliation.
+
+`--inventory-only` exports OS/software/provenance without native interface/IP creation; `--disable --apply` revokes recurring export without deleting remote objects or changing the endpoint/token. The command requires a platform superuser, preserves source/tenant/credentials and rejects a foreign VRF, non-unique VRF or read-only/disabled connector. It also enables managed host registration for **new** fleet codes; existing observed-only codes keep their original mode. External NetBox custom fields/native permissions remain a customer-admin preparation step; Bearings never uses their administrative credential to grant itself access.
+
+### Conflicts and limits
+
+All writes recheck current source policy, device expiry/revocation, observation freshness, connector mode and exact host UUID/tenant/ID. Each created interface/address has a deterministic ownership marker. Existing unmarked interfaces or addresses, different assignment/tenant/VRF, ambiguous results or a changed host marker fail explicitly; they are not adopted by hostname or overwritten. Linking an already imported host does not by itself authorize adopting all existing unmarked child objects. Those associations need an explicit reviewed reconciliation workflow; automatic child adoption is not implemented.
+
+There are no remote deletions, address moves, primary-IP changes, guessed DNS names, prefix allocations or writes to location/role/topology chosen in NetBox. Missing or down interfaces/IPs remain for review. The current collector reports only up interfaces with eligible addresses; absence is not a decommission instruction. A partial upstream failure can leave a subset created; retries recover by stable markers and validated parents. NetBox uniqueness and conflict refusal prevent duplicate/foreign IP claims. A dedicated tenant VRF is required for native IPAM export; global/multi-VRF mapping needs a separate explicit policy extension. A process-level 60-second request budget bounds one export (an in-flight transport timeout may extend the wall time). Failed exports retain their previous receipt and show a sanitized reason with a deferred retry, separately from host-registration health. Whole-fleet sustained export throughput is not established by two local hosts.
+
+## Later move from CIRCL NetBox to a customer-owned instance (planned)
+
+Prepare this as an **export/import migration**, not bidirectional replication or an endpoint edit beneath existing IDs:
+
+1. Read a complete source snapshot for only the customer's tenant: hosts/VMs, owned interfaces, IPs/VRFs, software/provenance custom fields and required reference relationships. Include a manifest, source identity, schema version and hashes; exclude API tokens, unrelated tenants, private intelligence and internal reviews.
+2. Preview the destination mapping for tenant, VRFs, sites, roles, hardware types, platforms, clusters and tags. Names are suggestions, never identity. Detect pre-existing UUID markers, address/VRF conflicts, unsupported models and incomplete source visibility before writing.
+3. Import in dependency order with the customer's scoped RW credential, durable per-object receipts and stable Bearings UUIDs. Record old-to-new native object IDs because IDs differ between installations. Repeated runs must reconcile by UUID and stop on conflicting ownership.
+4. Pause the source's import/export during a final delta and verify the destination from both APIs: identities, counts, relationships, software versions, IP scopes and retained local device/software/review links. Perform one explicit audited authoritative-source migration, preserving client keys and preventing two active writers. Retain the previous source receipt for rollback; do not delete CIRCL objects automatically.
+
+This migration executor and its preview UI are **not implemented** by the inventory-export change. Their own reviewable acceptance tests and explicit target authorization are required before moving a real customer's inventory. The new export schema/UUID provenance support that future work without claiming that host/IP export is already a complete NetBox-to-NetBox migration tool.

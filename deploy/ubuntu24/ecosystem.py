@@ -328,6 +328,7 @@ def managed_circl_inventory(state, args):
                 {
                     **plan,
                     "planned_mode": "tenant-scoped managed NetBox",
+                    "planned_inventory_export": bool(getattr(args, "export_inventory", False)),
                     "existing_rollout_codes": "retain original mode",
                     "physical_host_cluster": "not inferred",
                 }
@@ -350,6 +351,7 @@ def managed_circl_inventory(state, args):
                 "saved": saved["netbox"],
                 "actor": args.netbox_actor,
                 "verify_only": args.verify,
+                "export_inventory": getattr(args, "export_inventory", False),
             }
         ),
         capture=True,
@@ -357,6 +359,24 @@ def managed_circl_inventory(state, args):
     saved["netbox"] = captured_json(result)
     write(path, json.dumps(saved))
     metadata["defaults"] = saved["netbox"]["defaults"]
+    if getattr(args, "export_inventory", False):
+        if not saved["netbox"].get("export"):
+            raise ValueError("Native inventory export has not been provisioned")
+        export_args = [
+            "configure_netbox_export",
+            "--actor",
+            args.actor,
+            "--source",
+            plan["source"],
+            "--vrf",
+            str(saved["netbox"]["export"]["vrf"]),
+        ]
+        if not args.verify:
+            bearings_manage([*export_args, "--apply"])
+        else:
+            export_plan = captured_json(bearings_manage(export_args))
+            if export_plan["current_policy"] != saved["netbox"]["export"]:
+                raise ValueError("Retained export policy differs")
     verified = captured_json(
         bearings_manage([*command, "--verify" if args.verify else "--apply"], input=json.dumps(metadata))
     )
@@ -1198,6 +1218,11 @@ def main():
     connect.add_argument("--apply", action="store_true")
     managed = sub.add_parser(
         "manage-circl-inventory", help="Plan, enable or verify the retained CIRCL managed NetBox host"
+    )
+    managed.add_argument(
+        "--export-inventory",
+        action="store_true",
+        help="Explicitly provision a unique tenant VRF, interface/IP writes and reported software inventory",
     )
     managed.add_argument("--actor", default="platform-admin")
     managed.add_argument("--netbox-actor", default="platform-admin")

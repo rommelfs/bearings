@@ -229,6 +229,7 @@ class NetBoxInstance(models.Model):
 
 
 class InventorySource(models.Model):
+    agent_export_policy = models.JSONField(default=dict, blank=True, editable=False)
     agent_managed = models.BooleanField(default=False, editable=False)
     organization = models.OneToOneField(
         Organization, on_delete=models.CASCADE, related_name="inventory_source"
@@ -2151,6 +2152,11 @@ class AgentFleetRegistration(models.Model):
 
 
 class AgentDevice(models.Model):
+    netbox_export_pending = models.BooleanField(default=False)
+    netbox_export_after = models.DateTimeField(default=timezone.now)
+    netbox_export_receipt = models.JSONField(default=dict, blank=True, editable=False)
+    netbox_export_error = models.CharField(max_length=180, blank=True)
+    network_observed_at = models.DateTimeField(null=True, blank=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
     asset = models.ForeignKey(Asset, on_delete=models.PROTECT, related_name="agent_devices")
@@ -2178,6 +2184,11 @@ class AgentDevice(models.Model):
 
     class Meta:
         indexes = [
+            models.Index(
+                fields=["netbox_export_after"],
+                condition=Q(netbox_export_pending=True),
+                name="agent_netbox_export_due_idx",
+            ),
             models.Index(
                 fields=["id"],
                 condition=Q(enabled=True, distro_requested=True),

@@ -46,6 +46,7 @@ type service struct {
 	Coverage string `json:"coverage"`
 }
 type report struct {
+	Host       *declaredHost   `json:"host,omitempty"`
 	Schema     string          `json:"schema"`
 	ReportID   string          `json:"report_id"`
 	Sequence   int64           `json:"sequence"`
@@ -243,6 +244,11 @@ func collect(inventory bool, selected []string, serviceName string) (*report, er
 		return nil, err
 	}
 	r := &report{Schema: tag, ReportID: newID(), Sequence: 1, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano), Scope: "system-packages", Complete: true, OS: operating(), Services: []service{}}
+	// A failed network enumeration must not discard a valid software inventory.
+	// Omission preserves the last server-side network observation and its age.
+	if host, err := networkClaim(); err == nil {
+		r.Host = &host
+	}
 	if serviceName != "" {
 		r.Scope = "nginx-packages"
 		r.Services = append(r.Services, nginx())

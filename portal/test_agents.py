@@ -834,3 +834,29 @@ class AgentTests(Fixture):
         c.refresh_from_db()
         self.assertEqual(self.installation.version, "1.2.3")
         self.assertEqual(c.binary["path"], "/opt/nginx/sbin/nginx")
+
+    def test_signed_report_refreshes_network_and_legacy_report_preserves_it(self):
+        self.enroll()
+        first = self.data()
+        first["host"] = {
+            "hostname": "observed.example.invalid",
+            "addresses": [{"interface": "eth0", "address": "192.0.2.42/24"}],
+        }
+        self.assertEqual(self.send(first).status_code, 202)
+        agents.process_pending()
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.reported_network, first["host"])
+        observed = self.device.network_observed_at
+        self.relax()
+        self.assertEqual(self.send(self.data(2)).status_code, 202)
+        agents.process_pending()
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.reported_network, first["host"])
+        self.assertEqual(self.device.network_observed_at, observed)
+        self.relax()
+        invalid = self.data(3)
+        invalid["host"] = {
+            "hostname": "observed.example.invalid",
+            "addresses": [{"interface": "eth0", "address": "127.0.0.1/8"}],
+        }
+        self.assertEqual(self.send(invalid).status_code, 403)

@@ -364,6 +364,14 @@
       {
         "title": "Explain the optional Linux client on the public CIRCL service website",
         "body": "Implemented EN/DE/FR/LB client section and FAQ: recurring dpkg/RPM versions, configured additional binaries, bounded fleet rollout, signed HTTPS reports, server-side distribution CVE checks and conditional operator-managed NetBox registration. Keep uncertainty, optional use and existing inventory workflows clear; no Windows, patching or attestation claim. Eight desktop/mobile layouts and private/public separation verified locally. No public production deployment performed."
+      },
+      {
+        "title": "Export scoped Linux network and software inventory to configurable customer NetBox RW sources",
+        "body": "Implemented migration 0064 and explicit per-source managed inventory export. Native VM/device interfaces and IP assignments use a selected tenant-owned unique VRF, stable UUID markers and conflict refusal; no deletion, global-space inference, primary IP changes or prefix allocation. OS/software exact versions/runtime/provenance export to native JSON custom field bearings_inventory, bounded without silent truncation. Source-specific API credentials, disabled/read-only/device checks, retries and visible receipts/errors remain independent. Operator configure command supports existing customer RW instances, inventory-only mode, revocation and explicit UUID marking for an already-confirmed existing host with an active bound client. Native CIRCL helper explicitly provisions limited interface/IP rights, custom fields and retained unique VRF. Optional signed host report field refreshes network declarations; old clients retain age-labeled enrollment data. Real NetBox VM+physical API/ORM/browser acceptance and signed Go HTTPS tests; see docs/operations/managed-netbox.md. Existing unmarked child objects need separate reviewed reconciliation; no automatic adoption."
+      },
+      {
+        "title": "Implement reviewed migration from CIRCL-hosted NetBox to customer-owned NetBox",
+        "body": "Planned, not an implemented migration executor: complete tenant-only export and manifest, exclude credentials/private intelligence, explicit destination tenant/VRF/reference mapping and conflicts, dependency-ordered UUID-idempotent import, durable old/new ID receipts, pause/final delta, two-sided verification and audited authoritative-source switch preserving enrolled client keys/local software/reviews. Never repoint an endpoint beneath retained object IDs, run dual writers or delete CIRCL objects automatically. The current scoped host/interface/IP/software export and UUID provenance provide foundations only. Include independently validated source/destination versions, missing/foreign data and failure recovery before production cutover."
       }
     ]
   }

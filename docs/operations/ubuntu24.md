@@ -179,3 +179,6 @@ This update **requires migration 0062**, unlike the earlier label-only inventory
 ### Enable managed CIRCL NetBox registration (migration 0063)
 
 The previous pilot is intentionally read-only. To register the existing LXC host as a NetBox VM with an `lxc` tag and enable managed registration for new rollout codes, follow [the staged plan, apply and bidirectional verification](managed-netbox.md). Migration 0063 adds explicit managed policy and virtualization metadata without changing client protocol, source identity or existing rollout authorization. Existing rollout codes stay observed-only. Do not rerun first-install or repoint the source. Host IP declarations and software/CVE records remain in Bearings; a physical host/cluster is not inferred.
+
+
+The extended NetBox inventory exporter requires **migration 0064** and web/worker restart. It is opt-in per source; native extension is `manage-circl-inventory --export-inventory --apply`. Recurring network observations require the updated Linux binary, published through the existing verified central release workflow after server upgrade. Do not rebuild artifacts from a dirty source checkout. See [export activation and customer-owned RW](managed-netbox.md#reported-inventory-export-migration-0064).

@@ -4,10 +4,11 @@ import json
 import sys
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-from dcim.models import Device, DeviceType, DeviceRole, Manufacturer, Site
+from dcim.models import Device, DeviceType, DeviceRole, Manufacturer, Site, Interface
+from ipam.models import IPAddress, VRF
 from extras.models import CustomField, Tag
 from users.models import ObjectPermission, Token
-from virtualization.models import VirtualMachine
+from virtualization.models import VirtualMachine, VMInterface
 from netbox_inventory import provision
 
 TECHNOLOGIES = ("lxc", "incus", "proxmox", "vmware", "kvm", "hyperv")
@@ -51,7 +52,7 @@ def manage(data):
             tag = Tag.objects.get(pk=pk)
             if tag.slug != name or tag.name.casefold() != name:
                 raise ValueError("Retained virtualization tag changed")
-        return receipt
+        return inventory_export(receipt, data)
 
     if data.get("verify_only"):
         raise ValueError("Managed native policy has not been applied; no writes during verification")
@@ -112,11 +113,73 @@ def manage(data):
     token = Token.objects.select_for_update().get(pk=receipt["token_id"])
     token.write_enabled = True
     token.save(update_fields=["write_enabled"])
+    return inventory_export(
+        {
+            **receipt,
+            "managed": True,
+            "permissions": permissions(receipt["user"]),
+            "defaults": {
+                "site": site.pk,
+                "role": role.pk,
+                "device_type": dtype.pk,
+                "virtualization_tags": tags,
+            },
+        },
+        data,
+    )
+
+
+def inventory_export(receipt, data):
+    """Opt-in native policy extension; never widen a customer's separate API identity."""
+    if receipt.get("export"):
+        vrf = VRF.objects.get(pk=receipt["export"]["vrf"])
+        if (
+            vrf.tenant_id != receipt["tenant"]
+            or not vrf.enforce_unique
+            or vrf.description != "Bearings observed network " + data["key"]
+        ):
+            raise ValueError("Retained export VRF policy changed")
+        field = CustomField.objects.get(name="bearings_inventory")
+        if field.type != "json":
+            raise ValueError("Retained inventory field changed")
+        return receipt
+    if not data.get("export_inventory") or data.get("verify_only"):
+        return receipt
+    name = "Bearings observed network " + data["key"]
+    if VRF.objects.filter(description=name).exists():
+        raise ValueError("Unrecorded export VRF exists; reconcile explicitly")
+    vrf = VRF.objects.create(
+        name="CIRCL agent inventory", tenant_id=receipt["tenant"], enforce_unique=True, description=name
+    )
+    field, _ = CustomField.objects.get_or_create(
+        name="bearings_inventory", defaults={"type": "json", "label": "Bearings reported inventory"}
+    )
+    if field.type != "json":
+        raise ValueError("Existing inventory custom field has an incompatible type")
+    field.object_types.add(
+        ContentType.objects.get_for_model(Device), ContentType.objects.get_for_model(VirtualMachine)
+    )
+    identity = CustomField.objects.get(name="bearings_id", type="text")
+    identity.object_types.add(
+        *[ContentType.objects.get_for_model(m) for m in (Interface, VMInterface, IPAddress)]
+    )
+    for model, constraint in [
+        (Interface, {"device__tenant_id": receipt["tenant"]}),
+        (VMInterface, {"virtual_machine__tenant_id": receipt["tenant"]}),
+        (IPAddress, {"tenant_id": receipt["tenant"], "vrf_id": vrf.pk}),
+        (VRF, {"id": vrf.pk}),
+    ]:
+        permission = ObjectPermission.objects.create(
+            name="Bearings export " + data["key"] + " " + model.__name__,
+            actions=["view"] if model == VRF else ["view", "add", "change"],
+            constraints=constraint,
+        )
+        permission.object_types.add(ContentType.objects.get_for_model(model))
+        permission.users.add(receipt["user"])
     return {
         **receipt,
-        "managed": True,
+        "export": {"inventory": True, "vrf": vrf.pk},
         "permissions": permissions(receipt["user"]),
-        "defaults": {"site": site.pk, "role": role.pk, "device_type": dtype.pk, "virtualization_tags": tags},
     }
 
 

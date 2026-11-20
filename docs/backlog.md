@@ -454,3 +454,10 @@ Replace the unbounded company CVE/history/form dump with a scoped workflow summa
 Migration 0063 adds explicit managed fleet policy and declared virtualization. The native helper preserves tenant, source, token and host UUID; enables narrow Device/VM capabilities; registers the existing host as VM+lxc; and verifies the upstream object and complete GET-only import. New managed codes support Incus/Proxmox/VMware and other explicit tags, while old codes remain observed-only. Real isolated HTTPS, signed registration, independent NetBox ORM and both application UIs validate the connection. Production activation remains operator acceptance. See [managed NetBox operations](operations/managed-netbox.md).
 
 The public website and FAQ describe the optional Linux client in all four languages, including recurring package versions, central rollout, signed reports and conditional NetBox integration. Browser checks cover desktop/mobile without external assets or tenant data. No production deployment is inferred from local validation.
+
+
+## Customer-owned RW NetBox and richer Linux inventory export — 2026-11-20
+
+Migration 0064 adds explicit source-owned export, bounded worker scheduling and receipts/errors. Native interfaces and IP assignments use a tenant-owned unique VRF and deterministic ownership; OS/software/runtime/provenance become a host JSON field. Existing unrelated inventory is never adopted implicitly, deleted or moved. A per-customer operator command configures existing isolated RW credentials, inventory-only mode, revocation and explicit first marking of a confirmed client-bound host. Native CIRCL provisioning optionally extends its retained policy without replacing keys/tenants. Updated signed reports refresh network declarations; old clients keep their original network age. See [operations](operations/managed-netbox.md#reported-inventory-export-migration-0064).
+
+A later CIRCL-to-customer NetBox move is documented as a separate planned export/import, mapping, verification and source-cutover workflow. Its executor and preview UI are not implemented; changing an existing endpoint is not a migration.

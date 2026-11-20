@@ -450,6 +450,69 @@ class NativeManagedDeploymentTests(unittest.TestCase):
                 self.assertNotIn(saved["value"], manage.call_args.kwargs["input"])
             self.assertNotIn(saved["value"], output.getvalue())
 
+    def test_inventory_export_verify_checks_retained_policy_without_applying_or_restarting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory)
+            saved = {
+                "tenant": 42,
+                "managed": True,
+                "value": "synthetic-private-token",
+                "defaults": {},
+                "export": {"inventory": True, "vrf": 7},
+            }
+            (config / "circl-connection.json").write_text(
+                json.dumps({"key": str(uuid.uuid4()), "netbox": saved})
+            )
+            args = SimpleNamespace(
+                actor="operator",
+                netbox_actor="native-admin",
+                host="synthetic.example.invalid",
+                kind="vm",
+                virtualization="lxc",
+                apply=False,
+                verify=True,
+                export_inventory=True,
+            )
+            result = {
+                key: True
+                for key in (
+                    "managed",
+                    "uuid_match",
+                    "tenant_match",
+                    "import_match",
+                    "agent_software_reviews_preserved",
+                )
+            }
+            output = io.StringIO()
+            with (
+                patch.object(native, "CONFIG", config),
+                patch.object(native, "protected_read", side_effect=lambda path: Path(path).read_text()),
+                patch.object(
+                    native,
+                    "bearings_manage",
+                    side_effect=[
+                        SimpleNamespace(stdout=json.dumps({"source": str(uuid.uuid4())})),
+                        SimpleNamespace(stdout=json.dumps({"current_policy": saved["export"]})),
+                        SimpleNamespace(stdout=json.dumps(result)),
+                    ],
+                ) as manage,
+                patch.object(
+                    native, "django", return_value=SimpleNamespace(stdout=json.dumps(saved))
+                ) as upstream,
+                patch.object(native, "write"),
+                patch.object(native, "run") as run,
+                patch("sys.stdout", output),
+            ):
+                native.managed_circl_inventory({"activated": True}, args)
+                run.assert_not_called()
+                self.assertTrue(json.loads(upstream.call_args.kwargs["input"])["verify_only"])
+                self.assertTrue(json.loads(upstream.call_args.kwargs["input"])["export_inventory"])
+                self.assertTrue(
+                    any(call.args[0][0] == "configure_netbox_export" for call in manage.call_args_list)
+                )
+                self.assertFalse(any("--apply" in call.args[0] for call in manage.call_args_list))
+                self.assertNotIn(saved["value"], output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

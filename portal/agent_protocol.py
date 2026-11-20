@@ -157,6 +157,7 @@ def report_data(data):
             "os",
             "components",
             "services",
+            *(("host",) if "host" in data else ()),
         ),
     )
     if data["schema"] != TAG or type(data["sequence"]) is not int or not 1 <= data["sequence"] <= 2**63 - 1:
@@ -177,6 +178,8 @@ def report_data(data):
         text(data["os"][field], 120)
     if data["os"]["reboot_hint"] not in ("present", "not_observed", "unknown"):
         raise ValueError("Invalid reboot hint")
+    if "host" in data:
+        host_claim(data["host"])
     components = data["components"]
     if not isinstance(components, list) or len(components) > MAX_COMPONENTS or not components:
         raise ValueError("Use 1–5000 package observations")

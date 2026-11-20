@@ -9,6 +9,7 @@ from django.db import connections
 JOBS = [
     ("process_jobs", {"limit": 5}),
     ("process_agent_reports", {"limit": 25}),
+    ("process_netbox_exports", {"limit": 2}),
     ("sync_distro_cves", {"limit": 5}),
     ("remind_inventory", {"limit": 5}),
     ("process_flowintel", {"all": True, "due": True}),

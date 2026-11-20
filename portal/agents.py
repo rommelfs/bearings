@@ -456,6 +456,9 @@ def process_one(device_id, report_id):
                     and c.missing_since is None
                 ]
                 AgentComponent.objects.filter(pk__in=missing).update(missing_since=row.observed_at)
+            if "host" in data:
+                device.reported_network = data["host"]
+                device.network_observed_at = row.observed_at
             device.os = data["os"]
             runtime = {s["name"]: s for s in device.services}
             for value in data["services"]:
@@ -466,11 +469,23 @@ def process_one(device_id, report_id):
             device.last_observed_at = row.observed_at
             device.applied_sequence = row.sequence
             device.save(
-                update_fields=["os", "services", "last_observed_at", "last_complete_at", "applied_sequence"]
+                update_fields=[
+                    "os",
+                    "services",
+                    "last_observed_at",
+                    "last_complete_at",
+                    "applied_sequence",
+                    "reported_network",
+                    "network_observed_at",
+                ]
             )
             package_inventory.project(device)
             device.distro_requested = True
             device.save(update_fields=["software_sync_pending", "distro_requested"])
+            if device.source.agent_export_policy:
+                device.netbox_export_pending = True
+                device.netbox_export_after = timezone.now()
+                device.save(update_fields=["netbox_export_pending", "netbox_export_after"])
             row.status = "applied"
     row.processed_at = timezone.now()
     row.save(update_fields=["status", "error", "processed_at"])

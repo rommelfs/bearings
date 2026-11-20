@@ -126,6 +126,7 @@ class Command(BaseCommand):
                 "kind": options["kind"],
                 "virtualization": options["virtualization"],
                 "managed": source.agent_managed,
+                "export_policy": source.agent_export_policy,
                 "existing_external_id": asset.external_id,
             }
             if not options["apply"] and not options["verify"]:
@@ -239,6 +240,7 @@ class Command(BaseCommand):
                 {
                     **plan,
                     "managed": source.agent_managed,
+                    "export_policy": source.agent_export_policy,
                     "external_id": asset.external_id,
                     "netbox_object": asset.object_type,
                     "uuid_match": True,
