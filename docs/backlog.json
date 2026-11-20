@@ -332,6 +332,10 @@
       {
         "title": "Align public and authenticated Bearings design with CIRCL corporate identity",
         "body": "Implemented CIRCL-inspired white headers, Raleway typography, #315e73 blue, #de2d38 red and neutral surfaces across EN/DE/FR/LB marketing, login/workspace and Django administration. Shared unmodified CIRCL-derived Bearings mark, locally hosted unmodified Raleway with SIL OFL1.1/source SHA256 notices, no external font requests. Keep semantic risk/status colours distinct, support admin dark theme, keyboard focus and expanded mobile navigation; wrap long package identities. Refresh overview illustration from local synthetic lab and version CSS/preview URLs to avoid stale caches. No auth, source, scanning or notification changes. See website/branding/README.md and docs/validation.md."
+      },
+      {
+        "title": "Add mailbox-verified company-domain invitation codes and an explicit national/company view selector",
+        "body": "Implemented company-admin reusable exact-domain codes (reader/editor only), one-time secret display/hash storage, configurable 1–90 day expiry and acceptance quota, current creator/company/role/domain rechecks, serialized final acceptance and revocation of pending challenges. Each user still receives and accepts an individual mailbox proof. Domain requests cannot cancel personal invitations; archive merges revoke source codes without secret transfer. Generic public responses, existing CSRF/IP/company/recipient mail limits, retained audits and no SSO/native role grants apply. Correct hardcoded invitation notice to actual SMTP submission vs local outbox/error. Add company/national segmented navigation with explicit company name, active-view marking and current destination checks; no impersonation or global scope override. Migration 0061; see company-members guide and validation record."
       }
     ]
   }

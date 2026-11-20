@@ -24,6 +24,7 @@ RETAIN = {
     "OrganizationConfiguration",
     "ConfigurationSection",
     "OrganizationInvitation",
+    "OrganizationDomainCode",
 }
 
 # These fields report background work; they do not change the facts, identities,
@@ -327,6 +328,9 @@ def merge(actor, ticket):
     OrganizationInvitation.objects.filter(organization=source, consumed_at=None, revoked_at=None).update(
         revoked_at=timezone.now()
     )
+    apps.get_model("portal", "OrganizationDomainCode").objects.filter(
+        organization=source, revoked_at=None
+    ).update(revoked_at=timezone.now())
     # Existing company settings and CIRCL policy are not broadened by combining memberships.
     target.operator_visibility = source.operator_visibility and target.operator_visibility
     target.save(update_fields=["operator_visibility"])

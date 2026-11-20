@@ -157,3 +157,9 @@ On an older helper, a `systemd-run --pty` process can remain waiting after its t
 ## CIRCL corporate theme
 
 Public pages, login/workspace and Django administration share the CIRCL-inspired Raleway/blue/red identity. Font files and the application mark are local static assets with retained font license/provenance. Update source, run `manage.py collectstatic --noinput`, then restart the web process; no theme-specific migration or dependency installation is needed. The marketing stylesheet and updated preview links have a new version suffix so browsers request the new theme. No CSP relaxation, external font host, government crest, authorization change or semantic risk-colour remapping is involved.
+
+## Domain membership codes (migration 0061)
+
+Deploy the reviewed source with the normal backup/stop/migrate/collectstatic/check/restart procedure. Migration 0061 adds reusable company-domain code policy and an optional reference on personal invitations; existing invitations remain valid under their original policy. No new dependency, SMTP policy or SSO/native role provisioning is introduced. The already corrected native helper uses pipes for migration/check/collectstatic; an inactive transient unit with successful exit status is not an active migration.
+
+Company administrators manage codes under `/organizations/COMPANY/members/`; recipients use `/join/domain/` and still verify their individual mailbox. Review the [code/rate/role/revocation contract](../user-guide/company-members.md#shared-code-for-an-exact-email-domain). The invitation UI reports configured SMTP submission instead of a hardcoded local-mail warning. Existing environment banners distinguish reviewed outreach from service mail; enabling registration/invitation SMTP does not enable vulnerability outreach.

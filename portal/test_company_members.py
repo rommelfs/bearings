@@ -135,6 +135,21 @@ class CompanyMembersTests(Fixture):
         with self.assertRaises(ValidationError):
             invite(self.admin, self.a, "new@example.invalid", "reader")
 
+    def test_invitation_notice_matches_service_transport(self):
+        self.login(self.admin)
+        for mode, message in [("smtp", "SMTP relay"), ("file", "local outbox")]:
+            with (
+                self.settings(SERVICE_MAIL_TRANSPORT=mode),
+                patch("portal.company_members.send_service_mail"),
+            ):
+                response = self.client.post(
+                    reverse("company-members", args=[self.a.slug]),
+                    {"action": "invite", "email": mode + "@example.invalid", "role": "reader"},
+                    follow=True,
+                )
+            self.assertContains(response, message)
+            self.assertNotContains(response, "Local mail mode does not send externally")
+
     def test_http_csrf_public_join_no_get_mutation_and_no_foreign_company_list(self):
         client = Client(enforce_csrf_checks=True)
         client.force_login(self.admin)
@@ -182,6 +197,19 @@ class CompanyMergeTests(Fixture):
         Membership.objects.create(organization=self.source, user=self.admin, role="admin")
         Membership.objects.create(organization=self.target, user=self.admin, role="reader")
         Membership.objects.create(organization=self.target, user=self.reader, role="admin")
+
+    def test_domain_codes_are_revoked_on_archive_without_transfer(self):
+        from . import domain_membership
+        from .models import OrganizationDomainCode
+
+        item, raw = domain_membership.create(self.admin, self.source, "example.invalid")
+        self.assertEqual(plan(self.platform, self.source, self.target)["blockers"], [])
+        merge(self.platform, plan(self.platform, self.source, self.target)["ticket"])
+        item.refresh_from_db()
+        self.assertIsNotNone(item.revoked_at)
+        self.assertEqual(item.organization_id, self.source.pk)
+        self.assertFalse(OrganizationDomainCode.objects.filter(organization=self.target).exists())
+        self.assertFalse(domain_membership.request_invitation(raw, "archive@example.invalid"))
 
     def test_reviewed_merge_preserves_target_roles_and_history_archives_source(self):
         contact = Contact.objects.create(

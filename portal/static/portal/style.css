@@ -1867,3 +1867,15 @@ main article p { overflow-wrap: anywhere; }
   .mobile-menu > summary { color: #315e73; }
   .mobile-menu > summary span { color: #52636d; }
 }
+/* Two real navigation destinations with a visible selected view. */
+.account-menu { flex-wrap: wrap; justify-content: flex-end; gap: 10px 14px; }
+.workspace-view-switch { display: inline-grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); background: #edf3f5; border: 1px solid #c5d2d8; border-radius: 8px; padding: 3px; gap: 3px; max-width: 420px; min-width: 0; }
+.workspace-view-switch a { display: flex; align-items: center; justify-content: center; padding: 9px 12px; min-height: 40px; color: #315e73; font-size: 12px; font-weight: 600; text-align: center; text-decoration: none; border: 1px solid transparent; border-radius: 5px; line-height: 1.4; overflow-wrap: anywhere; }
+.workspace-view-switch a:hover { background: #e0eaee; }
+.workspace-view-switch a[aria-current="page"] { background: #315e73; color: #fff; border-color: #315e73; font-weight: 700; box-shadow: 0 1px 3px #173f5226; }
+@media(max-width:760px) { .workspace-view-switch { flex-basis: 100%; max-width: 100%; } .workspace-view-switch a { min-height: 44px; padding: 8px; } }
+@media(max-width:760px) {
+  .operator-workspace .app-header { flex-wrap: wrap; }
+  .operator-workspace .account-menu { width: 100%; }
+  .operator-workspace .workspace-view-switch { order: -1; flex: 1 1 100%; }
+}

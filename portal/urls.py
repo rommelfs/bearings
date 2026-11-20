@@ -48,6 +48,7 @@ urlpatterns = [
     path("organizations/<slug:slug>/agents/fleet/", agent_fleet_views.center, name="agent-fleets"),
     path("operator/organizations/merge/", member_views.merge_companies, name="company-merge"),
     path("join/", member_views.join, name="company-join"),
+    path("join/domain/", member_views.join_domain, name="company-domain-join"),
     path("organizations/<slug:slug>/members/", member_views.members, name="company-members"),
     path("circl/review-followups/", review_followup_views.center, name="review-followups"),
     path("organizations/<slug:slug>/review/followup/", review_followup_views.detail, name="review-followup"),

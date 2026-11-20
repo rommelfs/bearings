@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UsernameField
@@ -15,6 +16,7 @@ from .access import require, audit
 from .circl_views import private_response
 from .company_members import admin, invite, accept, change_member
 from .models import Organization, OrganizationInvitation, Membership
+from . import domain_membership
 from .registration import permit_public_attempt
 
 
@@ -29,6 +31,20 @@ def report_operation_error(form, error):
 class InvitationForm(forms.Form):
     email = forms.EmailField()
     role = forms.ChoiceField(choices=Membership.ROLES, initial="reader")
+
+
+class DomainCodeForm(forms.Form):
+    domain = forms.CharField(
+        max_length=253, help_text="Exact email domain, e.g. circl.lu. Subdomains are separate."
+    )
+    role = forms.ChoiceField(choices=[("reader", "Reader"), ("editor", "Inventory editor")], initial="reader")
+    days = forms.IntegerField(min_value=1, max_value=90, initial=30, label="Valid for days")
+    max_acceptances = forms.IntegerField(min_value=1, max_value=10000, initial=100)
+
+
+class DomainJoinForm(forms.Form):
+    code = forms.CharField(max_length=128, widget=forms.PasswordInput(attrs={"autocomplete": "off"}))
+    email = forms.EmailField(label="Your company email address")
 
 
 class AcceptForm(forms.Form):
@@ -51,21 +67,37 @@ class AcceptForm(forms.Form):
 
 @login_required
 @never_cache
+@sensitive_post_parameters()
+@sensitive_variables()
 @require_http_methods(["GET", "POST"])
 def members(request, slug):
     org = get_object_or_404(Organization, slug=slug)
     require(admin(request.user, org) and not org.merged_into_id)
     form = InvitationForm(request.POST if request.POST.get("action") == "invite" else None)
+    domain_form = DomainCodeForm(
+        request.POST if request.POST.get("action") == "domain-create" else None, prefix="domain"
+    )
+    created_code = ""
     operation_error = ""
     if request.method == "POST":
         try:
             action = request.POST.get("action")
-            if action == "invite" and form.is_valid():
+            if action == "domain-create":
+                if domain_form.is_valid():
+                    _, created_code = domain_membership.create(request.user, org, **domain_form.cleaned_data)
+            elif action == "domain-revoke":
+                domain_membership.revoke(request.user, org, request.POST.get("domain_code"))
+                return redirect("company-members", slug=slug)
+            elif action == "invite" and form.is_valid():
                 item = invite(request.user, org, **form.cleaned_data)
                 messages.warning(
-                    request, "Invitation saved, but mail preparation failed. Send a new invitation later."
+                    request,
+                    "Invitation saved, but email submission failed. Check service mail before sending a new invitation.",
                 ) if item.mail_error else messages.success(
-                    request, "Invitation email prepared. Local mail mode does not send externally."
+                    request,
+                    "Invitation submitted to the configured SMTP relay; delivery is not yet confirmed."
+                    if settings.SERVICE_MAIL_TRANSPORT == "smtp"
+                    else "Invitation saved in the local outbox; no external email was sent.",
                 )
                 return redirect("company-members", slug=slug)
             elif action == "revoke":
@@ -87,7 +119,8 @@ def members(request, slug):
                 require(False)
         except (ValidationError, ValueError) as error:
             operation_error = report_operation_error(
-                form, error if isinstance(error, ValidationError) else "Invalid selection"
+                domain_form if request.POST.get("action") == "domain-create" else form,
+                error if isinstance(error, ValidationError) else "Invalid selection",
             )
     return private_response(
         render(
@@ -96,6 +129,9 @@ def members(request, slug):
             {
                 "org": org,
                 "form": form,
+                "domain_form": domain_form,
+                "created_code": created_code,
+                "domain_codes": org.organizationdomaincode_set.order_by("-created_at")[:50],
                 "operation_error": operation_error,
                 "members": org.membership_set.select_related("user").order_by("user__username"),
                 "invitations": org.organizationinvitation_set.order_by("-created_at")[:50],
@@ -137,6 +173,25 @@ def join(request):
                 return private_response(render(request, "portal/company_join.html", {"joined": org}))
     response = private_response(render(request, "portal/company_join.html", {"form": form}))
     return response
+
+
+@never_cache
+@sensitive_post_parameters()
+@sensitive_variables()
+@require_http_methods(["GET", "POST"])
+def join_domain(request):
+    form = DomainJoinForm(request.POST or None)
+    sent = False
+    if request.method == "POST":
+        if not permit_public_attempt(request):
+            form.add_error(None, "Too many attempts. Try again later.")
+        elif form.is_valid():
+            try:
+                domain_membership.request_invitation(**form.cleaned_data)
+            except ValidationError:
+                pass  # No public distinction between unavailable code/domain, cooldown or quota.
+            sent = True
+    return private_response(render(request, "portal/company_domain_join.html", {"form": form, "sent": sent}))
 
 
 class MergeCompanyChoice(forms.ModelChoiceField):

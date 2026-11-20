@@ -25,6 +25,39 @@ def company_url(org):
     return reverse("overview") + "?" + urlencode({"organization": org.slug})
 
 
+def view_switch(request, selected, operator):
+    """A view selector, never impersonation or an authorization override."""
+    if not operator:
+        return {}
+    if selected is None:
+        own = (
+            Membership.objects.filter(
+                user=request.user, organization__slug="circl", organization__merged_into=None
+            )
+            .select_related("organization")
+            .first()
+        )
+        selected = own.organization if own else None
+    match = request.resolver_match
+    route = match.url_name if match else ""
+    company_page = bool(
+        selected
+        and (
+            (route == "overview" and request.GET.get("organization") == selected.slug)
+            or (match and match.kwargs.get("slug") == selected.slug)
+        )
+    )
+    national_page = request.path.startswith(("/circl/", "/operator/", "/admin/"))
+    return {
+        "switch_company_label": f"{selected.name} infrastructure" if selected else "Company infrastructure",
+        "switch_company_url": company_url(selected)
+        if selected
+        else reverse("workspace-switch") + "?open=company",
+        "switch_company_active": company_page and not national_page,
+        "switch_national_active": national_page,
+    }
+
+
 @login_required
 @never_cache
 @require_http_methods(["GET", "POST"])

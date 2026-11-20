@@ -420,3 +420,8 @@ Batch management now uses systemd pipes even from SSH terminals. Interactive acc
 ## CIRCL corporate identity — 2026-11-20
 
 Public marketing in all four languages, workspace/login and Django admin now follow CIRCL’s Raleway/blue/red/white identity. Fonts, mark and provenance/license notices are hosted locally; semantic risk colours, accessibility and existing authorization are retained. See [branding reference](../website/branding/README.md#circl-corporate-theme--20-november-2026).
+
+
+## Domain-based invitations and clear workspace navigation — 2026-11-20
+
+Company admins can issue a bounded reusable code for one exact email domain; every member must still confirm a personal mail challenge. Reader/editor only, quotas, expiry, creator/role/domain rechecks, CSRF and rate limits preserve access boundaries. Source merges revoke codes; no keys or native roles transfer. Invitation notices now report actual SMTP submission or local/error state. A visible company/national selector names the selected company and highlights the matching view, retaining current permissions. See [membership guide](user-guide/company-members.md#shared-code-for-an-exact-email-domain). Migration 0061 is required.

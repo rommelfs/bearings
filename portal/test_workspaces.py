@@ -1,12 +1,34 @@
 from django.test import Client
 from django.urls import reverse
 from .tests import Fixture
-from .models import Organization, Membership
+from .models import Organization, Membership, InventorySource
 from .workspace_views import SESSION_COMPANY
 from .member_views import MergeForm
 
 
 class WorkspaceTests(Fixture):
+    def test_visible_view_switch_marks_actual_company_and_national_destinations(self):
+        org = Organization.objects.create(name="CIRCL", slug="circl")
+        InventorySource.objects.create(organization=org, mode="manual")
+        Membership.objects.create(user=self.platform, organization=org, role="reader")
+        self.login(self.platform)
+        national = self.client.get(reverse("circl-overview"))
+        self.assertContains(national, 'aria-label="Infrastructure view"')
+        self.assertContains(national, "CIRCL infrastructure")
+        self.assertTrue(national.context["switch_national_active"])
+        company_url = reverse("overview") + "?organization=circl"
+        self.assertEqual(national.context["switch_company_url"], company_url)
+        company = self.client.get(company_url)
+        self.assertTrue(company.context["switch_company_active"])
+        self.assertFalse(company.context["switch_national_active"])
+        self.assertEqual(Membership.objects.get(user=self.platform, organization=org).role, "reader")
+        self.client.post(reverse("workspace-switch"), {"action": "company", "organization": self.a.pk})
+        selected = self.client.get(reverse("overview"), {"organization": self.a.slug})
+        self.assertEqual(selected.context["switch_company_label"], self.a.name + " infrastructure")
+        self.assertTrue(selected.context["switch_company_active"])
+        self.login(self.reader)
+        self.assertNotContains(self.client.get(reverse("overview")), 'aria-label="Infrastructure view"')
+
     def test_duplicate_selectors_identify_slug_id_and_inventory(self):
         first = Organization.objects.create(name="CIRCL", slug="circl-native")
         second = Organization.objects.create(name="CIRCL", slug="circl-registration")

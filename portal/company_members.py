@@ -25,7 +25,7 @@ def admin(actor, org):
 
 @transaction.atomic
 @sensitive_variables()
-def invite(actor, org, email, role):
+def invite(actor, org, email, role, *, domain_code=None):
     org = Organization.objects.select_for_update().get(pk=org.pk)
     require(admin(actor, org))
     if role not in dict(Membership.ROLES):
@@ -36,25 +36,39 @@ def invite(actor, org, email, role):
     recent = OrganizationInvitation.objects.filter(organization=org, created_at__gt=now - timedelta(hours=1))
     if recent.count() >= 30 or recent.filter(email=email, created_at__gt=now - timedelta(minutes=5)).exists():
         raise ValidationError("Invitation limit reached. Wait before sending another invitation.")
-    # Re-inviting rotates the proof; mail success is not membership or delivery proof.
-    OrganizationInvitation.objects.filter(
+    # Public domain requests cannot cancel a personal administrator-issued invitation.
+    pending = OrganizationInvitation.objects.filter(
         organization=org, email=email, consumed_at=None, revoked_at=None
-    ).update(revoked_at=now)
+    )
+    if domain_code is not None:
+        from .domain_membership import active, domain_name
+
+        require(
+            active(domain_code, org)
+            and domain_code.creator_id == actor.pk
+            and domain_code.role == role
+            and domain_name(email.rsplit("@", 1)[1]) == domain_code.domain
+        )
+        pending = pending.filter(domain_code=domain_code)
+    pending.update(revoked_at=now)
     raw = secrets.token_urlsafe(32)
     item = OrganizationInvitation.objects.create(
         organization=org,
         inviter=actor,
         email=email,
         role=role,
+        domain_code=domain_code,
         digest=hashlib.sha256(raw.encode()).hexdigest(),
-        expires_at=now + timedelta(hours=72),
+        expires_at=min(now + timedelta(hours=72), domain_code.expires_at)
+        if domain_code
+        else now + timedelta(hours=72),
     )
     try:
         send_service_mail(
             "Invitation to join a Bearings organization",
             f"You have been invited to join {org.name} as {dict(Membership.ROLES)[role]}.\n\n"
             f"Open {public_base()}/join/#token={raw}\n\nOr enter this code at /join/:\n{raw}\n\n"
-            "Expires in 72 hours. Existing users must sign in to their own account. Opening the link alone does not join. Ignore unexpected invitations.",
+            f"Expires at {item.expires_at.isoformat()}. Existing users must sign in to their own account. Opening the link alone does not join. Ignore unexpected invitations.",
             email,
         )
     except Exception:
@@ -78,6 +92,16 @@ def accept(actor, code, *, username="", first_name="", last_name="", password=""
     now = timezone.now()
     if item.revoked_at or item.consumed_at or item.expires_at <= now or not admin(item.inviter, org):
         raise ValidationError("Invitation is unavailable or expired")
+    if item.domain_code_id:
+        from .domain_membership import active, domain_name
+
+        domain_code = item.domain_code
+        if (
+            not active(domain_code, org)
+            or item.role != domain_code.role
+            or domain_name(item.email.rsplit("@", 1)[1]) != domain_code.domain
+        ):
+            raise ValidationError("Invitation is unavailable or expired")
     User = get_user_model()
     accounts = User.objects.select_for_update().filter(email__iexact=item.email)
     if actor.is_authenticated:

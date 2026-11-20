@@ -1945,6 +1945,7 @@ class CSVAssetBinding(models.Model):
 
 
 class OrganizationInvitation(models.Model):
+    domain_code = models.ForeignKey("OrganizationDomainCode", null=True, blank=True, on_delete=models.PROTECT)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
     inviter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
@@ -1956,6 +1957,22 @@ class OrganizationInvitation(models.Model):
     mail_error = models.BooleanField(default=False)
     consumed_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
+
+
+class OrganizationDomainCode(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    domain = models.CharField(max_length=253)
+    role = models.CharField(max_length=10, choices=[("reader", "Reader"), ("editor", "Inventory editor")])
+    digest = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    max_acceptances = models.PositiveIntegerField(default=100)
+
+    def __str__(self):
+        return f"{self.organization} · @{self.domain} · {self.get_role_display()}"
 
 
 class NationalState(models.Model):
