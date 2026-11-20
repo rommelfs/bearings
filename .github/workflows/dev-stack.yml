@@ -9,6 +9,7 @@ on:
       - 'docker/**'
       - 'scripts/dev.py'
       - 'scripts/sso_smoke.py'
+      - 'scripts/flowintel_browser_smoke.py'
       - 'scripts/rt_sso.py'
       - 'scripts/rt_local_smoke.py'
       - 'scripts/flowintel_source.py'
@@ -25,6 +26,7 @@ on:
       - 'docker/**'
       - 'scripts/dev.py'
       - 'scripts/sso_smoke.py'
+      - 'scripts/flowintel_browser_smoke.py'
       - 'scripts/rt_sso.py'
       - 'scripts/rt_local_smoke.py'
       - 'scripts/flowintel_source.py'
@@ -82,6 +84,19 @@ jobs:
       - name: Verify real OIDC and tenant-isolated NetBox access
         if: matrix.sso
         run: python3 scripts/dev.py sso-smoke
+      - uses: astral-sh/setup-uv@v6
+        if: matrix.flowintel && matrix.sso
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+      - name: Verify actual Chromium and WebKit form redirects and FlowIntel SSO
+        if: matrix.flowintel && matrix.sso
+        run: |
+          uv venv /tmp/bearings-browser-checks --python 3.12
+          uv pip install --python /tmp/bearings-browser-checks/bin/python playwright==1.62.0
+          /tmp/bearings-browser-checks/bin/python -m playwright install --with-deps chromium webkit
+          /tmp/bearings-browser-checks/bin/python scripts/flowintel_browser_smoke.py --browser chromium
+          /tmp/bearings-browser-checks/bin/python scripts/flowintel_browser_smoke.py --browser webkit
       - name: Verify real RT local password path
         if: matrix.rt && !matrix.sso
         run: python3 scripts/dev.py rt-local-smoke

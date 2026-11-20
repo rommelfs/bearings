@@ -200,6 +200,18 @@ class FlowSessionTests(unittest.TestCase):
         auth = self.browser.get("/account/login").headers["Content-Security-Policy"]
         self.assertIn("frame-ancestors 'none'", auth)
         self.assertNotIn("https://localhost:9441", auth)
+        self.assertIn("form-action 'self' https://idp.example", auth)
+
+    def test_only_login_form_redirect_can_reach_the_configured_idp_origin(self):
+        policy = self.browser.get("/account/login").headers["Content-Security-Policy"]
+        self.assertIn("form-action 'self' https://idp.example", policy)
+        self.assertNotIn("https://idp.example", self.browser.get("/").headers["Content-Security-Policy"])
+        self.assertIn("frame-ancestors 'none'", policy)
+        self.assertIn("object-src 'none'", policy)
+        self.upstream_policy = "form-action 'none'; frame-ancestors 'self'; object-src 'none'"
+        policy = self.browser.get("/account/login").headers["Content-Security-Policy"]
+        self.assertIn("form-action 'none'", policy)
+        self.assertNotIn("https://idp.example", policy)
 
     def test_unexpected_upstream_policy_fails_closed_preserving_other_directives(self):
         self.upstream_policy = "form-action 'self'; frame-ancestors 'none'; object-src 'none'"

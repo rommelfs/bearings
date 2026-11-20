@@ -10,6 +10,7 @@ from flask import abort, flash, redirect, request, session
 from flask_login import current_user, login_user, logout_user
 from jinja2 import ChoiceLoader, DictLoader
 from sqlalchemy import select
+from urllib.parse import urlsplit
 
 from app.extensions import db
 from app.db_class.db import User
@@ -149,6 +150,8 @@ def install(app):
 
         return app
     client = Client(settings())
+    authorization = urlsplit(client.settings["authorization"])
+    idp_origin = f"{authorization.scheme}://{authorization.netloc}"
     native = os.environ.get("BEARINGS_FLOWINTEL_NATIVE") == "1"
     canvas_origin = None if native else f"https://localhost:{int(os.getenv('BEARINGS_CANVAS_PORT', '9441'))}"
 
@@ -158,6 +161,15 @@ def install(app):
         policy = response.headers.get("Content-Security-Policy", "")
         ancestor = "'none'" if auth_page else (f"'self' {canvas_origin}" if canvas_origin else "'self'")
         directives = [part.strip() for part in policy.split(";") if part.strip()]
+        form_actions = [part for part in directives if part.startswith("form-action ")]
+        # Browsers apply form-action to redirects too: the CSRF-protected POST
+        # to our own begin endpoint redirects to this one configured HTTPS IdP.
+        # Keep all other pages and unexpected upstream restrictions unchanged.
+        if request.path in {"/account/login", "/bearings-sso/login"} and form_actions == [
+            "form-action 'self'"
+        ]:
+            directives = [part for part in directives if not part.startswith("form-action ")]
+            directives.append(f"form-action 'self' {idp_origin}")
         current = [part for part in directives if part.startswith("frame-ancestors ")]
         # An unexpected upstream policy fails closed; never silently widen it.
         if current != ["frame-ancestors 'self'"]:

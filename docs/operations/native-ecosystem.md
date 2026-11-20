@@ -135,3 +135,17 @@ Activation also waits briefly for the new Nginx workers after reload: a successf
 NetBox does not install `django.contrib.admin`. An early native link helper incorrectly imported its LogEntry model and failed before reading the binding input or creating any link. Update to the reviewed correction and repeat only `link-netbox-sso`; retain the successful Bearings link. Do not enable Django admin, change passwords or reinstall NetBox for this error.
 
 The corrected helper records actor ID/name, target ID/name, time, event UUID, issuer and hashed identity in `UserSocialAuth.extra_data.operator_audit`, in the same transaction as the new binding. It then emits a structured event to the local system logger (`bearings-netbox-sso`, AUTHPRIV); configure system-log retention separately. These are binding metadata and a system-log event, not a Django admin or NetBox ObjectChange entry. Existing/revoked bindings remain refused without modification. No passwords, tokens or raw subjects are included in the log event. Deleting a binding removes its metadata, so retained system logs remain important for historical audit.
+
+
+### FlowIntel SSO click stays on the login page
+
+The pinned upstream policy `form-action 'self'` can block a browser's cross-origin redirect after the CSRF-protected login POST. The adapter now permits the one configured HTTPS IdP origin in that directive only on `/account/login` and `/bearings-sso/login`. Other paths/directives remain unchanged; a different upstream form restriction is not silently widened. Native framing restrictions and all server-side OIDC/CSRF/identity checks remain enabled.
+
+The native adapter is a deployed copy, so checking out the reviewed fix alone does not update the running FlowIntel service. After updating the Bearings source revision, install the reviewed file locally on the same server and restart only FlowIntel:
+
+```sh
+install -o root -g root -m 0644 /opt/bearings/docker/flowintel/sso.py /opt/bearings-services/flowintel/flowintel_sso.py
+systemctl restart bearings-flowintel
+```
+
+Allow the service to load, then force-reload the FlowIntel login page to replace the old document/CSP and click SSO again. Keys, passwords, bindings, private configuration and database state are retained; do not repeat installation or linking. The guarded browser regression (`scripts/flowintel_browser_smoke.py`) runs only against the synthetic lab, reproduces the old policy block and completes real Chromium/WebKit login after the fix. It requires optional pinned Playwright tooling, not additional production packages.

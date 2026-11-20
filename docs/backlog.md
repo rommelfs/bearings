@@ -361,3 +361,5 @@ Native IPv6 recovery: explicit IPv4/IPv6 ACME and TLS listeners for all three se
 Native activation readiness: target IPv4/IPv6 probes and a repeated activation passed, followed by local NetBox administrator creation. Bound retries across Nginx worker transitions without relaxing certificate/issuer checks. Human SSO links and company/API rights remain explicit next steps.
 
 Native NetBox SSO link recovery: replace unsupported Django admin logging with atomic binding audit metadata and a local system-log event. Actual command regressions preserve passwords/tenant grants and refuse invalid actors, disabled users, existing/revoked links and identity reassignment. Retry the failed NetBox step without reinstalling or repeating the successful Bearings link.
+
+FlowIntel browser SSO recovery: narrowly allow the configured HTTPS IdP origin in login/begin form-action, preserving CSRF/framing and other policies. Real Chromium/WebKit regressions reproduce the old blocked redirect and complete corrected SSO. Update the deployed native adapter copy and restart FlowIntel without resetting identities or data.
