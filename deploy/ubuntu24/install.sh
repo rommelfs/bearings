@@ -13,6 +13,7 @@ source /etc/os-release
 [[ $ID == ubuntu && $VERSION_ID == 24.04 ]] || fail 'This installer targets Ubuntu 24.04 only; nothing changed.'
 [[ $(realpath "$(dirname "$0")/../..") == /opt/bearings ]] || fail 'Clone the reviewed repository into /opt/bearings first.'
 [[ ! -e /etc/bearings/bearings.env ]] || fail 'Environment already initialized. Follow the upgrade/recovery instructions; never regenerate its key.'
+[[ ! -e /var/lib/bearings && ! -L /var/lib/bearings && ! -e /var/www/bearings && ! -L /var/www/bearings ]] || fail 'Existing Bearings state/public directories found; review them rather than adopting or resetting data.'
 [[ ! -L /opt/bearings && $(stat -c %u /opt/bearings) == 0 ]] || fail '/opt/bearings must be a root-owned checkout, not a symlink.'
 [[ ! -e /etc/nginx/sites-available/bearings && ! -L /etc/nginx/sites-enabled/bearings ]] || fail 'Existing Bearings proxy configuration found; review it before first-install automation.'
 if getent passwd bearings >/dev/null; then
