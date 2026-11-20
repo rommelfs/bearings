@@ -144,6 +144,28 @@ class NativeDeploymentTests(unittest.TestCase):
                 self.assertNotIn("private-error-value", str(raised.exception))
                 self.assertIn("SSO remains unchanged", str(raised.exception))
 
+    def test_reload_readiness_retries_only_transient_failures_with_finite_attempts(self):
+        with patch.object(
+            native, "verify_issuer", side_effect=[native.IssuerNotReady("old worker"), None]
+        ) as check:
+            with patch.object(native.time, "sleep") as pause:
+                native.wait_for_issuer()
+        self.assertEqual(check.call_count, 2)
+        check.assert_called_with(timeout=2)
+        pause.assert_called_once_with(0.25)
+        with patch.object(
+            native, "verify_issuer", side_effect=native.IssuerNotReady("still invalid")
+        ) as check:
+            with patch.object(native.time, "sleep") as pause, self.assertRaises(native.IssuerNotReady):
+                native.wait_for_issuer()
+        self.assertEqual(check.call_count, 8)
+        self.assertEqual(pause.call_count, 7)
+        with patch.object(native, "verify_issuer", side_effect=ValueError("wrong issuer")) as check:
+            with patch.object(native.time, "sleep") as pause, self.assertRaises(ValueError):
+                native.wait_for_issuer()
+        self.assertEqual(check.call_count, 1)
+        pause.assert_not_called()
+
     def test_issuer_check_keeps_https_identity_size_and_redirect_boundaries(self):
         for payload in (
             json.dumps({"issuer": native.ISSUER}).encode(),

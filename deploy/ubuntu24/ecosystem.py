@@ -687,7 +687,7 @@ def activate(state):
     sites(tls=True)
     # Validate the actual public issuer with ordinary CA verification and no redirects.
     # This runs on the operator's server, only after the explicit activate command.
-    verify_issuer()
+    wait_for_issuer()
     backup = CONFIG / "bearings-before-sso.env"
     if not backup.exists():
         write(backup, old)
@@ -708,29 +708,52 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def verify_issuer():
+class IssuerNotReady(ValueError):
+    """A verified request failed while new Nginx workers may still be starting."""
+
+
+def wait_for_issuer():
+    # systemctl reload signals Nginx; it does not wait for replacement workers.
+    # Every attempt retains normal CA/hostname/issuer checks. Never change the
+    # environment until a fully verified request succeeds.
+    for attempt in range(8):
+        try:
+            verify_issuer(timeout=2)
+            return
+        except IssuerNotReady:
+            if attempt == 7:
+                raise
+            time.sleep(0.25)
+
+
+def verify_issuer(*, timeout=15):
     opener = urllib.request.build_opener(NoRedirect())
     try:
-        with opener.open(ISSUER + "/.well-known/openid-configuration", timeout=15) as response:
+        with opener.open(ISSUER + "/.well-known/openid-configuration", timeout=timeout) as response:
             payload = response.read(1000001)
     except urllib.error.HTTPError as error:
-        raise ValueError(
+        failure = IssuerNotReady if 500 <= error.code < 600 else ValueError
+        raise failure(
             f"SSO HTTPS issuer returned HTTP {error.code}; Bearings SSO remains unchanged"
         ) from None
     except urllib.error.URLError as error:
         reason = error.reason
+        failure = ValueError
         if isinstance(reason, ssl.SSLCertVerificationError):
+            failure = IssuerNotReady
             detail = "certificate verification failed; check hostname/SAN, IPv4/IPv6 vhosts and CA trust"
         elif isinstance(reason, socket.gaierror):
             detail = "DNS resolution failed"
         elif isinstance(reason, TimeoutError):
+            failure = IssuerNotReady
             detail = "connection timed out"
         elif isinstance(reason, ConnectionRefusedError):
+            failure = IssuerNotReady
             detail = "connection refused"
         else:
             detail = "connection failed; check DNS, IPv4/IPv6 routing and proxy configuration"
         # Do not expose raw exceptions, proxy credentials or response bodies.
-        raise ValueError(f"SSO HTTPS issuer {detail}; Bearings SSO remains unchanged") from None
+        raise failure(f"SSO HTTPS issuer {detail}; Bearings SSO remains unchanged") from None
     if len(payload) > 1000000:
         raise ValueError("SSO issuer metadata exceeds limit; Bearings SSO remains unchanged")
     data = json.loads(payload)

@@ -357,3 +357,5 @@ Implemented a staged extension for the existing Ubuntu server: pinned separate r
 Native static recovery: corrected NetBox’s ignored `STATIC_ROOT` configuration to supported staticfiles storage options. Actual upstream regression now reproduces the old error and verifies collection outside a read-only source tree. Resume preserves completed migrations and retained keys; no source ownership change.
 
 Native IPv6 recovery: explicit IPv4/IPv6 ACME and TLS listeners for all three services prevent default-vhost certificate mismatches; activation reports sanitized transport failures while retaining CA/hostname/issuer verification. Reuse existing certificates and retry activation.
+
+Native activation readiness: target IPv4/IPv6 probes and a repeated activation passed, followed by local NetBox administrator creation. Bound retries across Nginx worker transitions without relaxing certificate/issuer checks. Human SSO links and company/API rights remain explicit next steps.
