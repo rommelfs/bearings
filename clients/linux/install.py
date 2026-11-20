@@ -30,6 +30,7 @@ STATE = Path("/var/lib/bearings-linux")
 CONFIG = Path("/etc/bearings-linux")
 LOCK = Path("/run/bearings-linux-installer.lock")
 ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C", "LANG": "C"}
+LXC_OVERRIDE = b"[Service]\nPrivateTmp=no\nPrivateDevices=no\nProtectSystem=no\nProtectHome=no\nProtectKernelTunables=no\nProtectKernelModules=no\nProtectControlGroups=no\nProtectKernelLogs=no\nProtectClock=no\nProtectHostname=no\nReadWritePaths=\n"
 READ = """import os,stat,sys
 fd=os.open(sys.argv[1],os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
 s=os.fstat(fd);limit=int(sys.argv[2])
@@ -218,7 +219,7 @@ def enrolled(account):
         raise InstallError("Existing device configuration is invalid; retained for review") from exc
 
 
-def install(binary_path, unit_path):
+def install(binary_path, unit_path, lxc_compatible=False):
     binary = source(binary_path, 64 * 1024 * 1024)
     arch = {"x86_64": (2, 62), "aarch64": (2, 183)}.get(platform.machine())
     if (
@@ -242,6 +243,9 @@ def install(binary_path, unit_path):
         raise InstallError(
             "Existing unit differs from the bundled unit; retain it and reconcile explicitly. Use systemd drop-ins for customization"
         )
+    lxc_path = UNIT.with_name(UNIT.name + ".d") / "bearings-lxc.conf"
+    if lxc_compatible and lxc_path.exists() and source(lxc_path, 16384) != LXC_OVERRIDE:
+        raise InstallError("Existing LXC override differs; reconcile without overwriting local policy")
     active = service_flag("is-active") if existing_unit else False
     account = lookup_account()
     check_state(account)
@@ -285,6 +289,8 @@ def install(binary_path, unit_path):
             atomic(CLIENT, binary, 0o755)
             if existing_unit is None:
                 atomic(UNIT, unit)
+            if lxc_compatible:
+                atomic(lxc_path, LXC_OVERRIDE)
             systemctl("daemon-reload")
         except (InstallError, OSError):
             if active:
@@ -341,7 +347,7 @@ def ca_context(raw=None):
     return context
 
 
-def download(server, ca_file=None):
+def download(server, ca_file=None, lxc_compatible=False):
     origin = urlsplit(server)
     if (
         origin.scheme != "https"
@@ -396,7 +402,7 @@ def download(server, ca_file=None):
             path.write_bytes(data)
             path.chmod(0o644)
         directory.chmod(0o711)
-        install(directory / f"bearings-linux-{arch}", directory / "bearings-linux.service")
+        install(directory / f"bearings-linux-{arch}", directory / "bearings-linux.service", lxc_compatible)
     finally:
         for child in directory.iterdir():
             child.unlink()
@@ -494,6 +500,11 @@ def main():
     parser.add_argument("--grant-file", type=Path)
     parser.add_argument("--ca-file", type=Path)
     parser.add_argument("--register-host", action="store_true")
+    parser.add_argument(
+        "--lxc-compatible",
+        action="store_true",
+        help="Explicitly omit unsupported mount/UTS namespace isolation for this client service; retain non-root and capability limits",
+    )
     args = parser.parse_args()
     if platform.system() != "Linux" or os.geteuid() != 0:
         raise InstallError(
@@ -501,6 +512,8 @@ def main():
         )
     if args.action != "enroll" and (args.grant_file or args.code or args.code_stdin or args.register_host):
         parser.error("Registration options belong to enroll")
+    if args.lxc_compatible and args.action != "install":
+        parser.error("--lxc-compatible belongs to install")
     if args.binary and args.action != "install":
         parser.error("--binary belongs to install")
     if args.ca_file and args.action != "enroll" and not (args.action == "install" and args.server):
@@ -524,7 +537,7 @@ def main():
             raise InstallError("Another installer is running") from exc
         systemctl("show", "--property=Version", "--value", capture=True)
         if args.action == "install" and args.server:
-            download(args.server, args.ca_file)
+            download(args.server, args.ca_file, args.lxc_compatible)
         elif args.action == "install":
             directory = Path(__file__).resolve().parent
             arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(platform.machine(), "unsupported")
@@ -535,7 +548,7 @@ def main():
             unit = directory / "bearings-linux.service"
             if not unit.is_file():
                 unit = directory / "systemd/bearings-linux.service"
-            install(binary, unit)
+            install(binary, unit, args.lxc_compatible)
         elif args.action == "enroll":
             enroll(args.grant_file, args.ca_file, args.register_host, args.code, args.code_stdin)
         elif args.action == "identity":

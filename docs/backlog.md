@@ -387,3 +387,7 @@ A successful merge retains both records. Improve the misleading generic admin li
 ## Personal MISP account context — 2026-11-20
 
 Show the authenticated Bearings account and linked-SSO explanation, replace an empty company/key form with actionable membership guidance, and preselect the current account in platform-admin membership links. Company memberships and personal key ownership stay explicit and distinct across accounts; archived companies are excluded from the selector. Validated 72 relevant PostgreSQL tests, including alternate-owner POST isolation and no implicit platform membership.
+
+## Native Linux client publication and LXC target support — 2026-11-20
+
+Implement clean-source native artifact preparation with checksum-pinned Go, immutable release output and protected environment activation, plus explicit installer LXC compatibility retaining the main unit, keys/state, other drop-ins and non-root/capability/resource restrictions. No inventory or privilege creation during publication. First enrollment against a read-only native source selects a previously imported NetBox asset. Actual target systemd/report acceptance remains a rollout step. See [native Linux preparation](operations/native-ecosystem.md#prepare-linux-client-downloads-on-the-native-server).

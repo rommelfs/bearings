@@ -16,6 +16,8 @@ curl --fail --show-error --proto '=https' https://bearings.example/downloads/lin
 sudo python3 bearings-install.py --server https://bearings.example
 ```
 
+On a constrained LXC systemd container, explicitly add `--lxc-compatible` to the **install** command. This creates only `/etc/systemd/system/bearings-linux.service.d/bearings-lxc.conf`, disabling unsupported mount/device/kernel/UTS namespace isolation while retaining the dedicated non-root account, no-new-privileges, empty capabilities, syscall/address-family and resource limits. The main reviewed unit stays unchanged. Other drop-ins and later upgrades preserve the choice; an edited existing compatibility file is refused. It does not alter the outer LXC host policy. Do not add this flag to enrollment. Actual inner-systemd acceptance still needs a status/journal check on the target.
+
 The installer downloads the architecture-matching client and bundled unit over verified HTTPS, refuses redirects/mismatched checksums, creates a dedicated non-login account and protected state, and prints **only the public key/fingerprint**. Copy the public key into the company's **Linux inventory reports** form. Approve the target host and copy the one-use registration code back into the terminal:
 
 ```sh

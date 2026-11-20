@@ -118,6 +118,10 @@
       {
         "title": "Clarify personal MISP key owner and missing company membership",
         "body": "Display the authenticated Bearings account name/ID and linked-SSO explanation on personal MISP setup. When the account has no active company membership, hide the unusable key form and show role-appropriate help. Platform administrators get own-account-filtered membership links and an add form preselected to themselves; no implicit membership, other-user lookup, key reassignment or privilege bypass. Active-company choices exclude archived organizations. Tests cover distinct-account memberships and refusing a posted alternate key owner."
+      },
+      {
+        "title": "Prepare native Linux client downloads and constrained LXC installation",
+        "body": "Implement root-operated clean-source prepare-linux-client using checksum-pinned official Go, immutable public build directories, protected environment handoff and retained previous release. Add explicit installer --lxc-compatible drop-in that retains identity/state and non-root/capability/resource restrictions without changing the base unit or outer host policy. Container acceptance checks override preservation/refusal, real signed enrollment and HTTPS; actual target inner-systemd acceptance remains. Existing read-only NetBox sources still require an existing imported asset; no implicit tenant write grant."
       }
     ]
   },

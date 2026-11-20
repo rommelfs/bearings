@@ -10,6 +10,7 @@ import fcntl
 import hashlib
 import json
 import os
+import platform
 from pathlib import Path
 import pwd
 import re
@@ -31,6 +32,8 @@ ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = Path(__file__).with_name("ecosystem")
 CONFIG = Path("/etc/bearings/ecosystem")
 APPS = Path("/opt/bearings-services")
+CLIENT_RELEASES = Path("/var/www/bearings/client-builds")
+BEARINGS_ENV = Path("/etc/bearings/bearings.env")
 ISSUER = "https://sso.bearings.circl.lu/realms/bearings"
 HOSTS = {name: name + ".bearings.circl.lu" for name in ("netbox", "flowintel", "sso")}
 USERS = {name: "bearings_" + name for name in ("netbox", "flowintel", "keycloak")}
@@ -40,9 +43,14 @@ KC_VERSION = "26.8.1"
 KC_SHA256 = "4e2740b181faa2ea623a1c2ecf00855935311e546046e2f857615a47ed24cbe8"
 UV = "/opt/bearings-tools/bin/uv"
 SAFE_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C.UTF-8", "DEBIAN_FRONTEND": "noninteractive"}
+GO_VERSION = "1.27.4"
+GO_SHA256 = {
+    "amd64": "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840",
+    "arm64": "3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92",
+}
 
 
-def run(args, *, input=None, capture=False, cwd=None):
+def run(args, *, input=None, capture=False, cwd=None, env=None):
     return subprocess.run(
         [str(arg) for arg in args],
         input=input,
@@ -50,7 +58,87 @@ def run(args, *, input=None, capture=False, cwd=None):
         check=True,
         capture_output=capture,
         cwd=cwd,
-        env=SAFE_ENV,
+        env={**SAFE_ENV, **(env or {})},
+    )
+
+
+def prepare_linux_client():
+    """Build immutable public artifacts without changing inventory or device identities."""
+    if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
+        raise ValueError(
+            "Publish only a clean reviewed checkout; keep downloaded installers outside the repository"
+        )
+    arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(platform.machine())
+    if not arch:
+        raise ValueError("Native client builder supports amd64/arm64 Linux hosts")
+    target = APPS / ("go-" + GO_VERSION + "-" + arch)
+    marker = target / "bearings-archive.sha256"
+    if target.is_symlink():
+        raise ValueError("Refusing a symlink compiler directory")
+    if target.exists():
+        if protected_read(marker).strip() != GO_SHA256[arch]:
+            raise ValueError("Retained compiler receipt differs; no adoption or overwrite")
+    else:
+        with tempfile.TemporaryDirectory(dir=APPS) as temporary:
+            archive = Path(temporary) / "go.tar.gz"
+            with (
+                urllib.request.urlopen(
+                    f"https://go.dev/dl/go{GO_VERSION}.linux-{arch}.tar.gz", timeout=30
+                ) as response,
+                archive.open("wb") as output,
+            ):
+                size = 0
+                while chunk := response.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > 256 * 1024 * 1024:
+                        raise ValueError("Go archive exceeds download limit")
+                    output.write(chunk)
+            with archive.open("rb") as contents:
+                if hashlib.file_digest(contents, "sha256").hexdigest() != GO_SHA256[arch]:
+                    raise ValueError("Go compiler archive checksum mismatch")
+            with tarfile.open(archive) as tar:
+                tar.extractall(temporary, filter="data")
+            extracted = Path(temporary) / "go"
+            write(extracted / marker.name, GO_SHA256[arch] + "\n")
+            extracted.rename(target)
+    compiler = target / "bin/go"
+    if run([compiler, "version"], capture=True).stdout.strip() != f"go version go{GO_VERSION} linux/{arch}":
+        raise ValueError("Compiler version/architecture mismatch")
+    releases = CLIENT_RELEASES
+    directory(releases, mode=0o755)
+    release = Path(tempfile.mkdtemp(prefix="linux-", dir=releases))
+    try:
+        with tempfile.TemporaryDirectory(dir=APPS) as cache:
+            run(
+                [
+                    sys.executable,
+                    ROOT / "scripts/build_linux_client.py",
+                    "--go",
+                    compiler,
+                    "--output",
+                    release,
+                ],
+                cwd=ROOT,
+                env={
+                    "GOCACHE": str(Path(cache) / "cache"),
+                    "GOPATH": str(Path(cache) / "path"),
+                    "GOTELEMETRY": "off",
+                },
+            )
+        # The existing public endpoint verifies every served file against the manifest.
+        release.chmod(0o755)
+        env_path = BEARINGS_ENV
+        current = protected_read(env_path)
+        backup = CONFIG / "bearings-before-linux-client.env"
+        if not backup.exists():
+            write(backup, current)
+        write(env_path, merge_environment(current, {"BEARINGS_LINUX_CLIENT_DIR": str(release)}))
+    except Exception:
+        shutil.rmtree(release)
+        raise
+    run(["systemctl", "restart", "bearings-web"])
+    print(
+        "Linux amd64/arm64 artifacts published at https://bearings.circl.lu/downloads/linux/; no device installed, enrolled or inventory changed."
     )
 
 
@@ -1003,6 +1091,10 @@ def main():
     )
     sub.add_parser("activate")
     sub.add_parser("credentials")
+    sub.add_parser(
+        "prepare-linux-client",
+        help="Build and publish reviewed amd64/arm64 client artifacts using a checksum-pinned Go compiler",
+    )
     mail = sub.add_parser("configure-mail", help="Stage the approved CIRCL relay without enabling delivery")
     mail.add_argument(
         "--allow-self-signed",
@@ -1077,6 +1169,8 @@ def main():
     state = json.loads(protected_read(CONFIG / "state.json"))
     if args.action == "activate":
         activate(state)
+    elif args.action == "prepare-linux-client":
+        prepare_linux_client()
     elif args.action == "configure-mail":
         configure_mail(allow_self_signed=args.allow_self_signed)
     elif args.action == "connect-circl":

@@ -75,6 +75,24 @@ p.write_text(json.dumps(s));sys.exit(code)
     assert (private / "key").read_bytes() == key_before
     assert not json.loads(state.read_text())["enabled"]
 
+    # Explicit LXC compatibility does not rewrite the hardened unit or device key.
+    unit_before = Path("/etc/systemd/system/bearings-linux.service").read_bytes()
+    lxc = Path("/etc/systemd/system/bearings-linux.service.d/bearings-lxc.conf")
+    assert not lxc.exists()
+    call("--binary", "/test-client", "--lxc-compatible")
+    lxc_before = lxc.read_bytes()
+    assert b"PrivateTmp=no" in lxc_before and b"ProtectHostname=no" in lxc_before
+    assert lxc.stat().st_uid == 0 and lxc.stat().st_mode & 0o777 == 0o644
+    assert (private / "key").read_bytes() == key_before
+    assert Path("/etc/systemd/system/bearings-linux.service").read_bytes() == unit_before
+    call("--binary", "/test-client")
+    assert lxc.read_bytes() == lxc_before
+    lxc.write_bytes(lxc_before + b"# operator change\n")
+    call("--binary", "/test-client", "--lxc-compatible", ok=False)
+    assert lxc.read_bytes().endswith(b"# operator change\n")
+    assert (private / "key").read_bytes() == key_before
+    lxc.write_bytes(lxc_before)
+
     # Real verified TLS and RFC 9421 proof; systemd remains a controlled test double.
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "SYNTHETIC installer loopback")])
@@ -204,7 +222,7 @@ p.write_text(json.dumps(s));sys.exit(code)
     os.chown(queue, account.pw_uid, account.pw_gid)
     queue.chmod(0o600)
     dropin = Path("/etc/systemd/system/bearings-linux.service.d/override.conf")
-    dropin.parent.mkdir()
+    dropin.parent.mkdir(exist_ok=True)
     dropin.write_text("[Service]\n# synthetic operator customization\n")
     for active in (True, False):
         state.write_text(json.dumps({"active": active, "enabled": True}))

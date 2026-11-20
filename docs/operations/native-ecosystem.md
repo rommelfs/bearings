@@ -193,3 +193,18 @@ python3 deploy/ubuntu24/ecosystem.py configure-mail --allow-self-signed
 This writes `SMTP_TLS_VERIFY=0` and `SMTP_TLS_UNVERIFIED_HOST=cped.circl.lu`. STARTTLS remains mandatory on port 25: an unsupported/failed TLS upgrade stops delivery, with no plaintext retry. The dedicated SMTP SSL context skips certificate-chain and hostname verification only for the explicitly matching relay. It provides encryption without authenticating that relay. The backend refuses an unmatched hostname or an unencrypted configuration; changing relay hosts requires revisiting the explicit exception. HTTPS connectors, SSO and global Python/OpenSSL trust are unchanged. The same SMTP policy applies to controlled tests, registration/reminder service mail and separately authorized SMTP outreach. Its verification policy is part of the outreach approval fingerprint, so changing policy requires a new preview/approval.
 
 Verification is enabled by default; running `configure-mail` without the flag restores it. Both forms keep regular service delivery file-based and public registration disabled. Once the probe succeeds, use the explicit one-recipient test command above and confirm receipt before enabling regular delivery. Inspection reports `certificate_verification: false` when this exception is active. No certificates or keys need copying between servers.
+
+
+## Prepare Linux client downloads on the native server
+
+As root in the clean reviewed `/opt/bearings` checkout, run:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py prepare-linux-client
+```
+
+This downloads official Go 1.27.4 for the builder's amd64/arm64 architecture, checks its recorded SHA-256 before extraction, retains its protected receipt and builds both static client architectures from the checked-out source. Compiler modules and telemetry are disabled. No Go compiler is needed on ordinary monitored hosts. Builds use private temporary caches and a separate immutable release directory; the existing protected environment is backed up and switched only after build completion, then only Bearings web is restarted. Dirty source, mismatched archives/compiler version or build failure refuse publication without replacing the active directory. Old releases are retained for reviewed rollback. HTTPS/checksums establish download consistency, not independent publisher signatures. No device, company, inventory, enrollment or service permission is created by preparing downloads.
+
+On the first native CIRCL pilot, the NetBox bridge is deliberately read-only. Before enrollment, record the actual host in NetBox under the existing CIRCL tenant (for the LXC, a VM entry with its real site/cluster), then run the existing scoped import. Keep the NetBox tenant/source/credential unchanged; choose **existing asset** in the agent enrollment UI. New-host enrollment is intentionally denied on that read-only source. Software observations are accepted separately from NetBox hardware writes. Do not invent a physical location or infer verified IP authority from the client.
+
+On an LXC target, download the published installer from `/downloads/linux/install.py` and run `python3 bearings-install.py --server https://bearings.circl.lu --lxc-compatible` from a directory outside the source checkout. Paste its public key in the company's Linux inventory reports, approve the existing host and paste the one-use code at `enroll --code`. No grant file crosses SSH boundaries. The compatibility override retains non-root/capability/resource restrictions but explicitly reduces filesystem/namespace isolation for that service. It is not a global LXC or certificate exception. Verify `systemctl status bearings-linux` and its journal before accepting the target.

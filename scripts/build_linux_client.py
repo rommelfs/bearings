@@ -29,6 +29,17 @@ def main():
         ["git", "status", "--porcelain", "--untracked-files=normal"], cwd=ROOT, text=True
     ).strip():
         revision += "-dirty"
+    # Private/ignored local configuration (for example .env) is never a source
+    # artifact. Compile only Go files whose corresponding source can be bundled.
+    tracked = [
+        ROOT / os.fsdecode(name)
+        for name in subprocess.check_output(["git", "ls-files", "-z", "--", "clients/linux"], cwd=ROOT).split(
+            b"\0"
+        )
+        if name
+    ]
+    if set((ROOT / "clients/linux").glob("*.go")) - set(tracked):
+        parser.error("Review and add every Go source file to version control before building")
     args.output.mkdir(parents=True, exist_ok=True)
     if args.output.resolve() == (ROOT / ".local/linux-client").resolve():
         args.output.chmod(0o755)
@@ -79,7 +90,7 @@ def main():
     ):
         with tarfile.open(fileobj=zipped, mode="w") as tar:
             client_source = ROOT / "clients/linux"
-            for path in sorted(client_source.rglob("*")):
+            for path in sorted(tracked):
                 if path.is_symlink():
                     raise SystemExit("Refusing symlink in client source bundle")
                 if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":

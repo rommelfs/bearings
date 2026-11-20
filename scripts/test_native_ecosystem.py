@@ -11,6 +11,8 @@ import tempfile
 import ssl
 import socket
 import unittest
+from types import SimpleNamespace
+import io
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,6 +44,69 @@ def fixture():
 
 
 class NativeDeploymentTests(unittest.TestCase):
+    def test_client_publish_rejects_dirty_source_before_downloading(self):
+        with (
+            patch.object(native, "run", return_value=SimpleNamespace(stdout="modified source")),
+            patch.object(native.urllib.request, "urlopen") as download,
+        ):
+            with self.assertRaisesRegex(ValueError, "clean reviewed checkout"):
+                native.prepare_linux_client()
+        download.assert_not_called()
+
+    def test_client_compiler_checksum_failure_never_extracts_or_publishes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            apps = Path(temporary)
+            with (
+                patch.object(native, "APPS", apps),
+                patch.object(native.platform, "machine", return_value="x86_64"),
+                patch.object(native, "run", return_value=SimpleNamespace(stdout="")),
+                patch.object(
+                    native.urllib.request, "urlopen", return_value=io.BytesIO(b"synthetic-invalid-archive")
+                ),
+                patch.object(native.tarfile, "open") as extract,
+                patch.object(native, "write") as publish,
+            ):
+                with self.assertRaisesRegex(ValueError, "checksum mismatch"):
+                    native.prepare_linux_client()
+            extract.assert_not_called()
+            publish.assert_not_called()
+            self.assertEqual(list(apps.iterdir()), [])
+
+    def test_failed_client_build_preserves_active_release_and_environment(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            apps = root / "apps"
+            releases = root / "releases"
+            apps.mkdir()
+            releases.mkdir()
+            tool = apps / ("go-" + native.GO_VERSION + "-amd64")
+            tool.mkdir()
+            kept = releases / "old"
+            kept.mkdir()
+            (kept / "kept").write_text("original")
+
+            def run(args, **kwargs):
+                if str(args[0]) == "git":
+                    return SimpleNamespace(stdout="")
+                if args[-1] == "version":
+                    return SimpleNamespace(stdout=f"go version go{native.GO_VERSION} linux/amd64")
+                raise subprocess.CalledProcessError(1, ["synthetic-client-build"])
+
+            with (
+                patch.object(native, "APPS", apps),
+                patch.object(native, "CLIENT_RELEASES", releases),
+                patch.object(native.platform, "machine", return_value="x86_64"),
+                patch.object(native, "protected_read", return_value=native.GO_SHA256["amd64"]),
+                patch.object(native, "directory"),
+                patch.object(native, "run", side_effect=run),
+                patch.object(native, "write") as publish,
+            ):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    native.prepare_linux_client()
+            publish.assert_not_called()
+            self.assertEqual(list(releases.iterdir()), [kept])
+            self.assertEqual((kept / "kept").read_text(), "original")
+
     def test_mail_environment_preserves_keys_and_quotes_bracket_relay_and_subject(self):
         before = 'DJANGO_SECRET_KEY=retained-secret\nOTHER="retained value"\nSMTP_HOST=old\n'
         result = native.merge_environment(
