@@ -15,6 +15,8 @@ import pwd
 import re
 import secrets
 import shutil
+import socket
+import ssl
 import stat
 import subprocess
 import sys
@@ -22,6 +24,7 @@ import tarfile
 import tempfile
 import time
 import urllib.request
+import urllib.error
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = Path(__file__).with_name("ecosystem")
@@ -161,7 +164,7 @@ def nginx(name, *, tls):
         "location ^~ /.well-known/acme-challenge/ { root /var/lib/letsencrypt; }\n"
     )
     http = (
-        "server { listen 80; "
+        "server { listen 80; listen [::]:80; "
         + common
         + "location / { "
         + ("return 301 https://$host$request_uri;" if tls else "return 404;")
@@ -185,7 +188,7 @@ def nginx(name, *, tls):
         "proxy_read_timeout 65s;\n"
     )
     return http + (
-        "server { listen 443 ssl;\n"
+        "server { listen 443 ssl; listen [::]:443 ssl;\n"
         + common
         + "ssl_certificate /etc/letsencrypt/live/bearings-ecosystem/fullchain.pem;\n"
         "ssl_certificate_key /etc/letsencrypt/live/bearings-ecosystem/privkey.pem;\n"
@@ -684,11 +687,7 @@ def activate(state):
     sites(tls=True)
     # Validate the actual public issuer with ordinary CA verification and no redirects.
     # This runs on the operator's server, only after the explicit activate command.
-    opener = urllib.request.build_opener(NoRedirect())
-    with opener.open(ISSUER + "/.well-known/openid-configuration", timeout=15) as response:
-        data = json.loads(response.read(1000001))
-    if data.get("issuer") != ISSUER:
-        raise ValueError("Public issuer differs; Bearings SSO remains unchanged")
+    verify_issuer()
     backup = CONFIG / "bearings-before-sso.env"
     if not backup.exists():
         write(backup, old)
@@ -707,6 +706,36 @@ def activate(state):
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
+
+
+def verify_issuer():
+    opener = urllib.request.build_opener(NoRedirect())
+    try:
+        with opener.open(ISSUER + "/.well-known/openid-configuration", timeout=15) as response:
+            payload = response.read(1000001)
+    except urllib.error.HTTPError as error:
+        raise ValueError(
+            f"SSO HTTPS issuer returned HTTP {error.code}; Bearings SSO remains unchanged"
+        ) from None
+    except urllib.error.URLError as error:
+        reason = error.reason
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            detail = "certificate verification failed; check hostname/SAN, IPv4/IPv6 vhosts and CA trust"
+        elif isinstance(reason, socket.gaierror):
+            detail = "DNS resolution failed"
+        elif isinstance(reason, TimeoutError):
+            detail = "connection timed out"
+        elif isinstance(reason, ConnectionRefusedError):
+            detail = "connection refused"
+        else:
+            detail = "connection failed; check DNS, IPv4/IPv6 routing and proxy configuration"
+        # Do not expose raw exceptions, proxy credentials or response bodies.
+        raise ValueError(f"SSO HTTPS issuer {detail}; Bearings SSO remains unchanged") from None
+    if len(payload) > 1000000:
+        raise ValueError("SSO issuer metadata exceeds limit; Bearings SSO remains unchanged")
+    data = json.loads(payload)
+    if not isinstance(data, dict) or data.get("issuer") != ISSUER:
+        raise ValueError("Public issuer differs; Bearings SSO remains unchanged")
 
 
 def save(state):

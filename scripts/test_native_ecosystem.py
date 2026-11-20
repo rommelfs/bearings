@@ -8,6 +8,8 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import ssl
+import socket
 import unittest
 from unittest.mock import patch
 
@@ -108,13 +110,61 @@ class NativeDeploymentTests(unittest.TestCase):
         for name in native.HOSTS:
             plain = native.nginx(name, tls=False)
             self.assertNotIn("proxy_pass", plain)
+            self.assertIn("listen [::]:80;", plain)
             self.assertIn("return 404", plain)
             text = native.nginx(name, tls=True)
+            self.assertIn("listen [::]:80;", text)
+            self.assertIn("listen [::]:443 ssl;", text)
             self.assertIn("proxy_set_header Host $http_host;", text)
             self.assertIn("proxy_set_header X-Forwarded-For $remote_addr;", text)
             self.assertIn("access_log off;", text)
             self.assertNotIn("$proxy_add_x_forwarded_for", text)
         self.assertIn("internal;", native.nginx("netbox", tls=True))
+
+    def test_issuer_transport_errors_are_actionable_without_leaking_exception_details(self):
+        from urllib.error import URLError, HTTPError
+
+        cases = (
+            (URLError(ssl.SSLCertVerificationError("private-error-value")), "IPv4/IPv6 vhosts"),
+            (URLError(socket.gaierror("private-error-value")), "DNS resolution failed"),
+            (URLError(TimeoutError("private-error-value")), "connection timed out"),
+            (URLError(ConnectionRefusedError("private-error-value")), "connection refused"),
+            (URLError("private-error-value"), "proxy configuration"),
+            (HTTPError(native.ISSUER, 502, "private-error-value", {}, None), "HTTP 502"),
+        )
+        for error, expected in cases:
+            with (
+                self.subTest(expected=expected),
+                patch.object(native.urllib.request, "build_opener") as build,
+            ):
+                build.return_value.open.side_effect = error
+                with self.assertRaises(ValueError) as raised:
+                    native.verify_issuer()
+                self.assertIn(expected, str(raised.exception))
+                self.assertNotIn("private-error-value", str(raised.exception))
+                self.assertIn("SSO remains unchanged", str(raised.exception))
+
+    def test_issuer_check_keeps_https_identity_size_and_redirect_boundaries(self):
+        for payload in (
+            json.dumps({"issuer": native.ISSUER}).encode(),
+            b'{"issuer":"https://wrong.example"}',
+            b"[]",
+            b"x" * 1000001,
+        ):
+            with (
+                self.subTest(size=len(payload)),
+                patch.object(native.urllib.request, "build_opener") as build,
+            ):
+                build.return_value.open.return_value.__enter__.return_value.read.return_value = payload
+                if payload == json.dumps({"issuer": native.ISSUER}).encode():
+                    native.verify_issuer()
+                else:
+                    with self.assertRaises(ValueError):
+                        native.verify_issuer()
+                build.return_value.open.assert_called_once_with(
+                    native.ISSUER + "/.well-known/openid-configuration", timeout=15
+                )
+                self.assertIsInstance(build.call_args.args[0], native.NoRedirect)
 
     def test_readiness_does_not_accept_systemctl_start_alone(self):
         result = subprocess.CompletedProcess([], 7)

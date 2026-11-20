@@ -83,3 +83,5 @@ jobs:
         run: uv run --frozen --no-dev --extra production python scripts/native_static_smoke.py --netbox-source /tmp/bearings-native-netbox
       - name: Check production Keycloak realm with disposable database
         run: python3 scripts/native_keycloak_smoke.py
+      - name: Verify IPv4 and IPv6 TLS and ACME routing
+        run: uv run --frozen --no-dev --extra production python scripts/native_ipv6_smoke.py
