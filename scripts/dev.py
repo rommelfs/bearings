@@ -347,6 +347,7 @@ def main():
     if args.action not in {"configure", "rt-sso"}:
         check_docker()
     LOCAL.mkdir(parents=True, exist_ok=True)
+    (ROOT / ".local/linux-client").mkdir(parents=True, exist_ok=True, mode=0o755)
     (LOCAL / "external").mkdir(exist_ok=True)
     if args.action == "configure-misp":
         import sys

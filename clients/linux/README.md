@@ -4,6 +4,43 @@ A native, dependency-free Go client for **outbound authenticated inventory obser
 
 The receiver, permissions, threat model, limits and validation are documented in [Linux observations](../../docs/integrations/linux-agent.md). Windows, TPM, mTLS, automatic credential renewal, signed release packages and fleet-scale ingest acceptance are not implemented by this reference.
 
+## Recommended: central download and installer
+
+Open **Linux inventory reports → Install Linux client** in Bearings, or visit `/downloads/linux/`. The operator prepares the artifacts once; monitored hosts need **Python 3.9+, systemd and sudo**, not Go. The local lab download page is `https://localhost:9441/downloads/linux/`; localhost works only on the machine running that lab. Before remote roll-outs the operator must configure a reachable `BEARINGS_PUBLIC_URL`, allowed hosts and valid HTTPS trust. No public deployment is performed by this feature.
+
+On the monitored Linux host, replace the example origin with the trusted Bearings installation:
+
+```sh
+curl --fail --show-error --proto '=https' https://bearings.example/downloads/linux/install.py -o bearings-install.py
+# Review the downloaded installer before running it with sudo.
+sudo python3 bearings-install.py --server https://bearings.example
+```
+
+The installer downloads the architecture-matching client and bundled unit over verified HTTPS, refuses redirects/mismatched checksums, creates a dedicated non-login account and protected state, and prints **only the public key/fingerprint**. Copy the public key into the company's **Linux inventory reports** form. Approve the target host and copy the one-use registration code back into the terminal:
+
+```sh
+sudo python3 bearings-install.py enroll --code
+```
+
+The prompt hides the pasted code; never add the code to the command itself. No grant file travels between browser and SSH host. The installer uses a short-lived private internal file only to hand the grant to the unprivileged native client, removes it afterward, relocates an optional CA to `/etc/bearings-linux/ca.pem`, then enables/starts the unit. Add `--register-host` only when you explicitly approved a new host. For a private lab CA use an already trusted OS CA or `--ca-file /known/local/ca.pem` for HTTPS installation/enrollment; TLS is never disabled. A bootstrap HTTPS trust relationship is required before downloading the installer itself.
+
+Re-run the same install command to update. The installer validates the candidate as the service account, publishes files atomically, keeps device keys/counters/outbox/configuration and systemd drop-ins, and preserves an intentionally stopped service. It refuses unexpected accounts, unsafe destination/state permissions, symlinks, mismatched architectures or an edited main unit rather than silently adopting/chowning existing data. Failure can leave the dedicated account/private state for retry; it never deletes or resets a device key. Already-enrolled devices use `start`, not another grant:
+
+```sh
+sudo python3 bearings-install.py identity   # public key/fingerprint + enrolled boolean; machine-readable JSON
+sudo python3 bearings-install.py start
+sudo python3 bearings-install.py status
+sudo journalctl -u bearings-linux -f
+```
+
+Installation itself makes no inventory report/network request to enroll a device; `--server` downloads public artifacts. Starting the enrolled service authorizes its existing periodic reporting profile. The default unit collects system packages every six hours. Use reviewed systemd drop-ins for another scope; the installer preserves them.
+
+For offline/local-source installation, build once below and use `sudo python3 clients/linux/install.py`, or copy the generated distribution directory to the target and run its `install.py`. `--binary /approved/local/client` explicitly selects another reviewed artifact. Build output includes installer, unit, license, checksums, source note and corresponding client/installer source archive. Checksums provide consistency over trusted HTTPS; they are not independent release signatures. This is not an automatic self-updater or an arbitrary downgrade/revocation/renewal mechanism.
+
+### Existing roll-out processes
+
+Ansible/deployment jobs can use the same install step, parse `identity`, then pass one short-lived code to `enroll --code-stdin` through stdin. Use your secret runner/Ansible `no_log: true`; do not put codes in argv, environment, image templates or cached facts. Reuse the enrolled identity on retries rather than creating keys per run. See [roll-out integration](../../docs/integrations/linux-rollout.md) for a concrete Ansible pattern and the distinction between implemented operator-side issuance and the planned customer-scoped API.
+
 ## Build from reviewed source
 
 Install the Go language compiler **1.24 or newer**, then from the repository root:
@@ -14,7 +51,7 @@ python3 scripts/build_linux_client.py
 
 If `go` names another program, use `--go /path/to/the/go/compiler`. The build uses only Go's standard library, disables module downloads and produces static Linux amd64/arm64 binaries plus `SHA256SUMS` in ignored `.local/linux-client/`. Source revision and dirty state are embedded. Checksums detect changes; they are **not** operator release signatures. Preserve the source/license when distributing a build. ARM64 is cross-built; execute on intended ARM64 systems before accepting that deployment.
 
-The examples below call the selected binary `bearings-linux`. No installer is fetched/executed and no service is installed automatically.
+The manual examples below call the selected binary `bearings-linux`. Building alone does not install or start it; the explicit installer actions above perform those steps.
 
 ## Enroll once
 
@@ -26,7 +63,7 @@ bearings-linux init
 
 This creates private state under `$XDG_STATE_HOME/bearings-linux` or `~/.local/state/bearings-linux` and prints **only the public key and fingerprint**. Repeating init preserves its key. Use `--state-dir /private/path` consistently for another location. State is mode 0700; key/config/grant files must be owned by that account and mode 0600. Do not enroll a reusable machine image.
 
-In Bearings, open the company overview or an existing asset and choose **Linux inventory reports** (`/organizations/COMPANY/agents/`). A company administrator or platform administrator pastes the public key, selects the existing asset and downloads a one-use grant. CIRCL analyst status alone cannot authorize devices. The grant expires after 30 minutes and is bound to this public key, company, asset and inventory source.
+In Bearings, open the company overview or an existing asset and choose **Linux inventory reports** (`/organizations/COMPANY/agents/`). A company administrator or platform administrator pastes the public key, selects the existing asset and copies a one-use registration code. File-based enrollment below remains available for legacy/manual automation. CIRCL analyst status alone cannot authorize devices. The grant expires after 30 minutes and is bound to this public key, company, asset and inventory source.
 
 ```sh
 chmod 600 /private/bearings-enrollment.json

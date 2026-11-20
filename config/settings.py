@@ -212,3 +212,8 @@ if SERVICE_MAIL_TRANSPORT not in {"file", "smtp"} or not 1 <= PUBLIC_REGISTRATIO
     raise ValueError("Configure a supported service-mail transport and a registration limit of 1–1000")
 if SERVICE_MAIL_TRANSPORT == "smtp" and (not EMAIL_HOST or not (EMAIL_USE_TLS or EMAIL_USE_SSL)):
     raise ValueError("Service SMTP requires an operator-configured host and TLS")
+
+# Public artifacts must be reviewed/operator-built. Production has no implicit filesystem source.
+LINUX_CLIENT_DOWNLOAD_DIR = os.getenv(
+    "BEARINGS_LINUX_CLIENT_DIR", str(BASE_DIR / ".local/linux-client") if DEBUG else ""
+)

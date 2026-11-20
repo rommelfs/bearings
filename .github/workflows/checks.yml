@@ -38,6 +38,7 @@ jobs:
       - run: go vet ./...
         working-directory: clients/linux
       - run: python3 scripts/build_linux_client.py
+      - run: python3 -m unittest discover -s clients/linux -p test_installer.py
       - run: uv sync --frozen
       - run: uv run ruff check .
       - run: uv run ruff format --check .

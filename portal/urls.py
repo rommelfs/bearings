@@ -2,6 +2,7 @@ from django.urls import path
 from . import (
     views,
     agent_views,
+    client_downloads,
     member_views,
     review_followup_views,
     company_work_views,
@@ -33,6 +34,8 @@ from . import (
 )
 
 urlpatterns = [
+    path("downloads/linux/", client_downloads.index, name="linux-client-downloads"),
+    path("downloads/linux/<str:name>", client_downloads.artifact, name="linux-client-artifact"),
     path("api/v1/agent/enroll/", agent_views.enrollment, name="agent-enroll"),
     path("api/v1/agent/reports/", agent_views.reports, name="agent-reports"),
     path("api/v1/agent/status/", agent_views.status, name="agent-status"),

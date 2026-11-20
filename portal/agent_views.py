@@ -2,7 +2,6 @@
 
 import uuid
 from django import forms
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError, PermissionDenied
@@ -15,7 +14,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
 from http_message_signatures.exceptions import HTTPMessageSignaturesException
-from . import agents
+from . import agents, agent_enrollment_codes
 from .agent_protocol import MAX_BYTES, verify, decode, public_key, identifier
 from .access import organizations_for, require, can_operator_review, audit_operator_access
 from .models import AgentDevice, AgentEnrollment, AgentComponent, AgentReport, Asset, Installation
@@ -245,26 +244,21 @@ def center(request, slug):
                     form.cleaned_data["public_key"],
                     new_asset_kind=form.cleaned_data.get("new_asset_kind", ""),
                 )
-                from urllib.parse import urlsplit
-
-                endpoint = settings.PUBLIC_BASE_URL.rstrip("/")
-                if urlsplit(endpoint).scheme != "https":
-                    raise ValidationError(
-                        "Configure PUBLIC_BASE_URL with the trusted HTTPS origin before enrolling"
+                payload = agent_enrollment_codes.payload(grant, token)
+                if request.POST.get("delivery") == "code":
+                    return private(
+                        render(
+                            request,
+                            "portal/agent_enrollment.html",
+                            {
+                                "org": org,
+                                "grant": grant,
+                                "code": agent_enrollment_codes.encode(payload),
+                                "register_host": grant.asset_id is None,
+                            },
+                        )
                     )
-                response = private(
-                    JsonResponse(
-                        {
-                            "schema": "bearings.agent.grant.v1",
-                            "url": endpoint,
-                            "grant": token,
-                            "public_key": grant.public_key,
-                            "asset_id": str(grant.asset_id) if grant.asset_id else "",
-                            "register_host": grant.asset_id is None,
-                            "expires_at": grant.expires_at.isoformat(),
-                        }
-                    )
-                )
+                response = private(JsonResponse(payload))
                 response["Content-Disposition"] = 'attachment; filename="bearings-enrollment.json"'
                 return response
             if action == "cancel":

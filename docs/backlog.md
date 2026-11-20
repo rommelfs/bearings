@@ -336,3 +336,8 @@ Removed automatic outer blockquote punctuation that doubled the Java quotation m
 ## Configured Linux binary version probes — 2026-11-20
 
 Configured native ELF probes are now implemented as an additional bounded Linux scope: reviewed local config, non-root execution, fixed argv/RE2 extraction, safe paths/no-new-privileges, descriptor-bound SHA-256, time/output/count limits and explicit canonical version ownership. Signed reports retain path/hash only; no raw output/commands, remote execution, silent identity retarget or inferred remediation. Existing package clients remain compatible. See clients/linux/README.md and migration 0057.
+
+
+## Linux installer and roll-outs — 2026-11-20
+
+Implemented central reviewed artifact downloads, local systemd/account installer, hidden clipboard and bounded stdin enrollment, machine-readable public identity and authorized operator-side one-use issuance. Keys, queues, protected configuration, service drop-ins and deliberate stops survive upgrades. See [roll-out integration](integrations/linux-rollout.md). A SaaS customer-facing company-scoped issuer API, actual customer/Ansible acceptance, automatic key renewal and signed releases remain planned. No shared universal fleet bootstrap credential.

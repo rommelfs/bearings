@@ -50,6 +50,7 @@ services:
       - dev-secrets:/run/bearings/secrets:ro
       - dev-trust:/run/bearings/trust:ro
       - local-data:/app/.local
+      - ./.local/linux-client:/app/.local/linux-client:ro
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:

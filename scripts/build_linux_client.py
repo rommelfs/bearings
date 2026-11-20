@@ -3,10 +3,12 @@
 
 import argparse
 import hashlib
+import gzip
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,6 +30,8 @@ def main():
     ).strip():
         revision += "-dirty"
     args.output.mkdir(parents=True, exist_ok=True)
+    if args.output.resolve() == (ROOT / ".local/linux-client").resolve():
+        args.output.chmod(0o755)
     records = []
     for arch in ("amd64", "arm64"):
         output = args.output / f"bearings-linux-{arch}"
@@ -56,8 +60,50 @@ def main():
             env=env,
             check=True,
         )
+        output.chmod(0o755)
         records.append(f"{hashlib.sha256(output.read_bytes()).hexdigest()}  {output.name}")
+    for source, name in [
+        (ROOT / "clients/linux/install.py", "install.py"),
+        (ROOT / "clients/linux/systemd/bearings-linux.service", "bearings-linux.service"),
+        (ROOT / "clients/linux/README.md", "README.md"),
+        (ROOT / "LICENSE", "LICENSE"),
+    ]:
+        target = args.output / name
+        shutil.copyfile(source, target)
+        target.chmod(0o644)
+        records.append(f"{hashlib.sha256(target.read_bytes()).hexdigest()}  {name}")
+    archive = args.output / "bearings-linux-source.tar.gz"
+    with (
+        archive.open("wb") as output,
+        gzip.GzipFile(filename="", mode="wb", fileobj=output, mtime=0) as zipped,
+    ):
+        with tarfile.open(fileobj=zipped, mode="w") as tar:
+            client_source = ROOT / "clients/linux"
+            for path in sorted(client_source.rglob("*")):
+                if path.is_symlink():
+                    raise SystemExit("Refusing symlink in client source bundle")
+                if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":
+                    continue
+                info = tar.gettarinfo(path, arcname="source/" + str(path.relative_to(client_source)))
+                info.uid = info.gid = info.mtime = 0
+                info.uname = info.gname = ""
+                with path.open("rb") as handle:
+                    tar.addfile(info, handle)
+            tar.add(ROOT / "LICENSE", arcname="LICENSE", recursive=False)
+    archive.chmod(0o644)
+    records.append(f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}")
+    source_note = args.output / "SOURCE.txt"
+    source_note.write_text(
+        "Source: https://github.com/rommelfs/bearings\n"
+        f"Revision: {revision}\n"
+        "Corresponding client/installer source: bearings-linux-source.tar.gz\n"
+        "Build client: unpack, cd source, then CGO_ENABLED=0 go build -o bearings-linux .\n"
+        "Review the local source/artifacts before sudo installation; checksums are not release signatures.\n"
+    )
+    source_note.chmod(0o644)
+    records.append(f"{hashlib.sha256(source_note.read_bytes()).hexdigest()}  SOURCE.txt")
     (args.output / "SHA256SUMS").write_text("\n".join(records) + "\n")
+    (args.output / "SHA256SUMS").chmod(0o644)
     print(
         f"Built reviewed-source reference artifacts in {args.output}; checksums are not release signatures."
     )
