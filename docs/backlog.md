@@ -430,3 +430,8 @@ Company admins can issue a bounded reusable code for one exact email domain; eve
 ## Concrete package mappings and actionable review errors — 2026-11-20
 
 Automatic discovery shows exact package/release/feed associations, candidate-definition counts and scoped CVE review links. Software recognition, matching readiness and current reviews are separate statuses; identities without indexed advisories remain explicitly monitored. Server-wide partial coverage is separate, default manual-watch prompts are removed for distro packages, and batched queries preserve authorization. Canonical singleton guards are interpreted correctly and versioned cache recompilation queues reevaluation. Registration review identifies actual company/role, visible memberships and explicit correction links instead of a generic 403 for missing applicant admin membership; access controls remain intact. No role/sharing restoration or new schema/client rollout is performed automatically.
+
+
+## Self-explanatory software and CVE actions — 2026-11-20
+
+Company and machine software tables distinguish installed software, cached automatic matching status and scoped recorded CVE reviews. No per-package setup links are shown for distribution packages. Exact-product links open automatic coverage; manual retrieval is a collapsed optional known-CVE action in machine details with no example identifier. Readiness and retained reviews remain distinct; no role, assessment or automatic job policy changes. See [asset triage](user-guide/asset-triage.md#installed-software-versus-cve-reviews).

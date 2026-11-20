@@ -228,6 +228,67 @@ class DistroTests(Fixture):
             404,
         )
 
+    def test_inventory_distinguishes_automatic_matching_reviews_and_optional_manual_lookup(self):
+        self.enroll()
+        self.send()
+        agents.process_pending()
+        self.load()
+        distro_cves.evaluate_device(self.device.pk)
+        component = self.device.components.get(name="nginx")
+        self.login()
+        for url in [
+            reverse("organization", args=[self.a.slug]),
+            reverse("asset", args=[self.a.slug, component.installation.asset_id]),
+        ]:
+            response = self.client.get(url)
+            self.assertContains(response, "Ready — supported vendor advisories are checked automatically")
+            self.assertContains(response, "1 recorded CVE review")
+            self.assertNotContains(response, 'placeholder="CVE-2021-44228"')
+            self.assertNotContains(response, "Retrieve for review")
+            self.assertNotContains(response, "Configure automatic CVE discovery")
+            self.assertNotContains(
+                response,
+                reverse("discovery-configure", args=[self.a.slug, component.installation.product_id]),
+            )
+        url = reverse("asset", args=[self.a.slug, component.installation.asset_id])
+        response = self.client.get(url)
+        self.assertContains(response, "Investigate a known CVE (optional)")
+        self.assertContains(response, "does not confirm that this software is affected")
+        self.login(self.reader)
+        response = self.client.get(url)
+        self.assertContains(response, "Automatic CVE matching:")
+        self.assertNotContains(response, "Fetch CVE details for manual review")
+        self.assertEqual(
+            self.client.post(
+                reverse("lookup-vulnerability", args=[self.a.slug, component.installation_id]),
+                {"identifier": "CVE-2099-99999"},
+            ).status_code,
+            403,
+        )
+        response = self.client.get(
+            reverse("discovery"), {"organization": self.a.slug, "product": component.installation.product_id}
+        )
+        self.assertEqual(response.context["page"].paginator.count, 1)
+        self.assertEqual(
+            self.client.get(
+                reverse("discovery"),
+                {"organization": self.b.slug, "product": component.installation.product_id},
+            ).status_code,
+            404,
+        )
+        SourceRecord.objects.filter(finding__installation_id=component.installation_id).update(
+            shareable=False
+        )
+        response = self.client.get(url)
+        displayed = next(i for i in response.context["software_page"] if i.pk == component.installation_id)
+        self.assertEqual(displayed.visible_review_count, 0)
+        self.login(self.platform)
+        response = self.client.get(url)
+        displayed = next(i for i in response.context["software_page"] if i.pk == component.installation_id)
+        self.assertEqual(displayed.visible_review_count, 1)
+        for invalid in ["0", "-1", "x", "9" * 19, "9" * 40]:
+            self.assertEqual(self.client.get(reverse("discovery"), {"product": invalid}).status_code, 404)
+
     def test_unchanged_feed_is_recompiled_after_compiler_upgrade(self):
         feed = self.load()
         old = feed.generation

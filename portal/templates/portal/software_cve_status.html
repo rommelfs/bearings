@@ -1,0 +1,8 @@
+{% if installation.cve_component %}
+<p><strong>Software identity:</strong> {{ installation.cve_component.identity_status }}<br><strong>Automatic CVE matching:</strong> {{ installation.cve_component.matching_status }}</p>
+{% elif installation.distro_package %}
+<p>Distribution package recorded. Waiting for device metadata to establish automatic CVE coverage.</p>
+{% else %}
+<p>Other software uses an explicit product mapping for automatic matching.</p>
+{% endif %}
+<p><a href="{% url 'discovery' %}?organization={{ org.slug|urlencode }}&amp;product={{ installation.product_id }}">{% if installation.distro_package %}Automatic matching status &amp; coverage{% else %}Product mapping &amp; matching status{% endif %} →</a><br><a href="{% url 'intelligence' org.slug %}?installation={{ installation.pk }}">{{ installation.visible_review_count }} recorded CVE review{{ installation.visible_review_count|pluralize }} →</a></p>

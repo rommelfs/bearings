@@ -216,6 +216,9 @@ def detail(request, slug):
         .annotate(total=Count("pk"))
         .values_list("asset_id", "total")
     )
+    from .distro_display import decorate_installations
+
+    decorate_installations(request.user, [i for a in inventory_page for i in a.software_preview])
     for a in inventory_page:
         a.software_count = counts.get(a.pk, 0)
     return render(
@@ -469,7 +472,9 @@ def lookup_vulnerability(request, slug, pk):
                 request, "Vulnerability record retrieved for review. Applicability remains unknown."
             )
     else:
-        messages.error(request, "Enter a CVE identifier, for example CVE-2021-44228.")
+        messages.error(
+            request, "Enter the CVE identifier you want to investigate, in CVE-year-number format."
+        )
     return redirect("organization", slug=slug)
 
 
@@ -641,6 +646,11 @@ def asset_detail(request, slug, pk):
         software = software.filter(
             Q(product__name__icontains=software_query) | Q(product__identifier__icontains=software_query)
         )
+    software_page = Paginator(software, 100).get_page(request.GET.get("software_page"))
+    from .distro_display import decorate_installations
+
+    software_page.object_list = list(software_page.object_list)
+    decorate_installations(request.user, software_page.object_list)
     page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
@@ -651,7 +661,7 @@ def asset_detail(request, slug, pk):
             "org": org,
             "asset": asset,
             "facts": asset_context(asset, workspace=True),
-            "software_page": Paginator(software, 100).get_page(request.GET.get("software_page")),
+            "software_page": software_page,
             "software_query": software_query,
             "agent_device": AgentDevice.objects.filter(asset=asset, organization=org)
             .order_by("-enabled", "-created_at")

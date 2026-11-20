@@ -37,6 +37,14 @@ def center(request):
     if request.GET.get("organization"):
         org = organization(request, request.GET["organization"])
         qs = qs.filter(organization=org)
+    if request.GET.get("product"):
+        from django.http import Http404
+
+        value = request.GET["product"]
+        if not value.isascii() or not value.isdigit() or len(value) > 19 or not 0 < int(value) <= 2**63 - 1:
+            raise Http404
+        product = get_object_or_404(qs, pk=int(value))
+        qs = qs.filter(pk=product.pk)
     page = Paginator(qs, 50).get_page(request.GET.get("page"))
     products = list(page)
     pending = dict(

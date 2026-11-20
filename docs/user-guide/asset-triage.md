@@ -55,3 +55,12 @@ Primary DNS is resolved from the complete authorized IP snapshot by source-local
 Apply migration 0009 when running natively. It backfills a source-severity cache from existing supported CNA CVSS records so ordering and filters work for older findings too. Normal evidence ingestion maintains it; it does not rewrite evidence snapshots, analyst decisions or sharing policy. Unsupported or malformed scores stay Unknown.
 
 Company findings, individual asset reviews and Asset → Vulnerability → Risk now also default to **Critical → High → Medium → Low → None → Unknown**, then newest evaluation and stable identity. Sorting is applied to the authorized database query before pagination; missing severity remains explicit and never becomes a low-risk assertion.
+
+
+## Installed software versus CVE reviews
+
+Company inventory and machine software tables list reported installations, not detected vulnerabilities. Package/product identity and reported version identify the software. Supported distribution packages display the same recognition and automatic matching status as the discovery page: ready, queued, missing metadata, stale, disabled or unsupported. No per-package configuration is needed for supported Ubuntu/Debian/RHEL package matching. Follow **Automatic matching status & coverage** for the exact product and vendor-rule details.
+
+**Recorded CVE reviews** links to the exact installation and counts only findings currently visible to you, including retained reviews. It is not a count of confirmed vulnerabilities. Zero reviews neither proves safety nor means that a complete check succeeded. Other software retains its explicit product-mapping workflow.
+
+Manual CVE retrieval is available to authorized editors under the collapsed **Investigate a known CVE (optional)** section on the machine's software row. Enter a CVE identifier you already know, then fetch its details for manual review. There is no prefilled/example CVE beside every package. Retrieval creates review evidence without confirming applicability; automatic package checks run independently. Viewing these tables makes no external CVE requests and sends no mail.

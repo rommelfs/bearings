@@ -340,6 +340,10 @@
       {
         "title": "Expose concrete distro-package associations and actionable blocked registration reviews",
         "body": "Implemented installed binary/source/version/feed lookup and indexed vendor-definition counts on automatic discovery cards, separated server-wide partial coverage, precise installation/product CVE links and removal of irrelevant default product-watch prompts. Preserve explicit watches; batch source-scoped component previews, raw-visible review counts, edit roles and audits without network requests while rendering. Correct Canonical singleton inventory guards, retain strict known expressions and version compiled caches so unchanged vendor bytes are recompiled/reevaluated after upgrades. Registration reviews show concrete company labels, current applicant role and currently visible memberships, plus explicit platform-only correction links. Missing/changed owner state returns an in-form validation error without restoring roles/sharing. Mail-error words and reviewed-outreach banner avoid transport confusion. No new schema or client requirement; actual vendor/local-browser and scoped regression evidence in validation.md. Software recognition, automatic CVE matching readiness and current reviews are displayed independently; normalized identities without indexed advisories remain explicitly monitored, not declared safe."
+      },
+      {
+        "title": "Clarify software inventory, automatic CVE status and optional manual investigations",
+        "body": "Implemented installation-level recognition and automatic CVE readiness in company and machine inventory, reusing bounded cached status queries. Exact-product authorized discovery links and raw-visible installation review counts separate inventory, coverage and retained reviews. Standard distro packages require no per-package setup; misleading configure links and example CVEs are removed. Manual known-CVE retrieval is an explicit collapsed editor action, preserving existing authorization, CSRF and unknown applicability. See docs/user-guide/asset-triage.md and docs/validation.md."
       }
     ]
   }

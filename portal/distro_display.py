@@ -9,15 +9,18 @@ from .access import visible_findings_for
 from .models import AgentComponent, DistroFeed, DistroAdvisoryPackage
 
 
-def decorate(user, products):
+def decorate(user, products, installation_ids=None):
     products = {p.pk: p for p in products if p.distro_package}
     for p in products.values():
         p.distro_devices = []
     if not products:
         return
     # Five installations per displayed product, rather than five per-product queries.
+    candidates = AgentComponent.objects.all()
+    if installation_ids is not None:
+        candidates = candidates.filter(installation_id__in=installation_ids)
     components = list(
-        AgentComponent.objects.filter(
+        candidates.filter(
             installation__product_id__in=products,
             device__organization_id=F("installation__product__organization_id"),
             installation__asset__organization_id=F("device__organization_id"),
@@ -32,7 +35,7 @@ def decorate(user, products):
                 order_by=[F("device_id").asc(), F("pk").asc()],
             )
         )
-        .filter(position__lte=5)
+        .filter(position__lte=5 if installation_ids is None else len(installation_ids))
         .select_related("device__asset", "device__source", "device__organization", "installation")
         .order_by("installation__product_id", "device_id", "pk")
     )
@@ -129,3 +132,35 @@ def decorate(user, products):
         else:
             c.matching_status = "Ready — supported vendor advisories are checked automatically"
         products[c.installation.product_id].distro_devices.append(c)
+
+
+def decorate_installations(user, installations):
+    """Decorate only the displayed authorized installations, never a whole asset/fleet."""
+    installations = list(installations)
+    products = {}
+    for installation in installations:
+        product = installation.product
+        product.distro_package = product.identifier.startswith(("pkg:deb/", "pkg:rpm/"))
+        products[product.pk] = product
+    # Each displayed installation needs its own status, even when a product occurs on >5 assets.
+    for installation in installations:
+        installation.distro_package = installation.product.distro_package
+    decorate(user, products.values(), installation_ids=[i.pk for i in installations])
+    components = {
+        c.installation_id: c for p in products.values() if p.distro_package for c in p.distro_devices
+    }
+    counts = dict(
+        visible_findings_for(user)
+        .filter(
+            installation_id__in=[i.pk for i in installations],
+            installation__asset__organization_id=F("organization_id"),
+            installation__product__organization_id=F("organization_id"),
+            record__organization_id=F("organization_id"),
+        )
+        .values("installation_id")
+        .annotate(total=Count("pk"))
+        .values_list("installation_id", "total")
+    )
+    for installation in installations:
+        installation.cve_component = components.get(installation.pk)
+        installation.visible_review_count = counts.get(installation.pk, 0)
