@@ -277,7 +277,7 @@ func getStatus(s *store, id string) error {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("use init, enroll, collect, report, enqueue, flush, status, watch or version")
+		return errors.New("use init, bootstrap, enroll, collect, report, enqueue, flush, status, watch or version")
 	}
 	if args[0] == "version" {
 		fmt.Println(version)
@@ -285,6 +285,7 @@ func run(args []string) error {
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
+	server := flags.String("server", "", "trusted HTTPS origin for automatic registration")
 	state := flags.String("state-dir", defaultState(), "private local state directory")
 	grantFile := flags.String("grant-file", "", "one-use enrollment file (0600)")
 	ca := flags.String("ca-file", "", "additional explicitly trusted PEM CA")
@@ -315,6 +316,8 @@ func run(args []string) error {
 	case "init":
 		sum := sha256.Sum256(s.key[32:])
 		return output(map[string]string{"public_key": s.public(), "fingerprint_sha256": hex.EncodeToString(sum[:])})
+	case "bootstrap":
+		return bootstrap(s, *server, *ca, os.Stdin)
 	case "enroll":
 		if *grantFile == "" {
 			return errors.New("supply --grant-file; bearer secrets are not accepted on the command line")

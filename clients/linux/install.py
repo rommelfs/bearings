@@ -45,7 +45,7 @@ class InstallError(Exception):
     pass
 
 
-def run(args, *, account=None, capture=False):
+def run(args, *, account=None, capture=False, input=None):
     options = {}
     if account is not None:
         options = {"user": account.pw_uid, "group": account.pw_gid, "extra_groups": []}
@@ -53,7 +53,7 @@ def run(args, *, account=None, capture=False):
         result = subprocess.run(
             [str(a) for a in args],
             env=ENV,
-            stdin=subprocess.DEVNULL,
+            **({"stdin": subprocess.DEVNULL} if input is None else {"input": input}),
             stdout=subprocess.PIPE if capture else None,
             stderr=subprocess.PIPE,
             timeout=45,
@@ -480,6 +480,38 @@ def enroll(grant_path, ca_path, register_host, code=False, code_stdin=False):
     print("Enrollment confirmed; periodic reporting started. Original downloaded grant left unchanged.")
 
 
+def bootstrap(server, ca_path, prompt):
+    account = lookup_account()
+    if account is None:
+        raise InstallError("Install the dedicated service account first")
+    check_state(account)
+    if enrolled(account):
+        run([CLIENT, "bootstrap", "--state-dir", STATE, "--server", server], account=account)
+        print("Already enrolled; identity and stopped/running service state retained.")
+        return
+    if prompt:
+        if not sys.stdin.isatty():
+            raise InstallError("Use --bootstrap-prompt in a terminal or --bootstrap-stdin for automation")
+        try:
+            token = getpass.getpass("Company rollout key (hidden): ").encode("ascii")
+        except UnicodeError as exc:
+            raise InstallError("Invalid rollout credential") from exc
+    else:
+        token = sys.stdin.buffer.read(151)
+    if len(token) > 150:
+        raise InstallError("Rollout key exceeds its size limit")
+    args = [CLIENT, "bootstrap", "--state-dir", STATE, "--server", server]
+    if ca_path:
+        ca = source(ca_path, 1024 * 1024)
+        ca_context(ca)
+        atomic(CONFIG / "ca.pem", ca)
+        args += ["--ca-file", CONFIG / "ca.pem"]
+    run(args, account=account, input=token)
+    systemctl("enable", "bearings-linux.service")
+    systemctl("restart", "bearings-linux.service")
+    print("Automatic registration confirmed; periodic reporting started.")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -497,6 +529,17 @@ def main():
         action="store_true",
         help="Read the one-use code from stdin for approved rollout automation",
     )
+    rollout = parser.add_mutually_exclusive_group()
+    rollout.add_argument(
+        "--bootstrap-prompt",
+        action="store_true",
+        help="Automatic company registration with a hidden rollout-key prompt",
+    )
+    rollout.add_argument(
+        "--bootstrap-stdin",
+        action="store_true",
+        help="Automatic company registration using rollout key from secret-manager stdin",
+    )
     parser.add_argument("--grant-file", type=Path)
     parser.add_argument("--ca-file", type=Path)
     parser.add_argument("--register-host", action="store_true")
@@ -512,6 +555,8 @@ def main():
         )
     if args.action != "enroll" and (args.grant_file or args.code or args.code_stdin or args.register_host):
         parser.error("Registration options belong to enroll")
+    if (args.bootstrap_prompt or args.bootstrap_stdin) and (args.action != "install" or not args.server):
+        parser.error("Automatic registration requires install --server and exactly one bootstrap input")
     if args.lxc_compatible and args.action != "install":
         parser.error("--lxc-compatible belongs to install")
     if args.binary and args.action != "install":
@@ -538,6 +583,8 @@ def main():
         systemctl("show", "--property=Version", "--value", capture=True)
         if args.action == "install" and args.server:
             download(args.server, args.ca_file, args.lxc_compatible)
+            if args.bootstrap_prompt or args.bootstrap_stdin:
+                bootstrap(args.server, args.ca_file, args.bootstrap_prompt)
         elif args.action == "install":
             directory = Path(__file__).resolve().parent
             arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(platform.machine(), "unsupported")

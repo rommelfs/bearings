@@ -7,7 +7,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 
-def payload(grant, token):
+def trusted_origin():
     endpoint = settings.PUBLIC_BASE_URL.rstrip("/")
     origin = urlsplit(endpoint)
     if (
@@ -20,6 +20,11 @@ def payload(grant, token):
         or origin.fragment
     ):
         raise ValidationError("Configure BEARINGS_PUBLIC_URL with the trusted HTTPS origin before enrolling")
+    return endpoint
+
+
+def payload(grant, token):
+    endpoint = trusted_origin()
     return {
         "schema": "bearings.agent.grant.v1",
         "url": endpoint,

@@ -391,3 +391,9 @@ Show the authenticated Bearings account and linked-SSO explanation, replace an e
 ## Native Linux client publication and LXC target support — 2026-11-20
 
 Implement clean-source native artifact preparation with checksum-pinned Go, immutable release output and protected environment activation, plus explicit installer LXC compatibility retaining the main unit, keys/state, other drop-ins and non-root/capability/resource restrictions. No inventory or privilege creation during publication. First enrollment against a read-only native source selects a previously imported NetBox asset. Actual target systemd/report acceptance remains a rollout step. See [native Linux preparation](operations/native-ecosystem.md#prepare-linux-client-downloads-on-the-native-server).
+
+## Company-scoped automatic Linux registration — 2026-11-20
+
+Company administrators can now authorize a rollout once (1–100,000 reservations, 1–168 hours). The installer accepts its secret via hidden prompt or protected stdin, generates each host's own key and registers without per-host UI steps. Lost-response retries retain identity/quota. Expiry/revocation/current permissions/source binding are checked; observed hosts work with read-only NetBox without writes or hostname takeover. The central downloads UI, company fleet UI, installer and Ansible reference describe the same flow. See [rollout contract](integrations/linux-rollout.md).
+
+Follow-up **Validate sustained Linux fleet ingest and credential renewal** separates proven bounded admission/replay/concurrency from 10,000-host sustained package-report capacity. Device credentials remain 90-day, with explicit revocation/replacement; automatic renewal, authoritative NetBox reconciliation and independent release signing remain planned. Existing read benchmarks are not agent ingestion evidence.

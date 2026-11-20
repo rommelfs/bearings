@@ -25,6 +25,7 @@ def environment():
         os.environ["OIDC_CA_BUNDLE"] = str(ROOT / "trust/ca-bundle.pem")
         canvas_port = int(os.getenv("BEARINGS_CANVAS_PORT", "9441"))
         os.environ["BEARINGS_CANVAS_ORIGIN"] = f"https://localhost:{canvas_port}"
+        os.environ.setdefault("BEARINGS_PUBLIC_URL", f"https://localhost:{canvas_port}")
         os.environ["DJANGO_TRUST_PROXY_SSL"] = "1"
         # The retained lab client is narrowly migrated to this HTTPS callback during startup.
         os.environ["OIDC_LAB_CALLBACK"] = f"https://localhost:{canvas_port}/oauth/complete/oidc/"

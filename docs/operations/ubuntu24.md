@@ -127,3 +127,10 @@ Use the separate [native ecosystem extension](native-ecosystem.md) for the exist
 ### Request errors in the journal
 
 The production profile writes Django request errors to stderr/systemd even with DEBUG disabled. `journalctl -u bearings-web --since '-10 minutes' --no-pager -n 120` shows status, resolved route, exception types and file/line/function positions. It deliberately omits raw exception messages, request paths/queries/bodies, code text and local variables. Startup-only output from an older profile does not establish that a merge succeeded or failed. Inspect the active/archived organization rows and the `organization.merged` audit before replaying an uncertain merge; never enable DEBUG or log credentials to diagnose it.
+
+
+### Publish automatic Linux enrollment
+
+After backing up and deploying the reviewed source, run `/opt/bearings/deploy/ubuntu24/manage.py migrate --noinput` for migration 0058, then `python3 deploy/ubuntu24/ecosystem.py prepare-linux-client` and restart the existing Bearings web/worker/national services. Preparation builds both architectures once on the server and activates immutable public download artifacts; monitored hosts never build the client. Preserve the existing private environment, source bindings and LXC service drop-ins. Do not rerun first installation, CIRCL connector setup or mail configuration.
+
+A company administrator then opens `/organizations/COMPANY/agents/fleet/` to issue an expiring/quota-limited rollout key. For a constrained LXC host, the downloaded installer command is `python3 bearings-install.py --server https://YOUR-BEARINGS-HOST --bootstrap-prompt --lxc-compatible`. Deployment jobs use `--bootstrap-stdin` and a secret runner. Self-reported hosts appear in Bearings even with the existing read-only NetBox bridge; there is no per-host native write grant. See [rollout/recovery](../integrations/linux-rollout.md).

@@ -241,3 +241,35 @@ func TestOutboxNeverEvictsAndDoesNotExecuteVersionCommands(t *testing.T) {
 		t.Fatal("output bound bypassed")
 	}
 }
+
+func TestBootstrapRefusesRetargetedGrantAndChangedRollout(t *testing.T) {
+	s, err := openStore(filepath.Join(t.TempDir(), "state"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.close()
+	requests := 0
+	srv, ca := trustedTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.URL.Path != "/api/v1/agent/bootstrap/" {
+			t.Error("untrusted grant was redeemed")
+		}
+		json.NewEncoder(w).Encode(grant{Schema: "bearings.agent.grant.v1", URL: "https://another.example.invalid", PublicKey: s.public(), RegisterHost: true, Grant: newID() + "." + strings.Repeat("s", 43), ExpiresAt: time.Now().Add(time.Minute).Format(time.RFC3339)})
+	}))
+	token := newID() + "." + strings.Repeat("x", 43)
+	if err = bootstrap(s, srv.URL, ca, strings.NewReader(token)); err == nil {
+		t.Fatal("retargeted grant accepted")
+	}
+	if _, err = os.Stat(filepath.Join(s.dir, "bootstrap-grant.json")); !os.IsNotExist(err) {
+		t.Fatal("untrusted grant persisted")
+	}
+	if err = bootstrap(s, srv.URL, ca, strings.NewReader(newID()+"."+strings.Repeat("x", 43))); err == nil {
+		t.Fatal("different pending rollout accepted")
+	}
+	if err = bootstrap(s, srv.URL, ca, strings.NewReader(strings.Repeat("x", 151))); err == nil {
+		t.Fatal("oversized secret accepted")
+	}
+	if requests != 1 {
+		t.Fatal("unexpected bootstrap retry", requests)
+	}
+}

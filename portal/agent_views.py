@@ -12,12 +12,13 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_POST, require_http_methods
 from http_message_signatures.exceptions import HTTPMessageSignaturesException
 from . import agents, agent_enrollment_codes
 from .agent_protocol import MAX_BYTES, verify, decode, public_key, identifier
 from .access import organizations_for, require, can_operator_review, audit_operator_access
-from .models import AgentDevice, AgentEnrollment, AgentComponent, AgentReport, Asset, Installation
+from .models import AgentDevice, AgentEnrollment, AgentComponent, AgentReport, Asset, Installation, AgentFleet
 
 
 def private(response):
@@ -26,16 +27,54 @@ def private(response):
     return response
 
 
-def body(request):
+def body(request, limit=MAX_BYTES):
     if not request.is_secure():
         raise ValueError("HTTPS required")
     size = int(request.META.get("CONTENT_LENGTH", "0"))
-    if not 0 < size <= MAX_BYTES:
+    if not 0 < size <= limit:
         raise ValueError("Invalid content length")
-    raw = request.read(MAX_BYTES + 1)
+    raw = request.read(limit + 1)
     if len(raw) != size:
         raise ValueError("Invalid body size")
     return raw
+
+
+@csrf_exempt
+@require_POST
+@sensitive_variables()
+def fleet_bootstrap(request):
+    try:
+        raw = body(request, 4096)
+        data = decode(raw)
+        if (
+            not isinstance(data, dict)
+            or set(data) != {"schema", "public_key", "request_id"}
+            or data["schema"] != "bearings.agent.bootstrap.v1"
+        ):
+            raise ValueError("Invalid bootstrap")
+        credential = request.headers.get("Authorization", "")
+        if not credential.startswith("Bearer ") or len(credential) > 150:
+            raise ValueError("Invalid authorization")
+        identity, secret = credential[7:].split(".")
+        pk = identifier(identity)
+        public_key(data["public_key"])
+        verify(request, raw, "fleet:" + str(pk), data["public_key"])
+        from .agent_fleets import issue
+
+        return private(JsonResponse(issue(pk, secret, data["public_key"], data["request_id"])))
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        ValidationError,
+        PermissionDenied,
+        AgentFleet.DoesNotExist,
+        IntegrityError,
+        HTTPMessageSignaturesException,
+    ):
+        return private(JsonResponse({"error": "Rollout registration unavailable"}, status=403))
+    except OperationalError:
+        return private(JsonResponse({"error": "Temporarily unavailable"}, status=503))
 
 
 @csrf_exempt

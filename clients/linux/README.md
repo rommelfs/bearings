@@ -8,7 +8,15 @@ The receiver, permissions, threat model, limits and validation are documented in
 
 Open **Linux inventory reports → Install Linux client** in Bearings, or visit `/downloads/linux/`. The operator prepares the artifacts once; monitored hosts need **Python 3.9+, systemd and sudo**, not Go. The local lab download page is `https://localhost:9441/downloads/linux/`; localhost works only on the machine running that lab. Before remote roll-outs the operator must configure a reachable `BEARINGS_PUBLIC_URL`, allowed hosts and valid HTTPS trust. No public deployment is performed by this feature.
 
-On the monitored Linux host, replace the example origin with the trusted Bearings installation:
+For automatic registration, create one expiring, quota-limited rollout key in the company's **Linux inventory reports → Automatic registration / fleet rollout**. Download the installer as below, then use:
+
+```sh
+sudo python3 bearings-install.py --server https://bearings.example --bootstrap-prompt
+```
+
+The hidden prompt accepts the company rollout key. Deployment jobs use `--bootstrap-stdin` and secret-manager stdin instead; no per-host key copy or asset creation is needed. Every host retains its own key. New hosts are self-reported Bearings observations, including with read-only NetBox; hostnames/IPs never auto-attach a key to an existing asset or grant NetBox writes. Expiry, quota, creator permission and revocation are rechecked. See [rollout/recovery/Ansible](../../docs/integrations/linux-rollout.md).
+
+For explicit single-host enrollment instead, replace the example origin with the trusted Bearings installation:
 
 ```sh
 curl --fail --show-error --proto '=https' https://bearings.example/downloads/linux/install.py -o bearings-install.py
@@ -35,13 +43,13 @@ sudo python3 bearings-install.py status
 sudo journalctl -u bearings-linux -f
 ```
 
-Installation itself makes no inventory report/network request to enroll a device; `--server` downloads public artifacts. Starting the enrolled service authorizes its existing periodic reporting profile. The default unit collects system packages every six hours. Use reviewed systemd drop-ins for another scope; the installer preserves them.
+Installation without a bootstrap option makes no enrollment request; `--server` downloads public artifacts. Starting the enrolled service authorizes its existing periodic reporting profile. The default unit collects system packages every six hours. Use reviewed systemd drop-ins for another scope; the installer preserves them.
 
 For offline/local-source installation, build once below and use `sudo python3 clients/linux/install.py`, or copy the generated distribution directory to the target and run its `install.py`. `--binary /approved/local/client` explicitly selects another reviewed artifact. Build output includes installer, unit, license, checksums, source note and corresponding client/installer source archive. Checksums provide consistency over trusted HTTPS; they are not independent release signatures. This is not an automatic self-updater or an arbitrary downgrade/revocation/renewal mechanism.
 
 ### Existing roll-out processes
 
-Ansible/deployment jobs can use the same install step, parse `identity`, then pass one short-lived code to `enroll --code-stdin` through stdin. Use your secret runner/Ansible `no_log: true`; do not put codes in argv, environment, image templates or cached facts. Reuse the enrolled identity on retries rather than creating keys per run. See [roll-out integration](../../docs/integrations/linux-rollout.md) for a concrete Ansible pattern and the distinction between implemented operator-side issuance and the planned customer-scoped API.
+Ansible/deployment jobs use `--bootstrap-stdin` with one bounded company rollout key, protected stdin and bounded retries. Do not put secrets in argv, environment, images or cached facts. See the [reference playbook](examples/ansible-rollout.yml) and [rollout integration](../../docs/integrations/linux-rollout.md). Explicit per-host `enroll --code-stdin` remains compatible. Neither mode is an automatic credential renewal or a claim of sustained fleet ingest capacity.
 
 ## Build from reviewed source
 

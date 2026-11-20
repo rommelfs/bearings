@@ -1,64 +1,46 @@
-# Linux installation and existing roll-outs
+# Linux installation and fleet registration
 
-Implemented 20 November 2026: central public artifact downloads, local privileged installer, private clipboard/stdin enrollment and operator-side one-use issuance. A customer-facing roll-out API/delegated issuer credential is **planned**, not implemented. No shared permanent fleet enrollment key is introduced.
+Implemented 20 November 2026: company-scoped automatic Linux registration, central HTTPS downloads and a local installer. A company administrator authorizes one bounded rollout; deployment jobs need no per-host public-key exchange, enrollment code, manual asset creation or Bearings server shell access. Existing explicit single-asset/new-managed-host enrollment remains available.
 
-## Existing tools: implemented contract
+## Once per rollout
 
-The operator builds the reviewed Linux client once with `python3 scripts/build_linux_client.py`. Development exposes the generated `.local/linux-client` directory; production must explicitly set `BEARINGS_LINUX_CLIENT_DIR` to an approved absolute artifact directory. Serve/mount it read-only in production. Only fixed allowlisted filenames are public; no customer inventory, credentials, arbitrary paths or unbuilt source fallback. Symlink, shared-writable, missing, oversized or manifest-mismatched artifacts are refused. Installer/manifest/unit/binaries/license/source are downloadable through `/downloads/linux/`. No database query or external fetch is required to deliver an artifact.
+Open the company's **Linux inventory reports → Automatic registration / fleet rollout**, or `/organizations/COMPANY/agents/fleet/`. Specify a name, host kind, device limit (1–100,000) and expiry (1–168 hours). Accept the explicit hostname/network/software reporting scope. The company administrator or trusted platform administrator receives one secret, shown once. Store it in the deployment secret manager. CIRCL analyst status alone is insufficient.
 
-The downloaded installer verifies HTTPS and manifest hashes before installing a matching architecture and pinned hardened unit. Python 3.9+/systemd/root are required for the installer; native collection/enrollment runs as the dedicated account. No package manager, Go compiler, internet download script execution, untrusted shell or remote server command channel is introduced. Root actions are explicit. Source inputs are read with the invoking sudo user's permissions, preventing a supplied input path from becoming a privileged file-read proxy. Only generated public artifacts and private ephemeral grant handoff are staged; device state is retained independently. Per-file installation is atomic, not a filesystem-wide transaction. A failure retains keys/state and may require a retry/start after resolving the local error.
+New hosts are **self-reported Bearings observations**, including when the authoritative NetBox connection is read-only. No NetBox object or IPAM assignment is created. Hostnames/IPs are declarations, not proof of ownership or a basis for attaching to existing assets. Two fresh keys with the same hostname create distinct observations; only the same retained key/retry context is deduplicated. Do not initialize keys or copy enrolled state into reusable images. Reconciliation with existing native devices needs a separately authorized identity mapping.
 
-`identity` returns JSON `{public_key, fingerprint_sha256, enrolled}`. Install/identity preserve the existing key; do not initialize reusable VM/image templates. `enroll --code` hides terminal input; `enroll --code-stdin` accepts at most 16 KiB through stdin, for a complete one-use, expiring, key-bound grant of at most 8 KiB. Plaintext codes are not accepted as command-line values or environment variables. They are bearer credentials plus public metadata, not encrypted tickets. No file needs to cross the browser/SSH boundary; a root-controlled temporary handoff is removed even on failure. Existing `--grant-file` is retained for compatibility. A delivery retry must reuse the same protected code until acknowledgment; do not issue a fresh grant for an already pending enrollment. Store that short-lived job secret in the approved secret runner until confirmation/expiry, never in logs or image/fact caches. If it is lost, use the explicit cancellation/replacement recovery rather than resetting keys/counters. A confirmed enrolled device uses `start` to resume rather than another grant. Current source/role/revocation checks and explicit new-host/network consent are unchanged.
+## On each Linux host
 
-## Operator-controlled issuance: implemented
-
-An approved automation runner with access to the Bearings management environment can request one code:
+Download and review the installer from the trusted installation, then run it as root:
 
 ```sh
-python manage.py issue_agent_enrollment \
-  --organization company-slug \
-  --actor company-rollout-account \
-  --asset EXISTING-ASSET-UUID \
-  --public-key PUBLIC-ED25519-KEY
+curl --fail --show-error --proto '=https' https://bearings.example/downloads/linux/install.py -o bearings-install.py
+sudo python3 bearings-install.py --server https://bearings.example --bootstrap-prompt
 ```
 
-The command prints a **secret** code to stdout for direct controlled handoff; suppress it in CI logs. Its actor must currently be an active company administrator or platform superuser. CIRCL visibility alone is insufficient. Use a dedicated company-scoped account, not a universal staff credential. A foreign asset/company, disabled actor, invalid key or invalid public origin fails without issuing a usable code. Creation is transactional and uses the existing audited thirty-minute, one-use, key-bound enrollment service. Explicit `--new-host-kind vm|server|desktop|laptop` instead of `--asset` authorizes creation only where source writes are allowed; the client must additionally use `--register-host`.
+Paste the rollout key at the hidden prompt. For deployment automation, replace `--bootstrap-prompt` with `--bootstrap-stdin` and pipe the secret manager's output into the process. The token is never an argv/environment value and is never written to device state. Do not put it in shell history, images, CI logs or cached Ansible facts. Use `no_log` around secret-bearing tasks. Initial host identity and all package observations remain local until explicitly authorized enrollment/reporting.
 
-Running a management command already requires trusted server access. `--actor` is attribution/authorization inside that administrative boundary, not authentication for a public API. Customers of the SaaS are not given server shell access by this implementation. Without an approved issuer integration they obtain a code through the company UI; customer-facing delegated API access remains the next increment.
+Add `--lxc-compatible` to the installation command only on constrained LXC systems. The dedicated non-root account, no-new-privileges and capability/resource/syscall limits remain; unsupported namespace isolation is explicitly omitted for that service. Actual target systemd acceptance still requires checking `systemctl status bearings-linux` and its journal. For an enterprise CA use normal OS trust deployment or `--ca-file /known/local/ca.pem`. HTTPS verification and redirect refusal remain mandatory; downloading the installer itself already requires trusted HTTPS.
 
-## Ansible pattern
+The installer downloads and checks the matching amd64/arm64 binary/unit against the HTTPS manifest, preserves or generates a host-local Ed25519 key, registers and starts the existing six-hour system-package reporting profile. Watch startup has jitter. It does not install patches, execute server commands, discover adjacent machines or prove a compromised machine truthful. Software observations need explicit canonical-product/version bindings before updating existing software records; a package version alone does not prove CVE applicability or remediation.
 
-Use `get_url` with certificate verification to obtain the installer; then use `command` with an argument list and `become: true` for install. Do not use `curl | sudo ...`. Install the lab/enterprise CA by your normal trusted platform process first. The origin must be reachable from each target: localhost is not a remote server address.
+The operator prepares artifacts once on the native server with `python3 deploy/ubuntu24/ecosystem.py prepare-linux-client` after deploying the reviewed code/migration. Downloads are public fixed allowlisted artifacts, independent of private inventory/credentials. Builds contain both architectures, installer, unit, checksums, license and tracked corresponding source. Manifest hashes provide consistency over trusted HTTPS, not independent release signatures. See [native operation](../operations/ubuntu24.md) and [client reference](../../clients/linux/README.md).
 
-```yaml
-- name: Install the reviewed Bearings client from the approved origin
-  become: true
-  ansible.builtin.command:
-    argv: [python3, /opt/bearings-install.py, --server, "{{ bearings_origin }}"]
+## Existing deployment processes
 
-- name: Read the existing public device identity
-  become: true
-  ansible.builtin.command:
-    argv: [python3, /opt/bearings-install.py, identity]
-  register: bearings_identity_result
-  changed_when: false
+A concrete [Ansible playbook](../../clients/linux/examples/ansible-rollout.yml) uses verified `get_url`, bounded batches/concurrency and `command` with protected stdin. Keep `bearings_rollout_key` in Ansible Vault or an approved secret lookup. It is a reference integration pattern, not a published Ansible collection or evidence of a production 10,000-host rollout.
 
-# When not enrolled, obtain one key-bound code from the approved issuer.
-# For operator-owned automation, delegate the management command above to
-# the controlled Bearings host. Suppress its output (no_log); do not cache it.
-# SaaS customer API issuance is not implemented yet.
+Use bounded retries with delay/jitter in your deployment runner. The native ingress deliberately retains 10 agent requests/second per source IP plus a burst of 30; bootstrap and redemption each use a request and later reports share that budget. Coordinate NAT fleets instead of removing that protection. HTTP 429/503 and network failures retain the same local key/request/grant for retry. No automatic endless retry loop runs in the installer; permanent denial must be reviewed rather than hidden. Rollout reservations are indexed by device public key; no full inventory scan or hostname lookup is needed per observed host.
 
-- name: Consume the short-lived grant without an argv/env/file secret
-  become: true
-  ansible.builtin.command:
-    argv: [python3, /opt/bearings-install.py, enroll, --code-stdin]
-    stdin: "{{ bearings_one_use_code }}"
-  no_log: true
-  when: not (bearings_identity_result.stdout | from_json).enrolled
-```
+## Protocol, recovery and revocation
 
-This is an integration pattern, not a published/validated Ansible collection or a claim of a tested customer roll-out. Real installer execution, verified TLS/key proof, stdin handoff, retries, permissions and activation preservation are tested separately. Restrict job output, secret access, target/asset mappings and retries; do not reuse a code/key across machines. Review initial package-report volume before fleet-wide activation; existing 40,000-company read benchmarks are not agent-ingest evidence.
+`POST /api/v1/agent/bootstrap/` accepts only HTTPS, a bounded strict JSON body (`bearings.agent.bootstrap.v1`, `public_key`, `request_id`), an expiring rollout bearer and an RFC 9421 Ed25519 proof from that public key. The signing identity is `fleet:ROLLOUT-UUID`. The bearer authorizes admission; proof of key possession does not identify the host or attest its security. The endpoint cannot read inventory/intelligence, replace an existing device or change roles/native source permissions. Existing ingress rate limits cover it. Fleet secrets are stored as hashes only and never in audit output.
 
-## Customer API proposal: not implemented
+Authorization rechecks the current creator's company-admin permission, active company, rollout expiry/revocation/quota and original organization/source/tenant/endpoint binding. Admission locks company then rollout before reserving quota; concurrent jobs cannot exceed the limit. Each reservation yields the existing 30-minute one-use public-key-bound grant, whose expiry cannot exceed the rollout's. Deterministically derived grant secrets permit exact lost-response retries without storing plaintext; application secret-key rotation needs the corresponding `SECRET_KEY_FALLBACKS` for still-pending grants. Never refresh an expired/cancelled reservation silently.
 
-Add a revocable expiring issuer credential per company and approved roll-out identity. Its only operation should request an enrollment bound to one freshly generated public key and an explicit existing asset or approved new-host policy. It must not read inventory/intelligence, grant human/native-app access, change source/visibility/roles, approve network authority or install commands. Enforce current company approval/role policy, per-issuer/company quotas, narrowly allowed host kinds, audit/correlation IDs, idempotent job retries and fast revocation. Return a short-lived one-use code only to that authorized job. Device keys are generated on targets and never leave them. Establish the secret-manager/identity-provider binding and customer usability before enabling that endpoint. This should become a small supported Ansible role after actual delegated API acceptance, rather than a shared fleet bootstrap password.
+The client durably keeps a public `bootstrap.json` correlation context and, while redemption is pending, a private 0600 `bootstrap-grant.json`. It retains its exact signed enrollment body/request identifier through a lost reply, removes the one-use grant after acknowledgment, and never stores the reusable rollout bearer. Repeating the same installer/bootstrap on an enrolled host preserves identity and a deliberately stopped service. A changed origin or pending rollout is refused. Do not delete state to work around failures: inspect/cancel the old reservation and perform an explicit controlled replacement with a fresh key.
+
+Revoking the rollout stops new and pending registrations. Enrolled devices use individual credentials and must be revoked individually when required; rollout expiry does not disable their reports. Device credentials currently expire after 90 days. Automatic renewal, external hardware attestation, signed release artifacts, authoritative NetBox reconciliation and sustained fleet-wide ingest/retention acceptance remain separate work. Existing read-path tests with 40,000 companies do not establish write/report ingestion capacity.
+
+## Explicit single-host alternative
+
+The previous `identity` → company UI → hidden `enroll --code` flow remains supported for binding an already imported asset or an explicitly managed new host. `enroll --code-stdin` and `--grant-file` remain available. The operator-only `issue_agent_enrollment --organization COMPANY --actor ADMIN --asset UUID --public-key KEY` command still creates one public-key-bound grant inside the trusted server administrative boundary. `--new-host-kind` requires an explicitly writable source; `--register-host` supplies client consent. Neither actor attribution nor rollout admission grants a customer shell access to the server.

@@ -44,15 +44,27 @@ def current(device):
 
 
 @transaction.atomic
-def create_enrollment(actor, org, asset, key, new_asset_kind=""):
-    Organization.objects.select_for_update(of=("self",)).get(pk=org.pk)
+def create_enrollment(actor, org, asset, key, new_asset_kind="", *, fleet=None, observed_only=False):
+    org = Organization.objects.select_for_update(of=("self",), no_key=True).get(pk=org.pk)
     require(administrator(actor, org))
     public_key(key)
+    require((fleet is None and not observed_only) or (fleet is not None and observed_only and asset is None))
     if asset is None:
         source = InventorySource.objects.filter(organization=org).first()
         if source is None:
             raise ValidationError("Configure an inventory source before enrolling a new host")
-        require(source.can_write and new_asset_kind in {"vm", "server", "desktop", "laptop"})
+        require(new_asset_kind in {"vm", "server", "desktop", "laptop"})
+        if observed_only:
+            from .agent_fleets import active
+
+            require(
+                fleet is not None
+                and fleet.organization_id == org.pk
+                and fleet.source_id == source.pk
+                and active(fleet)
+            )
+        else:
+            require(source.can_write and fleet is None)
     else:
         require(
             asset.organization_id == org.pk
@@ -68,6 +80,8 @@ def create_enrollment(actor, org, asset, key, new_asset_kind=""):
     secret = secrets.token_urlsafe(32)
     grant = AgentEnrollment.objects.create(
         organization=org,
+        fleet=fleet,
+        observed_only=observed_only,
         asset=asset,
         source=source,
         new_asset_kind=new_asset_kind,
@@ -89,6 +103,20 @@ def create_enrollment(actor, org, asset, key, new_asset_kind=""):
 
 @transaction.atomic
 def redeem(grant_id, secret, raw, signature_input, signature, request_url):
+    context = AgentEnrollment.objects.only("organization_id", "fleet_id").get(pk=grant_id)
+    Organization.objects.select_for_update(no_key=True).get(pk=context.organization_id)
+    fleet = None
+    if context.fleet_id:
+        from .models import AgentFleet
+        from .agent_fleets import active
+
+        fleet = (
+            AgentFleet.objects.select_for_update(of=("self",))
+            .select_related("organization", "source__instance", "created_by")
+            .get(pk=context.fleet_id)
+        )
+        if not active(fleet):
+            raise ValueError("Rollout authorization unavailable")
     grant = (
         AgentEnrollment.objects.select_for_update(of=("self",))
         .select_related("organization", "asset__source", "created_by")
@@ -123,21 +151,40 @@ def redeem(grant_id, secret, raw, signature_input, signature, request_url):
 
         network = host_claim(data["host"])
     if grant.asset_id is None:
-        if not network or not source.can_write or source.organization_id != grant.organization_id:
+        if (
+            not network
+            or (not grant.observed_only and not source.can_write)
+            or source.organization_id != grant.organization_id
+        ):
             raise ValueError("New-host registration unavailable")
-        if Asset.objects.filter(organization=grant.organization, name__iexact=network["hostname"]).exists():
+        if grant.observed_only:
+            from .agent_fleets import fingerprint
+
+            if (
+                fleet is None
+                or source.pk != fleet.source_id
+                or fingerprint(source) != fleet.source_fingerprint
+                or (source.instance_id and not source.instance.enabled)
+            ):
+                raise ValueError("Rollout inventory context changed")
+        elif Asset.objects.filter(organization=grant.organization, name__iexact=network["hostname"]).exists():
             raise ValueError("Existing hostname requires explicit asset selection; never auto-merge")
         asset = Asset(
             organization=grant.organization,
             source=source,
             name=network["hostname"],
             kind=grant.new_asset_kind,
-            object_type="virtualization.virtualmachine" if grant.new_asset_kind == "vm" else "dcim.device",
-            state="recorded" if source.mode == "manual" else "pending",
+            object_type="bearings.agent_host"
+            if grant.observed_only
+            else "virtualization.virtualmachine"
+            if grant.new_asset_kind == "vm"
+            else "dcim.device",
+            state="recorded" if grant.observed_only or source.mode == "manual" else "pending",
+            upstream_data={"agent_observed_only": True} if grant.observed_only else {},
         )
         asset.full_clean()
         asset.save()
-        if source.mode != "manual":
+        if source.mode != "manual" and not grant.observed_only:
             InventoryWrite.objects.create(asset=asset)
         grant.asset = asset
         grant.save(update_fields=["asset"])
@@ -148,6 +195,7 @@ def redeem(grant_id, secret, raw, signature_input, signature, request_url):
             asset.pk,
             network="self-reported",
             source=str(source.pk),
+            observed_only=grant.observed_only,
         )
     else:
         grant.asset.refresh_from_db()
@@ -495,6 +543,12 @@ def detach(actor, org, component_id):
 
 @transaction.atomic
 def cancel_enrollment(actor, org, grant_id):
+    org = Organization.objects.select_for_update(no_key=True).get(pk=org.pk)
+    context = AgentEnrollment.objects.only("fleet_id").get(pk=grant_id, organization=org)
+    if context.fleet_id:
+        from .models import AgentFleet
+
+        AgentFleet.objects.select_for_update().get(pk=context.fleet_id)
     grant = AgentEnrollment.objects.select_for_update(of=("self",)).get(pk=grant_id, organization=org)
     require(administrator(actor, org))
     grant.expires_at = timezone.now()

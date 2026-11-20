@@ -121,10 +121,14 @@ p.write_text(json.dumps(s));sys.exit(code)
     token = grant_id + "." + secrets.token_urlsafe(32)
     device_id, asset_id = str(uuid.uuid4()), str(uuid.uuid4())
     received = []
+    fleet_id = str(uuid.uuid4())
+    fleet_token = fleet_id + "." + secrets.token_urlsafe(32)
+    bootstraps = []
+    automatic = os.environ.get("BEARINGS_INSTALLER_FLEET") == "1"
 
     class Resolver(HTTPSignatureKeyResolver):
         def resolve_public_key(self, key_id):
-            assert key_id == "enroll:" + grant_id
+            assert key_id in ("enroll:" + grant_id, "fleet:" + fleet_id)
             return ed25519.Ed25519PublicKey.from_public_bytes(base64.b64decode(public["public_key"]))
 
     class Handler(BaseHTTPRequestHandler):
@@ -148,8 +152,9 @@ p.write_text(json.dumps(s));sys.exit(code)
 
         def do_POST(self):
             body = self.rfile.read(int(self.headers["Content-Length"]))
-            assert self.path == "/api/v1/agent/enroll/"
-            assert self.headers["Authorization"] == "Bearer " + token
+            is_bootstrap = self.path == "/api/v1/agent/bootstrap/"
+            assert self.path in ("/api/v1/agent/enroll/", "/api/v1/agent/bootstrap/")
+            assert self.headers["Authorization"] == "Bearer " + (fleet_token if is_bootstrap else token)
             digest = base64.b64encode(hashlib.sha256(body).digest()).decode()
             assert self.headers["Content-Digest"] == "sha-256=:" + digest + ":"
             HTTPMessageVerifier(signature_algorithm=algorithms.ED25519, key_resolver=Resolver()).verify(
@@ -159,7 +164,30 @@ p.write_text(json.dumps(s));sys.exit(code)
                 expect_tag="bearings.agent.v1",
                 expect_label="bearings",
             )
+            if is_bootstrap:
+                request = json.loads(body)
+                assert request["public_key"] == public["public_key"]
+                assert request["schema"] == "bearings.agent.bootstrap.v1"
+                bootstraps.append(body)
+                response = json.dumps(
+                    {
+                        "schema": "bearings.agent.grant.v1",
+                        "url": origin,
+                        "grant": token,
+                        "public_key": public["public_key"],
+                        "register_host": True,
+                        "asset_id": "",
+                        "expires_at": (now + timedelta(minutes=30)).isoformat(),
+                    }
+                ).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(response)))
+                self.end_headers()
+                self.wfile.write(response)
+                return
             received.append(body)
+            if automatic:
+                assert json.loads(body)["host"]["hostname"] == "synthetic-bearings-installer"
             response = json.dumps(
                 {
                     "schema": "bearings.agent.enrolled.v1",
@@ -194,7 +222,16 @@ p.write_text(json.dumps(s));sys.exit(code)
     ).encode()
     grant.write_bytes(original)
     try:
-        call("enroll", "--grant-file", str(grant), ok=False)
+        if not automatic:
+            call("enroll", "--grant-file", str(grant), ok=False)
+        else:
+            call(
+                "--server",
+                f"https://localhost:{server.server_port}",
+                "--bootstrap-stdin",
+                stdin=fleet_token.encode(),
+                ok=False,
+            )
         assert (private / "key").read_bytes() == key_before
         assert not received and not json.loads(state.read_text())["enabled"]
         assert not list(Path("/run").glob("bearings-linux-enroll-*"))
@@ -202,7 +239,25 @@ p.write_text(json.dumps(s));sys.exit(code)
         call("--server", origin, "--ca-file", str(ca))
         assert (private / "key").read_bytes() == key_before
         code = b"bearings-enroll-v1." + base64.urlsafe_b64encode(original).rstrip(b"=")
-        call("enroll", "--code-stdin", "--ca-file", str(ca), stdin=code + b"\n")
+        if automatic:
+            call(
+                "--server",
+                origin,
+                "--ca-file",
+                str(ca),
+                "--bootstrap-stdin",
+                stdin=fleet_token.encode() + b"\n",
+            )
+            assert len(bootstraps) == 1
+            assert not (private / "bootstrap-grant.json").exists()
+            assert fleet_token not in (private / "bootstrap.json").read_text()
+            state.write_text(json.dumps({"active": False, "enabled": True}))
+            call("--server", origin, "--ca-file", str(ca), "--bootstrap-stdin", stdin=b"")
+            assert not json.loads(state.read_text())["active"]
+            assert len(bootstraps) == 1 and len(received) == 1
+            call("start")
+        else:
+            call("enroll", "--code-stdin", "--ca-file", str(ca), stdin=code + b"\n")
     finally:
         server.shutdown()
         server.server_close()
@@ -262,6 +317,7 @@ p.write_text(json.dumps(s));sys.exit(code)
                 "real_account_and_file_permissions": True,
                 "central_https_download": True,
                 "stdin_registration": True,
+                "automatic_rollout": automatic,
                 "tls_and_signature_verified": True,
                 "failed_enrollment_preserves_key": True,
                 "update_preserves_state_and_dropins": True,

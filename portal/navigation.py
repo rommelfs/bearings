@@ -50,6 +50,7 @@ ROUTES = {
     "start": {"getting-started"},
     "applications": {"applications", "application", "source-reference", "sso-settings", "workspace-switch"},
     "inventory": {
+        "agent-fleets",
         "inventory",
         "company-members",
         "company-join",

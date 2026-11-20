@@ -128,10 +128,11 @@ class AgentClientTests(TransactionTestCase):
         self.server.server_close()
         self.thread.join(timeout=5)
 
-    def cli(self, command, *args, ok=True):
+    def cli(self, command, *args, ok=True, stdin=None):
         result = subprocess.run(
             [str(CLIENT), command, "--state-dir", str(self.state), *args],
             capture_output=True,
+            input=stdin,
             text=True,
             timeout=30,
         )
@@ -176,6 +177,88 @@ class AgentClientTests(TransactionTestCase):
         self.assertEqual(enrolled["state"], "enrolled")
         self.device = AgentDevice.objects.get(pk=enrolled["device_id"])
         return init
+
+    def test_fleet_bootstrap_recovers_lost_responses_without_duplicate_identity(self):
+        from . import agent_fleets
+        from .models import AgentFleetRegistration, InventoryWrite
+
+        with override_settings(PUBLIC_BASE_URL=self.origin):
+            fleet, token = agent_fleets.create(self.admin, self.org, "SYNTHETIC rollout", "server", 2, 24)
+            self.cli("init")
+            args = ("--server", self.origin, "--ca-file", str(self.ca))
+            original_issue = agent_fleets.issue
+
+            def lose_bootstrap(*a, **kw):
+                original_issue(*a, **kw)
+                raise RuntimeError("SYNTHETIC lost bootstrap receipt")
+
+            with patch("portal.agent_fleets.issue", side_effect=lose_bootstrap):
+                self.assertNotEqual(self.cli("bootstrap", *args, stdin=token, ok=False).returncode, 0)
+            self.assertEqual(AgentFleetRegistration.objects.count(), 1)
+            self.assertFalse((self.state / "bootstrap-grant.json").exists())
+            original_redeem = agents.redeem
+
+            def lose_enrollment(*a, **kw):
+                original_redeem(*a, **kw)
+                raise RuntimeError("SYNTHETIC lost device receipt")
+
+            with patch("portal.agent_views.agents.redeem", side_effect=lose_enrollment):
+                self.assertNotEqual(self.cli("bootstrap", *args, stdin=token, ok=False).returncode, 0)
+            self.assertEqual(AgentDevice.objects.count(), 1)
+            self.assertTrue((self.state / "bootstrap-grant.json").exists())
+            private_key = (self.state / "key").read_bytes()
+            self.cli("bootstrap", *args, stdin=token)
+            self.assertFalse((self.state / "bootstrap-grant.json").exists())
+            agent_fleets.revoke(self.admin, self.org, fleet.pk)
+            self.cli("bootstrap", *args, stdin="")  # already enrolled, no rollout bearer needed
+            self.assertEqual((self.state / "key").read_bytes(), private_key)
+            self.assertEqual(AgentFleetRegistration.objects.count(), 1)
+            self.assertEqual(AgentDevice.objects.count(), 1)
+            self.assertFalse(InventoryWrite.objects.exists())
+            self.cli("report", "--package", "bash")
+            agents.process_pending()
+            self.assertEqual(AgentComponent.objects.get().name, "bash")
+            self.assertNotIn(token, "".join(p.read_text() for p in self.state.glob("*.json")))
+
+    def test_parallel_native_fleet_hosts_cannot_exceed_quota(self):
+        from . import agent_fleets
+        from .models import AgentFleetRegistration, InventoryWrite
+
+        with override_settings(PUBLIC_BASE_URL=self.origin):
+            fleet, token = agent_fleets.create(
+                self.admin, self.org, "SYNTHETIC parallel rollout", "server", 3, 24
+            )
+
+            def host(n):
+                state = self.root / ("parallel-" + str(n))
+                subprocess.run(
+                    [str(CLIENT), "init", "--state-dir", str(state)], capture_output=True, check=True
+                )
+                return subprocess.run(
+                    [
+                        str(CLIENT),
+                        "bootstrap",
+                        "--state-dir",
+                        str(state),
+                        "--server",
+                        self.origin,
+                        "--ca-file",
+                        str(self.ca),
+                    ],
+                    input=token,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                ).returncode
+
+            with ThreadPoolExecutor(max_workers=6) as executor:
+                results = list(executor.map(host, range(12)))
+            self.assertEqual(results.count(0), 3)
+            fleet.refresh_from_db()
+            self.assertEqual(fleet.issued_devices, 3)
+            self.assertEqual(AgentDevice.objects.count(), 3)
+            self.assertEqual(AgentFleetRegistration.objects.count(), 3)
+            self.assertFalse(InventoryWrite.objects.exists())
 
     def test_actual_client_enrollment_report_receipt_and_explicit_projection(self):
         self.enroll()

@@ -2027,16 +2027,54 @@ class NationalProductVersion(models.Model):
         ]
 
 
+class AgentFleet(models.Model):
+    """Expiring company-scoped rollout authorization; shared secret is never stored."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    name = models.CharField(max_length=100)
+    token_hash = models.CharField(max_length=64, editable=False)
+    source_fingerprint = models.CharField(max_length=64, editable=False)
+    new_asset_kind = models.CharField(
+        max_length=20,
+        choices=[
+            ("vm", "Virtual machine"),
+            ("server", "Server"),
+            ("desktop", "Desktop"),
+            ("laptop", "Laptop"),
+        ],
+    )
+    max_devices = models.PositiveIntegerField(default=1000)
+    issued_devices = models.PositiveIntegerField(default=0, editable=False)
+    enabled = models.BooleanField(default=True)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(max_devices__gte=1, max_devices__lte=100000), name="agent_fleet_device_limit"
+            ),
+            models.CheckConstraint(
+                condition=Q(issued_devices__lte=F("max_devices")), name="agent_fleet_quota"
+            ),
+        ]
+
+
 class AgentEnrollment(models.Model):
     """One-use, public-key-bound authorization, created by a company administrator."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    fleet = models.ForeignKey(AgentFleet, on_delete=models.PROTECT, null=True, blank=True)
+    observed_only = models.BooleanField(default=False)
     asset = models.ForeignKey(Asset, on_delete=models.PROTECT, null=True, blank=True)
     new_asset_kind = models.CharField(max_length=20, blank=True)
     source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    public_key = models.CharField(max_length=44)
+    public_key = models.CharField(max_length=44, db_index=True)
     token_hash = models.CharField(max_length=64)
     created_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField()
@@ -2047,6 +2085,14 @@ class AgentEnrollment(models.Model):
     signature = models.TextField(blank=True)
     request_url = models.CharField(max_length=2048, blank=True)
     device_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
+
+class AgentFleetRegistration(models.Model):
+    fleet = models.ForeignKey(AgentFleet, on_delete=models.PROTECT, related_name="registrations")
+    public_key = models.CharField(max_length=44, unique=True)
+    request_id = models.UUIDField()
+    enrollment = models.OneToOneField(AgentEnrollment, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(default=timezone.now)
 
 
 class AgentDevice(models.Model):
