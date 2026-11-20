@@ -289,6 +289,7 @@ func run(args []string) error {
 	grantFile := flags.String("grant-file", "", "one-use enrollment file (0600)")
 	ca := flags.String("ca-file", "", "additional explicitly trusted PEM CA")
 	registerHost := flags.Bool("register-host", false, "explicitly include local hostname and configured interface addresses during enrollment")
+	binariesFile := flags.String("binaries-file", "", "local administrator-approved binary probe configuration")
 	inventory := flags.Bool("inventory", false, "observe the complete supported package database")
 	serviceName := flags.String("service", "", "supported nginx runtime/package profile")
 	id := flags.String("report", "", "receipt identifier")
@@ -296,10 +297,10 @@ func run(args []string) error {
 	var selected repeated
 	flags.Var(&selected, "package", "exact package name; repeat for multiple names")
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 {
-		return errors.New("invalid arguments; use --state-dir, --inventory, --service nginx or --package NAME as documented")
+		return errors.New("invalid arguments; use --state-dir, --inventory, --service nginx or --package NAME / --binaries-file FILE as documented")
 	}
 	if args[0] == "collect" {
-		r, err := collect(*inventory, selected, *serviceName)
+		r, err := collectConfigured(*inventory, selected, *serviceName, *binariesFile)
 		if err != nil {
 			return err
 		}
@@ -327,7 +328,7 @@ func run(args []string) error {
 		if err = ready(s); err != nil {
 			return err
 		}
-		r, err := collect(*inventory, selected, *serviceName)
+		r, err := collectConfigured(*inventory, selected, *serviceName, *binariesFile)
 		if err != nil {
 			return err
 		}
@@ -351,7 +352,7 @@ func run(args []string) error {
 		dir := s.dir
 		s.close()
 		s.lock = nil
-		return watch(dir, *inventory, selected, *serviceName, *interval)
+		return watch(dir, *inventory, selected, *serviceName, *binariesFile, *interval)
 	default:
 		return errors.New("unknown command")
 	}
@@ -359,8 +360,11 @@ func run(args []string) error {
 
 // watch releases the state lock between operations so CLI update hooks can coexist.
 // Failed delivery uses bounded exponential backoff and jitter; no queued input is evicted.
-func watch(dir string, inventory bool, selected []string, serviceName string, interval time.Duration) error {
-	if (!inventory && len(selected) == 0 && serviceName == "") || (inventory && (len(selected) > 0 || serviceName != "")) || (len(selected) > 0 && serviceName != "") || (serviceName != "" && serviceName != "nginx") {
+func watch(dir string, inventory bool, selected []string, serviceName string, binariesFile string, interval time.Duration) error {
+	if binariesFile != "" && (inventory || len(selected) > 0 || serviceName != "") {
+		return errors.New("binary probes require their own explicit collection scope")
+	}
+	if binariesFile == "" && ((!inventory && len(selected) == 0 && serviceName == "") || (inventory && (len(selected) > 0 || serviceName != "")) || (len(selected) > 0 && serviceName != "") || (serviceName != "" && serviceName != "nginx")) {
 		return errors.New("choose one supported explicit collection scope")
 	}
 	stop := make(chan os.Signal, 1)
@@ -389,7 +393,7 @@ func watch(dir string, inventory bool, selected []string, serviceName string, in
 		now := time.Now()
 		if err == nil && len(names) == 0 && !now.Before(nextCapture) && !now.Before(retryAt) {
 			var r *report
-			r, err = collect(inventory, selected, serviceName)
+			r, err = collectConfigured(inventory, selected, serviceName, binariesFile)
 			if err == nil {
 				err = s.enqueue(r)
 				captured = err == nil

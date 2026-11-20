@@ -331,3 +331,8 @@ The earlier baseline failure above is historical. Global pages/audit work are no
 ## Four-language website editorial review — 2026-11-19
 
 Removed automatic outer blockquote punctuation that doubled the Java quotation mark. Reviewed EN/DE/FR/LB landing pages, all 76 translated FAQ pairs and all twenty fictional quote/fact/benefit sets; corrected mixed German address, awkward French/Luxembourgish wording, French spacing and previously English-only labels. The FAQ now consistently states continued free use, the current schedule-management roles and measured scale evidence with its limits. Browser checks cover all eight pages at four widths and no-JavaScript FAQs. See [website maintenance](../website/README.md) and [validation](validation.md).
+
+
+## Configured Linux binary version probes — 2026-11-20
+
+Configured native ELF probes are now implemented as an additional bounded Linux scope: reviewed local config, non-root execution, fixed argv/RE2 extraction, safe paths/no-new-privileges, descriptor-bound SHA-256, time/output/count limits and explicit canonical version ownership. Signed reports retain path/hash only; no raw output/commands, remote execution, silent identity retarget or inferred remediation. Existing package clients remain compatible. See clients/linux/README.md and migration 0057.

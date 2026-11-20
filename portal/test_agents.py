@@ -725,3 +725,106 @@ class AgentTests(Fixture):
         self.assertRedirects(response, "/organizations/alpha/agents/", fetch_redirect_response=False)
         self.installation.refresh_from_db()
         self.assertEqual(self.installation.version, component.version)
+
+    def binary_data(self, sequence=1, version="1.2.3"):
+        data = self.data(sequence, scope="configured-binaries")
+        data["complete"] = False
+        data["services"] = []
+        data["components"] = [
+            {
+                "key": "binary:custom-nginx:x86_64",
+                "manager": "binary",
+                "name": "nginx",
+                "version": version,
+                "architecture": "x86_64",
+                "binary": {"path": "/opt/nginx/sbin/nginx", "sha256": "a" * 64},
+            }
+        ]
+        return data
+
+    def test_configured_binary_evidence_and_explicit_version_ownership(self):
+        self.enroll()
+        finding = self.record_finding()
+        before = finding.status
+        self.assertEqual(self.send(self.data()).status_code, 202)
+        agents.process_pending()
+        self.device.refresh_from_db()
+        full_at = self.device.last_complete_at
+        package = AgentComponent.objects.get(manager="dpkg")
+        package_time = package.observed_at
+        self.relax()
+        self.assertEqual(self.send(self.binary_data(2)).status_code, 202)
+        agents.process_pending()
+        component = AgentComponent.objects.get(manager="binary")
+        self.assertEqual(component.binary["sha256"], "a" * 64)
+        self.assertEqual(component.binary["path"], "/opt/nginx/sbin/nginx")
+        self.installation.refresh_from_db()
+        self.assertEqual(self.installation.version, "")
+        agents.bind(self.admin, self.a, component.pk, self.installation.pk)
+        self.relax()
+        data = self.binary_data(3, "1.2.4-custom")
+        data["components"][0]["binary"]["sha256"] = "b" * 64
+        self.send(data)
+        agents.process_pending()
+        self.installation.refresh_from_db()
+        component.refresh_from_db()
+        self.device.refresh_from_db()
+        package.refresh_from_db()
+        finding.refresh_from_db()
+        self.assertEqual(self.installation.version, "1.2.4-custom")
+        self.assertEqual(component.binary["sha256"], "b" * 64)
+        self.assertEqual(package.observed_at, package_time)
+        self.assertIsNone(package.missing_since)
+        self.assertEqual(self.device.last_complete_at, full_at)
+        self.assertEqual(finding.status, before)
+        first = AgentReport.objects.get(sequence=2)
+        self.assertIn(b'"sha256":"aaaaaaaa', bytes(first.body))
+        self.login()
+        response = self.client.get(f"/organizations/alpha/agents/?device={self.device.pk}")
+        self.assertContains(response, "/opt/nginx/sbin/nginx")
+        self.assertContains(response, "b" * 64)
+
+    def test_binary_scope_and_evidence_are_strict_and_cannot_impersonate_packages(self):
+        self.enroll()
+        for mutate in [
+            lambda d: d.update(complete=True),
+            lambda d: d.update(scope="system-packages"),
+            lambda d: d["components"][0].update(manager="rpm"),
+            lambda d: d["components"][0].update(key="binary:other:wrong-arch"),
+            lambda d: d["components"][0]["binary"].update(path="relative"),
+            lambda d: d["components"][0]["binary"].update(path="/opt/../secret"),
+            lambda d: d["components"][0]["binary"].update(sha256="not-a-hash"),
+            lambda d: d["components"][0]["binary"].update(args=["arbitrary-command"]),
+            lambda d: d.update(components=d["components"] * 17),
+        ]:
+            data = self.binary_data()
+            mutate(data)
+            with self.subTest(data=data):
+                self.assertEqual(self.send(data).status_code, 403)
+        self.assertFalse(AgentReport.objects.exists())
+
+    def test_creating_binary_software_uses_generic_identity_not_rpm(self):
+        self.enroll()
+        self.send(self.binary_data())
+        agents.process_pending()
+        c = AgentComponent.objects.get()
+        installation = agents.bind(self.admin, self.a, c.pk, create=True)
+        self.assertTrue(installation.product.identifier.startswith("pkg:generic/"))
+        self.assertEqual(installation.version, "1.2.3")
+
+    def test_bound_binary_cannot_silently_change_program_path_or_name(self):
+        self.enroll()
+        self.send(self.binary_data())
+        agents.process_pending()
+        c = AgentComponent.objects.get()
+        agents.bind(self.admin, self.a, c.pk, self.installation.pk)
+        self.relax()
+        data = self.binary_data(2, "99.0.0")
+        data["components"][0]["binary"]["path"] = "/opt/another-program/bin/tool"
+        self.send(data)
+        agents.process_pending()
+        self.assertEqual(AgentReport.objects.get(sequence=2).status, "rejected")
+        self.installation.refresh_from_db()
+        c.refresh_from_db()
+        self.assertEqual(self.installation.version, "1.2.3")
+        self.assertEqual(c.binary["path"], "/opt/nginx/sbin/nginx")

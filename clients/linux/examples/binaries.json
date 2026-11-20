@@ -1,0 +1,19 @@
+{
+  "schema": "bearings.binary-probes.v1",
+  "binaries": [
+    {
+      "id": "nginx-local",
+      "name": "nginx",
+      "executable": "/opt/nginx/sbin/nginx",
+      "args": ["-v"],
+      "version_pattern": "(?m)^nginx version: nginx/([0-9A-Za-z.+~-]+)$"
+    },
+    {
+      "id": "java-service-a",
+      "name": "openjdk",
+      "executable": "/opt/jdk/bin/java",
+      "args": ["-version"],
+      "version_pattern": "(?m)^(?:openjdk|java) version \"([^\"]+)\""
+    }
+  ]
+}

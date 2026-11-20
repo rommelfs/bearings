@@ -166,11 +166,11 @@ def report_data(data):
     if not observed or timezone.is_naive(observed) or observed > timezone.now() + timedelta(minutes=5):
         raise ValueError("Invalid observation time")
     if (
-        data["scope"] not in ("system-packages", "nginx-packages", "selected-packages")
+        data["scope"] not in ("system-packages", "nginx-packages", "selected-packages", "configured-binaries")
         or type(data["complete"]) is not bool
     ):
         raise ValueError("Invalid coverage")
-    if data["scope"] == "selected-packages" and data["complete"]:
+    if data["scope"] in ("selected-packages", "configured-binaries") and data["complete"]:
         raise ValueError("Selected packages cannot assert completeness")
     exact(data["os"], ("id", "version", "architecture", "kernel", "reboot_hint"))
     for field in ("id", "version", "architecture", "kernel"):
@@ -183,8 +183,12 @@ def report_data(data):
     keys = set()
     managers = set()
     for c in components:
-        exact(c, ("key", "manager", "name", "version", "architecture"))
-        if c["manager"] not in ("dpkg", "rpm"):
+        if not isinstance(c, dict):
+            raise ValueError("Invalid component")
+        binary = c.get("manager") == "binary"
+        fields = ("key", "manager", "name", "version", "architecture")
+        exact(c, (*fields, "binary") if binary else fields)
+        if c["manager"] not in ("dpkg", "rpm", "binary"):
             raise ValueError("Unsupported collector")
         text(c["name"], 128, r"[A-Za-z0-9][A-Za-z0-9+_.-]*")
         text(c["architecture"], 64, r"[A-Za-z0-9][A-Za-z0-9_.-]*")
@@ -193,6 +197,26 @@ def report_data(data):
         allowed = {base}
         if c["manager"] == "rpm":
             allowed.add(base + "@" + c["version"])
+        if binary:
+            if data["scope"] != "configured-binaries" or len(components) > 16:
+                raise ValueError("Binary observations require a separate bounded scope")
+            text(c["key"], 255, r"binary:[a-z0-9][a-z0-9._-]{0,63}:" + re.escape(c["architecture"]))
+            exact(c["binary"], ("path", "sha256"))
+            path = c["binary"]["path"]
+            text(path, 1024)
+            from pathlib import PurePosixPath
+
+            if (
+                not path.startswith("/")
+                or path.startswith("//")
+                or str(PurePosixPath(path)) != path
+                or ".." in PurePosixPath(path).parts
+            ):
+                raise ValueError("Use an absolute normalized binary path")
+            text(c["binary"]["sha256"], 64, r"[0-9a-f]{64}")
+            allowed = {c["key"]}
+        elif data["scope"] == "configured-binaries":
+            raise ValueError("Package observations cannot claim binary coverage")
         if c["key"] not in allowed or len(c["key"]) > 255 or c["key"] in keys:
             raise ValueError("Duplicate or invalid package identity")
         if data["scope"] == "nginx-packages" and not package_scope(c["name"], data["scope"]):
@@ -203,6 +227,8 @@ def report_data(data):
         raise ValueError("One package database per snapshot")
     if not isinstance(data["services"], list) or len(data["services"]) > 1:
         raise ValueError("Unsupported runtime observations")
+    if data["scope"] == "configured-binaries" and data["services"]:
+        raise ValueError("Configured binary versions do not assert runtime coverage")
     for s in data["services"]:
         exact(s, ("name", "state", "coverage"))
         if (

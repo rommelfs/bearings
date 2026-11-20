@@ -267,3 +267,41 @@ class AgentClientTests(TransactionTestCase):
         self.assertEqual(self.device.components.count(), 1)
         self.org.refresh_from_db()
         self.assertFalse(self.org.operator_visibility)
+
+    def test_native_configured_binary_report_over_verified_https(self):
+        self.enroll()
+        executable = Path("/usr/bin/printf").resolve()
+        if not executable.is_file() or os.geteuid() == 0:
+            self.skipTest("Requires an unprivileged collector and native printf")
+        config = self.root / "binaries.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "schema": "bearings.binary-probes.v1",
+                    "binaries": [
+                        {
+                            "id": "custom-tool",
+                            "name": "synthetic-tool",
+                            "executable": str(executable),
+                            "args": ["SYNTHETIC version %s\\n", "1.2.3"],
+                            "version_pattern": r"(?m)^SYNTHETIC version ([0-9.]+)$",
+                        }
+                    ],
+                }
+            )
+        )
+        config.chmod(0o600)
+        response = json.loads(self.cli("report", "--binaries-file", str(config)).stdout)
+        self.assertEqual(response["status"], "pending")
+        row = AgentReport.objects.get(pk=response["report_id"])
+        agents.process_one(row.device_id, row.pk)
+        c = AgentComponent.objects.get(device=row.device)
+        self.assertEqual(c.manager, "binary")
+        self.assertEqual(c.version, "1.2.3")
+        import hashlib
+
+        self.assertEqual(c.binary["sha256"], hashlib.sha256(executable.read_bytes()).hexdigest())
+        self.assertEqual(c.binary["path"], str(executable))
+        installation = agents.bind(self.admin, self.org, c.pk, create=True)
+        self.assertEqual(installation.version, "1.2.3")
+        self.assertTrue(installation.product.identifier.startswith("pkg:generic/"))

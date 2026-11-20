@@ -28,11 +28,12 @@ type operatingSystem struct {
 	RebootHint   string `json:"reboot_hint"`
 }
 type component struct {
-	Key          string `json:"key"`
-	Manager      string `json:"manager"`
-	Name         string `json:"name"`
-	Version      string `json:"version"`
-	Architecture string `json:"architecture"`
+	Binary       *binaryEvidence `json:"binary,omitempty"`
+	Key          string          `json:"key"`
+	Manager      string          `json:"manager"`
+	Name         string          `json:"name"`
+	Version      string          `json:"version"`
+	Architecture string          `json:"architecture"`
 }
 type service struct {
 	Name     string `json:"name"`

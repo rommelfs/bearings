@@ -321,8 +321,15 @@ def process_one(device_id, report_id):
                     creates.append(c)
                 else:
                     updates.append(c)
+                if (
+                    c.installation_id
+                    and value["manager"] == "binary"
+                    and (c.name != value["name"] or c.binary.get("path") != value["binary"]["path"])
+                ):
+                    raise ValidationError("Release binary version ownership before changing program identity")
                 for field in ("name", "manager", "architecture", "version"):
                     setattr(c, field, value[field])
+                c.binary = value.get("binary", {})
                 c.observed_at = row.observed_at
                 c.missing_since = None
                 c.last_report = row
@@ -336,7 +343,16 @@ def process_one(device_id, report_id):
             AgentComponent.objects.bulk_create(creates, batch_size=250)
             AgentComponent.objects.bulk_update(
                 updates,
-                ["name", "manager", "architecture", "version", "observed_at", "missing_since", "last_report"],
+                [
+                    "name",
+                    "manager",
+                    "architecture",
+                    "version",
+                    "observed_at",
+                    "missing_since",
+                    "last_report",
+                    "binary",
+                ],
                 batch_size=250,
             )
             Installation.objects.bulk_update(installation_updates, ["version"], batch_size=250)
@@ -412,8 +428,13 @@ def bind(actor, org, component_id, installation_id=None, create=False):
     if component.installation_id:
         raise ValidationError("Already bound; detach explicitly before changing ownership")
     if create:
-        family = "deb" if component.manager == "dpkg" else "rpm"
-        identifier = f"pkg:{family}/{quote(device.os.get('id', 'linux'), safe='')}/{quote(component.name, safe='')}?arch={quote(component.architecture, safe='')}"
+        if component.manager == "binary":
+            identifier = (
+                f"pkg:generic/{quote(component.name, safe='')}?arch={quote(component.architecture, safe='')}"
+            )
+        else:
+            family = "deb" if component.manager == "dpkg" else "rpm"
+            identifier = f"pkg:{family}/{quote(device.os.get('id', 'linux'), safe='')}/{quote(component.name, safe='')}?arch={quote(component.architecture, safe='')}"
         if len(identifier) > 255:
             raise ValidationError("Package identifier exceeds the supported length")
         product, _ = Product.objects.get_or_create(

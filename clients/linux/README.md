@@ -67,13 +67,49 @@ bearings-linux report --inventory
 bearings-linux status
 ```
 
-Choose exactly one scope. `--package` can be repeated; it is exact, not a shell expression. `--service nginx` covers known distro NGINX package names and a fixed `/usr/sbin/nginx` systemd main-process check. No arbitrary service, executable, shell or server-provided command runs. The profile compares executable inode identity with the on-disk file and checks process start time against PID reuse. `executable_matches` covers **only that executable of the main process**, not workers, libraries, configuration or effective remediation. Missing privileges/systemd/executable make runtime coverage unknown. A separately observed reboot indicator is not complete restart detection.
+Choose exactly one scope. `--package` can be repeated; it is exact, not a shell expression. `--service nginx` covers known distro NGINX package names and a fixed `/usr/sbin/nginx` systemd main-process check. Package/runtime profiles execute fixed collectors. The optional local binary configuration below authorizes specific additional native executables; no server-provided command or implicit shell runs. The profile compares executable inode identity with the on-disk file and checks process start time against PID reuse. `executable_matches` covers **only that executable of the main process**, not workers, libraries, configuration or effective remediation. Missing privileges/systemd/executable make runtime coverage unknown. A separately observed reboot indicator is not complete restart detection.
 
 The receiver uses verified HTTPS plus the client's Ed25519 HTTP Message Signature (RFC 9421) and SHA-256 Content-Digest (RFC 9530). A receipt identifies the exact stored report/hash. `pending` confirms durable receipt, **not** completed evaluation; poll `status` for applied/rejected/superseded. A failed foreground report exits nonzero and retains pending input locally. It does not roll back a software update.
 
 All newly observed packages remain separate observations until an administrator explicitly assigns a version field to an existing installation or creates a separate package software entry in the device page. Subsequent fresh reports update that version automatically and request reevaluation of an existing product watch. Product mappings, build/edition and analyst decisions retain separate ownership. Human version/CSV editing requires detaching its agent binding first. Unknown native package applicability stays unknown; Debian/RPM backports are not stripped into vendor SemVer guesses.
 
 Full declared scope can mark a previous package as not observed. It never deletes software or resolves a finding. Partial reports do not refresh the age of other packages or full inventory coverage. Runtime observations retain their own time; an unrelated report does not erase them.
+
+## Manually installed native binaries
+
+A local administrator may explicitly authorize version queries for software outside dpkg/RPM, using [examples/binaries.json](examples/binaries.json). Adapt the paths and patterns to the actual installation; the example is not auto-discovery. One stable `id` identifies each configured installation, including multiple versions of the same software. `name` is a software label, not an assertion of CVE applicability.
+
+```json
+{
+  "schema": "bearings.binary-probes.v1",
+  "binaries": [{
+    "id": "nginx-local",
+    "name": "nginx",
+    "executable": "/opt/nginx/sbin/nginx",
+    "args": ["-v"],
+    "version_pattern": "(?m)^nginx version: nginx/([0-9A-Za-z.+~-]+)$"
+  }]
+}
+```
+
+Keep the configuration at an administrator-managed readable location such as `/etc/bearings/binaries.json`, mode 0644 or stricter, owned by root/the system filesystem owner or the dedicated collector account. No file or parent may be group/world writable; system-owned sticky temporary directories are accepted only as ancestors. The same checks apply to the executable. Paths must be absolute, normalized and free of symlinks; obtain the actual target with `readlink -f` when configuring an installation. Native ELF files are supported; shell/wrapper scripts are refused. The reference intentionally has no server-editable command configuration. A rootless container's system filesystem owner may have a mapped nonzero UID.
+
+Run as the dedicated **non-root** collector account:
+
+```sh
+bearings-linux collect --binaries-file /etc/bearings/binaries.json
+bearings-linux report --binaries-file /etc/bearings/binaries.json
+bearings-linux enqueue --binaries-file /etc/bearings/binaries.json
+bearings-linux watch --binaries-file /etc/bearings/binaries.json --interval 6h
+```
+
+This is its own scope; do not combine it with `--inventory`, `--package` or `--service`. For systemd use an operator-reviewed `ExecStart` override with the same private state directory and `--binaries-file` in place of `--inventory`. The hardened unit hides home directories and has memory/task limits; install approved executables under accessible system paths. Its `MemoryDenyWriteExecute=yes` may prevent JVM/JIT startup even for a version query. A Java-specific unit may need an explicitly reviewed `MemoryDenyWriteExecute=no` override; that relaxation is not automatic. Test the intended runtime under its actual service restrictions. An existing package watcher may share that state/outbox, with the existing lock/admission/backoff rules; stagger runs and monitor failed collection.
+
+The client executes a fixed argument array directly, without a shell, stdin, inherited HOME/secrets or supplied environment. At least one explicit argument is required, to avoid accidentally starting a service with no arguments. Combined stdout/stderr is limited to 16 KiB; a Go RE2 pattern with exactly one capture must produce exactly one version match. Only the parsed version, configured ID/name, architecture, canonical path and executable SHA-256 enter the signed report. Arguments, regex and raw output are not transmitted. The client fingerprints and executes the same open descriptor, verifies file/path identity afterward and refuses a changing executable. Limits: 16 probes / 64 KiB configuration, 256 MiB per executable, five seconds per started process and thirty seconds per collection including hashing. Linux `/proc` is required. No-new-privileges prevents set-ID/file-capability elevation, and process groups are killed on timeout/cleanup. Blocking or unresponsive filesystems remain an OS-level availability concern.
+
+**Only configure trusted programs and reviewed version-only arguments.** Executing a version switch is not a sandbox or a guarantee that a program has no side effects. The program runs as the collector account and can access files available to that account, including device state; use the hardened dedicated service without capabilities, and isolate untrusted programs separately. The hash covers the executable file, not its dynamic libraries, whole JDK/application directory, running service or proof of remediation. JAR manifests, SBOM/container discovery and script-wrapper support remain separate work.
+
+Any failed, excessive, nonzero, ambiguous or timed-out query fails the collection without publishing a partial success. Previous observations remain and become stale normally. Binary scope never claims full package coverage or marks unconfigured software removed. New records still need explicit version ownership in Bearings; only their versions may update afterward. Changing a bound binary's name/path requires releasing and reviewing that binding first. Keep its ID stable across upgrades, and do not reuse it for a different installation. Upgrade the server/apply migration 0057 before deploying this client feature; older package-only clients remain compatible.
 
 ## Outages and periodic collection
 

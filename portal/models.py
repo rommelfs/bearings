@@ -2123,6 +2123,7 @@ class AgentReport(models.Model):
 
 
 class AgentComponent(models.Model):
+    binary = models.JSONField(default=dict, blank=True)
     device = models.ForeignKey(AgentDevice, on_delete=models.PROTECT, related_name="components")
     key = models.CharField(max_length=255)
     name = models.CharField(max_length=128)

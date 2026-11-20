@@ -1,6 +1,6 @@
 # Linux authenticated inventory reference
 
-Status: implemented bounded reference, 19 November 2026. Native Go client under [clients/linux](../../clients/linux/README.md); Django receiver, company management UI, durable reports and bounded worker. This adds no remote shell, patch installation, Windows agent, automatic case closure or public deployment.
+Status: implemented bounded reference, 19 November 2026. Native Go client (including explicitly configured native binary version probes) under [clients/linux](../../clients/linux/README.md); Django receiver, company management UI, durable reports and bounded worker. This adds no remote shell, patch installation, Windows agent, automatic case closure or public deployment.
 
 ## Ownership and access
 
@@ -47,6 +47,15 @@ python3 scripts/dev.py up
 python3 scripts/build_linux_client.py
 ```
 
-In the retained lab, a focused Bearings image build followed by `up --no-build` is equivalent when reusing unchanged native-service images. Cloud proxy/CA environments have `scripts/cloud_image_build.py`; verification stays enabled. Production endpoints require correctly trusted HTTPS and operator-configured `BEARINGS_PUBLIC_URL`/allowed hosts. Run migrations 0054–0056 before serving the new endpoints.
+In the retained lab, a focused Bearings image build followed by `up --no-build` is equivalent when reusing unchanged native-service images. Cloud proxy/CA environments have `scripts/cloud_image_build.py`; verification stays enabled. Production endpoints require correctly trusted HTTPS and operator-configured `BEARINGS_PUBLIC_URL`/allowed hosts. Run migrations 0054–0057 before serving the new endpoints.
 
 See the [client guide](../../clients/linux/README.md) for commands, protected enrollment files, systemd, outage behavior and replacement procedure. Source implementation: `portal/agent_protocol.py`, `portal/agents.py`, `portal/agent_views.py`; tests: `portal/test_agents.py`, `portal/test_agent_client.py`, `clients/linux/client_test.go`. Build outputs stay under ignored `.local/`; no release binary, signing key, real customer report or enrollment secret belongs in Git.
+
+
+## Configured native binary extension — 20 November 2026
+
+A separate `configured-binaries` scope accepts at most sixteen `binary:<local-id>:<architecture>` observations and never asserts completeness/runtime coverage. The strict component contract adds only `binary.path` and `binary.sha256`; package components retain their original exact field set and cannot impersonate this scope. The server stores per-component evidence in `AgentComponent.binary` (migration 0057) alongside the exact historical signed report. It never opens the submitted path, executes supplied commands or infers applicability from it. Old package clients/reports remain valid; upgrade the server before enabling the new scope.
+
+Local administrator/collector-controlled configuration authorizes absolute native ELF paths, fixed argument arrays and one-capture RE2 extraction. Non-root execution, trusted paths, no shell, clean environment, no-new-privileges, descriptor-bound execution/hash, post-execution identity checks, process-group cleanup and bounded file/output/time/count limits reduce accidental execution/inventory errors. Raw stdout/stderr, arguments and patterns stay local. This remains trusted local code running with the collector's file access, not a sandbox or host-compromise protection. The executable hash is not a directory/library/runtime attestation. See the [client guide](../../clients/linux/README.md#manually-installed-native-binaries) for exact limits/examples.
+
+Each stable configured ID is distinct from its display product name and any dpkg/RPM slot. Explicit version bindings retain the existing authorization/source checks; bound binary name/path changes reject the publication for review. Fresh hash/version changes at the same identity are accepted; native package and other binary timestamps/coverage are not refreshed by omission. Failed/partial collection does not remove software or close findings. New binary software entries use a generic package identity rather than falsely claiming a Debian/RPM identity.
