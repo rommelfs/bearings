@@ -2,6 +2,7 @@
 
 from io import StringIO
 import os
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -17,6 +18,48 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ProductionTests(SimpleTestCase):
+    def test_installer_probes_unprivileged_sandbox_and_propagates_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            runner = Path(directory) / "systemd-run"
+            output = Path(directory) / "args.json"
+            runner.write_text(
+                f"#!{sys.executable}\n"
+                "import json,os,sys\n"
+                "from pathlib import Path\n"
+                "Path(os.environ['PROBE_ARGS']).write_text(json.dumps(sys.argv[1:]))\n"
+                "sys.exit(int(os.environ['PROBE_EXIT']))\n"
+            )
+            runner.chmod(0o700)
+            for code in (0, 226):
+                result = subprocess.run(
+                    ["bash", str(ROOT / "deploy/ubuntu24/check-sandbox.sh")],
+                    env={
+                        **os.environ,
+                        "PATH": directory + os.pathsep + os.environ["PATH"],
+                        "PROBE_ARGS": str(output),
+                        "PROBE_EXIT": str(code),
+                    },
+                    capture_output=True,
+                    timeout=10,
+                )
+                self.assertEqual(result.returncode, code)
+                args = json.loads(output.read_text())
+                for setting in (
+                    "User=www-data",
+                    "Group=www-data",
+                    "NoNewPrivileges=yes",
+                    "CapabilityBoundingSet=",
+                    "ReadWritePaths=/var/tmp",
+                    "PrivateTmp=yes",
+                    "ProtectSystem=strict",
+                    "ProtectHome=yes",
+                    "ProtectKernelTunables=yes",
+                    "ProtectKernelModules=yes",
+                    "ProtectControlGroups=yes",
+                ):
+                    self.assertIn("--property=" + setting, args)
+                self.assertEqual(args[-1], "/usr/bin/true")
+
     def config(self, **overrides):
         with tempfile.TemporaryDirectory() as directory:
             env = {

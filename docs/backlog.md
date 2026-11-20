@@ -346,3 +346,5 @@ Implemented central reviewed artifact downloads, local systemd/account installer
 ## Native Ubuntu 24.04 deployment — 2026-11-20
 
 Implemented a separate systemd/Gunicorn/PostgreSQL/Nginx first-install path for `bearings.circl.lu`, with protected state/secret, peer authentication, strict trusted-edge policy, independent workers and no demo/bootstrap/public signup. See [Ubuntu installation](operations/ubuntu24.md). Real target apt/systemd, DNS/certificates, SMTP/SSO/connectors, backup/restore and operational load remain acceptance steps; no remote server deployment is performed by local tests.
+
+LXC deployment recovery: corrected the root-only sandbox preflight to test unprivileged execution with the service capability restrictions. Added a writable-path probe after target logs exposed a second namespace denial; documented explicit per-service compatibility with reduced filesystem isolation, without resetting data or globally disabling container confinement; startup readiness requires a socket/HTTP check. See [Ubuntu operations](operations/ubuntu24.md#lxc-502-with-systemd-226namespace).

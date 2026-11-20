@@ -89,3 +89,32 @@ The public Linux client page is `/downloads/linux/`. Build reviewed artifacts on
 ## Updates and recovery
 
 Use a reviewed/pinned source revision and retain the private environment/database/state. Before upgrading take/verify backups, then stop `bearings-web`, `bearings-worker` and `bearings-national`; fetch/check out the reviewed revision as root. Sync the frozen production extra using `/opt/bearings-tools/bin/uv sync --frozen --no-dev --extra production --python /usr/bin/python3.12`, run the management helper's migrate/collectstatic/check commands, reconcile changed unit/proxy templates and restart/check the three services. Do not use the first-install helper for upgrades and do not run developer seed/bootstrap/volume-reset commands on this server. Review pending external writes before worker reactivation after restore or failed/uncertain remote requests; preserve original source IDs and native recovery rules.
+
+
+### LXC: 502 with systemd `226/NAMESPACE`
+
+If the journal says `Failed to set up mount namespacing: /tmp: Permission denied`, Gunicorn has not started and Nginx cannot find its socket. A root-only sandbox probe can succeed even though the service fails: namespace setup must be checked with an unprivileged user, `NoNewPrivileges=yes` and an empty capability bounding set. The first-install preflight now uses Ubuntu's existing `www-data` account before creating `bearings`; it fails closed without automatically reducing protection.
+
+A successful probe without writable paths is insufficient: `ReadWritePaths` and the writable state-directory exceptions under `ProtectSystem=strict` require additional mount operations. The preflight includes a writable `/var/tmp` exception to exercise this operation without creating application state. A reported plain Ubuntu LXC installation rejected both private temporary mounts and writable state mounts, despite accepting the other flags in a probe without writable paths.
+
+For an existing installation with these confirmed namespace failures, the operator can use the following explicit compatibility override as root. This removes the systemd filesystem mount sandbox for these three services. The application can then write any location its ordinary Unix identity can write; notably application-owned static files lose their read-only mount protection. Root-owned code, environment and client artifacts remain protected by ordinary permissions. The dedicated non-login user, empty capability bounding set, `NoNewPrivileges`, SUID restrictions, private state permissions and outer LXC confinement remain in place. Do not globally disable host AppArmor or make the container privileged.
+
+```sh
+mkdir -p /etc/systemd/system/bearings-web.service.d /etc/systemd/system/bearings-worker.service.d /etc/systemd/system/bearings-national.service.d
+printf '[Service]\nPrivateTmp=no\nProtectSystem=no\nProtectHome=no\nProtectKernelTunables=no\nProtectKernelModules=no\nProtectControlGroups=no\nReadWritePaths=\n' | tee /etc/systemd/system/bearings-web.service.d/lxc.conf /etc/systemd/system/bearings-worker.service.d/lxc.conf /etc/systemd/system/bearings-national.service.d/lxc.conf
+systemctl daemon-reload
+systemctl restart bearings-web bearings-worker bearings-national
+```
+
+Clearing `ReadWritePaths` is necessary: it can itself request a mount namespace. Fresh installation still requires the default full sandbox; compatibility is not selected silently by the installer. For full inner filesystem isolation, the container host administrator must arrange a suitable reviewed mount-namespace policy, then retest the actual services.
+
+Allow Gunicorn to finish loading before testing HTTP; `systemctl restart` returning and `active` immediately afterwards do not prove the socket is ready. Check again after startup:
+
+```sh
+systemctl --no-pager --full status bearings-web bearings-worker bearings-national
+journalctl -u bearings-web -u bearings-worker -u bearings-national -n 60 --no-pager
+ls -ld /run/bearings /run/bearings/web.sock
+curl --fail --head --max-time 15 https://bearings.circl.lu/accounts/login/
+```
+
+A persistent 502 needs the current journal and Nginx error, not a reinstall. Preserve the environment, database and state. These drop-ins survive service-template updates. After the container host supports the original sandbox, remove only these `lxc.conf` files, daemon-reload and restart/check the services to restore the full default sandbox.

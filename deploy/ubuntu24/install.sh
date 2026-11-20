@@ -22,10 +22,7 @@ fi
 if getent group bearings >/dev/null; then
     fail 'Group bearings already exists. Review it first.'
 fi
-systemd-run --quiet --wait --collect --pipe \
-  --property=PrivateTmp=yes --property=ProtectSystem=strict --property=ProtectHome=yes \
-  --property=ProtectKernelTunables=yes --property=ProtectKernelModules=yes --property=ProtectControlGroups=yes \
-  /usr/bin/true || fail 'Container does not permit the required systemd sandbox. Review LXC/Incus nesting/mount-namespace policy before installing; protections were not weakened.'
+bash /opt/bearings/deploy/ubuntu24/check-sandbox.sh || fail 'Container does not permit the required unprivileged systemd sandbox. See docs/operations/ubuntu24.md; nothing was installed and protections were not weakened.'
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y python3.12 python3.12-venv ca-certificates curl git postgresql postgresql-client nginx certbot
 python3.12 -m venv /opt/bearings-tools
