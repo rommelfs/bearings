@@ -4,17 +4,18 @@ import json
 import os
 import secrets
 import sys
-from django.contrib.admin.models import LogEntry, ADDITION
-from django.contrib.contenttypes.models import ContentType
+import syslog
+import uuid
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 from social_django.models import UserSocialAuth
 from oidc import identity_uid
 
 data = json.load(sys.stdin)
 with transaction.atomic():
     actor = get_user_model().objects.get(username=data["actor"], is_active=True, is_superuser=True)
-    user = get_user_model().objects.get(username=data["username"], is_active=True)
+    user = get_user_model().objects.select_for_update().get(username=data["username"], is_active=True)
     issuer = os.environ["OIDC_ISSUER"]
     uid = identity_uid(issuer, data["subject"])
     if (
@@ -22,7 +23,18 @@ with transaction.atomic():
         or user.social_auth.filter(provider="oidc").exists()
     ):
         raise ValueError("Existing binding retained; inspect/revoke it explicitly before changing identities")
-    binding = UserSocialAuth.objects.create(
+    event = {
+        "event": "bearings.netbox.sso_identity_linked",
+        "event_id": str(uuid.uuid4()),
+        "time": timezone.now().isoformat(),
+        "actor_id": actor.pk,
+        "actor_username": actor.username,
+        "user_id": user.pk,
+        "user_username": user.username,
+        "issuer": issuer,
+        "identity": uid,
+    }
+    UserSocialAuth.objects.create(
         provider="oidc",
         uid=uid,
         user=user,
@@ -31,14 +43,12 @@ with transaction.atomic():
             "subject": data["subject"],
             "enabled": True,
             "generation": secrets.token_hex(32),
+            "operator_audit": event,
         },
     )
-    LogEntry.objects.create(
-        user=actor,
-        content_type=ContentType.objects.get_for_model(binding),
-        object_id=str(binding.pk),
-        object_repr="Explicit operator SSO binding",
-        action_flag=ADDITION,
-        change_message="Linked an immutable issuer/subject; permissions unchanged",
-    )
+# NetBox intentionally does not install django.contrib.admin. Persist the actor
+# and event atomically with the binding, then emit to the native system logger.
+# Log retention is an operator concern; database metadata does not depend on it.
+syslog.openlog("bearings-netbox-sso", logoption=syslog.LOG_PID, facility=syslog.LOG_AUTHPRIV)
+syslog.syslog(syslog.LOG_NOTICE, json.dumps(event, sort_keys=True))
 print("Explicit NetBox SSO binding created; password, tenant permissions and roles unchanged.")

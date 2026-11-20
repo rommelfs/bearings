@@ -201,6 +201,13 @@ def main():
             run([*netbox, "collectstatic", "--noinput"], env=netbox_env)
             if not any((base / "static").rglob("*.css")) or (base / "netbox/netbox/static").exists():
                 raise RuntimeError("Static collection did not use the separate native destination")
+            checks = (ROOT / "scripts/netbox_native_link_checks.py").read_text()
+            link_source = (TEMPLATES / "netbox_link.py").read_text()
+            run(
+                [*netbox, "shell", "--no-imports", "-c", "import sys;exec(sys.stdin.read())"],
+                input=("NATIVE_LINK_SOURCE=" + repr(link_source) + "\n" + checks).encode(),
+                env=netbox_env,
+            )
             # Actual ORM fixtures: own-tenant visibility and denial of another tenant.
             fixture_code = """
 from users.models import User, Token, ObjectPermission

@@ -359,3 +359,5 @@ Native static recovery: corrected NetBox’s ignored `STATIC_ROOT` configuration
 Native IPv6 recovery: explicit IPv4/IPv6 ACME and TLS listeners for all three services prevent default-vhost certificate mismatches; activation reports sanitized transport failures while retaining CA/hostname/issuer verification. Reuse existing certificates and retry activation.
 
 Native activation readiness: target IPv4/IPv6 probes and a repeated activation passed, followed by local NetBox administrator creation. Bound retries across Nginx worker transitions without relaxing certificate/issuer checks. Human SSO links and company/API rights remain explicit next steps.
+
+Native NetBox SSO link recovery: replace unsupported Django admin logging with atomic binding audit metadata and a local system-log event. Actual command regressions preserve passwords/tenant grants and refuse invalid actors, disabled users, existing/revoked links and identity reassignment. Retry the failed NetBox step without reinstalling or repeating the successful Bearings link.

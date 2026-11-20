@@ -71,6 +71,8 @@ jobs:
         run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} ${{ matrix.rt && '--rt' || '--no-rt' }} ${{ matrix.rtir && '--rtir' || '' }} --timeout 900
       - name: Exercise HTTPS, scoped queries, portal writes and recovery
         run: python3 scripts/dev.py smoke
+      - name: Verify native NetBox SSO linking without the Django admin app
+        run: python3 scripts/check_netbox_native_link.py
       - name: Verify FlowIntel session isolation and revocation in its pinned runtime
         if: matrix.flowintel
         run: docker exec -i bearings-dev-flowintel-1 /home/flowintel/venv/bin/python - < docker/flowintel/test_sso.py

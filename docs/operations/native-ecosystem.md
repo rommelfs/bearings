@@ -128,3 +128,10 @@ Fetch/check out the reviewed fix and repeat **activate**, not install. This rege
 
 
 Activation also waits briefly for the new Nginx workers after reload: a successful reload command only signals the master and can precede the certificate/vhost transition. The issuer probe retries transient certificate/connection/5xx failures at most eight times, with a two-second request timeout and 250 ms pauses. Every attempt still verifies CA trust, hostname and the exact issuer; redirects, non-transient errors, invalid/oversized metadata and a different issuer fail closed. No environment/binding changes occur until a fully verified probe succeeds. This is a finite readiness check, not a certificate bypass.
+
+
+### Resume NetBox SSO linking after a Django admin LogEntry error
+
+NetBox does not install `django.contrib.admin`. An early native link helper incorrectly imported its LogEntry model and failed before reading the binding input or creating any link. Update to the reviewed correction and repeat only `link-netbox-sso`; retain the successful Bearings link. Do not enable Django admin, change passwords or reinstall NetBox for this error.
+
+The corrected helper records actor ID/name, target ID/name, time, event UUID, issuer and hashed identity in `UserSocialAuth.extra_data.operator_audit`, in the same transaction as the new binding. It then emits a structured event to the local system logger (`bearings-netbox-sso`, AUTHPRIV); configure system-log retention separately. These are binding metadata and a system-log event, not a Django admin or NetBox ObjectChange entry. Existing/revoked bindings remain refused without modification. No passwords, tokens or raw subjects are included in the log event. Deleting a binding removes its metadata, so retained system logs remain important for historical audit.
