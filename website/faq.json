@@ -22,19 +22,19 @@
     "id": "operator",
     "en": [
       "Who operates the Bearings service?",
-      "This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy."
+      "This Bearings installation is operated by CIRCL. CIRCL is Luxembourg’s CERT for the private sector and municipalities. The Law of 5 May 2026 implementing NIS2 designates CIRCL as a CSIRT; Article 9 names CIRCL as the coordinator for coordinated vulnerability disclosure. We scan for vulnerabilities and support voluntary information sharing so organizations can act earlier."
     ],
     "de": [
       "Wer betreibt den Bearings-Dienst?",
-      "Diese Bearings-Installation wird von CIRCL betrieben, dem Computer Incident Response Center Luxembourg: dem CERT für die Privatwirtschaft und Kommunen in Luxemburg, mandatiert vom Wirtschaftsministerium."
+      "Diese Bearings-Installation wird von CIRCL betrieben. CIRCL ist das CERT für die Privatwirtschaft und Kommunen in Luxemburg. Das Gesetz vom 5. Mai 2026 zur Umsetzung von NIS2 nennt CIRCL als CSIRT; Artikel 9 benennt CIRCL als Koordinator für die koordinierte Offenlegung von Schwachstellen. Wir scannen nach Schwachstellen und unterstützen den freiwilligen Informationsaustausch, damit Organisationen frühzeitig handeln können."
     ],
     "fr": [
       "Qui exploite le service Bearings ?",
-      "Cette installation Bearings est exploitée par CIRCL, le Computer Incident Response Center Luxembourg : le CERT du secteur privé et des communes au Luxembourg, mandaté par le ministère de l’Économie."
+      "Cette installation Bearings est exploitée par le CIRCL. Le CIRCL est le CERT du secteur privé et des communes au Luxembourg. La loi du 5 mai 2026 transposant NIS2 désigne le CIRCL comme CSIRT ; son article 9 lui confie la coordination de la divulgation coordonnée des vulnérabilités. Nous réalisons des scans de vulnérabilités et soutenons le partage volontaire d’informations pour permettre aux organisations d’agir plus tôt."
     ],
     "lb": [
       "Wien bedreift de Bearings-Service?",
-      "Dës Bearings-Installatioun gëtt vum CIRCL bedriwwen, dem Computer Incident Response Center Luxembourg: dem CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg, am Optrag vum Wirtschaftsministère."
+      "Dës Bearings-Installatioun gëtt vum CIRCL bedriwwen. De CIRCL ass de CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg. D’Gesetz vum 5. Mee 2026 fir d’Ëmsetzung vun NIS2 nennt de CIRCL als CSIRT; den Artikel 9 nennt de CIRCL als Koordinator fir d’koordinéiert Offenleeë vu Schwachstellen. Mir scannen no Schwachstellen an ënnerstëtzen de fräiwëllegen Informatiounsaustausch, fir datt Organisatioune fréi handele kënnen."
     ]
   },
   {

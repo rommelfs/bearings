@@ -187,6 +187,13 @@ def report_data(data):
             raise ValueError("Invalid component")
         binary = c.get("manager") == "binary"
         fields = ("key", "manager", "name", "version", "architecture")
+        if not binary and "source" in c:
+            exact(c["source"], ("name", "version"))
+            if c.get("manager") != "dpkg":
+                raise ValueError("Source package metadata requires dpkg")
+            text(c["source"]["name"], 128, r"[a-z0-9][a-z0-9+.-]*")
+            text(c["source"]["version"], 120)
+            fields = (*fields, "source")
         exact(c, (*fields, "binary") if binary else fields)
         if c["manager"] not in ("dpkg", "rpm", "binary"):
             raise ValueError("Unsupported collector")

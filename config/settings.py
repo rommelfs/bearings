@@ -80,7 +80,7 @@ STATIC_URL = "static/"
 STATIC_ROOT = Path(os.getenv("DJANGO_STATIC_ROOT", str(BASE_DIR / "staticfiles")))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/infrastructure/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 # General/contact mail uses a local sink; service mail and reviewed outreach have explicit transport switches.
 EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
@@ -139,7 +139,10 @@ if os.getenv("DJANGO_TRUST_PROXY_SSL") == "1":
 CONNECTOR_PROXY_DNS = os.getenv("CONNECTOR_PROXY_DNS", "0") == "1"
 CONNECTOR_ALLOWED_HOSTS = [
     h.strip().lower()
-    for h in os.getenv("CONNECTOR_ALLOWED_HOSTS", "vulnerability.circl.lu,objects.monarc.lu").split(",")
+    for h in os.getenv(
+        "CONNECTOR_ALLOWED_HOSTS",
+        "vulnerability.circl.lu,objects.monarc.lu,security-metadata.canonical.com,www.debian.org,security.access.redhat.com",
+    ).split(",")
     if h.strip()
 ]
 
@@ -169,7 +172,7 @@ SOCIAL_AUTH_PIPELINE = (
 SOCIAL_AUTH_OIDC_CONSTITUENT_ONBOARDING = True
 SOCIAL_AUTH_MAX_SESSION_LENGTH = SSO_SESSION_SECONDS
 SOCIAL_AUTH_SESSION_EXPIRATION = True
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = "/"
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = "/infrastructure/"
 SOCIAL_AUTH_LOGIN_ERROR_URL = "/accounts/login/"
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
 SOCIAL_AUTH_RAISE_EXCEPTIONS = True  # Sanitized by SessionGuard, including in DEBUG mode.
@@ -234,3 +237,5 @@ if SERVICE_MAIL_TRANSPORT == "smtp" and (not EMAIL_HOST or not (EMAIL_USE_TLS or
 LINUX_CLIENT_DOWNLOAD_DIR = os.getenv(
     "BEARINGS_LINUX_CLIENT_DIR", str(BASE_DIR / ".local/linux-client") if DEBUG else ""
 )
+
+DISTRO_CVE_ENABLED = os.getenv("BEARINGS_DISTRO_CVE_ENABLED", "1") == "1"

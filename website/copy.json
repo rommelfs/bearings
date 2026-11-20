@@ -153,7 +153,7 @@
     "get_started": "Create your free company workspace",
     "source": "Explore the source",
     "footer": "The CIRCL-operated workspace for company infrastructure, vulnerability review and responsible contacts.",
-    "reviewed": "Content reviewed 19 November 2026",
+    "reviewed": "Content reviewed 20 November 2026",
     "license": "Source licensed AGPL-3.0-or-later",
     "privacy": "Static information website · no visitor analytics or advertising cookies",
     "credits": "Map sources: Natural Earth (public domain) and GeoNames (CC BY 4.0). All product screenshots contain synthetic data.",
@@ -176,7 +176,7 @@
     "context_link": "Additional source",
     "operator_short": "by CIRCL",
     "operator_label": "Operated by CIRCL",
-    "operator_body": "CIRCL is the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy.",
+    "operator_body": "CIRCL is Luxembourg’s CERT for the private sector and municipalities. The Law of 5 May 2026 implementing NIS2 designates CIRCL as a CSIRT; Article 9 names CIRCL as the coordinator for coordinated vulnerability disclosure. We scan for vulnerabilities and support voluntary information sharing so organizations can act earlier.",
     "operator_link": "About CIRCL and its mission",
     "analysis_link": "CIRCL analysis",
     "testimonials_link": "What the vulnerabilities have to say",
@@ -187,7 +187,9 @@
       "Risk",
       "Response"
     ],
-    "additional_cves": " + {count} more CVEs"
+    "additional_cves": " + {count} more CVEs",
+    "login": "Log in",
+    "legal_link": "NIS2 law · 5 May 2026"
   },
   "de": {
     "title": "Infrastruktur, Risiken & Reaktion",
@@ -343,7 +345,7 @@
     "get_started": "Kostenlosen Firmenbereich anlegen",
     "source": "Quellcode ansehen",
     "footer": "Der von CIRCL betriebene Dienst für Firmeninventar, Schwachstellenprüfung und zuständige Ansprechpartner.",
-    "reviewed": "Inhalt geprüft am 19. November 2026",
+    "reviewed": "Inhalt geprüft am 20. November 2026",
     "license": "Quellcode unter AGPL-3.0-or-later",
     "privacy": "Statische Informationswebsite · keine Besucheranalyse oder Werbe-Cookies",
     "credits": "Kartenquellen: Natural Earth (gemeinfrei) und GeoNames (CC BY 4.0). Alle Produktbilder enthalten synthetische Daten.",
@@ -366,7 +368,7 @@
     "context_link": "Zusätzliche Quelle",
     "operator_short": "von CIRCL",
     "operator_label": "Betrieben von CIRCL",
-    "operator_body": "CIRCL ist das CERT für die Privatwirtschaft und Kommunen in Luxemburg, mandatiert vom Wirtschaftsministerium.",
+    "operator_body": "CIRCL ist das CERT für die Privatwirtschaft und Kommunen in Luxemburg. Das Gesetz vom 5. Mai 2026 zur Umsetzung von NIS2 nennt CIRCL als CSIRT; Artikel 9 benennt CIRCL als Koordinator für die koordinierte Offenlegung von Schwachstellen. Wir scannen nach Schwachstellen und unterstützen den freiwilligen Informationsaustausch, damit Organisationen frühzeitig handeln können.",
     "operator_link": "Über CIRCL und seinen Auftrag",
     "analysis_link": "CIRCL-Analyse",
     "testimonials_link": "Was die Schwachstellen dazu sagen",
@@ -377,7 +379,9 @@
       "Risiko",
       "Reaktion"
     ],
-    "additional_cves": " + {count} weitere CVEs"
+    "additional_cves": " + {count} weitere CVEs",
+    "login": "Anmelden",
+    "legal_link": "NIS2-Gesetz · 5. Mai 2026"
   },
   "fr": {
     "title": "Infrastructure, risques et réponse",
@@ -533,7 +537,7 @@
     "get_started": "Créer votre espace entreprise gratuit",
     "source": "Consulter le code source",
     "footer": "Le service exploité par le CIRCL pour l’inventaire des entreprises, la vérification des vulnérabilités et les personnes à contacter.",
-    "reviewed": "Contenu vérifié le 19 novembre 2026",
+    "reviewed": "Contenu vérifié le 20 novembre 2026",
     "license": "Code sous AGPL-3.0-or-later",
     "privacy": "Site d’information statique · sans analyse des visiteurs ni cookies publicitaires",
     "credits": "Sources cartographiques : Natural Earth (domaine public) et GeoNames (CC BY 4.0). Toutes les captures du produit utilisent des données synthétiques.",
@@ -556,7 +560,7 @@
     "context_link": "Source complémentaire",
     "operator_short": "par le CIRCL",
     "operator_label": "Exploité par le CIRCL",
-    "operator_body": "CIRCL est le CERT du secteur privé et des communes au Luxembourg, mandaté par le ministère de l’Économie.",
+    "operator_body": "Le CIRCL est le CERT du secteur privé et des communes au Luxembourg. La loi du 5 mai 2026 transposant NIS2 désigne le CIRCL comme CSIRT ; son article 9 lui confie la coordination de la divulgation coordonnée des vulnérabilités. Nous réalisons des scans de vulnérabilités et soutenons le partage volontaire d’informations pour permettre aux organisations d’agir plus tôt.",
     "operator_link": "À propos du CIRCL et de sa mission",
     "analysis_link": "Analyse du CIRCL",
     "testimonials_link": "Ce qu’en disent les vulnérabilités",
@@ -567,7 +571,9 @@
       "Risque",
       "Réponse"
     ],
-    "additional_cves": " + {count} autres CVE"
+    "additional_cves": " + {count} autres CVE",
+    "login": "Se connecter",
+    "legal_link": "Loi NIS2 · 5 mai 2026"
   },
   "lb": {
     "title": "Infrastruktur, Risiken a Reaktioun",
@@ -723,7 +729,7 @@
     "get_started": "Äre gratis Firmeberäich uleeën",
     "source": "Quellcode ukucken",
     "footer": "De vum CIRCL bedriwwene Service fir Firmeninventar, Informatiounen iwwer Sécherheetslücken an zoustänneg Kontaktpersounen.",
-    "reviewed": "Inhalt iwwerpréift den 19. November 2026",
+    "reviewed": "Inhalt iwwerpréift den 20. November 2026",
     "license": "Quellcode ënner AGPL-3.0-or-later",
     "privacy": "Statesch Informatiounssäit · keng Analys vum Visiteursverhalen a keng Reklamm-Cookien",
     "credits": "Kaartequellen: Natural Earth (fräi vun Auteursrechter) a GeoNames (CC BY 4.0). All Produktbiller benotze synthetesch Donnéeën.",
@@ -746,7 +752,7 @@
     "context_link": "Weider Quell",
     "operator_short": "vum CIRCL",
     "operator_label": "Bedriwwe vum CIRCL",
-    "operator_body": "De CIRCL ass de CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg, am Optrag vum Wirtschaftsministère.",
+    "operator_body": "De CIRCL ass de CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg. D’Gesetz vum 5. Mee 2026 fir d’Ëmsetzung vun NIS2 nennt de CIRCL als CSIRT; den Artikel 9 nennt de CIRCL als Koordinator fir d’koordinéiert Offenleeë vu Schwachstellen. Mir scannen no Schwachstellen an ënnerstëtzen de fräiwëllegen Informatiounsaustausch, fir datt Organisatioune fréi handele kënnen.",
     "operator_link": "Iwwer de CIRCL a säin Optrag",
     "analysis_link": "Analys vum CIRCL",
     "testimonials_link": "Wat d’Sécherheetslücken dovun halen",
@@ -757,6 +763,8 @@
       "Risiko",
       "Reaktioun"
     ],
-    "additional_cves": " + {count} weider CVEen"
+    "additional_cves": " + {count} weider CVEen",
+    "login": "Aloggen",
+    "legal_link": "NIS2-Gesetz · 5. Mee 2026"
   }
 }

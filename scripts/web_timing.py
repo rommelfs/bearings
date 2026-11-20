@@ -176,9 +176,9 @@ def main(username="company-admin", *, national=False, registration=False):
             raise ValueError("Expected local identity-provider form")
         form.fields.update(username=username, password=read("secrets/demo_password"))
         body, path, _ = fetch(browser, Request(form.action, data=urlencode(form.fields).encode()))
-        if path != ("/register/" if registration else "/") or "Sign out here" not in body:
+        if path != ("/register/" if registration else "/infrastructure/") or "Sign out here" not in body:
             raise ValueError("SSO login did not reach the expected authenticated page")
-        paths = [("/", "overview"), ("/applications/", "applications")]
+        paths = [("/infrastructure/", "overview"), ("/applications/", "applications")]
         if registration:
             paths = [("/register/", "authenticated_registration")]
         if national:

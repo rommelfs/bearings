@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_variables
 from django.views.decorators.http import require_POST, require_http_methods
 from http_message_signatures.exceptions import HTTPMessageSignaturesException
-from . import agents, agent_enrollment_codes
+from . import agents, agent_enrollment_codes, distro_cves
 from .agent_protocol import MAX_BYTES, verify, decode, public_key, identifier
 from .access import organizations_for, require, can_operator_review, audit_operator_access
 from .models import AgentDevice, AgentEnrollment, AgentComponent, AgentReport, Asset, Installation, AgentFleet
@@ -387,6 +387,7 @@ def center(request, slug):
                 "manage": manage,
                 "devices": Paginator(devices, 25).get_page(request.GET.get("devices_page")),
                 "selected": selected,
+                "distro_coverage": distro_cves.coverage(selected) if selected else None,
                 "components": components,
                 "installations": installations,
                 "last_report": last_report,

@@ -28,7 +28,11 @@ def finding_page(request, org):
     links = RiskLink.objects.select_related("risk_revision__risk__source", "evidence_revision", "created_by")
     findings = (
         visible_findings(request.user, org)
-        .select_related("installation__asset__source__instance")
+        .select_related(
+            "installation__asset__source__instance",
+            "distro_match__component__device",
+            "distro_match__advisory",
+        )
         .prefetch_related(Prefetch("risk_links", queryset=links), "history__actor")
         .order_by("-evaluated_at", "pk")
     )
@@ -60,7 +64,7 @@ def finding_page(request, org):
         get_object_or_404(findings, pk=finding_id)
         findings = findings.filter(pk=finding_id)
     if request.GET.get("changed") == "1":
-        findings = findings.filter(discovery__review_required=True)
+        findings = findings.filter(Q(discovery__review_required=True) | Q(distro_match__review_required=True))
     page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)

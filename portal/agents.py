@@ -379,6 +379,7 @@ def process_one(device_id, report_id):
                 for field in ("name", "manager", "architecture", "version"):
                     setattr(c, field, value[field])
                 c.binary = value.get("binary", {})
+                c.package_source = value.get("source", {})
                 c.package_identity = package_inventory.identity(c, data["os"])
                 if (
                     c.installation_id
@@ -411,6 +412,7 @@ def process_one(device_id, report_id):
                     "last_report",
                     "binary",
                     "package_identity",
+                    "package_source",
                 ],
                 batch_size=250,
             )
@@ -441,7 +443,8 @@ def process_one(device_id, report_id):
                 update_fields=["os", "services", "last_observed_at", "last_complete_at", "applied_sequence"]
             )
             package_inventory.project(device)
-            device.save(update_fields=["software_sync_pending"])
+            device.distro_requested = True
+            device.save(update_fields=["software_sync_pending", "distro_requested"])
             row.status = "applied"
     row.processed_at = timezone.now()
     row.save(update_fields=["status", "error", "processed_at"])
@@ -499,7 +502,9 @@ def sync_software(pk):
     if not current(device):
         return 0
     count = package_inventory.project(device)
-    device.save(update_fields=["software_sync_pending"])
+    if count:
+        device.distro_requested = True
+    device.save(update_fields=["software_sync_pending", "distro_requested"])
     return count
 
 
@@ -566,6 +571,8 @@ def bind(actor, org, component_id, installation_id=None, create=False):
     component.inventory_excluded = True
     component.save(update_fields=["installation", "automatic_installation", "inventory_excluded"])
     component.device = device
+    device.distro_requested = True
+    device.save(update_fields=["distro_requested"])
     _project(component, installation)
     audit(
         actor,
@@ -603,6 +610,7 @@ def detach(actor, org, component_id):
     component.inventory_excluded = True
     component.automatic_installation = False
     component.save(update_fields=["installation", "automatic_installation", "inventory_excluded"])
+    AgentDevice.objects.filter(pk=component.device_id).update(distro_requested=True)
     audit(actor, org, "agent.software_detached", component.pk, installation=previous)
 
 

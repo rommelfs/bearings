@@ -1,5 +1,6 @@
 from django.urls import path
 from . import (
+    public_site,
     agent_fleet_views,
     workspace_views,
     views,
@@ -112,7 +113,9 @@ urlpatterns = [
         scenario_views.automatic,
         name="automatic-scenario",
     ),
-    path("", overview_views.overview, name="overview"),
+    path("", public_site.page, name="public-home"),
+    path("infrastructure/", overview_views.overview, name="overview"),
+    path("faq/", public_site.page, {"faq": True}, name="public-faq"),
     path(
         "organizations/<slug:slug>/products/<int:pk>/catalog/",
         discovery_views.search_catalog,
@@ -276,4 +279,9 @@ urlpatterns = [
     path("organizations/<slug:slug>/findings/<int:pk>/review/", views.finding_review, name="finding-review"),
     path("api/v1/organizations/<slug:slug>/inventory/", views.api_inventory, name="api-inventory"),
     path("api/v1/organizations/<slug:slug>/findings/", views.api_findings, name="api-findings"),
+    path("<str:lang>/faq/", public_site.page, {"faq": True}),
+    path("<str:lang>/", public_site.page),
+    path("assets/<path:name>", public_site.asset),
+    path("style.css", public_site.asset, {"name": "style.css"}),
+    path("site.js", public_site.asset, {"name": "site.js"}),
 ]

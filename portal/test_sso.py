@@ -185,7 +185,7 @@ class SSOTests(tests.Fixture):
         self.finish()
         self.http.reset_mock()
         with patch("portal.sso.perf_counter", side_effect=[10, 10.025, 10.125]):
-            response = self.client.get("/")
+            response = self.client.get("/infrastructure/")
         self.assertEqual(response.status_code, 200)
         timing = response.headers["Server-Timing"]
         self.assertIn("overview;dur=", timing)
@@ -234,7 +234,7 @@ class SSOTests(tests.Fixture):
             identity_uid(ISSUER, "subject-alice"), identity_uid(ISSUER + "-other", "subject-alice")
         )
         self.start("https://attacker.example.invalid/")
-        self.assertRedirects(self.finish(), "/", fetch_redirect_response=False)
+        self.assertRedirects(self.finish(), "/infrastructure/", fetch_redirect_response=False)
         self.assertEqual(self.client.post("/oauth/login/unapproved/").status_code, 404)
         self.http.assert_called()
 

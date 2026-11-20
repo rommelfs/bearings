@@ -403,3 +403,10 @@ Follow-up **Validate sustained Linux fleet ingest and credential renewal** separ
 Default dpkg/RPM package-to-inventory assignment is implemented, including already-processed fresh report backfill, exact native versions, deterministic Package URLs, parallel install-only slots and automatic subsequent updates. No per-package binding clicks are needed; manual/CSV software is kept separate, explicit release is respected and custom binaries still need reviewed mapping. UI/software pages are searchable/bounded. See [Linux contract](integrations/linux-agent.md).
 
 **Add distro-aware security advisory and binary-to-source package matching** remains the next layer: package identity is now automated, but official-repository provenance, source-package matching, native version comparisons and distro CVE feeds are not fabricated from upstream product names. Standard package PURLs are excluded from generic automatic upstream-name watch enrollment. Existing explicit watches remain.
+
+
+## Automatic vendor CVE discovery and public entry point — 2026-11-20
+
+Supported distribution packages are evaluated automatically using shared bounded Canonical/Debian/Red Hat OVAL caches, exact Debian source metadata and native EVR comparisons. Scoped CVE findings preserve manual review, immutable evidence and explicit partial/unknown/failure coverage. See [the implementation contract](integrations/distro-cves.md). Repository/runtime/signature predicates and sustained fleet throughput remain follow-ups.
+
+The existing web service serves the multilingual marketing website at `/`, with same-origin Login/Registration; private overview is `/infrastructure/`. All four translations link CIRCL’s statutory NIS2/CSIRT/CVD role and describe scanning and voluntary sharing. No production deployment, scans or notifications are performed by local validation.

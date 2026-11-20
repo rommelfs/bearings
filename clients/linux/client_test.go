@@ -273,3 +273,20 @@ func TestBootstrapRefusesRetargetedGrantAndChangedRollout(t *testing.T) {
 		t.Fatal("unexpected bootstrap retry", requests)
 	}
 }
+
+func TestDpkgSourcePackageMetadataAndLegacyCompatibility(t *testing.T) {
+	rows, err := parsePackages([]byte("installed\tlibssl3\t3.0.16-1~deb12u1+b1\tamd64\topenssl\t3.0.16-1~deb12u1\n"), "dpkg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows[0].Source == nil || rows[0].Source.Name != "openssl" || rows[0].Source.Version != "3.0.16-1~deb12u1" {
+		t.Fatal("source version was inferred from the binary version", rows)
+	}
+	old, err := parsePackages([]byte("installed\tlibssl3\t3.0.16-1~deb12u1\tamd64\n"), "dpkg")
+	if err != nil || old[0].Source != nil {
+		t.Fatal("legacy observation stopped working")
+	}
+	if _, err = parsePackages([]byte("installed\tlibssl3\t3.0\tamd64\topenssl\t\n"), "dpkg"); err == nil {
+		t.Fatal("empty source version accepted as complete")
+	}
+}

@@ -206,7 +206,7 @@ class InfrastructureOverviewTests(Fixture):
         add_issue(self.a, self.sa, "first")
         self.login()
         with CaptureQueriesContext(connection) as small:
-            self.assertEqual(self.client.get("/").status_code, 200)
+            self.assertEqual(self.client.get(reverse("overview")).status_code, 200)
         for number in range(11):
             org = Organization.objects.create(name=f"Company {number}", slug=f"performance-{number}")
             source = InventorySource.objects.create(organization=org, mode="development")
@@ -214,7 +214,7 @@ class InfrastructureOverviewTests(Fixture):
             for asset_number in range(3):
                 add_issue(org, source, f"server-{number}-{asset_number}")
         with CaptureQueriesContext(connection) as large:
-            response = self.client.get("/")
+            response = self.client.get(reverse("overview"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["companies"]), 12)
         self.assertEqual(len(response.context["priority_assets"]), 12)
@@ -261,7 +261,7 @@ class InfrastructureOverviewTests(Fixture):
             ensure_vulnerability_issue(another)
         self.login()
         with CaptureQueriesContext(connection) as queries:
-            response = self.client.get("/")
+            response = self.client.get(reverse("overview"))
         self.assertEqual(len(response.context["priority_assets"]), 12)
         self.assertLessEqual(len(queries), 40)
         for row in response.context["priority_assets"]:
@@ -286,7 +286,7 @@ class InfrastructureOverviewTests(Fixture):
         Asset.objects.create(organization=self.a, source=self.sa, name="Retired", lifecycle="retired")
         Asset.objects.create(organization=self.a, source=self.sb, name="Wrong source")
         self.login()
-        state = self.client.get("/").context["companies"][0]
+        state = self.client.get(reverse("overview")).context["companies"][0]
         self.assertEqual((state["assets"], state["without_software"], state["missing_assets"]), (2, 1, 1))
         self.assertEqual((state["installations"], state["products"], state["unknown_versions"]), (6, 1, 1))
 
@@ -318,12 +318,12 @@ class InfrastructureOverviewTests(Fixture):
             issue=visible, actor=self.admin, snapshot={"decision": "mitigate"}, evidence_hash="synthetic"
         )
         self.login()
-        state = self.client.get("/").context["companies"][0]
+        state = self.client.get(reverse("overview")).context["companies"][0]
         self.assertEqual((state["assets"], state["installations"], state["unknown_versions"]), (2, 2, 1))
         self.assertEqual((state["products"], state["configured"], state["fresh"]), (1, 1, 1))
         self.assertEqual((state["risk_assessments"], state["expired_acceptance"]), (1, 0))
         self.login(self.analyst)
-        state = self.client.get("/").context["companies"][0]
+        state = self.client.get(reverse("overview")).context["companies"][0]
         self.assertEqual((state["risk_assessments"], state["expired_acceptance"]), (2, 1))
 
     def test_problem_limit_and_deadline_order_apply_to_each_asset(self):
@@ -346,7 +346,7 @@ class InfrastructureOverviewTests(Fixture):
                 )
             expected[asset.pk] = [issues[index].title for index in [3, 4, 2, 5]]
         self.login()
-        for row in self.client.get("/").context["priority_assets"]:
+        for row in self.client.get(reverse("overview")).context["priority_assets"]:
             self.assertEqual([problem["title"] for problem in row["problems"]], expected[row["asset"].pk])
             self.assertEqual(row["lifecycle"], 6)
             self.assertEqual(row["overdue"], 3)
@@ -364,13 +364,13 @@ class InfrastructureOverviewTests(Fixture):
             action_due=timezone.localdate() + timedelta(days=7),
         )
         self.login()
-        response = self.client.get("/")
+        response = self.client.get(reverse("overview"))
         self.assertContains(response, "Upgrade the server operating system")
         self.assertEqual(response.context["priority_assets"][0]["lifecycle"], 1)
 
     def test_root_is_scoped_landing_page_with_default_refresh_and_no_get_mutations(self):
         self.login()
-        response = self.client.get("/")
+        response = self.client.get(reverse("overview"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Infrastructure overview")
         timing = response.headers["Server-Timing"]
@@ -385,10 +385,12 @@ class InfrastructureOverviewTests(Fixture):
         self.assertEqual(self.client.get(reverse("home")).status_code, 200)
 
     def test_anonymous_and_foreign_company_selection_do_not_expose_data(self):
-        self.assertEqual(self.client.get("/").status_code, 302)
+        self.assertEqual(self.client.get(reverse("overview")).status_code, 302)
         self.login()
-        self.assertEqual(self.client.get("/", {"organization": self.b.slug}).status_code, 404)
-        self.assertEqual(self.client.get("/", {"q": self.b.name}).context["page"].paginator.count, 0)
+        self.assertEqual(self.client.get(reverse("overview"), {"organization": self.b.slug}).status_code, 404)
+        self.assertEqual(
+            self.client.get(reverse("overview"), {"q": self.b.name}).context["page"].paginator.count, 0
+        )
 
     def test_restricted_evidence_does_not_leak_through_status_counts_or_asset_queue(self):
         finding = self.record_finding(shareable=False)
@@ -398,18 +400,18 @@ class InfrastructureOverviewTests(Fixture):
         finding.save()
         ensure_vulnerability_issue(finding)
         self.login(self.reader)
-        response = self.client.get("/")
+        response = self.client.get(reverse("overview"))
         state = response.context["companies"][0]
         self.assertEqual((state["reviews"], state["affected"], state["critical"]), (0, 0, 0))
         self.assertEqual(response.context["priority_assets"], [])
         self.login(self.analyst)
-        response = self.client.get("/")
+        response = self.client.get(reverse("overview"))
         self.assertEqual(response.context["companies"][0]["affected"], 1)
         self.assertEqual(response.context["companies"][0]["status"], "Action required")
         self.assertTrue(AuditEvent.objects.filter(actor=self.analyst, action="operator.access").exists())
         self.a.operator_visibility = False
         self.a.save()
-        self.assertEqual(self.client.get("/").context["companies"], [])
+        self.assertEqual(self.client.get(reverse("overview")).context["companies"], [])
 
     def test_overdue_remediation_and_unknown_versions_show_concrete_next_actions(self):
         finding = self.record_finding()
@@ -418,7 +420,7 @@ class InfrastructureOverviewTests(Fixture):
         issue.next_action = "Install tested vendor update"
         issue.save()
         self.login()
-        response = self.client.get("/")
+        response = self.client.get(reverse("overview"))
         self.assertContains(response, "Install tested vendor update")
         self.assertEqual(response.context["companies"][0]["overdue"], 1)
         self.assertEqual(response.context["companies"][0]["unknown_versions"], 1)
@@ -430,15 +432,15 @@ class InfrastructureOverviewTests(Fixture):
         finding.analyst_applicability = "not_affected"
         finding.save()
         self.login()
-        self.assertEqual(self.client.get("/").context["companies"][0]["reviews"], 0)
+        self.assertEqual(self.client.get(reverse("overview")).context["companies"][0]["reviews"], 0)
         finding.analyst_applicability, finding.status = "affected", "resolved"
         finding.save()
-        self.assertEqual(self.client.get("/").context["companies"][0]["reviews"], 0)
+        self.assertEqual(self.client.get(reverse("overview")).context["companies"][0]["reviews"], 0)
         finding.status = "new"
         finding.save()
         self.asset.lifecycle = "retired"
         self.asset.save()
-        self.assertEqual(self.client.get("/").context["priority_assets"], [])
+        self.assertEqual(self.client.get(reverse("overview")).context["priority_assets"], [])
 
     def test_current_monitoring_and_explicit_pauses_are_separate_from_empty_findings(self):
         self.installation.version = "1.0.0"
@@ -456,22 +458,22 @@ class InfrastructureOverviewTests(Fixture):
         self.contact.next_review = timezone.localdate() + timedelta(days=30)
         self.contact.save()
         self.login()
-        state = self.client.get("/").context["companies"][0]
+        state = self.client.get(reverse("overview")).context["companies"][0]
         self.assertEqual(state["fresh"], 1)
         self.assertEqual(state["status"], "No open items recorded")
         watch.enabled = False
         watch.save()
-        state = self.client.get("/").context["companies"][0]
+        state = self.client.get(reverse("overview")).context["companies"][0]
         self.assertEqual(state["paused"], 1)
         self.assertTrue(state["coverage_gaps"])
 
     def test_overview_aggregates_do_not_multiply_memberships_and_escape_search(self):
         Membership.objects.create(organization=self.a, user=self.platform, role="editor")
         self.login(self.platform)
-        response = self.client.get("/")
+        response = self.client.get(reverse("overview"))
         self.assertEqual(len(response.context["companies"]), 2)
         self.assertEqual(response.context["companies"][0]["assets"], 1)
-        response = self.client.get("/", {"q": "<script>alert(1)</script>"})
+        response = self.client.get(reverse("overview"), {"q": "<script>alert(1)</script>"})
         self.assertNotContains(response, "<script>alert(1)</script>")
         self.assertContains(response, "&lt;script&gt;")
 

@@ -10,6 +10,7 @@ Reviewed 19 November 2026. Bearings is a runnable development/pilot workspace; p
 - [Company membership](user-guide/company-members.md): invitations, roles and reviewed organization merges.
 - [Registration](user-guide/reporting-registration.md) and [resumable company configuration](user-guide/company-configuration.md).
 - [Linux installer and roll-outs](integrations/linux-rollout.md): central downloads, clipboard/stdin registration and automation boundaries.
+- [Automatic distribution CVE discovery](integrations/distro-cves.md): supported vendor feeds, native package versions, source metadata and partial coverage.
 - [Linux inventory client](integrations/linux-agent.md): authenticated patch observations, explicit first-host registration and safe source ownership.
 - [Current project steps and priorities](product/next-priorities.md): implemented increments and the next acceptance gates.
 

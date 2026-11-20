@@ -319,7 +319,11 @@
       },
       {
         "title": "Add distro-aware security advisory and binary-to-source package matching",
-        "body": "Follow up automatic Debian/RPM inventory with bounded operator-approved Ubuntu/Debian and Red Hat advisory sources, exact binary-to-source/repository provenance, release-aware package applicability and native dpkg/RPM EVR comparisons. Preserve backports, parallel kernel installs, third-party repository uncertainty, existing manual reviews and source isolation. Do not equate an upstream version interval or reported host namespace with distro vulnerability status. Validate real source schemas and offline reproducible advisory fixtures before automatic CVE affectedness. See docs/integrations/linux-agent.md."
+        "body": "Implemented bounded automatic vendor OVAL cache/evaluation for supported Ubuntu/Debian/RHEL releases, native Debian/RPM EVR comparisons and optional exact Debian source-package name/version from signed reports. Background feed leases, atomic cache generations, indexed package selection, scoped findings/immutable evidence and visible stale/partial/unknown coverage preserve manual workflows and last good data. No per-package mapping, outward inventory disclosure, derived-RHEL fallback, patches, notifications or inferred confirmed affectedness. Actual public vendor XML and HTTPS plus isolated PostgreSQL/client acceptance are documented in docs/validation.md and docs/integrations/distro-cves.md. Follow-ups: repository/signature/module/runtime attestation, remaining OVAL predicates, vendor release lifecycle and sustained national-fleet publication throughput."
+      },
+      {
+        "title": "Serve the public Bearings website at the service origin with statutory CIRCL identity",
+        "body": "Implemented public marketing root and EN/DE/FR/LB pages/FAQs through the existing web service with same-origin Login and free Registration, curated local assets, and authenticated overview moved to /infrastructure/. Operator copy names CIRCL under the Luxembourg NIS2 law of 5 May 2026, Article 9 CVD role, scanning and voluntary information sharing, linked to official law/RFC2350. No customer inventory or new scanning operation is exposed/triggered. Static standalone preview remains available. Operator deployment required; see website/README.md and docs/operations/ubuntu24.md."
       }
     ]
   }

@@ -43,6 +43,13 @@ def vulnerability_summary(payload):
                 if isinstance(item.get("value"), str):
                     result["description"] = item["value"][:1500]
                     break
+    distro = payload.get("bearings_distro", {})
+    if (
+        isinstance(distro, dict)
+        and distro.get("schema") == "bearings.distro-oval.v1"
+        and distro.get("severity") in {"critical", "high", "medium", "low", "none"}
+    ):
+        result["severity"] = distro["severity"].title()
     metrics = cna.get("metrics")
     if not isinstance(metrics, list):
         return result

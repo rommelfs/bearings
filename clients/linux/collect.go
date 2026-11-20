@@ -27,7 +27,12 @@ type operatingSystem struct {
 	Kernel       string `json:"kernel"`
 	RebootHint   string `json:"reboot_hint"`
 }
+type packageSource struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
 type component struct {
+	Source       *packageSource  `json:"source,omitempty"`
 	Binary       *binaryEvidence `json:"binary,omitempty"`
 	Key          string          `json:"key"`
 	Manager      string          `json:"manager"`
@@ -88,7 +93,7 @@ func parsePackages(raw []byte, manager string) ([]component, error) {
 	for scanner.Scan() {
 		fields := strings.Split(scanner.Text(), "\t")
 		if manager == "dpkg" {
-			if len(fields) != 4 {
+			if len(fields) != 4 && len(fields) != 6 {
 				return nil, errors.New("malformed dpkg output")
 			}
 			if fields[0] != "installed" {
@@ -99,10 +104,18 @@ func parsePackages(raw []byte, manager string) ([]component, error) {
 		if manager == "rpm" && len(fields) == 3 && fields[0] == "gpg-pubkey" {
 			continue
 		}
+		var source *packageSource
+		if manager == "dpkg" && len(fields) == 5 {
+			if !packageName.MatchString(fields[3]) || len(fields[4]) == 0 || len(fields[4]) > 120 || strings.ContainsAny(fields[4], "\r\n\x00") {
+				return nil, errors.New("invalid source package metadata")
+			}
+			source = &packageSource{Name: fields[3], Version: fields[4]}
+			fields = fields[:3]
+		}
 		if len(fields) != 3 || !packageName.MatchString(fields[0]) || !archName.MatchString(fields[2]) || len(fields[1]) == 0 || len(fields[1]) > 120 || strings.ContainsAny(fields[1], "\r\n\x00") {
 			return nil, errors.New("package identity/version exceeds the supported contract")
 		}
-		c := component{Manager: manager, Name: fields[0], Version: fields[1], Architecture: fields[2]}
+		c := component{Source: source, Manager: manager, Name: fields[0], Version: fields[1], Architecture: fields[2]}
 		c.Key = manager + ":" + c.Name + ":" + c.Architecture
 		out = append(out, c)
 		if len(out) > 5000 {
@@ -138,7 +151,7 @@ func parsePackages(raw []byte, manager string) ([]component, error) {
 }
 func packages() ([]component, error) {
 	if _, err := os.Stat("/var/lib/dpkg/status"); err == nil {
-		raw, err := command("/usr/bin/dpkg-query", "-W", "-f=${db:Status-Status}\t${Package}\t${Version}\t${Architecture}\n")
+		raw, err := command("/usr/bin/dpkg-query", "-W", "-f=${db:Status-Status}\t${Package}\t${Version}\t${Architecture}\t${source:Package}\t${source:Version}\n")
 		if err != nil {
 			return nil, err
 		}

@@ -2114,6 +2114,9 @@ class AgentDevice(models.Model):
     daily_bytes = models.PositiveBigIntegerField(default=0)
     daily_reports = models.PositiveIntegerField(default=0)
     applied_sequence = models.PositiveBigIntegerField(default=0)
+    distro_requested = models.BooleanField(default=True)
+    distro_checked_at = models.DateTimeField(null=True, blank=True)
+    distro_summary = models.JSONField(default=dict, blank=True)
     auto_software = models.BooleanField(default=True)
     software_sync_pending = models.BooleanField(default=True)
     last_received_at = models.DateTimeField(null=True, blank=True)
@@ -2127,9 +2130,14 @@ class AgentDevice(models.Model):
         indexes = [
             models.Index(
                 fields=["id"],
+                condition=Q(enabled=True, distro_requested=True),
+                name="agent_distro_pending_idx",
+            ),
+            models.Index(
+                fields=["id"],
                 condition=Q(enabled=True, auto_software=True, software_sync_pending=True),
                 name="agent_software_pending_idx",
-            )
+            ),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -2188,6 +2196,7 @@ class AgentReport(models.Model):
 
 
 class AgentComponent(models.Model):
+    package_source = models.JSONField(default=dict, blank=True)
     package_identity = models.JSONField(default=dict, blank=True)
     automatic_installation = models.BooleanField(default=False)
     inventory_excluded = models.BooleanField(default=False)
@@ -2220,3 +2229,83 @@ class AgentComponent(models.Model):
             )
         ]
         constraints = [models.UniqueConstraint(fields=["device", "key"], name="agent_component_identity")]
+
+
+class DistroFeed(models.Model):
+    key = models.CharField(max_length=40, unique=True)
+    enabled = models.BooleanField(default=True)
+    generation = models.UUIDField(null=True, editable=False)
+    content_hash = models.CharField(max_length=64, blank=True, editable=False)
+    last_attempt = models.DateTimeField(null=True, editable=False)
+    last_success = models.DateTimeField(null=True, editable=False)
+    error = models.CharField(max_length=200, blank=True, editable=False)
+    summary = models.JSONField(default=dict, blank=True, editable=False)
+    lease_id = models.UUIDField(null=True, editable=False)
+    lease_until = models.DateTimeField(null=True, editable=False)
+
+
+class DistroAdvisory(models.Model):
+    feed = models.ForeignKey(DistroFeed, on_delete=models.PROTECT)
+    identity = models.CharField(max_length=200)
+    generation = models.UUIDField()
+    metadata = models.JSONField()
+    criteria = models.JSONField()
+    content_hash = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["feed", "identity"], name="distro_definition_identity")
+        ]
+
+
+class DistroAdvisoryPackage(models.Model):
+    feed = models.ForeignKey(DistroFeed, on_delete=models.CASCADE)
+    advisory = models.ForeignKey(DistroAdvisory, on_delete=models.CASCADE)
+    manager = models.CharField(max_length=8)
+    name = models.CharField(max_length=128)
+
+    class Meta:
+        indexes = [models.Index(fields=["feed", "manager", "name"], name="distro_package_lookup_idx")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["advisory", "manager", "name"], name="distro_package_rule_identity"
+            )
+        ]
+
+
+class DistroMatch(models.Model):
+    finding = models.OneToOneField(Finding, on_delete=models.PROTECT, related_name="distro_match")
+    component = models.ForeignKey(AgentComponent, on_delete=models.PROTECT)
+    advisory = models.ForeignKey(DistroAdvisory, on_delete=models.PROTECT)
+    result = models.CharField(
+        max_length=20, choices=[(v, v) for v in ["potential", "unknown", "not_affected", "not_observed"]]
+    )
+    evidence_revision = models.ForeignKey(SourceRecordRevision, on_delete=models.PROTECT)
+    input_hash = models.CharField(max_length=64)
+    snapshot = models.JSONField(default=dict)
+    evaluated_at = models.DateTimeField(default=timezone.now)
+    review_required = models.BooleanField(default=True)
+
+    @property
+    def inputs_changed(self):
+        return (
+            self.snapshot.get("version") != self.component.version
+            or self.snapshot.get("source_package", {}) != self.component.package_source
+            or self.component.installation_id != self.finding.installation_id
+            or self.component.stale
+            or self.component.missing_since is not None
+            or not self.component.device.enabled
+            or self.component.device.expires_at <= timezone.now()
+        )
+
+
+class DistroMatchRevision(models.Model):
+    match = models.ForeignKey(DistroMatch, on_delete=models.PROTECT, related_name="history")
+    fingerprint = models.CharField(max_length=64)
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["match", "fingerprint"], name="distro_match_revision_unique")
+        ]

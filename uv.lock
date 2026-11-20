@@ -25,16 +25,27 @@ wheels = [
 ]
 
 [[package]]
+name = "attrs"
+version = "26.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/8e/82a0fe20a541c03148528be8cac2408564a6c9a0cc7e9171802bc1d26985/attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32", size = 952055, upload-time = "2026-03-19T14:22:25.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309", size = 67548, upload-time = "2026-03-19T14:22:23.645Z" },
+]
+
+[[package]]
 name = "bearings"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "cryptography" },
+    { name = "defusedxml" },
     { name = "django" },
     { name = "http-message-signatures" },
     { name = "httpx" },
     { name = "psycopg", extra = ["binary"] },
     { name = "social-auth-app-django" },
+    { name = "univers" },
 ]
 
 [package.optional-dependencies]
@@ -50,12 +61,14 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=46,<51" },
+    { name = "defusedxml", specifier = ">=0.7.1,<0.8" },
     { name = "django", specifier = ">=5.2,<5.3" },
     { name = "gunicorn", marker = "extra == 'production'", specifier = ">=23,<26" },
     { name = "http-message-signatures", specifier = ">=2.2,<3" },
     { name = "httpx", specifier = ">=0.28,<0.29" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4" },
     { name = "social-auth-app-django", specifier = ">=5.6,<6" },
+    { name = "univers", specifier = ">=32.0.1,<33" },
 ]
 provides-extras = ["production"]
 
@@ -632,6 +645,24 @@ wheels = [
 ]
 
 [[package]]
+name = "semantic-version"
+version = "2.10.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/31/f2289ce78b9b473d582568c234e104d2a342fd658cc288a7553d83bb8595/semantic_version-2.10.0.tar.gz", hash = "sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c", size = 52289, upload-time = "2022-05-26T13:35:23.454Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/23/8146aad7d88f4fcb3a6218f41a60f6c2d4e3a72de72da1825dc7c8f7877c/semantic_version-2.10.0-py2.py3-none-any.whl", hash = "sha256:de78a3b8e0feda74cabc54aab2da702113e33ac9d9eb9d2389bcf1f58b7d9177", size = 15552, upload-time = "2022-05-26T13:35:21.206Z" },
+]
+
+[[package]]
+name = "semver"
+version = "3.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/a0/3d3f51a1304c0e8c93e06a23308f566f2d52d62f92dac903b85ef79dea6f/semver-3.1.2.tar.gz", hash = "sha256:bea193552413194252d33ff26ce0962b76669bd1c6fb17e8e203ac37f072feaf", size = 293659, upload-time = "2026-11-15T17:01:42.931Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ab/60/27e29790ff15ea0a485b8dc200d514328294f956e4abc3d43d88c0b5338d/semver-3.1.2-py3-none-any.whl", hash = "sha256:45d107c3fa880910441dfab9d555046cba2829a25feeadfe4a1566439635c510", size = 19100, upload-time = "2026-11-15T17:01:41.321Z" },
+]
+
+[[package]]
 name = "social-auth-app-django"
 version = "5.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -688,6 +719,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d9/68/f1b440335057bfce71b6e50a9d09445aa2ecbd08359a337976627b8409e7/tzdata-2026.5.tar.gz", hash = "sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7", size = 200404, upload-time = "2026-10-03T09:23:14.143Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/94/21/1e5995a1c920cce14e4bffae20c665ec10e7ed03ab25e006cd741092b718/tzdata-2026.5-py2.py3-none-any.whl", hash = "sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac", size = 347996, upload-time = "2026-10-03T09:23:12.535Z" },
+]
+
+[[package]]
+name = "univers"
+version = "32.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "packaging" },
+    { name = "semantic-version" },
+    { name = "semver" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/70/b6/874e832506ff2e5eb4f62a67a810199ee5f5175ad6dbca271da88b5b7cb9/univers-32.0.1.tar.gz", hash = "sha256:fae187245f72bee1581f29b0b0b6e907049b2ea136e3e52bf8d8edbfef10e7f0", size = 297048, upload-time = "2026-05-01T16:42:14.492Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a7/4f/1c7953d10a9147dc1ec8a4902a1e08d7107d1f4833e316470190039e8507/univers-32.0.1-py3-none-any.whl", hash = "sha256:50a574ff2321e31e1eba7aa586bf63a9558d91c69c70316bf26c75e1b122499b", size = 98791, upload-time = "2026-05-01T16:42:12.859Z" },
 ]
 
 [[package]]

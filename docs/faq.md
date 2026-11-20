@@ -1,6 +1,6 @@
 # Frequently asked questions
 
-Reviewed 2026-11-19. This FAQ describes implemented development/pilot behavior, not production acceptance.
+Reviewed 2026-11-20. This FAQ describes implemented development/pilot behavior, not production acceptance.
 
 ## What is Bearings?
 
@@ -8,7 +8,7 @@ Bearings connects a company's infrastructure inventory with vulnerability eviden
 
 ## Who operates the Bearings service?
 
-This Bearings installation is operated by CIRCL, the Computer Incident Response Center Luxembourg: the CERT for the private sector and municipalities in Luxembourg, mandated by the Ministry of the Economy.
+This Bearings installation is operated by CIRCL. CIRCL is Luxembourg’s CERT for the private sector and municipalities. The Law of 5 May 2026 implementing NIS2 designates CIRCL as a CSIRT; Article 9 names CIRCL as the coordinator for coordinated vulnerability disclosure. We scan for vulnerabilities and support voluntary information sharing so organizations can act earlier.
 
 ## Is Bearings free to use?
 
@@ -81,8 +81,3 @@ The software is licensed under AGPL-3.0-or-later. Infrastructure and intelligenc
 See the [documentation index](README.md), [next steps](product/next-priorities.md) and [validation record](validation.md).
 
 Content source: `website/faq.json`; rebuild with `python3 website/build.py`. The tracking/privacy statement applies to the public static website, not to authentication or logs in a deployed Bearings application.
-
-
-## Can CIRCL use Bearings for its own infrastructure and operate the platform?
-
-Yes. Keep one CIRCL company for its infrastructure and assign company memberships and platform privileges independently to user accounts. The header links **Company workspace** and **Platform overview** open the relevant views with your existing permissions. This navigation does not grant or remove roles. Company IDs, slugs and inventory modes distinguish duplicate registrations during a reviewed merge; personal MISP connections can be explicitly disabled on the archived company for their owners to reconnect.

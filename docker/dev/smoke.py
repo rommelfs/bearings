@@ -149,7 +149,9 @@ def main():
                 "csrfmiddlewaretoken": client.cookies.get("csrftoken"),
             },
         )
-        assert response.status_code == 200 and response.url.path == "/", "Bearings login failed"
+        assert response.status_code == 200 and response.url.path == "/infrastructure/", (
+            "Bearings login failed"
+        )
         assert "<h1>Infrastructure overview</h1>" in response.text and "company-admin" in response.text
         assert "data-overview-refresh checked" in response.text
         assert response.headers.get("Server-Timing", "").startswith("overview;dur="), (
@@ -183,7 +185,7 @@ def main():
                     "csrfmiddlewaretoken": operator.cookies.get("csrftoken"),
                 },
             )
-            assert login.status_code == 200 and login.url.path == "/", "Operator login failed"
+            assert login.status_code == 200 and login.url.path == "/infrastructure/", "Operator login failed"
             ro_fields = {**fields, "csrfmiddlewaretoken": operator.cookies.get("csrftoken")}
             assert operator.post(ro_url, data=ro_fields).status_code == 403, (
                 "Portal must enforce read-only source capability for operators too"
