@@ -4,12 +4,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, F
+from django.db.models import Q, Count, F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .access import audit, can_edit, organizations_for, require, audit_operator_access, visible_findings
-from .models import Product, ProductWatch, Installation, AgentComponent
+from .access import audit, can_edit, organizations_for, require, audit_organizations, visible_findings_for
+from .models import Product, ProductWatch, Installation, Membership
 from .views import organization
 from .product_matching import suggestions
 from .connectors.vulnerability_lookup import browse_products
@@ -38,33 +38,37 @@ def center(request):
         org = organization(request, request.GET["organization"])
         qs = qs.filter(organization=org)
     page = Paginator(qs, 50).get_page(request.GET.get("page"))
-    for product in page:
+    products = list(page)
+    pending = dict(
+        visible_findings_for(request.user)
+        .filter(
+            Q(discovery__review_required=True) | Q(distro_match__review_required=True),
+            installation__product_id__in=[p.pk for p in products],
+            installation__product__organization_id=F("organization_id"),
+        )
+        .values("installation__product_id")
+        .annotate(total=Count("pk"))
+        .values_list("installation__product_id", "total")
+    )
+    editable = (
+        set(
+            Membership.objects.filter(
+                user=request.user,
+                organization_id__in=[p.organization_id for p in products],
+                role__in=["admin", "editor"],
+            ).values_list("organization_id", flat=True)
+        )
+        if not request.user.is_superuser
+        else set()
+    )
+    for product in products:
         product.distro_package = product.identifier.startswith(("pkg:deb/", "pkg:rpm/"))
-        product.distro_devices = (
-            list(
-                AgentComponent.objects.filter(
-                    installation__product=product,
-                    device__organization=product.organization,
-                    installation__asset__organization=product.organization,
-                    device__source__organization=product.organization,
-                    installation__asset_id=F("device__asset_id"),
-                )
-                .select_related("device__asset")
-                .order_by("device_id")[:5]
-            )
-            if product.distro_package
-            else []
-        )
-        product.editable = can_edit(request.user, product.organization)
-        product.pending_reviews = (
-            visible_findings(request.user, product.organization)
-            .filter(
-                Q(discovery__review_required=True) | Q(distro_match__review_required=True),
-                installation__product=product,
-            )
-            .count()
-        )
-        audit_operator_access(request.user, product.organization)
+        product.editable = request.user.is_superuser or product.organization_id in editable
+        product.pending_reviews = pending.get(product.pk, 0)
+    from .distro_display import decorate
+
+    decorate(request.user, products)
+    audit_organizations(request.user, [p.organization for p in products])
     return render(request, "portal/discovery.html", {"page": page})
 
 

@@ -12,12 +12,13 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError, connection
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
-from .access import audit, is_analyst, require
+from .access import audit, is_analyst, require, organizations_for
 from .circl_views import private_response
-from .models import InfrastructureRegistration, Organization
+from .models import InfrastructureRegistration, Organization, Membership
 from .overview_queries import QueryTiming
 from .registration import (
     decide_registration,
@@ -185,7 +186,7 @@ def applications(request):
         state = "awaiting_review"
     page = Paginator(
         InfrastructureRegistration.objects.filter(status=state)
-        .select_related("user", "organization")
+        .select_related("user", "organization__merged_into")
         .order_by("created_at", "pk"),
         25,
     ).get_page(request.GET.get("page"))
@@ -261,19 +262,37 @@ def application(request, pk):
     elif item.status in {"approved", "rejected"}:
         form.fields["decision"].choices = [("notify", "Retry decision email")]
     if request.method == "POST" and not action and form and form.is_valid():
-        item = decide_registration(
-            request.user, item.pk, form.cleaned_data["decision"], form.cleaned_data["note"]
-        )
-        delivered = notify_decision(item.pk)
-        messages.success(
-            request,
-            "Decision saved. CIRCL sharing is separate from private owner access; scopes remain declared.",
-        )
-        if not delivered and item.email_verified_at and not item.decision_mail_sent_at:
-            messages.warning(
-                request, "Decision email was not confirmed. Check service mail and retry notification."
+        try:
+            item = decide_registration(
+                request.user, item.pk, form.cleaned_data["decision"], form.cleaned_data["note"]
             )
-        return redirect("registration-application", pk=item.pk)
+        except ValidationError as error:
+            form.add_error(None, error)
+            audit(
+                request.user,
+                item.organization,
+                "registration.review_blocked",
+                item.pk,
+                decision=form.cleaned_data.get("decision", ""),
+            )
+        else:
+            delivered = notify_decision(item.pk)
+            messages.success(
+                request,
+                "Decision saved. CIRCL sharing is separate from private owner access; scopes remain declared.",
+            )
+            if not delivered and item.email_verified_at and not item.decision_mail_sent_at:
+                messages.warning(
+                    request, "Decision email was not confirmed. Check service mail and retry notification."
+                )
+            return redirect("registration-application", pk=item.pk)
+    owner_role = (
+        Membership.objects.filter(user=item.user, organization_id=item.organization_id)
+        .values_list("role", flat=True)
+        .first()
+        if item.organization_id
+        else None
+    )
     audit(request.user, item.organization, "operator.registration_read", item.pk)
     return private_response(
         render(
@@ -281,6 +300,33 @@ def application(request, pk):
             "portal/registration_application.html",
             {
                 "item": item,
+                "registration_owner_role": dict(Membership.ROLES).get(
+                    owner_role, "No membership in this registered company"
+                ),
+                "registration_owner_admin": owner_role == "admin",
+                "applicant_memberships": Membership.objects.filter(
+                    user=item.user, organization__in=organizations_for(request.user)
+                )
+                .select_related("organization__merged_into")
+                .order_by("organization__name", "pk")[:10],
+                "owner_membership_admin_url": reverse("admin:portal_membership_changelist")
+                + "?organization__id__exact="
+                + str(item.organization_id)
+                + "&user__id__exact="
+                + str(item.user_id)
+                if request.user.is_superuser and item.organization_id
+                else "",
+                "owner_user_admin_url": reverse("admin:auth_user_change", args=[item.user_id])
+                if request.user.is_superuser
+                else "",
+                "owner_membership_create_url": reverse("admin:portal_membership_add")
+                + "?organization="
+                + str(item.organization_id)
+                + "&user="
+                + str(item.user_id)
+                + "&role=admin"
+                if request.user.is_superuser and item.organization_id and owner_role is None
+                else "",
                 "form": form,
                 "override_form": override_form if can_override else None,
                 "retry_form": retry_form

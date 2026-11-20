@@ -83,6 +83,33 @@ class RegistrationReviewTests(Fixture):
         policy.save()
         return policy
 
+    def test_missing_applicant_admin_is_an_actionable_validation_error_not_403(self):
+        item, org = self.workspace()
+        Membership.objects.filter(user=item.user, organization=org).delete()
+        Membership.objects.create(user=item.user, organization=self.b, role="reader")
+        self.login(self.platform)
+        url = reverse("registration-application", args=[item.pk])
+        response = self.client.get(url)
+        self.assertContains(response, "Approval is blocked")
+        self.assertContains(response, org.display_label)
+        self.assertContains(response, self.b.display_label)
+        self.assertContains(response, "Review adding the missing OrgAdmin membership")
+        response = self.client.post(
+            url, {"decision": "approve", "note": "Synthetic role mismatch", "checked": "on"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Approval blocked:")
+        item.refresh_from_db()
+        org.refresh_from_db()
+        self.assertEqual(item.status, "awaiting_review")
+        self.assertFalse(org.operator_visibility)
+        self.assertFalse(Membership.objects.filter(user=item.user, organization=org).exists())
+        self.login(self.analyst)
+        response = self.client.get(url)
+        self.assertContains(response, "Ask a platform administrator")
+        self.assertNotContains(response, self.b.display_label)
+        self.assertNotContains(response, reverse("admin:portal_membership_add"))
+
     def test_email_proof_opens_private_workspace_and_circl_approval_is_separate(self):
         item, code = self.signup()
         self.assertFalse(item.user.is_active)

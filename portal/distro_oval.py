@@ -9,6 +9,7 @@ from univers.rpm import compare_rpm_versions
 from .connectors.http import ConnectorError
 
 CVE = re.compile(r"CVE-[0-9]{4}-[0-9]{4,}")
+COMPILER_VERSION = 2
 
 
 def local(tag):
@@ -34,7 +35,9 @@ def field(e):
 def compile_feed(path, distro, release, deadline=None, stats=None):
     """Two streaming passes: reference tables first, then complete definitions."""
     stats = stats if stats is not None else {}
-    stats.update(definitions=0, unindexed_definitions=0, vendor_definitions=0)
+    stats.update(
+        definitions=0, unindexed_definitions=0, vendor_definitions=0, compiler_version=COMPILER_VERSION
+    )
     deadline = deadline or time.monotonic() + 120
     tests, objects, states, variables, inventories = {}, {}, {}, {}, {}
     seen_ids = set()
@@ -69,6 +72,8 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
         t = tests.get(pk, {})
         if len(t.get("objects", [])) != 1:
             return {"unknown": "unsupported object set"}
+        if t["objects"][0] not in objects:
+            return {"unknown": "missing object reference"}
         obj = objects.get(t["objects"][0], {})
         ss = [states.get(s, [{"field": "unsupported"}]) for s in t["states"]]
         tag = t["tag"]
@@ -92,11 +97,12 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
                 "check": t["attrs"].get("check", "all"),
                 "existence": t["attrs"].get("check_existence", "at_least_one_exists"),
             }
-        guards_supported = t["attrs"].get("check", "all") == "all" and t["attrs"].get(
+        guards_supported = t["attrs"].get("check", "all") in {"all", "at least one"} and t["attrs"].get(
             "check_existence", "at_least_one_exists"
         ) in {"at_least_one_exists", "any_exist"}
         if (
             tag == "family_test"
+            and not obj
             and guards_supported
             and ss
             and all(ss)
@@ -114,6 +120,21 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
             "filename", {}
         ).get("text", "")
         if tag == "textfilecontent54_test" and filepath in {"/etc/lsb-release", "/etc/debian_version"}:
+            expected_pattern = {
+                "/etc/lsb-release": r"^[\s\S]*DISTRIB_CODENAME=([a-z]+)$",
+                "/etc/debian_version": r"(\d+)\.\d",
+            }[filepath]
+            if (
+                obj.get("pattern", {}).get("text") != expected_pattern
+                or obj.get("pattern", {}).get("operation") != "pattern match"
+                or obj.get("instance", {}).get("text") != "1"
+                or any(
+                    v.get("var_ref") or (n != "pattern" and v.get("operation", "equals") != "equals")
+                    for n, v in obj.items()
+                )
+                or set(obj) - {"filepath", "path", "filename", "pattern", "instance"}
+            ):
+                return {"unknown": "unsupported OS inventory object"}
             wanted = {
                 "ubuntu": {"20.04": "focal", "22.04": "jammy", "24.04": "noble", "26.04": "resolute"}.get(
                     release

@@ -110,3 +110,11 @@ Registration creates a local account. After CIRCL approval, **SSO & access** off
 ## Minimal setup, inventory and response follow-through
 
 [Start small and import inventory](company-first-steps.md) describes the additive one-scope path, reviewed manual CSV import and compact company action workflow. [Review follow-through](review-followups.md) distinguishes local output, SMTP acceptance, reported bounce/delivery and actual cycle confirmation, with authorized previewed repeats and no automatic DPO escalation.
+
+## Understanding a blocked operator decision
+
+The operator review approves **CIRCL visibility of a specific company**; it does not activate an already verified user's account or move them into another company. Registration detail and administration now identify the actual workspace by name, slug and ID so duplicate company names can be distinguished. The detail page shows the applicant's current role in that registered company, account state and other company memberships visible under the reviewer's current permissions.
+
+If the applicant's original OrgAdmin membership was removed/downgraded or the account/company state changed, approval renders a clear validation error on the same page instead of a generic 403. Authorization and CSRF failures still deny access. No role or visibility is restored automatically. A platform administrator can follow the applicant-specific membership/account links, check the intended company, and explicitly edit/add the correct membership if appropriate. If the person already belongs to another intended company, reconcile the duplicate company/application rather than approving a different private workspace. Existing personal/domain invitations let colleagues join the established company without creating another one. Source data, contact roles and archived registrations require their normal reviewed reconciliation.
+
+The administration's verification-mail column now uses explicit words instead of a red false-boolean icon that could be mistaken for a send failure. The environment banner labels the **reviewed outreach** transport; registration/invitation service-mail transport remains separately shown in registration delivery. Configured registration SMTP does not enable reviewed vulnerability outreach.

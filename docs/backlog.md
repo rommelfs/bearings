@@ -425,3 +425,8 @@ Public marketing in all four languages, workspace/login and Django admin now fol
 ## Domain-based invitations and clear workspace navigation — 2026-11-20
 
 Company admins can issue a bounded reusable code for one exact email domain; every member must still confirm a personal mail challenge. Reader/editor only, quotas, expiry, creator/role/domain rechecks, CSRF and rate limits preserve access boundaries. Source merges revoke codes; no keys or native roles transfer. Invitation notices now report actual SMTP submission or local/error state. A visible company/national selector names the selected company and highlights the matching view, retaining current permissions. See [membership guide](user-guide/company-members.md#shared-code-for-an-exact-email-domain). Migration 0061 is required.
+
+
+## Concrete package mappings and actionable review errors — 2026-11-20
+
+Automatic discovery shows exact package/release/feed associations, candidate-definition counts and scoped CVE review links. Software recognition, matching readiness and current reviews are separate statuses; identities without indexed advisories remain explicitly monitored. Server-wide partial coverage is separate, default manual-watch prompts are removed for distro packages, and batched queries preserve authorization. Canonical singleton guards are interpreted correctly and versioned cache recompilation queues reevaluation. Registration review identifies actual company/role, visible memberships and explicit correction links instead of a generic 403 for missing applicant admin membership; access controls remain intact. No role/sharing restoration or new schema/client rollout is performed automatically.

@@ -332,16 +332,17 @@ class GrantAdmin(PlatformAdmin):
 class RegistrationAdmin(PlatformAdmin):
     list_display = [
         "company_name",
+        "registered_company",
         "email",
         "status",
         "email_verified_at",
         "manually_activated_at",
-        "verification_error",
+        "verification_delivery",
         "review_actions",
     ]
     list_filter = ["status", "verification_error"]
     search_fields = ["company_name", "email", "user__username"]
-    list_select_related = ["user", "organization"]
+    list_select_related = ["user", "organization__merged_into"]
     fields = ["review_actions", "mail_status"] + [
         field.name for field in InfrastructureRegistration._meta.fields if field.name != "verification_digest"
     ]
@@ -350,6 +351,20 @@ class RegistrationAdmin(PlatformAdmin):
 
     def has_add_permission(self, request):
         return False
+
+    @admin.display(description="Registered company")
+    def registered_company(self, obj):
+        return obj.organization.display_label if obj.organization_id else "No workspace yet"
+
+    @admin.display(description="Verification email")
+    def verification_delivery(self, obj):
+        return (
+            "Last send failed"
+            if obj.verification_error
+            else "No recorded send error"
+            if obj.verification_attempted_at
+            else "Not attempted"
+        )
 
     @admin.display(description="Activation / review")
     def review_actions(self, obj):

@@ -1879,3 +1879,5 @@ main article p { overflow-wrap: anywhere; }
   .operator-workspace .account-menu { width: 100%; }
   .operator-workspace .workspace-view-switch { order: -1; flex: 1 1 100%; }
 }
+.package-association { border-top: 1px solid var(--line); padding: 18px 0; overflow-wrap: anywhere; }
+.package-association h3 { font-size: 17px; }

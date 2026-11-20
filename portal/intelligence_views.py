@@ -11,7 +11,7 @@ from .access import can_edit, can_operator_review, require, visible_findings
 from .connectors.http import ConnectorError, validate_base
 from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link, resolve_risk
-from .models import MOSPRisk, MOSPSource, RiskLink
+from .models import MOSPRisk, MOSPSource, RiskLink, Product, Installation
 from .views import organization
 from .presentation import decorate_finding, severity_first
 
@@ -45,6 +45,21 @@ def finding_page(request, org):
             raise Http404 from None
         asset = get_object_or_404(org.assets, pk=asset_id)
         findings = findings.filter(installation__asset=asset)
+    for name, model, scope in [
+        ("product", Product, {"organization": org}),
+        ("installation", Installation, {"product__organization": org, "asset__organization": org}),
+    ]:
+        if request.GET.get(name):
+            try:
+                pk = int(request.GET[name])
+                if len(request.GET[name]) > 19 or pk < 1:
+                    raise ValueError
+            except ValueError:
+                raise Http404 from None
+            selected = get_object_or_404(model, pk=pk, **scope)
+            findings = findings.filter(
+                **{"installation__product" if name == "product" else "installation": selected}
+            )
     attention = request.GET.get("attention", "")
     if attention in {"reviews", "affected", "critical"}:
         from .presentation import ACTIVE_REVIEWS

@@ -139,8 +139,8 @@ class VerificationResendForm(forms.Form):
 class RegistrationDecisionForm(forms.Form):
     decision = forms.ChoiceField(
         choices=[
-            ("approve", "Approve CIRCL workspace access"),
-            ("reject", "Reject CIRCL workspace access"),
+            ("approve", "Approve CIRCL visibility of this company"),
+            ("reject", "Decline CIRCL visibility of this company"),
             ("notify", "Retry decision email"),
         ]
     )

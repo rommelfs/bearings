@@ -57,11 +57,16 @@ def refresh(pk):
     lease = uuid.uuid4()
     with transaction.atomic():
         f = DistroFeed.objects.select_for_update().get(pk=pk)
+        current_compiler = f.summary.get("compiler_version") == distro_oval.COMPILER_VERSION
         if (
             not f.enabled
             or (f.lease_until and f.lease_until > now)
-            or (f.last_attempt and f.last_attempt > now - timedelta(minutes=15))
-            or (f.last_success and f.last_success > now - timedelta(hours=6))
+            or (
+                f.last_attempt
+                and f.last_attempt > now - timedelta(minutes=15)
+                and (current_compiler or f.error)
+            )
+            or (current_compiler and f.last_success and f.last_success > now - timedelta(hours=6))
         ):
             return False
         f.lease_id = lease
@@ -71,7 +76,7 @@ def refresh(pk):
         key = f.key
     try:
         with distro_sources.download(key) as (path, sha):
-            if f.content_hash == sha and f.generation:
+            if f.content_hash == sha and f.generation and current_compiler:
                 with transaction.atomic():
                     f = DistroFeed.objects.select_for_update().get(pk=pk)
                     if f.lease_id != lease or not f.enabled:
@@ -149,6 +154,8 @@ def store_batch(feed, generation, batch):
 
 def feed_state(feed):
     if not feed or not feed.enabled or not feed.generation:
+        return "pending"
+    if feed.summary.get("compiler_version") != distro_oval.COMPILER_VERSION:
         return "pending"
     if not feed.last_success or feed.last_success < timezone.now() - timedelta(hours=12):
         return "stale"
@@ -431,10 +438,21 @@ def run(limit=5):
         if key:
             DistroFeed.objects.get_or_create(key=key)
     # One vendor cache per invocation; unchanged complete caches are shared by every company.
+    old_compiler = Q(summary__compiler_version__isnull=True) | ~Q(
+        summary__compiler_version=distro_oval.COMPILER_VERSION
+    )
     for f in (
         DistroFeed.objects.filter(enabled=True)
-        .filter(Q(last_attempt__isnull=True) | Q(last_attempt__lt=timezone.now() - timedelta(minutes=15)))
-        .filter(Q(last_success__isnull=True) | Q(last_success__lt=timezone.now() - timedelta(hours=6)))
+        .filter(
+            Q(last_attempt__isnull=True)
+            | Q(last_attempt__lt=timezone.now() - timedelta(minutes=15))
+            | (old_compiler & Q(error=""))
+        )
+        .filter(
+            Q(last_success__isnull=True)
+            | Q(last_success__lt=timezone.now() - timedelta(hours=6))
+            | old_compiler
+        )
         .order_by("last_attempt", "pk")[:1]
     ):
         refresh(f.pk)

@@ -304,15 +304,27 @@ def decide_registration(actor, pk, decision, note):
             and (item.email_verified_at is not None or item.manually_activated_at is not None)
         )
         user = get_user_model().objects.select_for_update().get(pk=item.user_id)
-        require(
-            user.is_active
-            and item.organization_id is not None
-            and Membership.objects.filter(
-                user=user, organization_id=item.organization_id, role="admin"
-            ).exists()
-        )
+        if not user.is_active:
+            raise ValidationError(
+                "Approval blocked: the applicant account is inactive. Review the account before approving company visibility."
+            )
+        if item.organization_id is None:
+            raise ValidationError(
+                "Approval blocked: this registration has no company workspace. Complete private activation first."
+            )
         org = Organization.objects.select_for_update().get(pk=item.organization_id)
-        require(not org.operator_visibility)
+        if org.merged_into_id:
+            raise ValidationError(
+                "Approval blocked: this registration belongs to an archived company. Review the retained company and membership instead."
+            )
+        if not Membership.objects.filter(user=user, organization=org, role="admin").exists():
+            raise ValidationError(
+                "Approval blocked: the applicant is no longer an administrator of this registered company. Check the company and applicant membership below; this action does not restore roles or approve a different company."
+            )
+        if org.operator_visibility:
+            raise ValidationError(
+                "This company already allows CIRCL visibility. Reload and check the registration/company state before saving another decision."
+            )
         org.operator_visibility = True
         org.save(update_fields=["operator_visibility"])
         item.status = "approved"

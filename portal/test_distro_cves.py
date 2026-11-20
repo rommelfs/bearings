@@ -1,7 +1,9 @@
 """Vendor criteria, native backports, scoped automatic publication and retained failures."""
 
+from django.urls import reverse
 from django.test import TransactionTestCase
 from django.db import connection, connections
+from django.test.utils import CaptureQueriesContext
 from concurrent.futures import ThreadPoolExecutor
 from unittest import skipUnless
 from threading import Event
@@ -23,6 +25,8 @@ from .models import (
     DistroMatchRevision,
     Finding,
     SourceRecord,
+    Product,
+    Installation,
 )
 
 XML = """<oval_definitions xmlns="http://oval.mitre.org/XMLSchema/oval-definitions-5" xmlns:l="http://oval.mitre.org/XMLSchema/oval-definitions-5#linux">
@@ -194,6 +198,125 @@ class DistroTests(Fixture):
         result, ids = distro_oval.evaluate(rule, facts, True, {})
         self.assertFalse(result)
         self.assertEqual(ids, set())
+
+    def test_package_card_shows_vendor_rules_and_scoped_reviews_without_manual_setup(self):
+        self.enroll()
+        self.send()
+        agents.process_pending()
+        self.load()
+        distro_cves.evaluate_device(self.device.pk)
+        component = self.device.components.get(name="nginx")
+        self.login()
+        response = self.client.get(reverse("discovery"))
+        self.assertContains(response, "1 indexed vendor definitions")
+        self.assertContains(response, "Vendor lookup: nginx")
+        self.assertContains(response, "Software identity:")
+        self.assertContains(response, "Recognized by vendor definitions")
+        self.assertContains(response, "Ready — supported vendor advisories are checked automatically")
+        self.assertContains(response, "Server-wide coverage:")
+        self.assertNotContains(
+            response, reverse("discovery-configure", args=[self.a.slug, component.installation.product_id])
+        )
+        url = reverse("intelligence", args=[self.a.slug]) + "?installation=" + str(component.installation_id)
+        self.assertContains(self.client.get(url), "CVE-2099-99999")
+        self.assertEqual(
+            self.client.get(
+                reverse("intelligence", args=[self.b.slug])
+                + "?installation="
+                + str(component.installation_id)
+            ).status_code,
+            404,
+        )
+
+    def test_unchanged_feed_is_recompiled_after_compiler_upgrade(self):
+        feed = self.load()
+        old = feed.generation
+        DistroFeed.objects.filter(pk=feed.pk).update(summary={"compiler_version": 0})
+        self.assertEqual(distro_cves.feed_state(DistroFeed.objects.get(pk=feed.pk)), "pending")
+
+        @contextmanager
+        def same_download(_):
+            with tempfile.TemporaryDirectory() as tmp:
+                p = Path(tmp) / "feed.xml"
+                p.write_text(XML)
+                yield p, hashlib.sha256(XML.encode()).hexdigest()
+
+        with patch("portal.distro_sources.download", side_effect=same_download):
+            distro_cves.run()
+        feed.refresh_from_db()
+        self.assertNotEqual(feed.generation, old)
+        self.assertEqual(feed.summary["compiler_version"], distro_oval.COMPILER_VERSION)
+
+    def test_canonical_singleton_inventory_guards_support_at_least_one(self):
+        xml = XML.replace(
+            "xmlns:l=", 'xmlns:i="http://oval.mitre.org/XMLSchema/oval-definitions-5#independent" xmlns:l='
+        )
+        xml = xml.replace(
+            "<definitions>",
+            '<definitions><definition id="inventory" class="inventory"><criteria><criterion test_ref="family"/><criterion test_ref="os"/></criteria></definition>',
+        )
+        xml = xml.replace(
+            '<criteria operator="AND">',
+            '<criteria operator="AND"><extend_definition definition_ref="inventory"/>',
+        )
+        xml = xml.replace(
+            "</tests>",
+            '<i:family_test id="family" check="at least one"><i:object object_ref="family-object"/><i:state state_ref="family-state"/></i:family_test><i:textfilecontent54_test id="os" check="at least one"><i:object object_ref="os-object"/><i:state state_ref="os-state"/></i:textfilecontent54_test></tests>',
+        )
+        xml = xml.replace(
+            "</objects>",
+            r'<i:family_object id="family-object"/><i:textfilecontent54_object id="os-object"><i:filepath>/etc/lsb-release</i:filepath><i:pattern operation="pattern match">^[\s\S]*DISTRIB_CODENAME=([a-z]+)$</i:pattern><i:instance>1</i:instance></i:textfilecontent54_object></objects>',
+        )
+        xml = xml.replace(
+            "</states>",
+            '<i:family_state id="family-state"><i:family>unix</i:family></i:family_state><i:textfilecontent54_state id="os-state"><i:subexpression operation="equals">noble</i:subexpression></i:textfilecontent54_state></states>',
+        )
+        self.enroll()
+        self.send()
+        agents.process_pending()
+        self.load(xml)
+        self.assertEqual(distro_cves.evaluate_device(self.device.pk)["potential"], 1)
+        # An unrecognized file expression must not become a trusted OS fact.
+        self.load(xml.replace("DISTRIB_CODENAME", "ARBITRARY_FIELD"))
+        result = distro_cves.evaluate_device(self.device.pk)
+        self.assertEqual(result["potential"], 0)
+        self.assertEqual(result["uncertain"], 1)
+
+    def test_discovery_queries_stay_bounded_across_package_cards(self):
+        self.enroll()
+        self.send()
+        agents.process_pending()
+        self.load()
+        distro_cves.evaluate_device(self.device.pk)
+        self.login()
+        original = self.device.components.get(name="nginx")
+        with CaptureQueriesContext(connection) as initial:
+            self.assertEqual(self.client.get(reverse("discovery")).status_code, 200)
+        for i in range(12):
+            p = Product.objects.create(
+                organization=self.a,
+                name=f"Synthetic package {i}",
+                identifier=f"pkg:deb/ubuntu/synthetic-{i}?arch=amd64",
+            )
+            installation = Installation.objects.create(asset=self.device.asset, product=p, version="1")
+            AgentComponent.objects.create(
+                device=self.device,
+                key=f"dpkg:synthetic-{i}:amd64",
+                name=f"synthetic-{i}",
+                manager="dpkg",
+                architecture="amd64",
+                version="1",
+                observed_at=timezone.now(),
+                last_report_id=original.last_report_id,
+                installation=installation,
+                package_identity=original.package_identity,
+            )
+        with CaptureQueriesContext(connection) as larger:
+            response = self.client.get(reverse("discovery"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Normalized package identity recorded")
+        self.assertContains(response, "Monitoring vendor feed; no indexed advisory for this identity yet")
+        self.assertLessEqual(len(larger), len(initial) + 2)
 
     def test_native_version_semantics(self):
         for manager, a, b, want in [

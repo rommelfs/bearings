@@ -52,6 +52,7 @@ class ActualVendorTests(Fixture):
             generation=uuid.uuid4(),
             last_success=timezone.now(),
             content_hash="synthetic-subset-of-reviewed-vendor-download",
+            summary={"compiler_version": distro_oval.COMPILER_VERSION},
         )
         distro_cves.store_batch(feed, feed.generation, [row])
         self.enroll()
