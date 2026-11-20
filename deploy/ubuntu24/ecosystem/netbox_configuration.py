@@ -25,7 +25,20 @@ REDIS = {
     for index, name in enumerate(("tasks", "caching"))
 }
 MEDIA_ROOT = "/var/lib/bearings-netbox/media"
-STATIC_ROOT = "/var/www/bearings-netbox/static"
+# NetBox fixes settings.STATIC_ROOT to <NETBOX_ROOT>/static and ignores that
+# name in configuration.py. Its supported STORAGES option sets the actual
+# destination without granting the application write access to source code.
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        "OPTIONS": {
+            "location": "/var/www/bearings-netbox/static",
+            "base_url": "/static/",
+            "file_permissions_mode": 0o644,
+            "directory_permissions_mode": 0o755,
+        },
+    }
+}
 SCRIPTS_ROOT = "/var/lib/bearings-netbox/scripts"
 REPORTS_ROOT = "/var/lib/bearings-netbox/reports"
 SESSION_COOKIE_NAME = "netboxsessionid"
@@ -33,7 +46,6 @@ CSRF_COOKIE_NAME = "netboxcsrftoken"
 SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = True
 CSRF_TRUSTED_ORIGINS = ["https://" + os.environ["NETBOX_HOST"]]
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-LOGIN_REQUIRED = True
 CENSUS_REPORTING_ENABLED = False
 RELEASE_CHECK_URL = ""
 EMAIL = {"SERVER": "127.0.0.1", "PORT": 1, "TIMEOUT": 1, "FROM_EMAIL": "bearings@circl.lu"}

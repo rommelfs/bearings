@@ -79,5 +79,7 @@ jobs:
           uv run --frozen --no-dev --extra production python -c 'from scripts.flowintel_source import prepare_source; prepare_source()'
       - name: Check native NetBox and FlowIntel runtimes with disposable databases
         run: uv run --frozen --no-dev --extra production python scripts/native_ecosystem_smoke.py --netbox-source /tmp/bearings-native-netbox --flowintel-source .local/dev-stack/flowintel-source
+      - name: Collect NetBox assets from read-only source
+        run: uv run --frozen --no-dev --extra production python scripts/native_static_smoke.py --netbox-source /tmp/bearings-native-netbox
       - name: Check production Keycloak realm with disposable database
         run: python3 scripts/native_keycloak_smoke.py

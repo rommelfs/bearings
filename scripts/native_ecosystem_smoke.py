@@ -183,7 +183,7 @@ def main():
             }
             config = "from netbox_configuration import *\n"
             config += f"DATABASES['default']['HOST']={str(pg_socket)!r}\n"
-            config += f"STATIC_ROOT={str(base / 'static')!r}\n"
+            config += f"STORAGES['staticfiles']['OPTIONS']['location']={str(base / 'static')!r}\n"
             config += f"MEDIA_ROOT={str(base / 'media')!r}\n"
             config += f"SCRIPTS_ROOT={str(base / 'scripts')!r}\nREPORTS_ROOT={str(base / 'reports')!r}\n"
             config += f"REDIS={{name:{{'URL':{('unix://' + str(redis_socket / 'redis.sock'))!r}+'?db='+str(i)}} for i,name in enumerate(('tasks','caching'))}}\n"
@@ -199,6 +199,8 @@ def main():
             netbox = [base / "netbox-venv/bin/python", base / "netbox/netbox/manage.py"]
             run([*netbox, "migrate", "--noinput"], env=netbox_env)
             run([*netbox, "collectstatic", "--noinput"], env=netbox_env)
+            if not any((base / "static").rglob("*.css")) or (base / "netbox/netbox/static").exists():
+                raise RuntimeError("Static collection did not use the separate native destination")
             # Actual ORM fixtures: own-tenant visibility and denial of another tenant.
             fixture_code = """
 from users.models import User, Token, ObjectPermission
