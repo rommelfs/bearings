@@ -47,6 +47,12 @@ class NativeSetupTests(TestCase):
             self.invoke(apply=True)
         self.assertEqual(InventorySource.objects.get().tenant_id, 42)
 
+    def test_archived_duplicate_name_does_not_block_native_binding_retry(self):
+        initial = self.invoke(apply=True)
+        target = Organization.objects.get(pk=initial["organization"])
+        Organization.objects.create(name="CIRCL", slug="archived-circl", merged_into=target)
+        self.assertEqual(self.invoke(apply=True), initial)
+
     def test_non_admin_denied_and_ambiguous_company_not_adopted(self):
         self.actor.is_superuser = False
         self.actor.save()

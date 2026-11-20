@@ -5,6 +5,7 @@ from django.contrib.auth.forms import UsernameField
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
@@ -126,13 +127,52 @@ def join(request):
     return response
 
 
+class MergeCompanyChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        source = getattr(obj, "inventory_source", None)
+        inventory = source.get_mode_display() if source else "No inventory source"
+        return f"{obj.display_label} · {inventory}"
+
+
 class MergeForm(forms.Form):
-    source = forms.ModelChoiceField(
-        queryset=Organization.objects.filter(merged_into=None), label="Source company to archive"
+    source = MergeCompanyChoice(
+        queryset=Organization.objects.filter(merged_into=None)
+        .select_related("inventory_source")
+        .order_by("name", "pk"),
+        label="Source company to archive",
     )
-    target = forms.ModelChoiceField(
-        queryset=Organization.objects.filter(merged_into=None), label="Company to keep"
+    target = MergeCompanyChoice(
+        queryset=Organization.objects.filter(merged_into=None)
+        .select_related("inventory_source")
+        .order_by("name", "pk"),
+        label="Company to keep",
     )
+    retire_personal_misp = forms.BooleanField(
+        required=False,
+        label="Disable the archived company's personal MISP connections. Keep keys and cached history on the archive; each owner reconnects under the company we keep.",
+    )
+
+    def __init__(self, *args, query="", **kwargs):
+        super().__init__(*args, **kwargs)
+        base = Organization.objects.filter(merged_into=None)
+        matches = base
+        query = query[:160].strip()
+        if query:
+            criteria = Q(name__icontains=query) | Q(slug__icontains=query)
+            if query.isascii() and query.isdigit() and len(query) <= 19:
+                criteria |= Q(pk=int(query))
+            matches = matches.filter(criteria)
+        selected = []
+        for name in ["source", "target"]:
+            value = str(self.data.get(name, ""))
+            if value.isascii() and value.isdigit() and len(value) <= 19:
+                selected.append(int(value))
+        choices = (
+            base.filter(Q(pk__in=matches.order_by("name", "pk").values("pk")[:50]) | Q(pk__in=selected))
+            .select_related("inventory_source")
+            .order_by("name", "pk")
+        )
+        self.fields["source"].queryset = self.fields["target"].queryset = choices
 
 
 @login_required
@@ -142,13 +182,17 @@ def merge_companies(request):
     from .company_merge import plan, merge
 
     require(request.user.is_active and request.user.is_superuser)
-    form = MergeForm(request.POST if request.POST.get("action") == "preview" else None)
+    query = request.GET.get("q", "")[:160].strip()
+    form = MergeForm(request.POST if request.POST.get("action") == "preview" else None, query=query)
     preview = None
     if request.method == "POST":
         try:
             if request.POST.get("action") == "commit":
                 require(request.POST.get("confirmed") == "yes")
                 target = merge(request.user, request.POST.get("ticket", ""))
+                from .workspace_views import SESSION_COMPANY
+
+                request.session[SESSION_COMPANY] = target.pk
                 messages.success(
                     request,
                     "Company merged. Source is archived; review the resulting company data and contacts.",
@@ -164,4 +208,6 @@ def merge_companies(request):
                 None,
                 "A data identity conflict prevented the merge. Nothing was transferred; reconcile the conflict and preview again.",
             )
-    return private_response(render(request, "portal/company_merge.html", {"form": form, "preview": preview}))
+    return private_response(
+        render(request, "portal/company_merge.html", {"form": form, "preview": preview, "merge_query": query})
+    )

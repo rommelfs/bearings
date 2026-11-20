@@ -81,3 +81,8 @@ The software is licensed under AGPL-3.0-or-later. Infrastructure and intelligenc
 See the [documentation index](README.md), [next steps](product/next-priorities.md) and [validation record](validation.md).
 
 Content source: `website/faq.json`; rebuild with `python3 website/build.py`. The tracking/privacy statement applies to the public static website, not to authentication or logs in a deployed Bearings application.
+
+
+## Can CIRCL use Bearings for its own infrastructure and operate the platform?
+
+Yes. Keep one CIRCL company for its infrastructure and assign company memberships and platform privileges independently to user accounts. The header links **Company workspace** and **Platform overview** open the relevant views with your existing permissions. This navigation does not grant or remove roles. Company IDs, slugs and inventory modes distinguish duplicate registrations during a reviewed merge; personal MISP connections can be explicitly disabled on the archived company for their owners to reconnect.

@@ -37,8 +37,12 @@ class Organization(models.Model):
         default=False, help_text="Allow CIRCL analysts to access this organization"
     )
 
+    @property
+    def display_label(self):
+        return f"{self.name} · {self.slug} · #{self.pk}"
+
     def __str__(self):
-        return self.name
+        return self.display_label
 
 
 class Membership(models.Model):

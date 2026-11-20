@@ -26,7 +26,11 @@ class Command(BaseCommand):
         if not actor:
             raise CommandError("An active platform administrator is required")
         with transaction.atomic():
-            organizations = list(Organization.objects.select_for_update().filter(name__iexact="CIRCL"))
+            organizations = list(
+                Organization.objects.select_for_update().filter(
+                    name__iexact="CIRCL", merged_into__isnull=True
+                )
+            )
             if len(organizations) > 1 or (organizations and organizations[0].merged_into_id):
                 raise CommandError("Ambiguous or merged CIRCL organization; reconcile explicitly")
             org = organizations[0] if organizations else None

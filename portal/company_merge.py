@@ -2,10 +2,11 @@
 
 import hashlib
 import json
+import uuid
 from django.apps import apps
 from django.core import signing
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import transaction, OperationalError
 from django.db.models import Exists, OuterRef
 from django.utils import timezone
 from .access import audit, require
@@ -26,7 +27,7 @@ RETAIN = {
 }
 
 
-def plan(actor, source, target):
+def plan(actor, source, target, retire_personal_misp=False):
     require(actor.is_active and actor.is_superuser)
     if source.pk == target.pk or source.merged_into_id or target.merged_into_id:
         raise ValidationError("Select two different active organizations")
@@ -46,9 +47,31 @@ def plan(actor, source, target):
                 continue
             # Fingerprint remains server-side; neither credentials nor confidential payloads enter the form.
             state.append((org.pk, model._meta.label, list(qs.order_by("pk").values())))
-            if org.pk == source.pk and count and model.__name__ not in MOVERS | RETAIN | {"Organization"}:
+            personal_misp = model.__name__ == "MISPInstance" and retire_personal_misp
+            if org.pk == source.pk and personal_misp and count:
+                if qs.filter(syncing_until__gt=timezone.now()).exists():
+                    blockers.append("MISP refresh is in progress; wait for it to finish and preview again")
+                if (
+                    qs.filter(organization__isnull=True).exists()
+                    or qs.exclude(credential_kind="encrypted").exists()
+                    or qs.filter(owner__isnull=True).exists()
+                ):
+                    blockers.append(
+                        "Only personal encrypted MISP connections can be retired during this merge"
+                    )
+            if (
+                org.pk == source.pk
+                and count
+                and model.__name__ not in MOVERS | RETAIN | {"Organization"}
+                and not personal_misp
+            ):
                 blockers.append(
-                    f"{org.name}: {model.__name__} requires separate reconciliation before merging"
+                    f"{org.display_label}: {model.__name__} requires separate reconciliation before merging"
+                    + (
+                        "; select the explicit personal-MISP retirement option to archive these connections"
+                        if model.__name__ == "MISPInstance"
+                        else ""
+                    )
                 )
             if org.pk == source.pk and count:
                 rows.append(
@@ -56,7 +79,11 @@ def plan(actor, source, target):
                         "model": str(model._meta.verbose_name_plural).title(),
                         "count": count,
                         "handling": (
-                            "Transfer"
+                            "Disable; retain key/cache on archive; owner reconnects"
+                            if personal_misp
+                            else "Keep target schedule, or copy source schedule if absent; renew review"
+                            if model.__name__ == "InventoryReviewPolicy"
+                            else "Transfer"
                             if model.__name__ in MOVERS
                             else "Combine; target role wins"
                             if model.__name__ == "Membership"
@@ -158,7 +185,12 @@ def plan(actor, source, target):
         or target.membership_set.filter(role="admin", user__is_active=True).exists()
     ):
         blockers.append("The resulting company needs at least one active company administrator")
-    state.extend([list(Organization.objects.filter(pk__in=[source.pk, target.pk]).order_by("pk").values())])
+    state.extend(
+        [
+            list(Organization.objects.filter(pk__in=[source.pk, target.pk]).order_by("pk").values()),
+            {"retire_personal_misp": bool(retire_personal_misp)},
+        ]
+    )
     digest = hashlib.sha256(json.dumps(state, sort_keys=True, default=str).encode()).hexdigest()
     return {
         "source": source,
@@ -167,8 +199,15 @@ def plan(actor, source, target):
         "overlap": overlap,
         "blockers": blockers,
         "digest": digest,
+        "retire_personal_misp": bool(retire_personal_misp),
         "ticket": signing.dumps(
-            {"source": source.pk, "target": target.pk, "digest": digest, "actor": actor.pk},
+            {
+                "source": source.pk,
+                "target": target.pk,
+                "digest": digest,
+                "actor": actor.pk,
+                "retire_personal_misp": bool(retire_personal_misp),
+            },
             salt="company-merge",
         ),
     }
@@ -198,8 +237,22 @@ def merge(actor, ticket):
     if len(orgs) != 2:
         raise ValidationError("Merge organizations changed")
     source, target = orgs[data["source"]], orgs[data["target"]]
-    list(InventorySource.objects.select_for_update().filter(organization__in=[source, target]).order_by("pk"))
-    current = plan(actor, source, target)
+    MISPInstance = apps.get_model("portal", "MISPInstance")
+    ReviewPolicy = apps.get_model("portal", "InventoryReviewPolicy")
+    try:
+        # Worker publication can hold its source/policy while auditing the company.
+        # Fail fast rather than wait in the reverse order and risk a deadlock.
+        for model in (InventorySource, MISPInstance, ReviewPolicy):
+            list(
+                model.objects.select_for_update(nowait=True)
+                .filter(organization__in=[source, target])
+                .order_by("pk")
+            )
+    except OperationalError:
+        raise ValidationError(
+            "Inventory, MISP or review data is currently changing. Retry with a fresh merge preview."
+        ) from None
+    current = plan(actor, source, target, retire_personal_misp=data.get("retire_personal_misp", False))
     if current["blockers"] or current["digest"] != data["digest"]:
         raise ValidationError("Data or access changed, or conflicts remain. Prepare a new merge preview.")
     manifest = {
@@ -213,6 +266,15 @@ def merge(actor, ticket):
     }
     members_before = list(source.membership_set.values("user_id", "role"))
     visibility_before = {"source": source.operator_visibility, "target": target.operator_visibility}
+    retired_misp = []
+    if current["retire_personal_misp"]:
+        retired_misp = list(MISPInstance.objects.filter(organization=source).values_list("pk", flat=True))
+        MISPInstance.objects.filter(pk__in=retired_misp).update(
+            enabled=False,
+            generation=uuid.uuid4(),
+            syncing_until=None,
+            error="Company archived by reviewed merge; owner must reconnect under the retained company",
+        )
     source_inventory = InventorySource.objects.filter(organization=source).first()
     target_inventory = InventorySource.objects.filter(organization=target).first()
     if source_inventory and not target_inventory:
@@ -240,11 +302,33 @@ def merge(actor, ticket):
     # Existing company settings and CIRCL policy are not broadened by combining memberships.
     target.operator_visibility = source.operator_visibility and target.operator_visibility
     target.save(update_fields=["operator_visibility"])
-    if hasattr(target, "inventory_review_policy"):
-        policy = target.inventory_review_policy
+    from .inventory_review import mandatory_review_mail
+
+    mandatory_mail = mandatory_review_mail(source) or mandatory_review_mail(target)
+    policy = ReviewPolicy.objects.select_for_update().filter(organization=target).first()
+    original_policy = ReviewPolicy.objects.select_for_update().filter(organization=source).first()
+    if not policy and original_policy:
+        policy = ReviewPolicy.objects.create(
+            organization=target,
+            interval_days=original_policy.interval_days,
+            reminder_days=original_policy.reminder_days,
+            email_enabled=original_policy.email_enabled or mandatory_mail,
+        )
+    if policy:
         policy.next_due = timezone.localdate()
         policy.last_reviewed_at = None
-        policy.save(update_fields=["next_due", "last_reviewed_at"])
+        policy.last_reviewed_by = None
+        policy.next_reminder_at = timezone.now()
+        policy.email_enabled = policy.email_enabled or mandatory_mail
+        policy.save(
+            update_fields=[
+                "next_due",
+                "last_reviewed_at",
+                "last_reviewed_by",
+                "next_reminder_at",
+                "email_enabled",
+            ]
+        )
     source.merged_into = target
     source.operator_visibility = False
     source.save(update_fields=["merged_into", "operator_visibility"])
@@ -261,5 +345,6 @@ def merge(actor, ticket):
         transferred=manifest,
         original_memberships=members_before,
         previous_visibility=visibility_before,
+        retired_personal_misp=retired_misp,
     )
     return target

@@ -318,3 +318,197 @@ class MembershipConcurrencyTests(TransactionTestCase):
             results = list(pool.map(lambda _: run(), range(2)))
         self.assertCountEqual(results, ["accepted", "replayed"])
         self.assertEqual(Membership.objects.filter(user=user, organization=org).count(), 1)
+
+
+@override_settings(SECRET_KEY="synthetic-merge-credential-key-which-is-long-enough")
+class PersonalMISPMergeTests(Fixture):
+    def setUp(self):
+        CompanyMergeTests.setUp(self)
+        import uuid
+        from .models import MISPServer, MISPInstance, MISPEvent
+        from .misp_credentials import encrypt
+
+        self.server = MISPServer.objects.create(
+            name="Merge fixture", base_url="https://misp.example.invalid", enabled=True
+        )
+        self.misp = MISPInstance(
+            organization=self.source,
+            owner=self.admin,
+            server=self.server,
+            name="Personal merge fixture",
+            credential_kind="encrypted",
+            enabled=True,
+            misp_user_id=42,
+            base_url=self.server.base_url,
+            token_env_var="MISP_MERGE_FIXTURE_TOKEN",
+            last_success=timezone.now(),
+        )
+        self.misp.credential_ciphertext = encrypt(self.misp, "synthetic-personal-key")
+        self.misp.save()
+        self.event = MISPEvent.objects.create(
+            source=self.misp,
+            event_uuid=uuid.uuid4(),
+            remote_id=1,
+            timestamp=1,
+            info="Private synthetic event",
+            digest="a" * 64,
+            payload={"synthetic": True},
+        )
+
+    def test_explicit_retirement_keeps_key_cache_and_native_target_identity(self):
+        from .misp_credentials import decrypt
+        from .misp import visible_events
+
+        self.assertTrue(plan(self.platform, self.source, self.target)["blockers"])
+        target_inventory = self.target.inventory_source
+        target_inventory.mode = "central"
+        target_inventory.save()
+        ciphertext = self.misp.credential_ciphertext
+        preview = plan(self.platform, self.source, self.target, retire_personal_misp=True)
+        self.assertFalse(preview["blockers"])
+        merge(self.platform, preview["ticket"])
+        self.misp.refresh_from_db()
+        self.event.refresh_from_db()
+        target_inventory.refresh_from_db()
+        self.assertFalse(self.misp.enabled)
+        self.assertEqual(self.misp.organization_id, self.source.pk)
+        self.assertEqual(self.misp.credential_ciphertext, ciphertext)
+        self.assertEqual(decrypt(self.misp), "synthetic-personal-key")
+        self.assertEqual(self.event.source_id, self.misp.pk)
+        self.assertEqual(target_inventory.mode, "central")
+        self.assertEqual(target_inventory.organization_id, self.target.pk)
+        self.assertFalse(visible_events(self.admin).filter(pk=self.event.pk).exists())
+        self.assertTrue(Membership.objects.filter(organization=self.target, user=self.admin).exists())
+        self.assertEqual(
+            AuditEvent.objects.get(action="organization.merged").details["retired_personal_misp"],
+            [self.misp.pk],
+        )
+
+    def test_active_refresh_and_nonpersonal_source_still_block(self):
+        self.misp.syncing_until = timezone.now() + timedelta(minutes=1)
+        self.misp.save()
+        preview = plan(self.platform, self.source, self.target, retire_personal_misp=True)
+        self.assertTrue(any("refresh is in progress" in b for b in preview["blockers"]))
+        self.misp.syncing_until = None
+        self.misp.credential_kind = "environment"
+        self.misp.save()
+        self.assertTrue(plan(self.platform, self.source, self.target, retire_personal_misp=True)["blockers"])
+
+    def test_retirement_is_fingerprinted_and_late_failure_rolls_it_back(self):
+        preview = plan(self.platform, self.source, self.target, retire_personal_misp=True)
+        with patch("portal.company_merge.audit", side_effect=RuntimeError("Rollback fixture")):
+            with self.assertRaises(RuntimeError):
+                merge(self.platform, preview["ticket"])
+        self.misp.refresh_from_db()
+        self.source.refresh_from_db()
+        self.assertTrue(self.misp.enabled)
+        self.assertIsNone(self.source.merged_into_id)
+        self.misp.enabled = False
+        self.misp.save()
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
+    def test_browser_form_retirement_requires_preview_and_keeps_credentials_out_of_html(self):
+        self.client.force_login(self.platform)
+        response = self.client.post(
+            reverse("company-merge"),
+            {
+                "action": "preview",
+                "source": self.source.pk,
+                "target": self.target.pk,
+                "retire_personal_misp": "on",
+            },
+        )
+        self.assertContains(response, "Confirm reviewed merge")
+        self.assertNotContains(response, self.misp.credential_ciphertext)
+        self.assertNotContains(response, "synthetic-personal-key")
+        ticket = response.context["preview"]["ticket"]
+        result = self.client.post(
+            reverse("company-merge"), {"action": "commit", "ticket": ticket, "confirmed": "yes"}
+        )
+        self.assertRedirects(result, reverse("organization", args=[self.target.slug]))
+        from .workspace_views import SESSION_COMPANY
+
+        self.assertEqual(self.client.session[SESSION_COMPANY], self.target.pk)
+        self.misp.refresh_from_db()
+        self.assertFalse(self.misp.enabled)
+
+
+class MergedReviewScheduleTests(Fixture):
+    def setUp(self):
+        CompanyMergeTests.setUp(self)
+
+    def test_registered_duplicate_keeps_mandatory_review_on_bare_native_target(self):
+        from .models import InventoryReviewPolicy, InfrastructureRegistration
+        from .inventory_review import mandatory_review_mail, reminder_recipients, queue_review_reminders
+
+        self.admin.email = "merge-review@example.invalid"
+        self.admin.save()
+        Membership.objects.filter(organization=self.target, user=self.admin).update(role="admin")
+        InfrastructureRegistration.objects.create(
+            user=self.admin,
+            organization=self.source,
+            company_name=self.source.name,
+            contact_name="Review owner",
+            email=self.admin.email,
+            status="approved",
+            email_verified_at=timezone.now(),
+            periodic_review_consented_at=timezone.now(),
+            verification_expires=timezone.now() + timedelta(days=1),
+        )
+        original = InventoryReviewPolicy.objects.create(
+            organization=self.source,
+            interval_days=37,
+            reminder_days=4,
+            email_enabled=True,
+            last_reviewed_at=timezone.now(),
+        )
+        merge(self.platform, plan(self.platform, self.source, self.target)["ticket"])
+        policy = self.target.inventory_review_policy
+        self.assertEqual(policy.interval_days, 37)
+        self.assertEqual(policy.reminder_days, 4)
+        self.assertTrue(policy.email_enabled)
+        self.assertIsNone(policy.last_reviewed_at)
+        self.assertTrue(mandatory_review_mail(self.target))
+        self.assertIn(self.admin.email, reminder_recipients(policy))
+        self.assertEqual(queue_review_reminders(original.pk), 0)
+        self.assertFalse(reminder_recipients(original))
+
+
+@skipUnless(connection.vendor == "postgresql", "PostgreSQL row-lock validation")
+class MergeBusySourceTests(TransactionTestCase):
+    def test_busy_inventory_refuses_merge_without_waiting_or_partial_changes(self):
+        actor = get_user_model().objects.create_superuser(username="merge-lock-actor", password="synthetic")
+        source = Organization.objects.create(name="Lock source", slug="merge-lock-source")
+        target = Organization.objects.create(name="Lock target", slug="merge-lock-target")
+        inventory = InventorySource.objects.create(organization=source, mode="manual")
+        InventorySource.objects.create(organization=target, mode="manual")
+        Membership.objects.create(organization=source, user=actor, role="admin")
+        ticket = plan(actor, source, target)["ticket"]
+        acquired, release = threading.Event(), threading.Event()
+
+        def hold():
+            from django.db import transaction
+
+            close_old_connections()
+            try:
+                with transaction.atomic():
+                    InventorySource.objects.select_for_update().get(pk=inventory.pk)
+                    acquired.set()
+                    release.wait(5)
+            finally:
+                close_old_connections()
+
+        thread = threading.Thread(target=hold, daemon=True)
+        thread.start()
+        try:
+            self.assertTrue(acquired.wait(3))
+            with self.assertRaisesMessage(ValidationError, "currently changing"):
+                merge(actor, ticket)
+            source.refresh_from_db()
+            self.assertIsNone(source.merged_into_id)
+            self.assertTrue(source.membership_set.exists())
+        finally:
+            release.set()
+            thread.join(5)
+        self.assertFalse(thread.is_alive())

@@ -5,9 +5,11 @@ from django.conf import settings
 def deployment(request):
     from .models import DemoDataset
     from .navigation import workspace
+    from .workspace_views import remembered_company
 
     return {
         **workspace(request),
+        "selected_company_workspace": remembered_company(request),
         "synthetic_showcase_active": request.user.is_authenticated
         and DemoDataset.objects.filter(state="active").exists(),
         "development_environment": settings.DEBUG,

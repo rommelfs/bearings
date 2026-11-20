@@ -48,7 +48,7 @@ ROUTES = {
     "risks": {"risk-register", "business-risk", "automatic-scenario"},
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
     "start": {"getting-started"},
-    "applications": {"applications", "application", "source-reference", "sso-settings"},
+    "applications": {"applications", "application", "source-reference", "sso-settings", "workspace-switch"},
     "inventory": {
         "inventory",
         "company-members",

@@ -1,0 +1,10 @@
+{% extends 'portal/base.html' %}{% block content %}
+<h1>Company infrastructure or CIRCL platform?</h1>
+<p>A company has one infrastructure inventory. Company memberships and platform roles belong to user accounts. Opening another workspace keeps your existing permissions; it does not grant a company access to national data or change permissions in NetBox, MISP or FlowIntel.</p>
+{% if workspace_operator %}<article><h2>CIRCL platform</h2><p>National overview, research and coordination across authorized companies.</p><form method="post">{% csrf_token %}<input type="hidden" name="action" value="platform"><button class="primary">Open platform overview</button></form></article>{% endif %}
+<h2>Company infrastructure</h2>{% if remembered %}<p>Last opened: {{ remembered.display_label }} · <a href="{% url 'workspace-switch' %}?open=company">Open again</a> · <a href="{% url 'workspace-switch' %}">Choose another company below</a></p>{% endif %}<p>Open the overview filtered to one company. Your account's current permissions continue to apply on other pages.</p>
+<form method="get"><label>Find a company by name, slug or ID <input name="q" value="{{ query }}" maxlength="160"></label><button>Search</button></form>
+<div class="cards">{% for company in workspace_companies %}<article><h3>{{ company.name }}</h3><p>{{ company.slug }} · #{{ company.pk }}</p><p>{{ company.workspace_role }}</p><p>Inventory: {% if company.inventory_source %}{{ company.inventory_source.get_mode_display }}{% else %}Not configured{% endif %}</p><form method="post">{% csrf_token %}<input type="hidden" name="action" value="company"><input type="hidden" name="organization" value="{{ company.pk }}"><button class="primary">Open company infrastructure</button></form></article>{% empty %}<p>No matching accessible company. Company administrators can invite members to an existing company.</p>{% endfor %}</div>
+{% if workspace_more %}<p>Showing the first 25 matches. Refine your search.</p>{% endif %}
+{% if user.is_superuser %}<p><a href="{% url 'company-merge' %}">Review duplicate companies and merge them</a></p>{% endif %}
+{% endblock %}

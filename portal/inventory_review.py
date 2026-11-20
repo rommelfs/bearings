@@ -7,7 +7,7 @@ from django.core import signing
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, Subquery, Q
 from django.utils import timezone
 from .access import audit, is_analyst, require, role_for
 from .models import (
@@ -41,7 +41,7 @@ def can_configure_review(user, org):
 
 def mandatory_review_mail(org):
     return InfrastructureRegistration.objects.filter(
-        organization=org, periodic_review_consented_at__isnull=False
+        Q(organization=org) | Q(organization__merged_into=org), periodic_review_consented_at__isnull=False
     ).exists()
 
 
@@ -234,6 +234,8 @@ def confirm_review(user, org, token):
 
 def reminder_recipients(policy):
     org = policy.organization
+    if org.merged_into_id:
+        return []
     contacts = set(
         Contact.objects.filter(
             organization=org, notification_enabled=True, reachable_at__isnull=False, invalid_delivery=False
@@ -242,7 +244,7 @@ def reminder_recipients(policy):
         .values_list("email", flat=True)
     )
     owners = InfrastructureRegistration.objects.filter(
-        organization=org,
+        Q(organization=org) | Q(organization__merged_into=org),
         status__in=["awaiting_review", "approved", "rejected"],
         email_verified_at__isnull=False,
         user__is_active=True,
@@ -268,7 +270,12 @@ def reminder_recipients(policy):
 def queue_review_reminders(pk):
     policy = InventoryReviewPolicy.objects.select_for_update().select_related("organization").get(pk=pk)
     now, today = timezone.now(), timezone.localdate()
-    if not policy.email_enabled or policy.next_due > today or policy.next_reminder_at > now:
+    if (
+        policy.organization.merged_into_id
+        or not policy.email_enabled
+        or policy.next_due > today
+        or policy.next_reminder_at > now
+    ):
         return 0
     recipients = reminder_recipients(policy)
     total = 0

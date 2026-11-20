@@ -371,3 +371,7 @@ Implemented the explicit CIRCL pilot: missing company creation without registrat
 ## Explicit SMTP transport-encryption exception — 2026-11-20
 
 Implemented the operator-requested self-signed relay acceptance through a dedicated SMTP SSL context and `configure-mail --allow-self-signed`, bound to cped.circl.lu. Keep mandatory STARTTLS, verified defaults, HTTPS/SSO trust, staged delivery and reviewed SMTP policy fingerprints. Actual self-signed local TLS and no-STARTTLS denial are tested. Target probe/inbox acceptance remains operational validation.
+
+## CIRCL company/platform workspaces and duplicate merge — 2026-11-20
+
+Implemented stable company labels and bounded searchable merge/workspace selectors, explicit archived personal-MISP retirement (retain keys/cache without transferring access), preserved native target bindings and mandatory review schedules/consent, busy-lock refusal and atomic rollback. Company/platform header navigation uses existing permissions; it is not impersonation or privilege reduction. Remembered company access is rechecked and archived duplicate names no longer block native pilot retries. See [members and merges](user-guide/company-members.md). Actual target merge and independent native-role acceptance remain operator actions.
