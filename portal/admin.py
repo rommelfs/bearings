@@ -85,7 +85,44 @@ class PlatformAdmin(admin.ModelAdmin):
         )
 
 
-admin.site.register(Organization, PlatformAdmin)
+class OrganizationStateFilter(admin.SimpleListFilter):
+    title = "Merge status"
+    parameter_name = "merge_status"
+
+    def lookups(self, request, model_admin):
+        return [("active", "Active"), ("archived", "Archived (merged)")]
+
+    def queryset(self, request, queryset):
+        if self.value() == "active":
+            return queryset.filter(merged_into__isnull=True)
+        if self.value() == "archived":
+            return queryset.filter(merged_into__isnull=False)
+        return queryset
+
+
+@admin.register(Organization)
+class OrganizationAdmin(PlatformAdmin):
+    list_display = ["id", "name", "slug", "merge_status", "merge_destination", "operator_visibility"]
+    list_display_links = ["id", "name"]
+    list_filter = [OrganizationStateFilter, "operator_visibility"]
+    list_select_related = ["merged_into"]
+    search_fields = ["name", "slug"]
+    ordering = ["name", "pk"]
+    readonly_fields = ["merge_status", "merge_destination"]
+
+    @admin.display(description="Status", ordering="merged_into_id")
+    def merge_status(self, obj):
+        return "Archived (merged)" if obj.merged_into_id else "Active"
+
+    @admin.display(description="Merged into")
+    def merge_destination(self, obj):
+        if not obj.merged_into_id:
+            return "—"
+        return format_html(
+            '<a href="{}">{}</a>',
+            reverse("admin:portal_organization_change", args=[obj.merged_into_id]),
+            obj.merged_into.display_label,
+        )
 
 
 @admin.register(Membership)

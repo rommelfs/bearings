@@ -379,3 +379,7 @@ Implemented stable company labels and bounded searchable merge/workspace selecto
 ## Merge confirmation recovery and production diagnostics — 2026-11-20
 
 Reproduced and fixed an unbound form error-handler crash after stale merge confirmation; membership action errors use the same safe rendering. Refused transactions remain atomic. Ignore append-only audit and bounded background status/scheduling in preview hashes; actual facts, roles, source policies and credentials remain pinned, with active refresh/lock denial. Add sanitized production django.request journal diagnostics with exception types/code positions only. The reported server journal contained startup lines, so actual target state/remaining failures need target verification. See [merge recovery](user-guide/company-members.md#if-a-merge-confirmation-fails).
+
+## Visible organization archive status — 2026-11-20
+
+A successful merge retains both records. Improve the misleading generic admin list with explicit status/destination columns, stable IDs, search and active/archive filters; show readonly status and canonical target link on details and archive suffix in organization labels. Preserve registration/audit/disabled-connection history and existing authorization. This is presentation, with no merge replay or deletion. See [company merge administration](user-guide/company-members.md#active-company-versus-archived-source-in-administration).

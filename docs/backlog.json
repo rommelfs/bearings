@@ -110,6 +110,10 @@
       {
         "title": "Recover merge confirmation errors and retain safe production diagnostics",
         "body": "Reproduced AttributeError in unbound MergeForm.add_error after a stale confirmation; show operation errors separately for commit and membership actions. Preserve atomic refusal and sensitive-data-free error text. Exclude append-only audit and selected background health/scheduling fields from preview fingerprint while pinning actual data/roles/source policy/credentials; active source leases/row locks still block. Add production django.request stderr diagnostics with exception type and code positions, no exception messages/request payload/locals. Actual target journal lacked a traceback; verify target state before retry and use sanitized journal if failure persists."
+      },
+      {
+        "title": "Distinguish active and archived organizations in administration",
+        "body": "A successful merge retains both records, while the generic admin list looked like two active companies. Implement explicit ID/name/slug/status/destination columns, active/archive filter, readonly detail status and canonical target link, and archive suffix in organization labels. Keep both records and historical data; no merge replay/deletion or permission change. Extend the existing reviewed-merge HTTP regression to verify admin archive retention and filters."
       }
     ]
   },

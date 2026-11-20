@@ -43,3 +43,10 @@ For the CIRCL duplicate beside the native pilot, keep **CIRCL · circl · #1 · 
 A stale/expired preview, busy background source or data-identity conflict is shown as an operation error; no data is transferred by the refused transaction. Prepare a fresh preview. Append-only audit events and background source health/review scheduling do not invalidate the review, while data, membership, credential and source-policy changes do. A real active refresh/row lock still requires waiting and retrying.
 
 An earlier error handler could itself raise `AttributeError` while showing a refused confirmation. If an unexpected 500 occurs, inspect the current active/archived company IDs and the `organization.merged` audit before repeating a merge: a redirect destination may fail after a commit. Native production request diagnostics are written to the systemd journal as exception types/code positions, without request bodies, raw exception messages or local variables. Keep DEBUG disabled.
+
+
+### Active company versus archived source in administration
+
+A merge archives the source rather than deleting it. Django administration therefore still lists both records. Organization administration now shows ID, name, slug, **Active** or **Archived (merged)**, and a clickable **Merged into** destination; use the merge-status filter to show active or archived records. The same status and destination are read-only fields on the detail page, and archived labels include `Archived → #ID` in other selectors. Company-facing lists continue to omit archived organizations.
+
+For a synthetic example, source #2 with `merged_into_id=1` is archived into active target #1. Seeing two rows in administration is not evidence of a failed merge. Preserve the archived source's original registration, audit and disabled connection history; use the retained company for current infrastructure and new personal MISP connections. Do not repeat the merge or delete the archived record.

@@ -200,6 +200,17 @@ class CompanyMergeTests(Fixture):
         self.assertEqual(Membership.objects.get(organization=self.target, user=self.admin).role, "reader")
         self.assertFalse(self.source.membership_set.exists())
         self.assertTrue(AuditEvent.objects.filter(organization=self.source, action="before").exists())
+        self.client.force_login(self.platform)
+        admin_url = reverse("admin:portal_organization_changelist")
+        listing = self.client.get(admin_url)
+        self.assertContains(listing, "Archived (merged)")
+        self.assertContains(listing, reverse("admin:portal_organization_change", args=[self.target.pk]))
+        self.assertIn(self.source.pk, [org.pk for org in listing.context["cl"].result_list])
+        active = self.client.get(admin_url, {"merge_status": "active"})
+        self.assertNotIn(self.source.pk, [org.pk for org in active.context["cl"].result_list])
+        archived = self.client.get(admin_url, {"merge_status": "archived"})
+        self.assertEqual([org.pk for org in archived.context["cl"].result_list], [self.source.pk])
+        self.assertIn(f"Archived → #{self.target.pk}", str(self.source))
         with self.assertRaises(ValidationError):
             merge(self.platform, preview["ticket"])
 

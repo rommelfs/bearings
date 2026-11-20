@@ -39,7 +39,8 @@ class Organization(models.Model):
 
     @property
     def display_label(self):
-        return f"{self.name} · {self.slug} · #{self.pk}"
+        label = f"{self.name} · {self.slug} · #{self.pk}"
+        return label + (f" · Archived → #{self.merged_into_id}" if self.merged_into_id else "")
 
     def __str__(self):
         return self.display_label
