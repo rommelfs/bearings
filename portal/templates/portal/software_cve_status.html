@@ -1,5 +1,6 @@
 {% if installation.cve_component %}
-<p><strong>Software identity:</strong> {{ installation.cve_component.identity_status }}<br><strong>Automatic CVE matching:</strong> {{ installation.cve_component.matching_status }}</p>
+<p><strong>Software identity:</strong> {{ installation.cve_component.identity_status }}</p>
+{% include 'portal/package_check.html' with component=installation.cve_component %}
 {% elif installation.distro_package %}
 <p>Distribution package recorded. Waiting for device metadata to establish automatic CVE coverage.</p>
 {% else %}

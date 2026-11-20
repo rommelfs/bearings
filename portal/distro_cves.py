@@ -11,12 +11,13 @@ from django.conf import settings
 from django.db import transaction, connection, OperationalError
 from django.db.models import Q
 from django.utils import timezone
-from . import agents, distro_oval, distro_sources
+from . import agents, distro_oval, distro_sources, distro_results
 from .connectors.http import ConnectorError
 from .intelligence import digest, snapshot_evidence
 from .issues import ensure_vulnerability_issue
 from .models import (
     AgentDevice,
+    AgentComponent,
     InventorySource,
     DistroFeed,
     DistroAdvisory,
@@ -236,6 +237,7 @@ def evaluate_device(pk):
     advisories = DistroAdvisory.objects.filter(pk__in=ids, feed=feed, generation=feed.generation)
     if advisories.count() > 30000:
         raise ConnectorError("Device advisory evaluation budget exceeded")
+    checks = distro_results.Collector()
     found = {}
     evaluated = {}
     rules = 0
@@ -250,6 +252,7 @@ def evaluate_device(pk):
             {"binary": complete, "source": complete and not source_missing},
             device.os,
         )
+        checks.add(advisory, facts, result, contributors, device.os)
         evaluated[advisory.pk] = result
         rules += 1
         if result is None:
@@ -300,6 +303,10 @@ def evaluate_device(pk):
             publish(device, feed, component, match.advisory, match.finding.record.external_id, result)
         else:
             update_match(match, component, feed, result)
+    checked_at = timezone.now()
+    for component in by_id.values():
+        component.distro_check = checks.receipt(component, device, feed, checked_at)
+    AgentComponent.objects.bulk_update(list(by_id.values()), ["distro_check"], batch_size=200)
     summary = {
         "state": "partial"
         if source_missing or unknown or feed.summary.get("unindexed_definitions", 0)

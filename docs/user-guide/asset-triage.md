@@ -64,3 +64,10 @@ Company inventory and machine software tables list reported installations, not d
 **Recorded CVE reviews** links to the exact installation and counts only findings currently visible to you, including retained reviews. It is not a count of confirmed vulnerabilities. Zero reviews neither proves safety nor means that a complete check succeeded. Other software retains its explicit product-mapping workflow.
 
 Manual CVE retrieval is available to authorized editors under the collapsed **Investigate a known CVE (optional)** section on the machine's software row. Enter a CVE identifier you already know, then fetch its details for manual review. There is no prefilled/example CVE beside every package. Retrieval creates review evidence without confirming applicability; automatic package checks run independently. Viewing these tables makes no external CVE requests and sends no mail.
+
+
+### Reading a package check
+
+The result headline answers whether the evaluated package rules require review. **Review required** means a potential match or unresolved vendor condition. **No package-rule alert in the evaluated results** means neither was found in the rules actually evaluated; the adjacent coverage label still applies. **Current package result unavailable** means the check cannot presently support a current conclusion, including new reports waiting for processing. Missing rules are explicitly shown as missing coverage.
+
+Open **Automatic matching status & coverage** for the evaluated report time, successful check time and vendor-data time. Results requiring review appear first. **Fixed by installed package version** is collapsed by default and includes CVE, compared binary/source version, vendor fixed-version threshold and rule provenance. **Other vendor rules not matched** is a separate result and must not be read as “patched” or an explicit “not affected” manufacturer statement. Each outcome lists up to ten recent examples with its total count; it is not a full historical list. The separate human-review section can remain outstanding after package updates.

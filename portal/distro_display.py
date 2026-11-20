@@ -2,11 +2,12 @@
 
 from collections import defaultdict
 from django.conf import settings
+from django.utils.dateparse import parse_datetime
 from django.db.models import Count, F, Q, Window
 from django.db.models.functions import RowNumber
-from . import agents, distro_cves, distro_sources
+from . import agents, distro_cves, distro_sources, distro_results
 from .access import visible_findings_for
-from .models import AgentComponent, DistroFeed, DistroAdvisoryPackage
+from .models import AgentComponent, AgentReport, DistroFeed, DistroAdvisoryPackage
 
 
 def decorate(user, products, installation_ids=None):
@@ -38,6 +39,11 @@ def decorate(user, products, installation_ids=None):
         .filter(position__lte=5 if installation_ids is None else len(installation_ids))
         .select_related("device__asset", "device__source", "device__organization", "installation")
         .order_by("installation__product_id", "device_id", "pk")
+    )
+    pending_reports = set(
+        AgentReport.objects.filter(
+            device_id__in={c.device_id for c in components}, status="pending"
+        ).values_list("device_id", flat=True)
     )
     feeds = {
         f.key: f
@@ -75,12 +81,15 @@ def decorate(user, products, installation_ids=None):
             potential=Count("pk", filter=Q(distro_match__result="potential")),
             uncertain=Count("pk", filter=Q(distro_match__result="unknown")),
             retained=Count("pk"),
+            human_pending=Count("pk", filter=Q(status__in=["new", "under_review", "confirmed"])),
         )
     }
     for c in components:
         c.vendor_source_url = distro_sources.url_for(c.feed_key) if c.feed_key else ""
         c.rule_count = counts.get((c.vendor_feed.pk, c.manager, c.lookup_name), 0) if c.vendor_feed else 0
-        c.review_counts = reviews.get(c.pk, {"potential": 0, "uncertain": 0, "retained": 0})
+        c.review_counts = reviews.get(
+            c.pk, {"potential": 0, "uncertain": 0, "retained": 0, "human_pending": 0}
+        )
         c.feed_status = distro_cves.feed_state(c.vendor_feed) if c.feed_key else "unsupported"
         c.package_status = (
             "Vendor rules linked" if c.rule_count else "No indexed vendor rules for this package"
@@ -101,6 +110,7 @@ def decorate(user, products, installation_ids=None):
             c.package_status = "Package platform metadata changed; waiting for a fresh evaluation"
         c.evaluation_pending = (
             c.device.distro_requested
+            or c.device_id in pending_reports
             or not c.device.distro_checked_at
             or (c.vendor_feed and str(c.vendor_feed.generation) != c.device.distro_summary.get("generation"))
         )
@@ -131,6 +141,37 @@ def decorate(user, products, installation_ids=None):
             c.matching_status = "Monitoring vendor feed; no indexed advisory for this identity yet"
         else:
             c.matching_status = "Ready — supported vendor advisories are checked automatically"
+        receipt = c.distro_check
+        c.result_checked_at = parse_datetime(receipt["checked_at"]) if receipt.get("checked_at") else None
+        c.result_reported_at = parse_datetime(receipt["reported_at"]) if receipt.get("reported_at") else None
+        c.result_vendor_at = (
+            parse_datetime(receipt["vendor_data_at"]) if receipt.get("vendor_data_at") else None
+        )
+        c.check_current = bool(
+            settings.DISTRO_CVE_ENABLED
+            and c.feed_status == "ready"
+            and not c.evaluation_pending
+            and metadata_current
+            and not c.stale
+            and not c.missing_since
+            and agents.current(c.device)
+            and c.device.distro_summary.get("state") not in {"error", "unsupported", "pending", "stale"}
+            and receipt.get("version") == distro_results.VERSION
+            and receipt.get("generation") == str(c.vendor_feed.generation)
+            and receipt.get("input_hash") == distro_results.inputs(c, c.device)
+        )
+        if not c.check_current:
+            c.result_heading = "Current package result unavailable"
+            if c.matching_status.startswith("Ready"):
+                c.matching_status = "Configured automatically; package result pending reevaluation"
+        else:
+            counts = receipt["counts"]
+            if counts["potential"] or counts["unknown"]:
+                c.result_heading = "Review required"
+            elif not receipt["rules_checked"]:
+                c.result_heading = "No vendor rules indexed for this package yet"
+            else:
+                c.result_heading = "No package-rule alert in the evaluated results"
         products[c.installation.product_id].distro_devices.append(c)
 
 

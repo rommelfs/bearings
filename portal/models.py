@@ -2213,6 +2213,7 @@ class AgentReport(models.Model):
 
 
 class AgentComponent(models.Model):
+    distro_check = models.JSONField(default=dict, blank=True, editable=False)
     package_source = models.JSONField(default=dict, blank=True)
     package_identity = models.JSONField(default=dict, blank=True)
     automatic_installation = models.BooleanField(default=False)

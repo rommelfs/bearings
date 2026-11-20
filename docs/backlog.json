@@ -344,6 +344,14 @@
       {
         "title": "Clarify software inventory, automatic CVE status and optional manual investigations",
         "body": "Implemented installation-level recognition and automatic CVE readiness in company and machine inventory, reusing bounded cached status queries. Exact-product authorized discovery links and raw-visible installation review counts separate inventory, coverage and retained reviews. Standard distro packages require no per-package setup; misleading configure links and example CVEs are removed. Manual known-CVE retrieval is an explicit collapsed editor action, preserving existing authorization, CSRF and unknown applicability. See docs/user-guide/asset-triage.md and docs/validation.md."
+      },
+      {
+        "title": "Persist bounded package-check results separately from human CVE reviews",
+        "body": "Implemented migration 0062 and atomic server-owned per-component check receipts: report/input and feed-generation binding, current outcome counts and ten recent CVE examples per outcome, rule hashes and explicit native fixed-version proof. Potential/unresolved/fixed/other nonmatching rules are distinct; omitted advisories never become manufacturer non-applicability claims. Current-success requires live inputs/cache/settings with no pending newer report; errors/stale data preserve prior receipts without a clean headline. Human assessments/workflow and scoped raw-visible review counts remain separate. Existing devices are queued automatically with no Linux-client rollout. Source/native-version/architecture, failure rollback, bounded samples, actual Canonical NGINX transition and browser acceptance are documented in validation.md."
+      },
+      {
+        "title": "Redraw company maps after container resize and browser restoration",
+        "body": "Implemented ResizeObserver plus font-ready, pageshow and visibility restoration repaint with public Leaflet methods, coalesced frames and unload cleanup. Preserve center/zoom and current layers; explicit Fit remains separate. Correct singular/plural company filter summary and version map-script URLs for both overview and location editor. Actual local Leaflet canvas/heatmap browser acceptance exercises width/height changes, hidden restoration and preserved center/zoom with synthetic same-origin data; target Safari idle behavior remains operator acceptance."
       }
     ]
   }

@@ -435,3 +435,10 @@ Automatic discovery shows exact package/release/feed associations, candidate-def
 ## Self-explanatory software and CVE actions — 2026-11-20
 
 Company and machine software tables distinguish installed software, cached automatic matching status and scoped recorded CVE reviews. No per-package setup links are shown for distribution packages. Exact-product links open automatic coverage; manual retrieval is a collapsed optional known-CVE action in machine details with no example identifier. Readiness and retained reviews remain distinct; no role, assessment or automatic job policy changes. See [asset triage](user-guide/asset-triage.md#installed-software-versus-cve-reviews).
+
+
+## Package-check receipts and map restoration — 2026-11-20
+
+Migration 0062 adds bounded current package-check receipts, including native fixed-version proof, report/feed provenance, outcome counts and recent examples. Discovery/inventory separate technical results from retained human reviews; stale/failed/pending/unsupported checks do not imply safety. Existing devices are queued without client reinstallation. Nonmatching/absent rules do not imply explicit manufacturer non-applicability. See [distro integration](integrations/distro-cves.md#package-check-results-versus-human-reviews).
+
+Company maps repair canvas/vector geometry after container resize, font loading and hidden-page restoration while preserving center/zoom. Singular/plural company summaries are corrected. Local real-renderer browser validation covers resizing, restoration and heatmap; target Safari idle acceptance remains to be confirmed.

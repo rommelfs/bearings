@@ -7,6 +7,28 @@
   function link(text,url) { const a=element('a',text); a.href=url; return a; }
   function setupMap(container) {
     const map=L.map(container,{preferCanvas:true,scrollWheelZoom:false}).fitBounds([[49.44,5.73],[50.18,6.54]]);
+    // Leaflet caches pixel dimensions; fonts, responsive layouts and tab restoration can
+    // resize the container without a window resize. Rebuild canvas/vector bounds while
+    // keeping the operator's center and zoom, rather than fitting companies again.
+    let frame=0, disposed=false;
+    function repair() {
+      if(disposed||frame)return;
+      frame=requestAnimationFrame(()=>{
+        frame=0;
+        if(!container.isConnected||!container.clientWidth||!container.clientHeight)return;
+        const center=map.getCenter(),zoom=map.getZoom();
+        map.invalidateSize({pan:false,animate:false,debounceMoveend:true});
+        map.setView(center,zoom,{animate:false,reset:true});
+      });
+    }
+    const observer=window.ResizeObserver?new ResizeObserver(repair):null;
+    if(observer)observer.observe(container);
+    const visible=()=>{if(!document.hidden)repair();};
+    document.addEventListener('visibilitychange',visible);
+    window.addEventListener('pageshow',repair);
+    window.addEventListener('resize',repair);
+    if(document.fonts)document.fonts.ready.then(repair);
+    map.on('unload',()=>{disposed=true;if(observer)observer.disconnect();if(frame)cancelAnimationFrame(frame);document.removeEventListener('visibilitychange',visible);window.removeEventListener('pageshow',repair);window.removeEventListener('resize',repair);});
     L.control.scale({imperial:false}).addTo(map);
     [[49.611,6.131,'Luxembourg'],[49.495,5.985,'Esch-sur-Alzette'],[49.867,6.159,'Diekirch'],[49.965,5.933,'Wiltz'],[50.055,6.031,'Clervaux']].forEach(([lat,lon,name])=>{
       L.marker([lat,lon],{interactive:false,keyboard:false,icon:L.divIcon({className:'map-place-label',html:element('span',name),iconSize:[110,18]})}).addTo(map);
@@ -100,7 +122,7 @@
     }
     if(fit&&points.length)map.fitBounds(markers.getBounds().pad(.15),{maxZoom:12});
     const s=payload.summary;
-    status.textContent=`${s.shown} of ${s.located} located companies loaded · ${s.unlocated} unlocated (${s.missing_address} without an address; ${s.unlocated_with_problems} with open problems) · ${s.companies} permitted companies. ${points.length} match the filters.`;
+    status.textContent=`${s.shown} of ${s.located} located ${s.located===1?"company":"companies"} loaded · ${s.unlocated} unlocated (${s.missing_address} without an address; ${s.unlocated_with_problems} with open problems) · ${s.companies} permitted ${s.companies===1?"company":"companies"}. ${points.length} ${points.length===1?"company matches":"companies match"} the filters.`;
     if(s.omitted)status.textContent+=` Limit ${payload.limit}: the highest-priority companies are shown; ${s.omitted} additional located companies are not shown.`;
     if(s.stale_manual)status.textContent+=` ${s.stale_manual} manual points invalidated by address changes; local lookup is used where available.`;
     renderTable(points);

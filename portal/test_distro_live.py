@@ -23,6 +23,7 @@ class ActualVendorTests(Fixture):
     data = legacy.AgentTests.data
     send = legacy.AgentTests.send
     relax = legacy.AgentTests.relax
+    relax = legacy.AgentTests.relax
 
     def exercise(self, distro, release, name, manager, binary):
         path = Path(os.environ["BEARINGS_OVAL_LIVE_DIR"]) / ("bearings-" + distro + "-oval.xml")
@@ -85,3 +86,37 @@ class ActualVendorTests(Fixture):
     def test_actual_redhat_rule_keeps_unreported_conditions_uncertain(self):
         self.exercise("rhel", "9", "vim-common", "rpm", "vim-common")
         self.assertFalse(Finding.objects.filter(analyst_applicability="affected").exists())
+
+    def test_actual_canonical_nginx_four_fixed_receipts_and_retained_reviews(self):
+        wanted = {"CVE-2026-123007", "CVE-2026-123633", "CVE-2026-123634", "CVE-2026-113425"}
+        rows = []
+        path = Path(os.environ["BEARINGS_OVAL_LIVE_DIR"]) / "bearings-ubuntu-oval.xml"
+        for row in distro_oval.compile_feed(path, "ubuntu", "24.04"):
+            if wanted.intersection(row["metadata"]["cves"]):
+                rows.append(row)
+        self.assertEqual({c for r in rows for c in r["metadata"]["cves"]}, wanted)
+        feed = DistroFeed.objects.create(
+            key="ubuntu:24.04",
+            generation=uuid.uuid4(),
+            last_success=timezone.now(),
+            content_hash="reviewed-vendor-nginx-subset",
+            summary={"compiler_version": distro_oval.COMPILER_VERSION},
+        )
+        distro_cves.store_batch(feed, feed.generation, rows)
+        self.enroll()
+        self.send(self.data(version="1.24.0-2ubuntu7.19"))
+        agents.process_pending()
+        distro_cves.evaluate_device(self.device.pk)
+        c = self.device.components.get(name="nginx")
+        self.assertEqual(c.distro_check["counts"]["potential"], 4)
+        self.assertEqual(Finding.objects.count(), 4)
+        self.relax()
+        self.send(self.data(sequence=2, version="1.24.0-2ubuntu7.21"))
+        agents.process_pending()
+        distro_cves.evaluate_device(self.device.pk)
+        c.refresh_from_db()
+        self.assertEqual(c.distro_check["counts"]["fixed"], 4)
+        self.assertEqual(c.distro_check["counts"]["potential"], 0)
+        self.assertEqual(Finding.objects.count(), 4)
+        self.assertEqual({r["cve"] for r in c.distro_check["samples"]["fixed"]}, wanted)
+        self.assertFalse(any(r["cve"] == "CVE-2026-121810" for r in c.distro_check["samples"]["fixed"]))

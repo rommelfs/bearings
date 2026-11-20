@@ -4,4 +4,4 @@
 {% if current %}<p>Current position: {{ current.label }} · {{ current.lat|floatformat:6 }}, {{ current.lon|floatformat:6 }}</p>{% else %}<p>No current position. Any previous manual point for a different address is excluded.</p>{% endif %}
 <div class="company-map" data-location-editor data-outline="{% static 'portal/world-outline.geojson' %}" aria-label="Click to select company location"></div>
 <p><a class="button" href="{% url 'circl-map-location' org.slug %}">Reload current address and point →</a></p><form method="post">{% csrf_token %}{{ form.as_p }}<button class="primary">Save company point</button><button name="action" value="clear" formnovalidate>Remove manual point · use local address lookup</button></form>
-<script src="{% static 'portal/vendor/leaflet/leaflet.js' %}" defer></script><script src="{% static 'portal/circl-map.js' %}" defer></script>{% endblock %}
+<script src="{% static 'portal/vendor/leaflet/leaflet.js' %}" defer></script><script src="{% static 'portal/circl-map.js' %}?v=20261120-resize" defer></script>{% endblock %}
