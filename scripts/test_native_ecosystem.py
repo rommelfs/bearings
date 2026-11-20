@@ -1,0 +1,136 @@
+"""Operator deployment boundaries; no host users, services or network operations."""
+
+import configparser
+import importlib.util
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location("native_ecosystem", ROOT / "deploy/ubuntu24/ecosystem.py")
+native = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(native)
+
+
+def fixture():
+    return {
+        "admin_email": "operator@example.invalid",
+        "lxc_compatible": True,
+        "secrets": {
+            name: "synthetic-private-" + name
+            for name in (
+                "bearings_oidc",
+                "netbox_oidc",
+                "flowintel_oidc",
+                "netbox_key",
+                "netbox_pepper",
+                "flowintel_key",
+                "flowintel_admin",
+                "keycloak_admin",
+                "keycloak_db",
+                "unused_db",
+            )
+        },
+    }
+
+
+class NativeDeploymentTests(unittest.TestCase):
+    def test_plan_requires_no_root_and_does_not_mutate(self):
+        with patch.object(native, "run", side_effect=AssertionError("unexpected mutation")):
+            with patch.object(sys, "argv", ["ecosystem.py", "plan"]), patch("builtins.print") as output:
+                native.main()
+        result = json.loads(output.call_args.args[0])
+        self.assertEqual(len(result["urls"]), 3)
+        self.assertNotIn("secrets", result)
+
+    def test_realm_has_exact_callbacks_pkce_and_no_fixture_users_or_password_grants(self):
+        result = native.realm(fixture())
+        self.assertEqual(result["users"], [])
+        self.assertFalse(result["registrationAllowed"])
+        for client in result["clients"]:
+            self.assertEqual(len(client["redirectUris"]), 1)
+            self.assertNotIn("*", client["redirectUris"][0])
+            self.assertEqual(client["attributes"]["pkce.code.challenge.method"], "S256")
+            self.assertFalse(client["directAccessGrantsEnabled"])
+            self.assertFalse(client["serviceAccountsEnabled"])
+            self.assertFalse(client["publicClient"])
+
+    def test_activation_preserves_private_environment_and_refuses_existing_identity_repoint(self):
+        state = fixture()
+        original = "DJANGO_SECRET_KEY='private key # keep exactly'\nBEARINGS_PUBLIC_REGISTRATION=0\n"
+        result = native.bearings_env(state, original)
+        self.assertIn(original, result)
+        self.assertIn("BEARINGS_SSO_ENABLED=1", result)
+        self.assertEqual(native.bearings_env(state, result), result)
+        for existing in (
+            "OIDC_ISSUER=https://other.example/realm",
+            "OIDC_CLIENT_SECRET=other",
+            "BEARINGS_SSO_ENABLED = 0",
+        ):
+            with self.subTest(existing=existing), self.assertRaises(ValueError):
+                native.bearings_env(state, original + existing + "\n")
+
+    def test_generated_environment_does_not_accept_injection(self):
+        for value in ("a\nOTHER=value", "$(id)", "has spaces", 'x"y', "x%y"):
+            with self.assertRaises(ValueError):
+                native.environment({"TEST": value})
+
+    def test_atomic_private_write_and_symlink_refusal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "secret"
+            native.write(path, "retained")
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            link = Path(temporary) / "link"
+            link.symlink_to(path)
+            with self.assertRaises(ValueError):
+                native.write(link, "replace")
+            self.assertEqual(path.read_text(), "retained")
+
+    def test_sandbox_compatibility_is_explicit_and_retains_identity_capability_controls(self):
+        for compatible in (True, False):
+            state = {**fixture(), "lxc_compatible": compatible}
+            text = native.unit("netbox", "/usr/bin/true", "/", state)
+            unit = configparser.ConfigParser(interpolation=None)
+            unit.read_string(text)
+            self.assertEqual(unit["Unit"]["Requires"], "bearings-netbox-redis.service")
+            self.assertEqual(unit["Service"]["User"], "bearings_netbox")
+            self.assertEqual(unit["Service"]["NoNewPrivileges"], "yes")
+            self.assertEqual(unit["Service"]["CapabilityBoundingSet"], "")
+            self.assertEqual("ProtectSystem=strict" in text, not compatible)
+            self.assertEqual("ReadWritePaths=" in text, not compatible)
+
+    def test_bootstrap_exposes_only_challenges_and_tls_preserves_forwarding_boundary(self):
+        for name in native.HOSTS:
+            plain = native.nginx(name, tls=False)
+            self.assertNotIn("proxy_pass", plain)
+            self.assertIn("return 404", plain)
+            text = native.nginx(name, tls=True)
+            self.assertIn("proxy_set_header Host $http_host;", text)
+            self.assertIn("proxy_set_header X-Forwarded-For $remote_addr;", text)
+            self.assertIn("access_log off;", text)
+            self.assertNotIn("$proxy_add_x_forwarded_for", text)
+        self.assertIn("internal;", native.nginx("netbox", tls=True))
+
+    def test_readiness_does_not_accept_systemctl_start_alone(self):
+        result = subprocess.CompletedProcess([], 7)
+        with patch.object(native.subprocess, "run", return_value=result), patch.object(native.time, "sleep"):
+            with self.assertRaisesRegex(ValueError, "readiness failed"):
+                native.wait_ready()
+
+    def test_privileged_entry_refuses_developer_checkout_without_mutations(self):
+        with (
+            patch.object(sys, "argv", ["ecosystem.py", "install"]),
+            patch.object(os, "geteuid", return_value=0),
+        ):
+            with patch.object(native, "run", side_effect=AssertionError("unexpected mutation")):
+                with self.assertRaises(ValueError):
+                    native.main()
+
+
+if __name__ == "__main__":
+    unittest.main()

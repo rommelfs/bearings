@@ -34,3 +34,5 @@ The English/German/French/Luxembourgish static website source is in [`website/`]
 The FAQ's single content source is [`website/faq.json`](../website/faq.json); `python3 website/build.py` generates the static pages and `docs/faq.md`. Keep implemented behavior, development defaults, deployment-specific acceptance and planned capabilities distinct. Product screenshots are illustrative synthetic examples, not live national/company statistics.
 
 This pass reconciled outdated summary claims in the README, authorization, architecture, data model and priorities and added navigation/FAQ. It was not a claim to have independently revalidated every deployed integration or every historical entry in the validation record. Update the corresponding guide and validation evidence whenever behavior changes; check the static website/FAQ before republishing. See the [website maintenance guide](../website/README.md) for the reproducible build, preview, public-source branch and release checklist.
+
+- [Native NetBox, FlowIntel and Keycloak deployment](operations/native-ecosystem.md)

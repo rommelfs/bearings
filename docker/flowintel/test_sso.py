@@ -25,6 +25,28 @@ import flowintel_sso as sso
 
 
 class FlowSessionTests(unittest.TestCase):
+    def test_native_endpoints_are_explicit_verified_and_reject_insecure_or_credential_urls(self):
+        config = {
+            "BEARINGS_FLOWINTEL_NATIVE": "1",
+            "OIDC_ISSUER": "https://sso.example/realms/bearings",
+            "FLOWINTEL_ORIGIN": "https://flowintel.example",
+            "OIDC_CLIENT_SECRET": "private-synthetic",
+        }
+        with patch.dict(os.environ, config):
+            settings = sso.settings()
+            self.assertEqual(settings["callback"], "https://flowintel.example/bearings-sso/callback")
+            self.assertEqual(
+                settings["token"], "https://sso.example/realms/bearings/protocol/openid-connect/token"
+            )
+            self.assertEqual(settings["ca"], "/etc/ssl/certs/ca-certificates.crt")
+            for value in (
+                "http://flowintel.example",
+                "https://user:secret@flowintel.example",
+                "https://flowintel.example/?query=1",
+            ):
+                with patch.dict(os.environ, FLOWINTEL_ORIGIN=value), self.assertRaises(ValueError):
+                    sso.settings()
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.app = Flask(__name__)

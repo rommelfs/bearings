@@ -39,6 +39,7 @@ jobs:
         working-directory: clients/linux
       - run: python3 scripts/build_linux_client.py
       - run: python3 -m unittest discover -s clients/linux -p test_installer.py
+      - run: python3 scripts/test_native_ecosystem.py
       - run: uv sync --frozen
       - run: uv run --frozen --extra production python -m gunicorn --version
       - run: uv run ruff check .
@@ -58,3 +59,25 @@ jobs:
           enable-cache: true
       - run: uv sync --frozen --no-dev --extra production
       - run: uv run --frozen --no-dev --extra production python scripts/production_smoke.py
+  native-ecosystem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --no-dev --extra production
+      - run: python3 scripts/test_native_ecosystem.py
+      - name: Fetch pinned native application sources
+        run: |
+          git init /tmp/bearings-native-netbox
+          git -C /tmp/bearings-native-netbox fetch --depth 1 https://github.com/netbox-community/netbox.git 3cd2c1d6469caed6c50e80eddd4cde863e0e2cf5
+          git -C /tmp/bearings-native-netbox checkout --detach FETCH_HEAD
+          uv run --frozen --no-dev --extra production python -c 'from scripts.flowintel_source import prepare_source; prepare_source()'
+      - name: Check native NetBox and FlowIntel runtimes with disposable databases
+        run: uv run --frozen --no-dev --extra production python scripts/native_ecosystem_smoke.py --netbox-source /tmp/bearings-native-netbox --flowintel-source .local/dev-stack/flowintel-source
+      - name: Check production Keycloak realm with disposable database
+        run: python3 scripts/native_keycloak_smoke.py

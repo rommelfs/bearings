@@ -118,3 +118,8 @@ curl --fail --head --max-time 15 https://bearings.circl.lu/accounts/login/
 ```
 
 A persistent 502 needs the current journal and Nginx error, not a reinstall. Preserve the environment, database and state. These drop-ins survive service-template updates. After the container host supports the original sandbox, remove only these `lxc.conf` files, daemon-reload and restart/check the services to restore the full default sandbox.
+
+
+## Add NetBox, FlowIntel and shared SSO
+
+Use the separate [native ecosystem extension](native-ecosystem.md) for the existing server. It retains Bearings state and installs additional pinned services in stages; do not run the developer stack or repeat the base first installer.
