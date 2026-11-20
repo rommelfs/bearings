@@ -1,38 +1,38 @@
 /* Bearings identity over Django's supported admin layout and widgets. */
 html[data-theme="light"], :root {
-  --primary: #176b65;
-  --secondary: #145a55;
-  --accent: #176b65;
-  --body-fg: #1e3047;
-  --body-bg: #f3f5f9;
-  --body-quiet-color: #586a7c;
+  --primary: #315e73;
+  --secondary: #254f63;
+  --accent: #315e73;
+  --body-fg: #23313a;
+  --body-bg: #f7f9fa;
+  --body-quiet-color: #52636d;
   --body-medium-color: #344b61;
-  --body-loud-color: #172e45;
-  --header-color: #1e3047;
-  --header-branding-color: #172e45;
+  --body-loud-color: #23313a;
+  --header-color: #23313a;
+  --header-branding-color: #23313a;
   --header-bg: #fff;
-  --header-link-color: #21645f;
+  --header-link-color: #315e73;
   --breadcrumbs-bg: #eaf0f6;
   --breadcrumbs-fg: #344b61;
-  --breadcrumbs-link-fg: #21645f;
-  --link-fg: #21645f;
+  --breadcrumbs-link-fg: #315e73;
+  --link-fg: #315e73;
   --link-hover-color: #123e55;
-  --link-selected-fg: #176b65;
-  --hairline-color: #dce3ec;
+  --link-selected-fg: #315e73;
+  --hairline-color: #dce4e8;
   --border-color: #cbd7e2;
   --darkened-bg: #eaf0f6;
   --selected-bg: #deedea;
   --selected-row: #e6f3ef;
-  --button-bg: #176b65;
-  --button-hover-bg: #145a55;
-  --default-button-bg: #176b65;
-  --default-button-hover-bg: #145a55;
+  --button-bg: #315e73;
+  --button-hover-bg: #254f63;
+  --default-button-bg: #315e73;
+  --default-button-hover-bg: #254f63;
   --bearings-surface: #fff;
   --font-family-primary: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 html[data-theme="dark"] {
   --primary: #218b82;
-  --secondary: #176b65;
+  --secondary: #315e73;
   --accent: #8ed8ce;
   --body-fg: #dae4ee;
   --body-bg: #122334;
@@ -41,7 +41,7 @@ html[data-theme="dark"] {
   --body-loud-color: #f3f7fb;
   --header-color: #dae4ee;
   --header-branding-color: #f3f7fb;
-  --header-bg: #172e45;
+  --header-bg: #23313a;
   --header-link-color: #8ed8ce;
   --breadcrumbs-bg: #1c354c;
   --breadcrumbs-fg: #dae4ee;
@@ -54,18 +54,18 @@ html[data-theme="dark"] {
   --darkened-bg: #1c354c;
   --selected-bg: #234b53;
   --selected-row: #234b53;
-  --bearings-surface: #172e45;
+  --bearings-surface: #23313a;
 }
 @media (prefers-color-scheme: dark) {
   html[data-theme="auto"] {
     --body-fg: #dae4ee; --body-bg: #122334; --body-quiet-color: #b0c1d0;
     --body-medium-color: #c2d0dc; --body-loud-color: #f3f7fb;
     --header-color: #dae4ee; --header-branding-color: #f3f7fb;
-    --header-bg: #172e45; --header-link-color: #8ed8ce;
+    --header-bg: #23313a; --header-link-color: #8ed8ce;
     --breadcrumbs-bg: #1c354c; --breadcrumbs-fg: #dae4ee; --breadcrumbs-link-fg: #8ed8ce;
     --link-fg: #8ed8ce; --link-hover-color: #b3f1e8; --link-selected-fg: #b3f1e8;
     --hairline-color: #355068; --border-color: #466078; --darkened-bg: #1c354c;
-    --selected-bg: #234b53; --selected-row: #234b53; --bearings-surface: #172e45;
+    --selected-bg: #234b53; --selected-row: #234b53; --bearings-surface: #23313a;
   }
 }
 #header {padding: 20px 28px; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline-color);}
@@ -106,3 +106,17 @@ body.login .bearings-admin-brand {font-size: 18px;}
 .selector .selector-chosen-title,
 .selector .selector-chosen-title label {color: #fff;}
 .selector .selector-chosen-title .help {color: #e0f2ee;}
+
+/* Match the CIRCL-operated portal without replacing Django's admin widgets. */
+@font-face{font-family:Raleway;src:url('fonts/raleway-regular.woff') format('woff');font-weight:400;font-style:normal;font-display:swap}
+html[data-theme="light"],:root{--font-family-primary:Raleway,Arial,sans-serif;--primary:#315e73;--secondary:#254f63;--accent:#315e73;--body-bg:#f7f9fa;--body-fg:#23313a;--body-loud-color:#23313a;--header-branding-color:#315e73;--header-link-color:#315e73;--link-fg:#315e73;--breadcrumbs-bg:#edf3f5;--darkened-bg:#edf3f5;--selected-bg:#e0eaee;--selected-row:#edf3f5;--button-bg:#315e73;--button-hover-bg:#254f63;--default-button-bg:#315e73;--default-button-hover-bg:#254f63}
+html[data-theme="dark"]{--font-family-primary:Raleway,Arial,sans-serif;--primary:#477a8f;--secondary:#315e73;--accent:#d7e9f0;--header-link-color:#d7e9f0;--link-fg:#b6d5e2;--link-hover-color:#fff;--button-bg:#315e73;--button-hover-bg:#254f63}
+#header{border-top:3px solid #de2d38}
+.bearings-admin-brand img{width:44px;height:44px;object-fit:contain;flex:none}
+.bearings-admin-brand{font-family:Raleway,Arial,sans-serif}
+.bearings-admin-brand small{font-family:Raleway,Arial,sans-serif}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline-color:#e4a526}
+#nav-sidebar,#nav-sidebar th,#nav-sidebar td{background:#173f52;border-color:#446d80}
+#nav-sidebar .module caption{background:#315e73}
+#nav-sidebar .current-model th,#nav-sidebar .current-model td{background:#254f63}
+#nav-sidebar td a{color:#d7e9f0}

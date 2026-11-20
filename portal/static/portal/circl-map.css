@@ -19,3 +19,5 @@
 
 .map-place-label { color: #445d68; font: 11px/1.2 system-ui,sans-serif; text-shadow: 0 1px white,1px 0 white,-1px 0 white,0 -1px white; pointer-events: none; }
 .map-hide-labels .map-place-label { display: none; }
+/* Keep map controls/popups in the same locally hosted corporate typeface. */
+.leaflet-container { font-family: Raleway, Arial, sans-serif; }

@@ -35,7 +35,13 @@ class PublicSiteTests(Fixture):
             self.assertContains(response, "CSIRT")
             self.assertContains(response, 'href="/accounts/login/"')
             self.assertEqual(self.client.get("/" + lang + "/faq/").status_code, 200)
-        for path in ["/style.css", "/site.js", "/assets/circl.svg"]:
+        for path in [
+            "/style.css",
+            "/site.js",
+            "/assets/circl.svg",
+            "/assets/fonts/raleway-regular.woff",
+            "/assets/fonts/OFL.txt",
+        ]:
             self.assertEqual(self.client.get(path).status_code, 200)
         for path in ["/assets/../copy.json", "/assets/../../config/settings.py", "/assets/missing", "/zz/"]:
             self.assertEqual(self.client.get(path).status_code, 404)

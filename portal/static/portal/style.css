@@ -1,11 +1,11 @@
 /* Bearings workspace: neutral surfaces, cool area accents, semantic risk colours. */
 :root {
-  --ink: #1e3047;
-  --muted: #586a7c;
-  --canvas: #f3f5f9;
+  --ink: #23313a;
+  --muted: #52636d;
+  --canvas: #f7f9fa;
   --surface: #fff;
-  --line: #dce3ec;
-  --brand: #176b65;
+  --line: #dce4e8;
+  --brand: #315e73;
   --sidebar: #14273a;
   --area: #4264a0;
   --radius: 12px;
@@ -29,7 +29,7 @@ body {
     sans-serif;
 }
 a {
-  color: #21645f;
+  color: #315e73;
   text-underline-offset: 3px;
 }
 a:hover {
@@ -38,7 +38,7 @@ a:hover {
 h1,
 h2,
 h3 {
-  color: #172e45;
+  color: #23313a;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
@@ -185,9 +185,9 @@ button:hover,
   border-color: #a7b8cb;
 }
 .primary {
-  background: #176b65;
+  background: #315e73;
   color: #fff;
-  border-color: #176b65;
+  border-color: #315e73;
 }
 .primary:hover {
   background: #10524e;
@@ -219,7 +219,7 @@ input[type="checkbox"],
 input[type="radio"] {
   width: auto;
   min-height: auto;
-  accent-color: #176b65;
+  accent-color: #315e73;
 }
 label {
   display: block;
@@ -330,7 +330,7 @@ details[open] > summary {
   left: 20px;
   z-index: 100;
   background: white;
-  color: #172e45;
+  color: #23313a;
   padding: 14px;
 }
 .skip-link:focus {
@@ -1821,3 +1821,49 @@ input:focus-visible {
 
 .public-material{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
 .account-menu > a {font-size:12px; white-space:nowrap;}
+
+/* CIRCL corporate identity; semantic risk/status colours above stay independent. */
+@font-face {
+  font-family: Raleway;
+  src: url('fonts/raleway-regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+:root { --sidebar: #fff; --radius: 9px; --shadow: 0 3px 12px #2038440d; }
+body { font-family: Raleway, Arial, sans-serif; font-size: 15px; }
+.workspace { --area: #315e73; }
+h1, h2, h3 { color: #23313a; font-weight: 700; letter-spacing: -.025em; }
+a { color: #315e73; }
+a:hover { color: #254f63; }
+.app-header { border-top: 3px solid #de2d38; box-shadow: 0 4px 18px #2038440d; }
+.brand { display: inline-flex; align-items: center; gap: 12px; color: #315e73; font-weight: 800; letter-spacing: 2px; }
+.brand-mark { width: 44px; height: 44px; flex: 0 0 44px; object-fit: contain; }
+.brand-word { display: block; }
+.brand-caption { margin: 3px 0 0; color: #52636d; letter-spacing: .15px; }
+.app-sidebar { background: #fff; border-right: 1px solid #dce4e8; color: #315e73; }
+.nav-group-label { color: #52636d; font-size: 10px; }
+.workspace-link { color: #315e73; font-size: 13px; font-weight: 500; border-radius: 6px; }
+.workspace-link:hover { color: #254f63; background: #edf3f5; }
+.workspace-link.is-active { color: #254f63; background: #edf3f5; border-color: #dce4e8; border-left: 3px solid #de2d38; font-weight: 700; }
+.nav-marker { border-color: #7d99a7; }
+.workspace-link.is-active .nav-marker { border-color: #315e73; background: #315e73; box-shadow: none; }
+.sidebar-note { color: #52636d; border-color: #dce4e8; }
+button, .button { color: #315e73; border-color: #c5d2d8; border-radius: 6px; }
+button:hover, .button:hover { color: #254f63; background: #edf3f5; border-color: #8fa8b3; }
+.primary { background: #315e73; border-color: #315e73; color: #fff; }
+.primary:hover { background: #254f63; border-color: #254f63; color: #fff; }
+.eyebrow { color: #b8242e; }
+th { background: #edf3f5; color: #435965; }
+.workflow-path a[aria-current] { background: #edf3f5; border-top-color: #315e73; }
+input, select, textarea { font-family: Raleway, Arial, sans-serif; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline-color: #e4a526; }
+.app-footer { color: #52636d; }
+@media(max-width:760px) { .brand { gap: 9px; font-size: 18px; } .brand-mark { width: 36px; height: 36px; flex-basis: 36px; } .brand-caption { font-size: 10px; } }
+/* Long package identities/URLs remain readable on narrow company pages. */
+main article p { overflow-wrap: anywhere; }
+@media(max-width:1100px) {
+  .mobile-menu { background: #edf3f5; color: #23313a; border-bottom: 1px solid #dce4e8; }
+  .mobile-menu > summary { color: #315e73; }
+  .mobile-menu > summary span { color: #52636d; }
+}

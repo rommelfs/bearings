@@ -9,3 +9,68 @@
 /* Bearings mark and locally hosted original project identities. */
 .bearings-mark{width:48px;height:48px;object-fit:contain;flex:none}.operator-logo{display:block;width:194px;margin-top:1.7rem}.operator-logo img{display:block;width:100%;height:auto}.project-logos{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;min-height:72px;margin-bottom:1.25rem}.project-logos a{display:flex;align-items:center;justify-content:center;flex:0 1 132px;min-width:0;height:72px;padding:10px;background:#fff;border-radius:6px}.project-logos img{display:block;width:100%;height:100%;object-fit:contain}.project-logos a:hover{outline:2px solid var(--mint);outline-offset:3px}@media(max-width:760px){.bearings-mark{width:40px;height:40px}.project-logos{gap:.45rem}.project-logos a{flex-basis:112px;height:64px}}
 @media(max-width:540px){.integrations{grid-template-columns:minmax(0,1fr)}.integrations article:nth-child(n){padding:1.5rem 0;border-left:0}.project-logos{min-height:64px}}
+
+/* CIRCL corporate identity: locally hosted Raleway and the circl.lu palette.
+   Original Bearings layouts/content and semantic vulnerability colours are retained. */
+@font-face{font-family:Raleway;src:url('/assets/fonts/raleway-regular.woff') format('woff');font-style:normal;font-weight:400;font-display:swap}
+:root{--ink:#23313a;--muted:#52636d;--teal:#315e73;--mint:#d7e9f0;--navy:#173f52;--paper:#f7f9fa;--line:#dce4e8;--soft:#edf3f5;--circl-red:#de2d38}
+body{font-family:Raleway,Arial,sans-serif;font-weight:400}
+h1,h2,h3{font-weight:700;letter-spacing:-.035em}
+h1{font-size:clamp(2.5rem,4.5vw,4rem)}
+h2{font-size:clamp(2rem,3.5vw,2.6rem)}
+.header{background:#fff;color:var(--ink);border-bottom:1px solid var(--line);box-shadow:0 4px 18px #20384412}
+.header .brand{color:var(--teal)}
+.header a:hover{color:#b5222c}
+.header .nav{gap:1.5rem}
+.brand-word small{font-family:Raleway,Arial,sans-serif;color:var(--muted)}
+.language{border-color:var(--line)}
+.language a[aria-current]{color:var(--teal);border-color:var(--circl-red)}
+.nav-docs{background:#b8242e;border-color:#b8242e;color:#fff;font-weight:700;border-radius:6px}
+.header .nav-docs:hover{background:#a21f29;color:#fff}
+.hero{position:relative;isolation:isolate;width:min(1240px,calc(100% - 5rem));margin:2.5rem auto 0;padding-top:clamp(2.5rem,5vw,4.5rem);background:linear-gradient(125deg,#173f52 0%,#315e73 62%,#477a8f 100%);border-radius:12px;box-shadow:0 12px 35px #254f632e}
+.hero::before{content:"";position:absolute;z-index:-1;width:220px;height:220px;border-radius:50%;background:var(--circl-red);right:-95px;top:-105px}
+.hero .wrap{width:calc(100% - 5rem)}
+.hero-grid{grid-template-columns:1.1fr 1fr;gap:2rem}
+.hero-copy{position:relative;z-index:1}
+.hero h1{line-height:1.12}
+.hero em{color:#fff}
+.hero .lead{font-size:1.07rem;line-height:1.7;color:#edf5f8}
+.hero .button.primary{background:#fff;color:#254f63}
+.hero .button.primary:hover{background:#edf3f5}
+.hero .button.ghost{border-color:#c5dbe5;color:#fff}
+.hero-visual{transform:none;box-shadow:0 12px 30px #173f5240;border-color:#c3d5de;margin-bottom:-1.5rem}
+.window-bar{background:#254f63}
+.hero-proof a{color:#fff}
+.hero-rule{border-top-color:#ffffff40}
+.hero-rule span{color:#edf5f8}
+.eyebrow{font-family:Raleway,Arial,sans-serif;font-weight:700;color:#b8242e;letter-spacing:.12em}
+.hero .eyebrow{color:#d7e9f0}
+.button{border-radius:6px;font-weight:700}
+.button.primary{background:var(--teal)}
+.button.primary:hover{background:#254f63}
+.button.secondary{background:#fff;color:var(--teal)}
+.button.secondary:hover{background:var(--soft)}
+.operator-band{margin-top:2.5rem;background:#fff;border-block:1px solid var(--line)}
+.operator-band p{color:var(--ink)}
+.operator-band .operator-name{color:var(--teal)}
+.operator-band>.wrap{gap:1.5rem;flex-wrap:wrap}
+.operator-band>.wrap>div{flex:1 1 34rem}
+.operator-band a{flex:0 1 auto;max-width:none}
+.section{padding-block:5rem}
+.benefit-grid article,.use-case,.trust-grid article,.vulnerability{background:#fff;border-color:var(--line);border-radius:9px;box-shadow:0 3px 12px #2038440d}
+.vulnerabilities{background:#f4f2ed}
+.vulnerability blockquote{font-weight:700;letter-spacing:-.025em}
+.vulnerability .eyebrow{color:var(--teal)}
+.steps li::before{border-color:var(--circl-red);transform:none;border-radius:50%}
+.ecosystem{background:#173f52}
+.ecosystem .eyebrow{color:#d7e9f0}
+.ecosystem .lead,.integrations p{color:#d7e9f0}
+.integrations .integration-role{font-family:Raleway,Arial,sans-serif;font-weight:700}
+.footer{background:#edf3f5}
+.footer .brand{color:var(--teal)}
+.footer-meta p{font-size:.82rem}
+:focus-visible{outline:3px solid #e4a526;outline-offset:4px}
+@media(max-width:1050px){.hero-grid{grid-template-columns:1fr}.hero-visual{max-width:44rem;margin-inline:auto;width:100%}.header nav{gap:1rem}.hero .wrap{width:calc(100% - 4rem)}}
+@media(max-width:760px){.hero{width:calc(100% - 2.5rem);margin-top:1.5rem;padding-top:2.5rem}.hero .wrap{width:calc(100% - 2.5rem)}.hero::before{width:160px;height:160px;right:-85px;top:-100px}.hero h1{font-size:clamp(2.05rem,8vw,3rem)}.hero .lead{font-size:1rem}.hero-grid{gap:1rem}.section{padding-block:3.5rem}.hero .actions{gap:.65rem}.header .nav{gap:.6rem}.operator-band{margin-top:1.5rem}}
+.hero h1{font-size:clamp(2.2rem,3.4vw,3.15rem)}
+@media(max-width:760px){.hero h1{font-size:clamp(2.05rem,8vw,3rem)}}

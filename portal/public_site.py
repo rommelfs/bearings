@@ -12,9 +12,10 @@ ROOT = Path(build.ROOT)
 FILES = {
     str(p.relative_to(ROOT / "assets")): p
     for p in (ROOT / "assets").rglob("*")
-    if p.is_file() and p.suffix.lower() in {".svg", ".png", ".webp"}
+    if p.is_file() and p.suffix.lower() in {".svg", ".png", ".webp", ".woff"}
 }
 FILES.update({name: ROOT / name for name in ["style.css", "site.js"]})
+FILES["fonts/OFL.txt"] = ROOT / "assets/fonts/OFL.txt"
 
 
 @require_safe

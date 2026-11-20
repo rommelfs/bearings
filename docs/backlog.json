@@ -328,6 +328,10 @@
       {
         "title": "Avoid native batch-command pseudo-terminal hangs after successful completion",
         "body": "Implemented pipe-based native Bearings/NetBox/FlowIntel batch management, reserving PTYs for interactive Django commands. Preserve root-only protected EnvironmentFile parsing, service identity, no-new-privileges, wait/collect and exit status. Regression covers SSH-terminal batch calls, captured credentials, explicit shell commands and password prompts. Target migration 0060 was independently confirmed successful with inactive transient unit and exit 0 while the PTY forwarder remained waiting. Recovery checks completion before interrupting the forwarder; documented old-helper stdin redirection avoids re-running an uncertain migration. Real native systemd target completion remains operator acceptance."
+      },
+      {
+        "title": "Align public and authenticated Bearings design with CIRCL corporate identity",
+        "body": "Implemented CIRCL-inspired white headers, Raleway typography, #315e73 blue, #de2d38 red and neutral surfaces across EN/DE/FR/LB marketing, login/workspace and Django administration. Shared unmodified CIRCL-derived Bearings mark, locally hosted unmodified Raleway with SIL OFL1.1/source SHA256 notices, no external font requests. Keep semantic risk/status colours distinct, support admin dark theme, keyboard focus and expanded mobile navigation; wrap long package identities. Refresh overview illustration from local synthetic lab and version CSS/preview URLs to avoid stale caches. No auth, source, scanning or notification changes. See website/branding/README.md and docs/validation.md."
       }
     ]
   }

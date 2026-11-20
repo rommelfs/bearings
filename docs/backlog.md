@@ -415,3 +415,8 @@ The existing web service serves the multilingual marketing website at `/`, with 
 ## Native management terminal completion — 2026-11-20
 
 Batch management now uses systemd pipes even from SSH terminals. Interactive account/password/shell commands retain PTYs; non-interactive NetBox and FlowIntel work uses pipes. Protected environment parsing, service identity, wait/exit status and security properties are preserved. See the [native recovery guide](operations/ubuntu24.md#completed-management-command-with-a-stuck-terminal).
+
+
+## CIRCL corporate identity — 2026-11-20
+
+Public marketing in all four languages, workspace/login and Django admin now follow CIRCL’s Raleway/blue/red/white identity. Fonts, mark and provenance/license notices are hosted locally; semantic risk colours, accessibility and existing authorization are retained. See [branding reference](../website/branding/README.md#circl-corporate-theme--20-november-2026).
