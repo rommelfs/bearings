@@ -98,6 +98,10 @@
       {
         "title": "Accept native CIRCL inventory bridge and verified service mail",
         "body": "Implemented bounded native CIRCL pilot command with separate tenant-constrained read-only NetBox identity/token, protected resumable receipts, non-admin FlowIntel bridge and source-locked Bearings binding. Stage bracketed CIRCL SMTP relay, verified STARTTLS, service subject tag and explicit one-message readiness check. No operational delivery, consent, contacts or populated-source migration inferred. Remaining acceptance: actual target HTTPS import, controlled case permissions, port/TLS and inbox delivery, explicit service-mail/public-registration enablement, scheduled token renewal and generalized constituent native read/write lifecycle."
+      },
+      {
+        "title": "Accept scoped SMTP encryption-only relay policy",
+        "body": "Implemented explicit native configure-mail --allow-self-signed for the operator-approved cped.circl.lu relay. Dedicated SMTP SSL context disables certificate verification only for its matching configured relay; mandatory TLS, default verified behavior, HTTPS/SSO trust and separate staged delivery remain. Include policy in reviewed SMTP fingerprints and readiness output; local self-signed handshake and missing-STARTTLS tests. Actual target probe/inbox acceptance remains."
       }
     ]
   },

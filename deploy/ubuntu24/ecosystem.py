@@ -210,7 +210,7 @@ def connect_circl(state, args):
     )
 
 
-def configure_mail():
+def configure_mail(*, allow_self_signed=False):
     path = Path("/etc/bearings/bearings.env")
     current = protected_read(path)
     backup = CONFIG / "bearings-before-mail.env"
@@ -222,6 +222,8 @@ def configure_mail():
         "SMTP_PORT": "25",
         "SMTP_STARTTLS": "1",
         "SMTP_TLS": "0",
+        "SMTP_TLS_VERIFY": "0" if allow_self_signed else "1",
+        "SMTP_TLS_UNVERIFIED_HOST": "cped.circl.lu" if allow_self_signed else "",
         "SMTP_USER": "",
         "SMTP_PASSWORD": "",
         "DJANGO_DEFAULT_FROM_EMAIL": "info@circl.lu",
@@ -232,7 +234,9 @@ def configure_mail():
     write(path, merge_environment(current, additions))
     run(["systemctl", "restart", "bearings-web", "bearings-worker", "bearings-national"])
     print(
-        "Relay configured with verified STARTTLS on port 25. Service delivery remains file-based; public signup remains disabled. Run service_mail_check before enabling delivery."
+        "Relay configured with mandatory STARTTLS on port 25; certificate verification "
+        + ("disabled only for cped.circl.lu" if allow_self_signed else "enabled")
+        + ". Service delivery remains file-based; public signup remains disabled. Run service_mail_check before enabling delivery."
     )
 
 
@@ -999,7 +1003,12 @@ def main():
     )
     sub.add_parser("activate")
     sub.add_parser("credentials")
-    sub.add_parser("configure-mail", help="Stage the approved CIRCL relay without enabling delivery")
+    mail = sub.add_parser("configure-mail", help="Stage the approved CIRCL relay without enabling delivery")
+    mail.add_argument(
+        "--allow-self-signed",
+        action="store_true",
+        help="Require STARTTLS but skip relay authentication only for cped.circl.lu",
+    )
     connect = sub.add_parser(
         "connect-circl", help="Plan or apply the first isolated native CIRCL connections"
     )
@@ -1069,7 +1078,7 @@ def main():
     if args.action == "activate":
         activate(state)
     elif args.action == "configure-mail":
-        configure_mail()
+        configure_mail(allow_self_signed=args.allow_self_signed)
     elif args.action == "connect-circl":
         connect_circl(state, args)
     elif args.action == "credentials":

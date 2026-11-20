@@ -180,3 +180,16 @@ python3 deploy/ubuntu24/ecosystem.py configure-mail
 The approved relay is stored literally as `[cped.circl.lu]`; SMTP uses its unwrapped hostname for DNS/TLS. This brackets convention does not request MX routing. The staged profile assumes port 25 with mandatory STARTTLS and normal CA/hostname verification, no SMTP credentials, sender `info@circl.lu` and subject prefix `[CIRCL BEARINGS]`. A failure requires operator investigation; there is no plaintext or certificate-check fallback. The inspection command prints no passwords; the probe sends no email. The explicit test sends exactly one tagged message to the selected address. SMTP acceptance is not inbox receipt.
 
 Staging preserves other environment secrets and leaves `BEARINGS_SERVICE_MAIL_TRANSPORT=file` and `BEARINGS_PUBLIC_REGISTRATION=0`. Only after confirming inbox receipt should the operator set service transport to `smtp`, enable public registration if desired, and restart the three Bearings services. This does not change vulnerability outreach transport or release its queue. Existing file messages are not replayed automatically. The tag also appears in outreach previews and their approval fingerprints; changing it invalidates old approvals. Keycloak and FlowIntel's own outgoing mail settings remain independent and unchanged.
+
+### Explicit encryption-only SMTP relay
+
+The CIRCL operator accepts the self-signed certificate on `cped.circl.lu` as transport encryption. Configure that exception with:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py configure-mail --allow-self-signed
+/opt/bearings/deploy/ubuntu24/manage.py service_mail_check --actor platform-admin --probe
+```
+
+This writes `SMTP_TLS_VERIFY=0` and `SMTP_TLS_UNVERIFIED_HOST=cped.circl.lu`. STARTTLS remains mandatory on port 25: an unsupported/failed TLS upgrade stops delivery, with no plaintext retry. The dedicated SMTP SSL context skips certificate-chain and hostname verification only for the explicitly matching relay. It provides encryption without authenticating that relay. The backend refuses an unmatched hostname or an unencrypted configuration; changing relay hosts requires revisiting the explicit exception. HTTPS connectors, SSO and global Python/OpenSSL trust are unchanged. The same SMTP policy applies to controlled tests, registration/reminder service mail and separately authorized SMTP outreach. Its verification policy is part of the outreach approval fingerprint, so changing policy requires a new preview/approval.
+
+Verification is enabled by default; running `configure-mail` without the flag restores it. Both forms keep regular service delivery file-based and public registration disabled. Once the probe succeeds, use the explicit one-recipient test command above and confirm receipt before enabling regular delivery. Inspection reports `certificate_verification: false` when this exception is active. No certificates or keys need copying between servers.

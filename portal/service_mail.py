@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import EmailMessage, get_connection
+from .smtp import backend_path
 
 
 def public_base():
@@ -37,11 +38,7 @@ def mail_subject(subject):
 
 
 def send_service_mail(subject, body, recipient, fingerprint=None):
-    backend = (
-        "django.core.mail.backends.smtp.EmailBackend"
-        if settings.SERVICE_MAIL_TRANSPORT == "smtp"
-        else settings.EMAIL_BACKEND
-    )
+    backend = backend_path() if settings.SERVICE_MAIL_TRANSPORT == "smtp" else settings.EMAIL_BACKEND
     connection = get_connection(backend=backend)
     headers = (
         {"Message-ID": f"<bearings-review-{fingerprint}@{urlsplit(public_base()).hostname}>"}

@@ -389,6 +389,9 @@ class AssetIssueTests(tests.Fixture):
             with override_settings(DEFAULT_FROM_EMAIL="changed@example.com"):
                 with self.assertRaises(ValidationError):
                     approve_local(self.admin, batch.pk, [delivery.pk])
+            with override_settings(EMAIL_TLS_VERIFY=False, EMAIL_TLS_UNVERIFIED_HOST="smtp.example.com"):
+                with self.assertRaises(ValidationError):
+                    approve_local(self.admin, batch.pk, [delivery.pk])
             self.assertEqual(NotificationReceipt.objects.count(), 0)
             with patch("portal.notifications.SMTPBackend") as backend:
                 backend.return_value.__enter__.return_value.send_messages.return_value = 1

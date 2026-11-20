@@ -90,6 +90,24 @@ class NativeDeploymentTests(unittest.TestCase):
         self.assertNotIn("--pty", run.call_args.args[0])
         self.assertTrue(run.call_args.kwargs["capture"])
 
+    def test_explicit_self_signed_flag_is_relay_bound_and_keeps_starttls(self):
+        with (
+            patch.object(native, "protected_read", return_value="DJANGO_SECRET_KEY=kept\n"),
+            patch.object(native, "write") as write,
+            patch.object(native, "run"),
+            patch.object(Path, "exists", return_value=True),
+            patch("builtins.print"),
+        ):
+            native.configure_mail(allow_self_signed=True)
+        result = write.call_args.args[1]
+        for expected in [
+            'SMTP_TLS_VERIFY="0"',
+            'SMTP_TLS_UNVERIFIED_HOST="cped.circl.lu"',
+            'SMTP_STARTTLS="1"',
+            'BEARINGS_SERVICE_MAIL_TRANSPORT="file"',
+        ]:
+            self.assertIn(expected, result)
+
     def test_plan_requires_no_root_and_does_not_mutate(self):
         with patch.object(native, "run", side_effect=AssertionError("unexpected mutation")):
             with patch.object(sys, "argv", ["ecosystem.py", "plan"]), patch("builtins.print") as output:

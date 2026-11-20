@@ -367,3 +367,7 @@ FlowIntel browser SSO recovery: narrowly allow the configured HTTPS IdP origin i
 ## Native CIRCL pilot and controlled mail readiness — 2026-11-20
 
 Implemented the explicit CIRCL pilot: missing company creation without registration/consent inference, separate tenant-scoped read-only NetBox credentials, a non-admin FlowIntel service bridge, protected receipts, safe retries and source-locked binding. Added bracketed relay normalization, reviewed subject prefix and staged verified SMTP readiness/testing. Actual server import, controlled case, SMTP/inbox acceptance and delivery enablement remain separate operator steps; no production emails or customer exports were sent by local validation. General native constituent lifecycle and key renewal remain planned. See [operations](operations/native-ecosystem.md#first-circl-inventory-and-case-bridge).
+
+## Explicit SMTP transport-encryption exception — 2026-11-20
+
+Implemented the operator-requested self-signed relay acceptance through a dedicated SMTP SSL context and `configure-mail --allow-self-signed`, bound to cped.circl.lu. Keep mandatory STARTTLS, verified defaults, HTTPS/SSO trust, staged delivery and reviewed SMTP policy fingerprints. Actual self-signed local TLS and no-STARTTLS denial are tested. Target probe/inbox acceptance remains operational validation.

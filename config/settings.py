@@ -102,6 +102,18 @@ EMAIL_HOST_USER = os.getenv("SMTP_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("SMTP_STARTTLS", "1") == "1"
 EMAIL_USE_SSL = os.getenv("SMTP_TLS", "0") == "1"
+EMAIL_TLS_VERIFY = os.getenv("SMTP_TLS_VERIFY", "1") == "1"
+EMAIL_TLS_UNVERIFIED_HOST = relay_hostname(os.getenv("SMTP_TLS_UNVERIFIED_HOST", ""))
+if os.getenv("SMTP_TLS_VERIFY", "1") not in {"0", "1"}:
+    raise ValueError("SMTP_TLS_VERIFY must be 0 or 1")
+if not EMAIL_TLS_VERIFY and (
+    not EMAIL_TLS_UNVERIFIED_HOST
+    or EMAIL_HOST.lower().rstrip(".") != EMAIL_TLS_UNVERIFIED_HOST.lower().rstrip(".")
+    or EMAIL_USE_TLS == EMAIL_USE_SSL
+):
+    raise ValueError(
+        "Unverified SMTP requires an explicitly matching relay hostname and exactly one TLS mode"
+    )
 EMAIL_TIMEOUT = 10
 CONTACT_REVIEW_DAYS = int(os.getenv("CONTACT_REVIEW_DAYS", "183"))
 VULNERABILITY_LOOKUP_URL = os.getenv("VULNERABILITY_LOOKUP_URL", "https://vulnerability.circl.lu")

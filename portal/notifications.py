@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.core.mail.backends.filebased import EmailBackend
-from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
+from .smtp import EmailBackend as SMTPBackend
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import Case, Count, IntegerField, Value, When
@@ -74,7 +74,7 @@ def transport_configuration():
         or not 1 <= settings.EMAIL_PORT <= 65535
         or bool(settings.EMAIL_USE_TLS) == bool(settings.EMAIL_USE_SSL)
     ):
-        raise ValidationError("Configure an approved SMTP host/port and exactly one verified TLS mode")
+        raise ValidationError("Configure an approved SMTP host/port and exactly one TLS mode")
     validate_email(settings.DEFAULT_FROM_EMAIL)
     if settings.DEFAULT_FROM_EMAIL.lower().endswith((".invalid", "@localhost")):
         raise ValidationError("Configure a real approved notification sender")
@@ -85,6 +85,8 @@ def transport_configuration():
             "port": settings.EMAIL_PORT,
             "tls": settings.EMAIL_USE_TLS,
             "ssl": settings.EMAIL_USE_SSL,
+            "tls_verify": settings.EMAIL_TLS_VERIFY,
+            "unverified_relay": settings.EMAIL_TLS_UNVERIFIED_HOST,
             "user": settings.EMAIL_HOST_USER,
             "sender": settings.DEFAULT_FROM_EMAIL,
         }
