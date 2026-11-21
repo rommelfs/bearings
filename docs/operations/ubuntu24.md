@@ -291,3 +291,38 @@ picker JavaScript and background exact-name enrollment use the same code.
 No migration, dependency or client binary update is required. Searches reuse
 the existing operator-approved Vulnerability-Lookup source and bounded HTTP
 contract; no full CPE dictionary is downloaded into the application database.
+
+### Configurable application client profiles and context navigation
+
+Apply migration `0066_application_manifest_observations` before restarting the
+web/worker processes or distributing the new client. Existing clients continue
+reporting without the optional application section. From the reviewed checkout:
+
+```sh
+./deploy/ubuntu24/manage.py migrate --noinput </dev/null
+./deploy/ubuntu24/manage.py check </dev/null
+./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null
+systemctl restart bearings-web bearings-worker bearings-national
+python3 deploy/ubuntu24/ecosystem.py prepare-linux-client
+```
+
+Publication requires a clean tracked checkout; keep downloaded installers outside
+`/opt/bearings`. On each already enrolled client, download to `/root` and update
+without a bootstrap code:
+
+```sh
+cd /root &&
+curl --fail --show-error --proto '=https' \
+  https://bearings.circl.lu/downloads/linux/install.py -o bearings-install.py &&
+python3 bearings-install.py --server https://bearings.circl.lu
+```
+
+The installer retains existing identity/state and reviewed drop-ins and restarts
+the service. Check `bearings-linux version` and `systemctl status bearings-linux`.
+The normal watcher includes local application profiles at its next jittered
+capture. Local profile changes are read each capture; restarting bearings-linux
+brings the next attempt forward. The built-in MISP profile reads only its release file; generic profiles must
+not target secret-bearing configuration. No filesystem privileges are granted
+automatically. Configuration and minimal metadata permissions must
+be managed locally, independently of tenant UI permissions. See the
+[application profile reference](../integrations/linux-application-probes.md).

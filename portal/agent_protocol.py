@@ -158,6 +158,7 @@ def report_data(data):
             "components",
             "services",
             *(("host",) if "host" in data else ()),
+            *(("applications",) if "applications" in data else ()),
         ),
     )
     if data["schema"] != TAG or type(data["sequence"]) is not int or not 1 <= data["sequence"] <= 2**63 - 1:
@@ -180,6 +181,78 @@ def report_data(data):
         raise ValueError("Invalid reboot hint")
     if "host" in data:
         host_claim(data["host"])
+    applications = data.get("applications", [])
+    if (
+        not isinstance(applications, list)
+        or len(applications) > 16
+        or (applications and data["scope"] != "system-packages")
+    ):
+        raise ValueError("Application manifests require a bounded independent inventory section")
+    app_keys, app_paths = set(), set()
+    for app in applications:
+        exact(app, ("key", "manager", "name", "version", "architecture", "manifest"))
+        if app["manager"] != "manifest" or app["architecture"] != "all":
+            raise ValueError("Unsupported application collector")
+        text(app["key"], 100, r"manifest:[a-z0-9][a-z0-9._-]{0,63}:all")
+        text(app["name"], 128, r"[A-Za-z0-9][A-Za-z0-9+_. -]*")
+        text(app["version"], 120, r"[A-Za-z0-9][A-Za-z0-9._+~:()/\-]*")
+        evidence = app["manifest"]
+        method = evidence.get("method") if isinstance(evidence, dict) else None
+        if not isinstance(method, str) or method not in {
+            "misp-version-json",
+            "file-regex",
+            "json-fields",
+            "git-tag",
+        }:
+            raise ValueError("Unsupported application version method")
+        fields = ["method", "path", "sha256"]
+        if "profile_sha256" in evidence:
+            fields.append("profile_sha256")
+            text(evidence["profile_sha256"], 64, r"[0-9a-f]{64}")
+        if "identifier" in evidence:
+            fields.append("identifier")
+            text(evidence["identifier"], 255)
+            if evidence["identifier"].startswith("cpe:2.3:"):
+                from .product_matching import valid_key
+
+                parts = evidence["identifier"].split(":")
+                if (
+                    len(parts) != 13
+                    or parts[2] not in {"a", "o", "h"}
+                    or not all(valid_key(key) for key in parts[3:5])
+                ):
+                    raise ValueError("Use a concrete product CPE")
+            elif not re.fullmatch(r"pkg:[a-z][a-z0-9.-]*/[^\s]+", evidence["identifier"]):
+                raise ValueError("Use a product CPE or package URL, not an endpoint")
+        if method == "git-tag":
+            fields += ["commit", "dirty"]
+            text(evidence.get("commit"), 64, r"(?:[0-9a-f]{40}|[0-9a-f]{64})")
+            if evidence.get("dirty") is not False:
+                raise ValueError("Modified Git trees cannot assert a clean release version")
+        if method == "misp-version-json" and (
+            app["name"] != "MISP"
+            or "identifier" in evidence
+            or not re.fullmatch(r"[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}", app["version"])
+        ):
+            raise ValueError("Use the fixed MISP release-file profile")
+        exact(evidence, fields)
+        path = app["manifest"]["path"]
+        text(path, 1024)
+        from pathlib import PurePosixPath
+
+        if (
+            not path.startswith("/")
+            or path.startswith("//")
+            or str(PurePosixPath(path)) != path
+            or ".." in PurePosixPath(path).parts
+            or (method == "misp-version-json" and PurePosixPath(path).name != "VERSION.json")
+        ):
+            raise ValueError("Use a normalized absolute manifest path")
+        text(app["manifest"]["sha256"], 64, r"[0-9a-f]{64}")
+        if app["key"] in app_keys or path in app_paths:
+            raise ValueError("Duplicate application probe")
+        app_keys.add(app["key"])
+        app_paths.add(path)
     components = data["components"]
     if not isinstance(components, list) or len(components) > MAX_COMPONENTS or not components:
         raise ValueError("Use 1–5000 package observations")

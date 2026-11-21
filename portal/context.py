@@ -15,10 +15,16 @@ def deployment(request):
     )
 
     showcase = request.user.is_authenticated and DemoDataset.objects.filter(state="active").exists()
+    switch = view_switch(request, selected, operator)
     return {
-        **workspace(request, show_examples=showcase),
+        **workspace(
+            request,
+            show_examples=showcase,
+            company=switch.get("navigation_company"),
+            national=switch.get("workspace_national", False),
+        ),
         "selected_company_workspace": selected,
-        **view_switch(request, selected, operator),
+        **switch,
         "synthetic_showcase_active": showcase,
         "development_environment": settings.DEBUG,
         "sso_enabled": settings.SSO_ENABLED,

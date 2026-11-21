@@ -75,6 +75,7 @@ from .services import (
 def organization(request, slug):
     org = get_object_or_404(organizations_for(request.user), slug=slug)
     audit_operator_access(request.user, org)
+    request._navigation_organization = org
     return org
 
 

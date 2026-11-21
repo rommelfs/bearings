@@ -76,9 +76,10 @@ def snapshot(device):
             "package_source",
             "package_identity",
             "binary",
-        )[:5001]
+            "manifest",
+        )[:5017]
     )
-    if len(components) > 5000:
+    if len(components) > 5016:
         raise ConnectorError("Inventory exceeds the bounded export; no truncated snapshot published")
     for c in components:
         c["observed_at"] = c["observed_at"].isoformat()

@@ -1463,3 +1463,43 @@ errors. Browser network stubs are distinct from the live public checks above.
 Django check/migration drift, frozen sync, relevant Ruff/format and diff checks
 pass. The existing bounded connector is reused; no deployment/native connector
 behavior, source credentials, schema or Linux-client changes are introduced.
+
+### Configurable application profiles and contextual navigation (2026-11-21)
+
+- 139 PostgreSQL regressions passed across signed application/package ingestion,
+  automatic projection, explicit manual ownership, watch preservation, NetBox
+  snapshot export, workspace policies, query budgets and review queues. MISP,
+  generic JSON/regex and exact-tag Git evidence update only their publisher-owned
+  versions. Unsupported methods, malformed paths, duplicate observations,
+  dirty-tree assertions, endpoint-as-product identities and changed bound probe
+  identity are rejected. Package-only reports retain application timestamps and
+  never infer application removal. Migration 0066 was applied in the owned lab;
+  Django check and migration drift passed.
+- Go tests and race detection passed. Fixtures cover duplicate/invalid JSON,
+  ambiguous regex capture, oversized/nonregular files, symlink ancestors and
+  files, configuration ownership/mode, exact version/fingerprint changes, and
+  real Git tag/status collection by an unprivileged child. A repository-defined
+  fsmonitor helper writes a sentinel if executed; the collector override prevents
+  execution, and modified tracked files withhold a release version. SHA-1 Git
+  commit identity is tested; SHA-256-format Git IDs are accepted by the contract.
+- Actual native client collection ran as a non-root user in an isolated,
+  read-only, network-none container with only synthetic profiles/version files
+  mounted. JSON version changed 2.5.51 → 2.5.52; both reports retained 87 package
+  observations and were accepted by the real receiver schema validator, including
+  profile/evidence fingerprints. This tests actual collection/serialization plus
+  schema acceptance; HTTP signatures and database projection are independently
+  covered by the signed receiver regressions, rather than claimed as one live
+  production path. A deliberately wrong configuration owner was refused before
+  the successful collector-owned fixture, confirming the ownership guard.
+- The real bundled NetBox/FlowIntel/RT/RTIR smoke passed after local migration and
+  service restart: dual-stack grouping/import, RO/RW and foreign-source denial,
+  lost-ack recovery, private cases, separate queues and local-only delivery.
+  Manifest provenance round-trip content is covered by export snapshot/connector
+  regressions; the real smoke retains its existing native object fixture scope.
+- Desktop/mobile Chromium fixtures from actual Django responses switch company →
+  national → company at 390/1440 px. Scoped company inventory/review/rollout links,
+  national research/follow-ups, context-specific menu absence and no horizontal
+  overflow are checked. Endpoint-policy tests verify the switch adds no grants;
+  company scoping survives another tab's national navigation and unscoped global
+  collections remain wide. Existing large-inventory and 12-asset query budgets
+  still pass. No credentials or application source files are included in evidence.

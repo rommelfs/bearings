@@ -2277,6 +2277,7 @@ class AgentReport(models.Model):
 
 
 class AgentComponent(models.Model):
+    manifest = models.JSONField(default=dict, blank=True)
     distro_check = models.JSONField(default=dict, blank=True, editable=False)
     package_source = models.JSONField(default=dict, blank=True)
     package_identity = models.JSONField(default=dict, blank=True)

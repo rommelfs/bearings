@@ -60,3 +60,10 @@ A product/CPE selection asserts identity, not affectedness. CVE evaluation uses
 the installed version and available source evidence. A manual application entry
 has a manually maintained version; the package client does not automatically
 attest to a Git/application deployment version just because MISP is listed.
+
+With the updated Linux client, MISP can instead be observed from its local
+release file, and other applications through configurable local profiles. New
+observed applications are inventoried automatically when the device policy is
+enabled. For an already manually entered MISP, link the fresh observation to
+that software entry once under Linux clients; later versions update from reports.
+See [application version profiles](../integrations/linux-application-probes.md).

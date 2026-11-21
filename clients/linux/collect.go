@@ -33,13 +33,14 @@ type packageSource struct {
 	Version string `json:"version"`
 }
 type component struct {
-	Source       *packageSource  `json:"source,omitempty"`
-	Binary       *binaryEvidence `json:"binary,omitempty"`
-	Key          string          `json:"key"`
-	Manager      string          `json:"manager"`
-	Name         string          `json:"name"`
-	Version      string          `json:"version"`
-	Architecture string          `json:"architecture"`
+	Manifest     *manifestEvidence `json:"manifest,omitempty"`
+	Source       *packageSource    `json:"source,omitempty"`
+	Binary       *binaryEvidence   `json:"binary,omitempty"`
+	Key          string            `json:"key"`
+	Manager      string            `json:"manager"`
+	Name         string            `json:"name"`
+	Version      string            `json:"version"`
+	Architecture string            `json:"architecture"`
 }
 type service struct {
 	Name     string `json:"name"`
@@ -47,16 +48,17 @@ type service struct {
 	Coverage string `json:"coverage"`
 }
 type report struct {
-	Host       *declaredHost   `json:"host,omitempty"`
-	Schema     string          `json:"schema"`
-	ReportID   string          `json:"report_id"`
-	Sequence   int64           `json:"sequence"`
-	ObservedAt string          `json:"observed_at"`
-	Scope      string          `json:"scope"`
-	Complete   bool            `json:"complete"`
-	OS         operatingSystem `json:"os"`
-	Components []component     `json:"components"`
-	Services   []service       `json:"services"`
+	Applications []component     `json:"applications,omitempty"`
+	Host         *declaredHost   `json:"host,omitempty"`
+	Schema       string          `json:"schema"`
+	ReportID     string          `json:"report_id"`
+	Sequence     int64           `json:"sequence"`
+	ObservedAt   string          `json:"observed_at"`
+	Scope        string          `json:"scope"`
+	Complete     bool            `json:"complete"`
+	OS           operatingSystem `json:"os"`
+	Components   []component     `json:"components"`
+	Services     []service       `json:"services"`
 }
 type cappedBuffer struct {
 	bytes.Buffer
@@ -287,6 +289,10 @@ func collect(inventory bool, selected []string, serviceName string) (*report, er
 	if len(r.Components) == 0 {
 		return nil, errors.New("no installed packages in this explicit scope; no report produced")
 	}
+	if inventory {
+		r.Applications = collectApplications("/etc/bearings-linux/application-probes.json")
+	}
+	r.ObservedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	return r, nil
 }
 

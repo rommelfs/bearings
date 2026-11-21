@@ -313,7 +313,7 @@ def receive(device_id, raw, signature_input, signature, request_url, content_typ
         request_url=request_url,
         content_type=content_type,
         public_key=device.public_key,
-        component_count=len(data["components"]),
+        component_count=len(data["components"]) + len(data.get("applications", [])),
     )
     device.daily_reports += 1
     device.daily_bytes += len(raw)
@@ -389,7 +389,7 @@ def process_one(device_id, report_id):
             installation_updates = []
             watched_products = set()
             seen = set()
-            for value in data["components"]:
+            for value in [*data["components"], *data.get("applications", [])]:
                 c = previous.get(value["key"])
                 if c is None:
                     c = AgentComponent(device=device, key=value["key"])
@@ -402,6 +402,20 @@ def process_one(device_id, report_id):
                     and (c.name != value["name"] or c.binary.get("path") != value["binary"]["path"])
                 ):
                     raise ValidationError("Release binary version ownership before changing program identity")
+                if (
+                    c.installation_id
+                    and value["manager"] == "manifest"
+                    and (
+                        c.name != value["name"]
+                        or c.manifest.get("path") != value["manifest"]["path"]
+                        or c.manifest.get("method") != value["manifest"]["method"]
+                        or c.manifest.get("identifier") != value["manifest"].get("identifier")
+                    )
+                ):
+                    raise ValidationError(
+                        "Release application version ownership before changing its probe identity"
+                    )
+                c.manifest = value.get("manifest", {})
                 for field in ("name", "manager", "architecture", "version"):
                     setattr(c, field, value[field])
                 c.binary = value.get("binary", {})
@@ -437,6 +451,7 @@ def process_one(device_id, report_id):
                     "missing_since",
                     "last_report",
                     "binary",
+                    "manifest",
                     "package_identity",
                     "package_source",
                 ],
@@ -480,6 +495,9 @@ def process_one(device_id, report_id):
                 ]
             )
             package_inventory.project(device)
+            from .manifest_inventory import project as project_manifests
+
+            project_manifests(device)
             device.distro_requested = True
             device.save(update_fields=["software_sync_pending", "distro_requested"])
             if device.source.agent_export_policy:
@@ -583,7 +601,11 @@ def bind(actor, org, component_id, installation_id=None, create=False):
     if component.installation_id:
         raise ValidationError("Already bound; detach explicitly before changing ownership")
     if create:
-        if component.manager == "binary":
+        if component.manager == "manifest":
+            from .manifest_inventory import product_identifier
+
+            identifier = product_identifier(component)
+        elif component.manager == "binary":
             identifier = (
                 f"pkg:generic/{quote(component.name, safe='')}?arch={quote(component.architecture, safe='')}"
             )
@@ -606,6 +628,11 @@ def bind(actor, org, component_id, installation_id=None, create=False):
             raise ValidationError("Another publisher already owns this version field")
         if CSVAssetBinding.objects.filter(asset=device.asset).exists():
             raise ValidationError("Reconcile CSV ownership before binding existing software")
+    if component.manager == "manifest":
+        from .manifest_inventory import compatible
+
+        if not compatible(installation.product, component):
+            raise ValidationError("Choose the corresponding product for this application probe")
     old = installation.version
     component.installation = installation
     component.automatic_installation = False

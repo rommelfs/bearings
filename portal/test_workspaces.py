@@ -123,3 +123,67 @@ class WorkspaceTests(Fixture):
         self.assertLessEqual(form.fields["source"].queryset.count(), 52)
         searched = MergeForm(query="merge-select-64")
         self.assertEqual(list(searched.fields["source"].queryset), [companies[-1]])
+
+    def test_company_and_national_menus_have_contextual_scoped_destinations(self):
+        import os
+        from pathlib import Path
+
+        circl = Organization.objects.create(name="CIRCL", slug="circl")
+        InventorySource.objects.create(organization=circl, mode="manual")
+        Membership.objects.create(user=self.platform, organization=circl, role="admin")
+        self.login(self.platform)
+        response = self.client.get(reverse("overview"), {"organization": "circl"})
+        items = {
+            item["key"]: item for group in response.context["navigation_groups"] for item in group["items"]
+        }
+        self.assertIn("clients", items)
+        self.assertNotIn("national", items)
+        self.assertNotIn("registrations", items)
+        self.assertNotIn("platform", items)
+        self.assertNotIn("research", items)
+        self.assertEqual(items["inventory"]["url"], reverse("organization", args=["circl"]))
+        self.assertEqual(items["review"]["url"], reverse("intelligence", args=["circl"]))
+        self.assertEqual(items["clients"]["url"], reverse("linux-client-downloads") + "?organization=circl")
+        self.assertEqual(items["discovery"]["url"], reverse("discovery") + "?organization=circl")
+        directory = os.environ.get("BEARINGS_WORKSPACE_UI_DIR")
+        if directory:
+            Path(directory).mkdir(parents=True, exist_ok=True)
+            (Path(directory) / "company.html").write_bytes(response.content)
+        national = self.client.get(reverse("circl-overview"))
+        items = {
+            item["key"]: item for group in national.context["navigation_groups"] for item in group["items"]
+        }
+        self.assertIn("national", items)
+        self.assertIn("research", items)
+        self.assertIn("followups", items)
+        self.assertIn("registrations", items)
+        self.assertNotIn("clients", items)
+        self.assertNotIn("settings", items)
+        self.assertNotIn("members", items)
+        self.assertNotIn("actions", items)
+        self.assertEqual(national.context["switch_company_url"], reverse("overview") + "?organization=circl")
+        if directory:
+            (Path(directory) / "national.html").write_bytes(national.content)
+        self.assertEqual(Membership.objects.get(user=self.platform, organization=circl).role, "admin")
+
+    def test_explicit_company_links_survive_other_tab_context_and_global_routes_stay_wide(self):
+        self.login(self.platform)
+        self.client.post(reverse("workspace-switch"), {"action": "company", "organization": self.a.pk})
+        self.client.get(reverse("circl-overview"))
+        company = self.client.get(reverse("discovery"), {"organization": self.a.slug})
+        self.assertTrue(company.context["switch_company_active"])
+        self.assertEqual(company.context["navigation_company"].pk, self.a.pk)
+        wide = self.client.get(reverse("home"))
+        self.assertTrue(wide.context["workspace_national"])
+        self.assertFalse(wide.context["switch_company_active"])
+        self.assertFalse(wide.context["navigation_company"])
+        self.login(self.reader)
+        self.assertEqual(
+            self.client.get(reverse("circl-overview"), {"workspace": "national"}).status_code, 403
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("discovery"), {"organization": self.b.slug, "workspace": "company"}
+            ).status_code,
+            404,
+        )

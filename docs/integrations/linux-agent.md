@@ -208,3 +208,14 @@ in invalidation. See the [case audit](../audits/2026-11-21-package-cve-correctne
 After source update, restart `bearings-web bearings-worker bearings-national`.
 No schema migration or Linux client rebuild/restart is needed. Allow the background
 worker to recompile the cached vendor feed once and reevaluate current reports.
+
+### Application versions beyond the OS package database
+
+The optional `applications` report section carries up to 16 independent partial
+application observations (`manager=manifest`) without changing complete Debian/
+RPM coverage. The receiver validates known methods, paths, safe version and
+product identifiers, bounded fingerprints and Git status metadata; it does not
+execute those methods. Manifest evidence has its own field introduced by
+migration 0066. See [configurable application profiles](linux-application-probes.md)
+for JSON fields, RE2 extraction, fixed Git queries, MISP defaults, explicit
+manual-version ownership and failure semantics. Upgrade server before client.

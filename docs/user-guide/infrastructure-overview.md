@@ -178,3 +178,19 @@ below the vendor's ESM fix. Check Ubuntu Pro/ESM configuration with the system
 administrator. Updating a separately installed library does not necessarily
 patch a copy bundled in another package. A later client inventory report and
 vendor evaluation refresh the automatic result without closing human history.
+
+### Company and national navigation contexts
+
+The top switch also changes both desktop and mobile navigation. Company mode
+shows local inventory/software, Linux clients, actions, monitoring, risk and
+company administration. Its inventory/review links go directly to the selected
+organization; shared views use their supported organization filter. Account-level
+personal MISP tools remain personal tools, not an impersonated company identity.
+
+National mode shows cross-company research/evidence, data-review follow-ups,
+coordination and permitted platform administration. Linux rollout and local
+company settings are reached by switching to a company first. Global collection
+pages without an organization scope remain the wide view. Explicitly scoped
+company links restore that context even if another tab last visited National.
+The remembered company is reauthorized on each request; navigation preferences
+do not add memberships, change roles, grant sharing or replace endpoint policy.

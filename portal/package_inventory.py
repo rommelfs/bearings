@@ -13,6 +13,15 @@ MAX_AUTO_PACKAGES = 5000
 
 def identity(component, os):
     manager = component.manager
+    if manager == "manifest":
+        from .manifest_inventory import product_identifier
+
+        return {
+            "product": product_identifier(component),
+            "name": component.name,
+            "manager": "manifest",
+            "basis": "locally configured version observation; runtime deployment is not attested",
+        }
     distro = os.get("id", "").lower()
     release = os.get("version", "")
     if (

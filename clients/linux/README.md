@@ -198,3 +198,16 @@ The receiver now inventories standard dpkg/RPM packages automatically after enro
 Native Debian epochs/revisions and RPM EVR remain intact. Stable package products use Package URLs, and observation metadata retains exact version, architecture and report-time host distribution/release. RPM install-only/kernel versions remain distinct slots. The reported host namespace does not prove official package repository/vendor or binary-to-source mapping. The background worker automatically evaluates supported Ubuntu/Debian/RHEL vendor OVAL rules with native version comparisons; this client reports optional exact dpkg source-package names/versions for Debian binary-to-source matching. Unsupported conditions remain unknown and human reviews are preserved. See [vendor advisory coverage](../../docs/integrations/distro-cves.md). Upstream SemVer guesses are not used for package affectedness. See [receiver normalization and limits](../../docs/integrations/linux-agent.md).
 
 Per-device **Automatically add reported Debian/RPM packages** is enabled by default. Disabling stops new entries; existing version publishers remain. Explicitly releasing ownership excludes that package slot from automatic recreation while preserving its software/history. Custom binary observations still use reviewed mapping. New entries are created in bounded bulk batches. Missing/stale/expired/revoked source data does not erase software or resolve findings.
+
+## Application release files and configurable profiles
+
+Full inventory also reads approved local application version profiles, with
+MISP `VERSION.json` autodetection at common paths by default. Local administrator
+configuration in `/etc/bearings-linux/application-probes.json` supports
+`misp-version-json`, `json-fields`, `file-regex` and `git-tag`. See the
+[profile reference, permissions, examples and upgrade order](../../docs/integrations/linux-application-probes.md)
+and [example JSON](examples/applications.json). These are bounded local metadata
+observations; the client does not run application scripts or arbitrary shell
+commands. Git commits, release tags and tracked-file changes remain distinct;
+dirty/ambiguous checkouts do not become asserted release versions. Existing
+manual software requires an explicit one-time version-ownership binding.
