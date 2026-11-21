@@ -130,6 +130,10 @@
       {
         "title": "Support Linux client installation with Python 3.8",
         "body": "Implemented Python-3.8-compatible isolated credential-drop child before exec, removing subprocess user/group/extra_groups options. Preserve invoking-user bounded file reads, dedicated-account execution, device state and privilege restrictions. Actual Python 3.8 unit and disposable manual/automatic HTTPS installer smoke tests pass; pinned legacy interpreter is test-only. Server must republish immutable client artifacts with prepare-linux-client, then target hosts download installer again. No database migration or server runtime downgrade. Follow-up for Ubuntu noexec /run: validate executable candidates beside their destination instead of under /run. Preserve all mount policies, account boundaries and device state. Actual noexec /run smoke regression covers both Python runtimes and enrollment modes; failures show phase/exit without raw secret output."
+      },
+      {
+        "title": "Use assigned IP records consistently on infrastructure attention cards",
+        "body": "Implemented overview IP summary from primary and explicit same-source/same-company interface assignments. Deduplicate source identities, retain and label last-known/inactive records, use only recorded DNS metadata and link to full network details. One batched window query caps previews at sixteen assigned IPs per host; counts and existing query-budget checks retained. No inventory or applicability mutation; no migration or client rebuild."
       }
     ]
   },

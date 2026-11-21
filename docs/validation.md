@@ -1340,3 +1340,16 @@ Actual local Chromium at 390/1440 px verifies visible public header navigation,
 anonymous arrival at the installer action, desktop/mobile workspace navigation,
 active destination and no horizontal overflow. No rollout or device was created.
 The static multilingual site builds successfully; Django check and Ruff pass.
+
+
+### Overview assigned-address consistency (2026-11-21)
+
+43 PostgreSQL overview, inventory and product-setup tests pass. New cases cover
+non-primary dual stack, foreign-organization/source record exclusion, primary
+deduplication, missing-assignment labels, no inferred DNS, one query for total and
+sixteen-row address previews, and zero queries while formatting the summary. The
+existing twelve-company and forty-query CVE preview budgets pass unchanged.
+Actual local Chromium at 390/1440 px shows both assigned addresses on an attention
+card without primary fields and follows the full-address link to the asset’s
+network section, without horizontal overflow. Django check, migration drift, Ruff
+and whitespace checks pass. Only synthetic browser fixture data was used.

@@ -11,7 +11,7 @@ from django.utils import timezone
 from .access import visible_findings_for
 from .issues import FACT_FIELDS, visible_issues, active_filter
 from django.conf import settings
-from .inventory_presentation import grouped_address_filter
+from .inventory_presentation import grouped_address_filter, decorate_addresses, host_network_summary
 from .overview_monitoring import package_reporters
 from .models import Asset, BusinessRiskRevision, Contact, Installation, ProductWatch
 from .notifications import contact_policy
@@ -414,12 +414,11 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
         if finding := legacy_findings.get(row["pk"]):
             legacy_by_asset.setdefault(row["installation__asset_id"], []).append(finding)
     timings["legacypreviews"] = (perf_counter() - previews) * 1000
+    decorate_addresses(assets)
     result = []
     for asset in assets:
-        from .asset_context import asset_context
-
         row = {**by_asset[asset.pk], "asset": asset}
-        row["context"] = asset_context(asset)
+        row["context"] = host_network_summary(asset)
 
         def problem_list_url(attention):
             return (

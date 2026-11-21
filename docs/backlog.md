@@ -546,3 +546,11 @@ denial and tests both Python runtimes and enrollment modes.
 
 Client discoverability: Inventory → Linux clients, a top-of-page installer action,
 and localized public website links now lead directly to downloads.
+
+
+## Consistent overview IP addresses — 2026-11-21
+
+Attention cards now include explicit assigned IPs even without primary fields,
+with same-source/company isolation, primary deduplication, last-known labels and
+a link to full network records. A single bounded batch query preserves query budgets.
+See [infrastructure overview](user-guide/infrastructure-overview.md).

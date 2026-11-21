@@ -90,3 +90,20 @@ Priority previews rank issue/finding identifiers before fetching full records fo
 
 
 Company counters and priority previews share lazy, user-scoped evidence querysets within a single request. They are recreated on every page load; no response or authorization decision is cached between requests. Inventory counters aggregate the asset/installation hierarchy once, keeping distinct asset/product counts and source/product ownership checks. Unrelated contact/review/issue/risk aggregates remain separate. Risk revisions use a correlated current-visibility check; watch counters and scenario previews load only the fields they consume. Complete scenario evidence/fingerprints remain the same.
+
+
+### IP addresses on server attention cards
+
+The overview shows NetBox primary addresses and explicit interface-assigned IP
+records from the same source and organization. An absent primary IP no longer
+hides other assigned addresses or produces a contradictory “not recorded” claim.
+Primary records are marked and deduplicated by their source identity. Retained
+assignments missing from the latest import are labelled last-known; inactive
+record states remain visible. Hostnames alone do not establish DNS records.
+
+Each card previews at most 16 assigned addresses plus any separate primary fields
+and links to the complete paginated network section. Counts/previews are fetched
+in one batched query for the displayed hosts, not one query per host. Existing IP
+records, assessments and NetBox data are unchanged. Update source and restart
+`bearings-web`; no migration, client update or inventory import is needed when
+the assignments are already present.
