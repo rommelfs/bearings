@@ -158,3 +158,21 @@ Validation: `python3 scripts/linux_installer_smoke.py --python38` adds a digest-
 legacy interpreter to a disposable test-only image; it never changes the application
 runtime. Both manual and automatic registration use real verified loopback HTTPS
 and signatures, with simulated systemd, no external network and disposable accounts.
+
+### Installation with noexec temporary filesystems
+
+Executable candidate checks now run in a temporary root-owned directory next to
+`/usr/local/bin/bearings-linux`, on the destination filesystem. `/run` remains the
+lock/download location and may keep `noexec,nosuid,nodev`. The installer never
+remounts it or relaxes mount policies. Validation still runs as the dedicated
+service account before replacing a running client. Candidate files are removed
+on both success and failure; keys, queues and drop-ins are retained. Candidate
+version/init failures identify the phase and exit code without printing raw
+stdout/stderr or credentials.
+
+After updating the server checkout, republish downloads with
+`python3 deploy/ubuntu24/ecosystem.py prepare-linux-client` (restarts web) and
+redownload the installer on affected hosts. No migration or manual client restart.
+The disposable installer smoke now mounts `/run` with `noexec`, verifies direct
+execution there is actually denied, and exercises manual/fleet installation on
+both current Python and Python 3.8. The bundled-stack CI runs this regression.

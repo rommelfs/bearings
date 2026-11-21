@@ -34,6 +34,8 @@ def main():
                 "--rm",
                 "--network",
                 "none",
+                "--tmpfs",
+                "/run:rw,noexec,nosuid,nodev,mode=755",
                 "--user",
                 "0:0",
                 "--hostname",

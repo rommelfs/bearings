@@ -539,3 +539,7 @@ Implemented compatible subprocess credential drops with unchanged user/file
 boundaries, real Python 3.8 checks and disposable HTTPS installation tests.
 Republish the immutable client bundle and redownload the installer on the target.
 See [Linux agent](integrations/linux-agent.md).
+
+Noexec follow-up: installer candidate execution uses the destination filesystem,
+leaving /run mount policies intact. Regression smoke now verifies real noexec
+denial and tests both Python runtimes and enrollment modes.

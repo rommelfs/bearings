@@ -7,6 +7,9 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'docker/**'
+      - 'clients/linux/**'
+      - 'scripts/linux_installer_smoke.py'
+      - 'scripts/build_linux_client.py'
       - 'scripts/dev.py'
       - 'scripts/sso_smoke.py'
       - 'scripts/flowintel_browser_smoke.py'
@@ -24,6 +27,9 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'docker/**'
+      - 'clients/linux/**'
+      - 'scripts/linux_installer_smoke.py'
+      - 'scripts/build_linux_client.py'
       - 'scripts/dev.py'
       - 'scripts/sso_smoke.py'
       - 'scripts/flowintel_browser_smoke.py'
@@ -71,6 +77,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start real Bearings and NetBox
         run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} ${{ matrix.rt && '--rt' || '--no-rt' }} ${{ matrix.rtir && '--rtir' || '' }} --timeout 900
+      - uses: actions/setup-go@v5
+        if: matrix.rtir
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - name: Verify current and Python 3.8 installers with noexec runtime storage
+        if: matrix.rtir
+        run: |
+          python3 scripts/build_linux_client.py
+          python3 scripts/linux_installer_smoke.py
+          python3 scripts/linux_installer_smoke.py --python38
       - name: Exercise HTTPS, scoped queries, portal writes and recovery
         run: python3 scripts/dev.py smoke
       - name: Verify native NetBox SSO linking without the Django admin app

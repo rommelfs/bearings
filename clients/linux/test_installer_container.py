@@ -4,6 +4,7 @@
 import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
+import errno
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import json
@@ -28,6 +29,18 @@ def main():
         or not Path("/.dockerenv").exists()
     ):
         raise SystemExit("Refusing privileged fixture outside the explicitly isolated installer container")
+    # The installer must work without weakening /run's noexec mount policy.
+    probe = Path("/run/bearings-noexec-probe")
+    probe.write_text("#!/bin/sh\nexit 0\n")
+    probe.chmod(0o755)
+    try:
+        subprocess.run([str(probe)], check=True)
+    except OSError as error:
+        assert error.errno == errno.EACCES
+    else:
+        raise AssertionError("Fixture requires an actually noexec /run mount")
+    finally:
+        probe.unlink()
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa, ed25519
@@ -331,6 +344,7 @@ p.write_text(json.dumps(s));sys.exit(code)
         json.dumps(
             {
                 "synthetic_only": True,
+                "run_noexec_preserved": True,
                 "real_account_and_file_permissions": True,
                 "central_https_download": True,
                 "stdin_registration": True,

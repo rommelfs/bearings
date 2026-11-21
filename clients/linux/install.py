@@ -90,7 +90,10 @@ def run(args, *, account=None, capture=False, input=None):
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise InstallError("Local command failed or timed out; no secret output is printed") from exc
     if result.returncode:
-        raise InstallError(f"{Path(str(args[0])).name} failed; existing device state is retained")
+        phase = " " + str(args[1]) if len(args) > 1 and args[1] in {"version", "init"} else ""
+        raise InstallError(
+            f"{Path(str(args[0])).name}{phase} failed (exit {result.returncode}); existing device state is retained"
+        )
     return result.stdout if capture else b""
 
 
@@ -290,8 +293,10 @@ def install(binary_path, unit_path, lxc_compatible=False):
         STATE.mkdir(mode=0o700)
         os.chown(STATE, account.pw_uid, account.pw_gid)
     # Validate the candidate as the dedicated account before replacing a running client.
-    safe_parent(LOCK.parent)
-    stage = Path(tempfile.mkdtemp(prefix="bearings-linux-install-", dir=LOCK.parent))
+    # Validate executable candidates on their destination filesystem. /run and
+    # other temporary mounts may deliberately be noexec; retain that policy.
+    safe_parent(CLIENT.parent)
+    stage = Path(tempfile.mkdtemp(prefix=".bearings-linux-install-", dir=CLIENT.parent))
     try:
         candidate = stage / "bearings-linux"
         candidate.write_bytes(binary)

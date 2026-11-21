@@ -1315,3 +1315,17 @@ compatibility and an isolated test image, never the application server runtime.
 
 The real bundled stack smoke also passes: scoped NetBox imports/writes and
 recovery, FlowIntel private cases, RT/RTIR permissions/lifecycles and local mail.
+
+
+### Installer on noexec /run (2026-11-21)
+
+The supplied host mount output confirms `/run` is noexec and the client destination
+is executable. All four disposable installer cases pass with `/run` mounted
+`rw,noexec,nosuid,nodev`: manual and automatic enrollment under actual Python 3.8
+and current Python. The fixture first verifies an executable probe there fails
+with EACCES. Installation validates candidates under their executable destination
+filesystem, preserving mounts, UID/GID/group drops, verified HTTPS/signatures,
+keys, queues, stopped-service state and local drop-ins. systemd is simulated.
+Eleven actual Python 3.8 unit cases include redacted phase/exit error reporting;
+ten host unit cases pass with the privileged one skipped outside a root runner.
+Django check, Ruff and whitespace checks pass. No production state changed.

@@ -11,6 +11,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 SPEC = importlib.util.spec_from_file_location("linux_installer", Path(__file__).with_name("install.py"))
 installer = importlib.util.module_from_spec(SPEC)
@@ -112,6 +113,22 @@ class InstallerTests(unittest.TestCase):
             with patch.dict(os.environ, {"SUDO_UID": str(account.pw_uid)}):
                 with self.assertRaises(installer.InstallError):
                     installer.source(protected, 100)
+
+    def test_command_failure_reports_phase_and_exit_without_secret_output(self):
+        with patch.object(
+            installer.subprocess,
+            "run",
+            return_value=SimpleNamespace(
+                returncode=1,
+                stdout=b"sensitive output",
+                stderr=b"sensitive diagnostics",
+            ),
+        ):
+            with self.assertRaisesRegex(
+                installer.InstallError, r"bearings-linux version failed \(exit 1\)"
+            ) as error:
+                installer.run(["/example/bearings-linux", "version"], capture=True)
+            self.assertNotIn("sensitive", str(error.exception))
 
     def test_old_python_stops_before_any_system_command(self):
         with patch.object(installer.sys, "version_info", (3, 7, 17)):
