@@ -10,6 +10,9 @@ from urllib.parse import urlencode
 from django.utils import timezone
 from .access import visible_findings_for
 from .issues import FACT_FIELDS, visible_issues, active_filter
+from django.conf import settings
+from .inventory_presentation import grouped_address_filter
+from .overview_monitoring import package_reporters
 from .models import Asset, BusinessRiskRevision, Contact, Installation, ProductWatch
 from .notifications import contact_policy
 from .presentation import ACTIVE_REVIEWS
@@ -69,13 +72,23 @@ def company_states(user, orgs, *, evidence=None):
     # Inventory has one asset -> installation hierarchy. Count it in one pass;
     # unrelated reviews/issues/contacts remain separate to avoid multiplication.
     owned_product = Q(installations__product__organization_id=F("organization_id"))
+    package_product = owned_product & (
+        Q(installations__product__identifier__startswith="pkg:deb/")
+        | Q(installations__product__identifier__startswith="pkg:rpm/")
+    )
+    primary_asset = ~grouped_address_filter()
     asset_counts = grouped(
         assets,
-        assets=Count("pk", distinct=True),
-        without_software=Count("pk", distinct=True, filter=Q(installations__isnull=True)),
+        assets=Count("pk", distinct=True, filter=primary_asset),
+        without_software=Count(
+            "pk",
+            distinct=True,
+            filter=primary_asset & Q(installations__isnull=True) & ~Q(kind__in=("ip_address", "prefix")),
+        ),
         missing_assets=Count("pk", distinct=True, filter=Q(missing_since__isnull=False)),
         unknown_versions=Count("installations", filter=owned_product & Q(installations__version="")),
         products=Count("installations__product_id", distinct=True, filter=owned_product),
+        package_products=Count("installations__product_id", distinct=True, filter=package_product),
         # Define this alias last: it shares the reverse relation name used above.
         installations=Count("installations", filter=owned_product),
     )
@@ -105,11 +118,20 @@ def company_states(user, orgs, *, evidence=None):
         Contact.objects.filter(organization_id__in=ids, **contact_policy()).exclude(function="dpo"),
         response_contacts=Count("pk"),
     )
+    packages = package_reporters(ids)
     watches = {}
     for watch in (
         ProductWatch.objects.filter(product_id__in=installations.values("product_id"))
         .select_related("product")
-        .only("product__organization_id", "enabled", "requested", "error", "last_success", "interval_minutes")
+        .only(
+            "product__organization_id",
+            "product__identifier",
+            "enabled",
+            "requested",
+            "error",
+            "last_success",
+            "interval_minutes",
+        )
     ):
         watches.setdefault(watch.product.organization_id, []).append(watch)
     return [
@@ -124,6 +146,7 @@ def company_states(user, orgs, *, evidence=None):
                     issue_counts,
                     risk_counts,
                     contact_counts,
+                    packages,
                 ]
             ],
         )
@@ -145,6 +168,8 @@ def _company_state(org, watches, counts):
     state = {
         "org": org,
         "configured": len(watches),
+        "watch_count": len(watches),
+        "package_matching_enabled": settings.DISTRO_CVE_ENABLED,
         "fresh": sum(w.enabled and not w.stale for w in watches),
         "paused": sum(not w.enabled for w in watches),
         "queued": sum(w.enabled and w.requested for w in watches),
@@ -165,6 +190,12 @@ def _company_state(org, watches, counts):
             "installations",
             "unknown_versions",
             "products",
+            "package_products",
+            "package_clients",
+            "package_queued",
+            "package_unavailable",
+            "package_errors",
+            "package_uncertain",
             "reviews",
             "affected",
             "critical",
@@ -181,7 +212,21 @@ def _company_state(org, watches, counts):
     for values in counts:
         defaults.update(values)
     state.update(defaults)
-    state["unmapped"] = state["products"] - state["configured"]
+    state["legacy_products"] = state["products"] - state["package_products"]
+    legacy_watches = sum(not w.product.identifier.startswith(("pkg:deb/", "pkg:rpm/")) for w in watches)
+    state["configured"] = legacy_watches + state["package_products"]
+    state["unmapped"] = max(0, state["legacy_products"] - legacy_watches)
+    state.setdefault("package_last_attempt", None)
+    state["package_gaps"] = bool(
+        state["package_products"]
+        and (
+            not settings.DISTRO_CVE_ENABLED
+            or not state["package_clients"]
+            or state["package_queued"]
+            or state["package_unavailable"]
+            or state["package_uncertain"]
+        )
+    )
     state["coverage_gaps"] = bool(
         source_stale
         or not state["assets"]
@@ -189,6 +234,7 @@ def _company_state(org, watches, counts):
         or state["without_software"]
         or state["missing_assets"]
         or state["unmapped"]
+        or state["package_gaps"]
         or state["paused"]
         or state["stale_watches"]
         or not state["response_contacts"]
@@ -197,6 +243,8 @@ def _company_state(org, watches, counts):
         state.update(status="Action required", tone="action")
     elif state["reviews"] or state["issues"]:
         state.update(status="Review required", tone="review")
+    elif not state["assets"]:
+        state.update(status="No active inventory", tone="incomplete")
     elif state["coverage_gaps"]:
         state.update(status="Coverage incomplete", tone="incomplete")
     else:

@@ -1921,3 +1921,7 @@ main article p { overflow-wrap: anywhere; }
 .registration-check .errorlist { grid-column: 2; margin: 0; }
 
 .assigned-addresses li, #network li { overflow-wrap: anywhere; margin: .35rem 0; }
+
+.overview-pending-workspaces { margin: 1.5rem 0; }
+.overview-pending-workspaces > summary { cursor: pointer; font-weight: 650; }
+.overview-package-monitoring { margin-bottom: 1rem; }

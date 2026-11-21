@@ -4,15 +4,17 @@ from django.db.models import Count, F, Q
 from .models import Asset
 
 
-def top_level_assets(queryset):
-    return queryset.exclude(
-        Q(
-            object_type="ipam.ipaddress",
-            network_host__object_type__in=("dcim.device", "virtualization.virtualmachine"),
-            network_host__organization_id=F("organization_id"),
-            network_host__source_id=F("source_id"),
-        )
+def grouped_address_filter():
+    return Q(
+        object_type="ipam.ipaddress",
+        network_host__object_type__in=("dcim.device", "virtualization.virtualmachine"),
+        network_host__organization_id=F("organization_id"),
+        network_host__source_id=F("source_id"),
     )
+
+
+def top_level_assets(queryset):
+    return queryset.exclude(grouped_address_filter())
 
 
 def assigned_addresses(organization):

@@ -1187,3 +1187,43 @@ anchor expose the existing company-admin/platform-superuser action. No new right
 or secret redisplay is added; editors/readers cannot see the management link. Codes
 remain one-time displayed and digest-stored. The members guide documents how to find
 settings, revoke/replace a lost code and confirm an invited mailbox.
+
+
+## Overview: package automation and pending workspace cleanup — 2026-11-21
+
+The screenshot's manual manufacturer/product mapping request came from a legacy
+product-watch-only overview. Distribution PURLs now have their own identity count,
+enabled-client summary, queued/unavailable/error counts and recorded evaluation
+attempt time. Those summaries are scoped by device/asset/source/product organization
+and use one aggregate query with component/report EXISTS predicates; full component
+bodies, receipts and vendor feeds are not loaded into the overview. They do not claim
+current package/feed generation or successful CVE coverage. Detailed receipt coverage
+remains in the existing automatic-discovery view. Explicit supplemental product
+watches remain independent and do not double-count configured package products.
+
+Top-level asset counts reuse the explicit assigned-address grouping predicate; IP
+and prefix objects do not cause machine-without-software warnings. Underlying IP
+software/findings remain in their scoped totals. Empty organizations have **No active
+inventory** status, and truly empty workspaces move to a compact setup disclosure.
+Inventory-bearing organizations sort first before pagination; exact searches and
+direct selections keep empty workspaces directly accessible. No source/account/
+organization/membership is changed or merged by GET. A platform consolidation link
+uses the existing explicit merge workflow.
+
+**78 PostgreSQL cases pass**, including six new overview regressions and the existing
+product setup, bounded priority queries, company inventory, registration review and
+query-setting restoration/cancellation suites. They cover distribution identity
+without a product watch, supplemental watch overlap, disabled matching, pending
+reports, expiry, mismatched sources, grouped IP counts and empty workspace scope.
+The existing priority-queue query budget remains within 40 queries.
+
+Chromium at 390/1440 pixels verifies one main organization/machine, two compact
+pending workspaces, correct package route, keyboard disclosure, direct empty-workspace
+selection and no page overflow/JavaScript errors. Fixtures are local/synthetic and
+the reader/device are disabled again afterward. No production scan, mail, merge or
+permission change is performed. See the
+[browser record](audits/2026-11-21-overview-cleanup-browser.json) and
+[desktop overview](audits/2026-11-21-overview-cleanup-1440.png).
+Frozen sync, Django checks/no schema drift, static collection, Ruff and whitespace
+checks pass. Production acceptance still requires deploying/restarting the updated
+Bearings services; the screenshot may show an older running revision.

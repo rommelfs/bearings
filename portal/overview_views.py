@@ -1,10 +1,11 @@
 from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from .access import audit, is_analyst, organizations_for
-from .models import Membership
+from .models import Asset, Membership
 from .overview import OverviewEvidence, company_states, priority_assets
 from .overview_queries import overview_queries
 
@@ -24,7 +25,11 @@ def overview(request):
 
 def _overview_response(request):
     started = perf_counter()
-    orgs = organizations_for(request.user).order_by("name", "pk")
+    orgs = (
+        organizations_for(request.user)
+        .annotate(overview_has_inventory=Exists(Asset.objects.filter(organization_id=OuterRef("pk"))))
+        .order_by("-overview_has_inventory", "name", "pk")
+    )
     selected = request.GET.get("organization", "")
     if selected:
         org = get_object_or_404(orgs, slug=selected)
@@ -58,6 +63,9 @@ def _overview_response(request):
         )
     )
     for state in companies:
+        state["setup_pending"] = not state["org"].overview_has_inventory and not any(
+            state[key] for key in ("products", "reviews", "issues", "risk_assessments", "overdue")
+        )
         role = roles.get(state["org"].pk)
         source = getattr(state["org"], "inventory_source", None)
         state["setup_editable"] = request.user.is_superuser or role == "admin"
@@ -80,6 +88,8 @@ def _overview_response(request):
         "portal/overview.html",
         {
             "companies": companies,
+            "main_companies": [s for s in companies if not s["setup_pending"] or selected or query],
+            "pending_companies": [s for s in companies if s["setup_pending"] and not selected and not query],
             "page": page,
             "priority_assets": assets,
             "updated_at": timezone.now(),

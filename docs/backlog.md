@@ -493,3 +493,13 @@ No hostname/IP guessing or record merge occurs. Address previews and host detail
 are bounded; independent/missing records remain reviewable. Direct organization
 email-domain-code navigation now matches the existing company-admin/platform-admin
 permissions. See [NetBox operations](operations/managed-netbox.md).
+
+
+## Remove stale overview assumptions — 2026-11-21
+
+The infrastructure overview separates distribution-package monitoring from legacy
+manufacturer/product watches, and stops requesting per-package mappings or showing
+an invalid combined current-products ratio. Assigned IP records no longer inflate
+machine/no-software counts. Truly empty workspaces remain available in a compact
+setup section, with inventory-bearing organizations ordered first. No workspace is
+merged, archived or deleted automatically and memberships stay unchanged.

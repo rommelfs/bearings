@@ -208,3 +208,23 @@ Organization administrators and platform superusers can open **Company members &
 invitations → Company email domain codes** directly from the company page. The
 reusable domain code itself is shown once when created; retained records show its
 domain, role, expiry/quota and revocation controls, not the original secret.
+
+
+### Overview package-monitoring and empty-workspace cleanup
+
+This read-only UI/aggregation update introduces no additional migration after 0065.
+Use the normal frozen upgrade, run migrations/static collection/checks, then restart
+`bearings-web`, `bearings-worker` and `bearings-national`. If 0065's address relations
+have not been populated yet, run a complete scoped `sync_netbox --source SOURCE_UUID`
+so assigned IP records can be counted under their host. No Linux client rebuild or
+new enrollment is required for this overview update.
+
+Distribution package identities are shown independently of manufacturer/product
+watches. Device evaluation timestamps are explicitly recorded attempts, not proof
+of current package/feed coverage; follow the matching/coverage link for current
+receipts. Paused/failed/manual watches retain their separate status. Organizations
+with no inventory, reviews, actions or risk assessments appear under **Workspaces
+awaiting inventory**. Search/direct selection opens them normally, and a participant
+with only an empty workspace sees that setup section expanded. This is presentation,
+not a company merge or deletion; review memberships and the existing merge preview
+before consolidating actual duplicate registrations.

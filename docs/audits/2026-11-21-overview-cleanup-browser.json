@@ -1,0 +1,25 @@
+{
+  "local_synthetic": true,
+  "results": [
+    {
+      "width": 390,
+      "main_machine_count": 1,
+      "main_organizations": 1,
+      "pending_workspaces": 2,
+      "package_route_not_legacy_watch": true,
+      "keyboard_disclosure": true,
+      "empty_workspace_still_accessible": true,
+      "javascript_errors": []
+    },
+    {
+      "width": 1440,
+      "main_machine_count": 1,
+      "main_organizations": 1,
+      "pending_workspaces": 2,
+      "package_route_not_legacy_watch": true,
+      "keyboard_disclosure": true,
+      "empty_workspace_still_accessible": true,
+      "javascript_errors": []
+    }
+  ]
+}
