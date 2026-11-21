@@ -3,7 +3,19 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, Count, F, IntegerField, Prefetch, Q, TextField, Value, When
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    OuterRef,
+    Prefetch,
+    Q,
+    TextField,
+    Value,
+    When,
+)
 from django.db.models.functions import Cast
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -73,7 +85,12 @@ def company_cards(user, orgs, page_number):
     )
     ids = [org.pk for org in page]
     asset_counts = dict(
-        Asset.objects.filter(organization_id__in=ids)
+        top_level_assets(
+            Asset.objects.filter(
+                organization_id__in=ids,
+                source__organization_id=F("organization_id"),
+            )
+        )
         .values("organization_id")
         .annotate(total=Count("pk"))
         .values_list("organization_id", "total")
@@ -97,11 +114,29 @@ def company_cards(user, orgs, page_number):
 @login_required
 def inventory(request):
     query = request.GET.get("q", "")[:160].strip()
-    orgs = organizations_for(request.user).order_by("name", "pk")
+    orgs = (
+        organizations_for(request.user)
+        .annotate(inventory_has_records=Exists(Asset.objects.filter(organization_id=OuterRef("pk"))))
+        .order_by("-inventory_has_records", "name", "pk")
+    )
     if query:
         orgs = orgs.filter(Q(name__icontains=query) | Q(slug__icontains=query))
     page = company_cards(request.user, orgs, request.GET.get("page"))
-    return render(request, "portal/inventory.html", {"page": page, "query": query})
+    main, pending = [], []
+    for org in page:
+        (pending if not org.inventory_has_records and not org.finding_count and not query else main).append(
+            org
+        )
+    return render(
+        request,
+        "portal/inventory.html",
+        {
+            "page": page,
+            "query": query,
+            "main_orgs": main,
+            "pending_orgs": pending,
+        },
+    )
 
 
 @login_required

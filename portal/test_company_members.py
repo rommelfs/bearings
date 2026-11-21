@@ -198,6 +198,118 @@ class CompanyMergeTests(Fixture):
         Membership.objects.create(organization=self.target, user=self.admin, role="reader")
         Membership.objects.create(organization=self.target, user=self.reader, role="admin")
 
+    def test_two_reviewed_registrations_can_join_native_target_with_existing_archives(self):
+        from .models import Asset, AgentDevice, NetBoxInstance
+
+        retained = Organization.objects.create(
+            name="Old archive", slug="old-merge-archive", merged_into=self.target
+        )
+        target_source = self.target.inventory_source
+        instance = NetBoxInstance.objects.create(
+            name="Synthetic retained NetBox",
+            base_url="https://netbox.example.invalid",
+            token_env_var="NETBOX_MERGE_TOKEN",
+            organization=self.target,
+            access_mode="read_write",
+        )
+        target_source.mode, target_source.instance, target_source.tenant_id = "external", instance, 1
+        target_source.save()
+        host = Asset.objects.create(
+            organization=self.target,
+            source=target_source,
+            name="Retained host",
+            kind="vm",
+            object_type="virtualization.virtualmachine",
+            external_id="7",
+            state="synced",
+        )
+        device = AgentDevice.objects.create(
+            organization=self.target,
+            source=target_source,
+            asset=host,
+            public_key="synthetic-kept-public-key",
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+        second = Organization.objects.create(name="Second registration", slug="second-merge-registration")
+        InventorySource.objects.create(organization=second, mode="manual")
+        Membership.objects.create(organization=second, user=self.analyst, role="editor")
+        for source in (self.source, second):
+            Contact.objects.create(
+                organization=source, name="Retained applicant", email=f"source-{source.pk}@example.invalid"
+            )
+            preview = plan(self.platform, source, self.target)
+            self.assertEqual(preview["blockers"], [])
+            merge(self.platform, preview["ticket"])
+        for source in (retained, self.source, second):
+            source.refresh_from_db()
+            self.assertEqual(source.merged_into_id, self.target.pk)
+        host.refresh_from_db()
+        device.refresh_from_db()
+        target_source.refresh_from_db()
+        self.assertEqual((host.external_id, host.source_id), ("7", target_source.pk))
+        self.assertEqual(
+            (device.asset_id, device.source_id, device.public_key),
+            (host.pk, target_source.pk, "synthetic-kept-public-key"),
+        )
+        self.assertEqual((target_source.instance_id, target_source.tenant_id), (instance.pk, 1))
+        self.assertEqual(self.target.contacts.count(), 2)
+        self.assertEqual(Membership.objects.get(organization=self.target, user=self.admin).role, "reader")
+        self.assertEqual(Membership.objects.get(organization=self.target, user=self.analyst).role, "editor")
+
+    def test_policy_change_requires_new_preview_and_incoming_roles_are_explicit(self):
+        with patch("portal.company_merge.MERGE_POLICY_VERSION", 1):
+            old = plan(self.platform, self.source, self.target)
+        with self.assertRaises(ValidationError):
+            merge(self.platform, old["ticket"])
+        preview = plan(self.platform, self.source, self.target)
+        self.assertFalse(preview["operator_visibility_result"])
+        changes = preview["member_changes"]
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(
+            (changes[0]["user_id"], changes[0]["source"], changes[0]["target"], changes[0]["result"]),
+            (self.admin.pk, "Organization administrator", "Reader", "Reader"),
+        )
+        self.client.force_login(self.platform)
+        response = self.client.post(
+            reverse("company-merge"),
+            {"action": "preview", "source": self.source.pk, "target": self.target.pk},
+        )
+        self.assertContains(response, "Membership access after merge")
+
+    def test_source_archive_chain_still_blocks_and_changed_target_archive_invalidates_preview(self):
+        archive = Organization.objects.create(
+            name="Prior archive", slug="prior-merge-archive", merged_into=self.target
+        )
+        preview = plan(self.platform, self.source, self.target)
+        self.assertEqual(preview["blockers"], [])
+        archive.name = "Changed after review"
+        archive.save()
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+        archive.merged_into = self.source
+        archive.save()
+        self.assertTrue(
+            any("source has archived" in b for b in plan(self.platform, self.source, self.target)["blockers"])
+        )
+
+    def test_merge_get_preselection_is_read_only_and_platform_only(self):
+        self.client.force_login(self.platform)
+        response = self.client.get(
+            reverse("company-merge"), {"source": self.source.pk, "target": self.target.pk, "q": "no-match"}
+        )
+        self.assertEqual(str(response.context["form"]["source"].value()), str(self.source.pk))
+        self.assertEqual(str(response.context["form"]["target"].value()), str(self.target.pk))
+        self.assertIsNone(response.context["preview"])
+        self.source.refresh_from_db()
+        self.assertIsNone(self.source.merged_into_id)
+        self.client.force_login(self.admin)
+        self.assertEqual(
+            self.client.get(
+                reverse("company-merge"), {"source": self.source.pk, "target": self.target.pk}
+            ).status_code,
+            403,
+        )
+
     def test_domain_codes_are_revoked_on_archive_without_transfer(self):
         from . import domain_membership
         from .models import OrganizationDomainCode

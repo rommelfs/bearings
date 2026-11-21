@@ -228,3 +228,21 @@ awaiting inventory**. Search/direct selection opens them normally, and a partici
 with only an empty workspace sees that setup section expanded. This is presentation,
 not a company merge or deletion; review memberships and the existing merge preview
 before consolidating actual duplicate registrations.
+
+
+### Inventory directory and repeated reviewed consolidation
+
+This follow-up has no new dependency or database migration after 0065. Deploy the
+reviewed revision with the normal backup/frozen-sync/migrate/collectstatic/check
+procedure, then restart `bearings-web`, `bearings-worker` and `bearings-national`.
+Run a scoped full `sync_netbox --source SOURCE_UUID` if address relationships still
+need backfilling. No Linux client rebuild or native NetBox/SSO service restart is
+required for these directory/merge changes.
+
+The inventory directory now uses the same explicit host/address counts as company
+inventory and shows pending workspaces compactly, preserving contacts and search
+access. Platform-only consolidation links preselect only the source. The merge
+preview lists every incoming resulting membership role. A target's earlier archives
+no longer prevent receiving another independently reviewed registration; source
+archive chains remain blocked. Existing previews must be recreated after this
+merge-policy update. No production organizations are merged by deployment.

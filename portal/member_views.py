@@ -231,7 +231,7 @@ class MergeForm(forms.Form):
             matches = matches.filter(criteria)
         selected = []
         for name in ["source", "target"]:
-            value = str(self.data.get(name, ""))
+            value = str(self.data.get(name, self.initial.get(name, "")))
             if value.isascii() and value.isdigit() and len(value) <= 19:
                 selected.append(int(value))
         choices = (
@@ -250,7 +250,16 @@ def merge_companies(request):
 
     require(request.user.is_active and request.user.is_superuser)
     query = request.GET.get("q", "")[:160].strip()
-    form = MergeForm(request.POST if request.POST.get("action") == "preview" else None, query=query)
+    initial = {
+        key: int(value)
+        for key in ("source", "target")
+        if (value := request.GET.get(key, "")).isascii() and value.isdigit() and len(value) <= 19
+    }
+    form = MergeForm(
+        request.POST if request.POST.get("action") == "preview" else None,
+        query=query,
+        initial=initial,
+    )
     preview = None
     operation_error = ""
     if request.method == "POST":

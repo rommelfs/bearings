@@ -1227,3 +1227,49 @@ permission change is performed. See the
 Frozen sync, Django checks/no schema drift, static collection, Ruff and whitespace
 checks pass. Production acceptance still requires deploying/restarting the updated
 Bearings services; the screenshot may show an older running revision.
+
+
+## Inventory directory and repeat consolidation into one canonical target — 2026-11-21
+
+The separate `/inventory/` directory still counted raw IP objects and displayed
+asset-less registrations as full cards after the overview cleanup. It now shares
+the explicit top-level host/IP grouping for counts, orders inventory-bearing
+organizations first, compacts asset-less workspaces while retaining contact-due
+counts/links, and leaves exact search/direct company access available. Platform-only
+**Review consolidation** links preselect a source; the destination is explicitly
+chosen. Source labels use meaningful inventory modes instead of generated instance
+names. No GET archives, merges, grants roles or changes source identities.
+
+A prior merge on the retained target incorrectly blocked another reviewed duplicate
+registration. The target may now keep its previous archives while receiving another
+source. Source-side archive chains and all existing native/conflict/credential/
+identity guards remain blocked. Earlier archives participate in the existing signed
+preview fingerprint; changed archive data invalidates approval. Merge policy version
+2 invalidates old-policy tickets, so an operator must prepare a fresh preview.
+The preview shows every source user's ID/username, original role, existing target
+role and resulting role, plus the actual resulting CIRCL analyst visibility. The
+displayed membership outcomes are pinned in the fingerprint; existing target roles
+retain precedence. No global/SSO or
+native application role provisioning is added.
+
+**89 PostgreSQL cases pass** across membership/merge/domain flows, workspace scope,
+product setup, overview and company inventory. New cases merge two independent
+manual registrations into the same native target with an existing archive, retaining
+its device, agent key binding, instance, tenant, contacts and existing target roles.
+They also verify source-chain refusal, archive-change/policy-change invalidation,
+read-only preselection, non-platform denial, consistent machine counts and pending
+workspace search/access. No operational source was used by these mutation tests.
+
+Local Chromium at 390/1440 pixels verifies one main inventory card/host, two pending
+workspaces, keyboard disclosure, no reader-only merge controls and no page overflow
+or JavaScript errors. An existing synthetic platform account opens a preselected
+pair and submits only **Preview merge**; the resulting role table and confirmation
+form are available. No merge is confirmed in this browser check. The synthetic
+canonical target has an existing company administrator, as required by the preview.
+The temporary reader is disabled afterward. See the
+[browser record](audits/2026-11-21-inventory-consolidation-browser.json) and
+[mobile directory](audits/2026-11-21-inventory-directory-390.png).
+Frozen sync, Django checks/no migration drift, static collection, full Ruff and
+whitespace checks pass. No migration is added after 0065. Native NetBox/client
+updates are not needed for this UI/merge-policy correction. Actual production
+consolidation remains an explicit operator preview/confirmation for each source.

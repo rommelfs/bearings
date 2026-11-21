@@ -30,11 +30,11 @@ Membership changes apply to Bearings access, including membership-gated personal
 
 A platform administrator opens **Bearings administration → Merge organizations** at `/operator/organizations/merge/`. Search by name, slug or ID, select the source company to archive and the target to keep, then prepare a preview. Labels include the stable company ID, slug and inventory mode; the selectors show at most 50 matches plus the submitted selections. No merge is inferred from similar names, addresses, domains or MISP UUIDs.
 
-The preview shows source record counts, retained settings/history, overlapping members and blocking conflicts. Source-only members retain their company role in the target; members already in the target keep their target role, even when their source role was higher. Explicit confirmation acknowledges that members will gain access to the combined company's data. An active administrator must remain after resolving duplicate memberships.
+The preview shows source record counts, retained settings/history, all incoming/resulting membership roles and blocking conflicts. Source-only members retain their company role in the target; members already in the target keep their target role, even when their source role was higher. Explicit confirmation acknowledges that members will gain access to the combined company's data. An active administrator must remain after resolving duplicate memberships.
 
 Supported transfers are local **manual inventory**, assets/installations, unique software products, evidence/finding/issue records, contacts and infrastructure claims. Their object IDs and dependent evidence/history remain intact; records are not silently deduplicated by name or overwritten. Target name/address/configuration stay in place. The target review schedule stays; a missing schedule is copied from the source, and recorded mandatory email-review consent remains effective. Original registrations, source settings and audit history remain attached to the archived source for operator inspection; no company is hard-deleted. The merge audit retains transferred object IDs and original membership roles for provenance. Pending source invitations are revoked. CIRCL visibility survives only when both companies allowed it. The target data review becomes due again. A signed actor-bound preview expires after 15 minutes; changed data/access requires a fresh preview, and a failed transaction transfers nothing.
 
-This initial merge deliberately **blocks transferring source-side** native/external inventory bindings, federation/remote company bindings, outbound delivery/subscription state, native cases/tickets, pending inventory writes, stable CSV bindings, unresolved source AIL/key configuration/drafts, differing attested MISP identities and conflicting product/evidence identities. An empty/manual duplicate can merge its members and contacts into an existing native target without repointing the target's connections. Source assets cannot be adopted into a target with a native authoritative inventory. These require an operator-led reconciliation/migration before using the merge. Personal MISP connections block by default. With the explicit retirement checkbox, their encrypted keys and cache remain on the archived source, disabled and unavailable to the combined company. Owners reconnect using their own keys under the retained company. Active MISP refreshes and non-personal connections still block. The preview names other blockers; it never repoints a tenant, credential or native identity. Busy inventory/MISP/review row locks cause a retryable refusal before partial changes. Existing archived merge chains require separate review. The per-related-table review limit is 5,000 rows. This is a conservative local consolidation workflow, not a native cross-application corporate-merger engine or automatic rollback facility.
+This initial merge deliberately **blocks transferring source-side** native/external inventory bindings, federation/remote company bindings, outbound delivery/subscription state, native cases/tickets, pending inventory writes, stable CSV bindings, unresolved source AIL/key configuration/drafts, differing attested MISP identities and conflicting product/evidence identities. An empty/manual duplicate can merge its members and contacts into an existing native target without repointing the target's connections. Source assets cannot be adopted into a target with a native authoritative inventory. These require an operator-led reconciliation/migration before using the merge. Personal MISP connections block by default. With the explicit retirement checkbox, their encrypted keys and cache remain on the archived source, disabled and unavailable to the combined company. Owners reconnect using their own keys under the retained company. Active MISP refreshes and non-personal connections still block. The preview names other blockers; it never repoints a tenant, credential or native identity. Busy inventory/MISP/review row locks cause a retryable refusal before partial changes. Existing source-side archive chains require separate review; earlier archives on an unchanged target are retained. The per-related-table review limit is 5,000 rows. This is a conservative local consolidation workflow, not a native cross-application corporate-merger engine or automatic rollback facility.
 
 ![Synthetic reviewed company merge](../images/company-merge-1440.png)
 
@@ -81,3 +81,30 @@ The manual invitation success message reflects the actual service-mail transport
 ## Visible company/national view selector
 
 CIRCL/platform users have a two-part **company infrastructure | National overview** control in the header. The selected company name is shown explicitly (for example **CIRCL infrastructure**) and the current matching view is highlighted with `aria-current`. An explicitly remembered company is retained; otherwise an existing membership in the canonical `circl` company provides the CIRCL destination. Without either, choose an authorized company first. Company-only users do not receive a national selector. Links remain keyboard/no-JavaScript navigation, and current destination authorization is rechecked. This selects a view, not impersonation: memberships and native permissions stay unchanged, and other pages continue to apply their own explicit scope/filter rules.
+
+
+## Consolidate several registrations into an existing company
+
+Keep the company that owns the authoritative inventory as the **Company to keep**.
+As a platform superuser, open `/operator/organizations/merge/` (or **Review
+consolidation** on a pending inventory workspace). Optional `source` and `target`
+query parameters only preselect the form; opening the URL does not preview or merge.
+Select the registration under **Source company to archive**, choose the canonical
+company under **Company to keep**, then **Preview merge**. Review contacts, all
+incoming/existing/resulting membership roles, source-specific blockers and CIRCL
+visibility before **Confirm reviewed merge**. Existing target roles take precedence.
+Passwords and native application permissions do not change. New source members gain
+the resulting Bearings company role shown in the preview.
+
+A canonical target can receive several separately reviewed registrations, even if
+it already retains earlier merge archives. Those earlier archives keep the same
+target; source chains with their own archives still require separate reconciliation.
+Every merge needs a fresh preview, and changed data/roles/archives or merge-policy
+versions invalidate old confirmations. Native source identities, pending writes,
+cases, communication drafts and other existing conflict guards remain enforced.
+Do not bypass a blocker with direct database edits.
+
+The source registration and audit history remain archived. Contacts and memberships
+follow the reviewed transfer, and archived source companies leave active workspace
+lists. This requires actual consolidation; the compact **Workspaces awaiting
+inventory** section alone does not merge or delete an organization.

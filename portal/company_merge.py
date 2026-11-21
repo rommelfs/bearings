@@ -13,6 +13,8 @@ from .access import audit, require
 from .national_snapshots import DERIVED_MODELS
 from .models import Organization, Membership, InventorySource, OrganizationInvitation
 
+MERGE_POLICY_VERSION = 2
+
 MOVERS = {"Contact", "InfrastructureClaim", "Asset", "Product", "SourceRecord", "Finding", "AssetIssue"}
 RETAIN = {
     "AuditEvent",
@@ -52,7 +54,7 @@ def plan(actor, source, target, retire_personal_misp=False):
     require(actor.is_active and actor.is_superuser)
     if source.pk == target.pk or source.merged_into_id or target.merged_into_id:
         raise ValidationError("Select two different active organizations")
-    rows, blockers, state = [], [], []
+    rows, blockers, state = [], [], [{"merge_policy_version": MERGE_POLICY_VERSION}]
     for org in (source, target):
         for relation in Organization._meta.related_objects:
             model = relation.related_model
@@ -141,8 +143,10 @@ def plan(actor, source, target, retire_personal_misp=False):
         blockers.append("Stable CSV source bindings require separate reconciliation")
     if source.assets.exclude(external_id="").exists():
         blockers.append("Source assets retain external identities; use a reviewed source migration")
-    if source.merged_organizations.exists() or target.merged_organizations.exists():
-        blockers.append("Existing archived merge histories require separate review before a further merger")
+    if source.merged_organizations.exists():
+        blockers.append("The source has archived merge histories; reconcile that source chain separately")
+    # Existing archives already point to the unchanged canonical target. They stay
+    # pinned by the preview fingerprint; receiving another source does not move them.
     for org in (source, target):
         if (
             apps.get_model("portal", "FlowIntelCase").objects.filter(finding__organization=org).exists()
@@ -194,10 +198,19 @@ def plan(actor, source, target, retire_personal_misp=False):
         .exists()
     ):
         blockers.append("Evidence identity collision; reconcile source records before merging")
-    overlap = []
+    overlap, member_changes = [], []
     target_members = {m.user_id: m for m in target.membership_set.all()}
-    for m in source.membership_set.select_related("user"):
+    for m in source.membership_set.select_related("user").order_by("user__username", "pk"):
         existing = target_members.get(m.user_id)
+        member_changes.append(
+            {
+                "user_id": m.user_id,
+                "user": m.user.username,
+                "source": m.get_role_display(),
+                "target": existing.get_role_display() if existing else None,
+                "result": (existing or m).get_role_display(),
+            }
+        )
         if existing:
             overlap.append(
                 {
@@ -214,9 +227,13 @@ def plan(actor, source, target, retire_personal_misp=False):
         or target.membership_set.filter(role="admin", user__is_active=True).exists()
     ):
         blockers.append("The resulting company needs at least one active company administrator")
+    organization_state = list(
+        Organization.objects.filter(pk__in=[source.pk, target.pk]).order_by("pk").values()
+    )
     state.extend(
         [
-            list(Organization.objects.filter(pk__in=[source.pk, target.pk]).order_by("pk").values()),
+            organization_state,
+            {"member_changes": member_changes},
             {"retire_personal_misp": bool(retire_personal_misp)},
         ]
     )
@@ -226,6 +243,8 @@ def plan(actor, source, target, retire_personal_misp=False):
         "target": target,
         "rows": rows,
         "overlap": overlap,
+        "member_changes": member_changes,
+        "operator_visibility_result": all(o["operator_visibility"] for o in organization_state),
         "blockers": blockers,
         "digest": digest,
         "retire_personal_misp": bool(retire_personal_misp),

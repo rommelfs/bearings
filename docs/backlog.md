@@ -503,3 +503,14 @@ an invalid combined current-products ratio. Assigned IP records no longer inflat
 machine/no-software counts. Truly empty workspaces remain available in a compact
 setup section, with inventory-bearing organizations ordered first. No workspace is
 merged, archived or deleted automatically and memberships stay unchanged.
+
+
+## Consistent inventory directory and repeated consolidation — 2026-11-21
+
+Inventory directory counts assigned IPs with their host and shows asset-less
+workspaces compactly while preserving contacts and search. Platform-only review
+links preselect the source without mutation. Reviewed consolidation can append
+registrations to a canonical target with earlier archives, retaining target native
+bindings and old archive destinations. Source archive chains remain blocked; every
+incoming/resulting membership role is shown, and policy changes invalidate previews.
+See [members and consolidation](user-guide/company-members.md).

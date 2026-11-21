@@ -1925,3 +1925,6 @@ main article p { overflow-wrap: anywhere; }
 .overview-pending-workspaces { margin: 1.5rem 0; }
 .overview-pending-workspaces > summary { cursor: pointer; font-weight: 650; }
 .overview-package-monitoring { margin-bottom: 1rem; }
+
+.inventory-pending-workspaces { margin: 1.5rem 0; }
+.inventory-pending-workspaces > summary { cursor: pointer; font-weight: 650; }
