@@ -20,7 +20,8 @@ built-in list; include MISP explicitly if you still want it. An empty list
 intentionally disables application collection. The file must be root/collector
 owned, not shared-writable and reachable without symlinks through trusted parents.
 Deploy it with an existing configuration-management tool such as Ansible. There
-is no web-to-agent command channel or centralized profile editor in this release.
+is no web-to-agent command channel. The GUI below authors configuration; it does
+not store fleet policy or deploy files.
 The [example configuration](../../clients/linux/examples/applications.json)
 contains illustrative paths: review and adapt them before deployment.
 
@@ -138,3 +139,44 @@ Deployment requires migration `0066_application_manifest_observations`, server
 restart and rebuilding/publishing the client from a clean reviewed checkout.
 See [Ubuntu operations](../operations/ubuntu24.md). Updating only the server does
 not change the binary already running on monitored hosts.
+
+## GUI editor and exporting a PR proposal
+
+As a company administrator, open **Linux clients → Application version profiles**
+(`/organizations/<slug>/agents/profiles/`). Select the extraction method; the form
+shows only its applicable fields. Enter the software designation, local metadata
+path and optional public CPE/package URL, explanation and documentation reference.
+The path refers to the monitored host; the web server never reads it.
+
+**Validate & preview** uses the published native client's configuration parser and
+Go/RE2 compiler. It performs no collection, Git commands, network requests or agent
+state changes. Publish the current client artifacts after upgrading the server;
+an old/missing validator refuses export rather than weakening validation. This
+checks syntax, not local readability or the truth of the resulting version. CLI:
+
+```sh
+bearings-linux validate-applications --config client-config.example.json
+```
+
+**Download client configuration** exports one private runtime profile, retaining
+its configured path and stable ID. Review it, merge any other desired profiles,
+and deploy `/etc/bearings-linux/application-probes.json` locally using existing
+administration tools. Downloading a profile does not activate it on any client.
+No draft/profile database or remote fleet distribution is implemented.
+
+**Export PR proposal** downloads `bearings-profile-pr-proposal.zip` containing:
+
+- `profile.json`: the reusable profile recipe, software designation, explanation,
+  public reference and AGPL-3.0-or-later declaration.
+- `client-config.example.json`: a corresponding example runtime configuration.
+- `PR_PROPOSAL.md`: prepared software description, method explanation, validation
+  steps and contribution review instructions.
+
+Host installation paths and stable IDs are replaced with example values. No
+observed versions, fingerprints, device IDs or credentials are copied. Authored
+names, identifiers, regexes, explanation and references remain in the proposal;
+review them before public submission. Nothing is sent to GitHub, and no token,
+commit or pull request is created. Submit reviewed files through your normal
+branch/fork workflow under `clients/linux/profiles/`, following
+[CONTRIBUTING.md](../../CONTRIBUTING.md). The bundled MISP recipe provides the
+first example. Contributed recipes are data, not automatically enabled profiles.

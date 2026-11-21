@@ -204,3 +204,33 @@ func TestBundledApplicationProfileExampleHasValidMethodsAndNormalizers(t *testin
 		}
 	}
 }
+
+func TestContributedApplicationProfilesValidateAsDataOnly(t *testing.T) {
+	paths, err := filepath.Glob("profiles/*.json")
+	if err != nil || len(paths) == 0 {
+		t.Fatal("profile library missing")
+	}
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			Schema      string           `json:"schema"`
+			Title       string           `json:"title"`
+			Description string           `json:"description,omitempty"`
+			License     string           `json:"license"`
+			References  []string         `json:"references"`
+			Profile     applicationProbe `json:"profile"`
+		}
+		if decode(raw, &doc) != nil || doc.Schema != "bearings.application-profile.v1" || doc.Title == "" || doc.License != "AGPL-3.0-or-later" || !validApplicationProbe(doc.Profile) {
+			t.Fatalf("invalid contributed profile %s", path)
+		}
+	}
+}
+
+func TestValidateApplicationsRequiresAnExplicitConfiguration(t *testing.T) {
+	if err := run([]string{"validate-applications", "--config", filepath.Join(t.TempDir(), "missing.json")}); err == nil {
+		t.Fatal("validator fell back to local application discovery")
+	}
+}

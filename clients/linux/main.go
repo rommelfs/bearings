@@ -283,6 +283,19 @@ func run(args []string) error {
 		fmt.Println(version)
 		return nil
 	}
+	if args[0] == "validate-applications" {
+		flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
+		flags.SetOutput(io.Discard)
+		config := flags.String("config", "", "local profile document to validate without collecting")
+		if flags.Parse(args[1:]) != nil || flags.NArg() != 0 || *config == "" {
+			return errors.New("use validate-applications --config FILE")
+		}
+		profiles, err := loadApplicationConfiguration(*config)
+		if err != nil {
+			return err
+		}
+		return output(map[string]any{"schema": "bearings.application-probes.v1", "profiles": len(profiles)})
+	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	server := flags.String("server", "", "trusted HTTPS origin for automatic registration")

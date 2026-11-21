@@ -211,3 +211,16 @@ observations; the client does not run application scripts or arbitrary shell
 commands. Git commits, release tags and tracked-file changes remain distinct;
 dirty/ambiguous checkouts do not become asserted release versions. Existing
 manual software requires an explicit one-time version-ownership binding.
+
+
+Company administrators can author these profiles under **Linux clients →
+Application version profiles**, download reviewed configuration and export a ZIP
+PR proposal with a reusable recipe, example configuration and software/explanation
+text. Nothing is automatically submitted or deployed. Syntax-only validation:
+
+```sh
+bearings-linux validate-applications --config client-config.example.json
+```
+
+Reusable contribution recipes live in `profiles/`; they are not automatically
+enabled by installation. See the [profile editor and contribution contract](../../docs/integrations/linux-application-probes.md#gui-editor-and-exporting-a-pr-proposal).

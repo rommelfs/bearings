@@ -194,3 +194,11 @@ pages without an organization scope remain the wide view. Explicitly scoped
 company links restore that context even if another tab last visited National.
 The remembered company is reauthorized on each request; navigation preferences
 do not add memberships, change roles, grant sharing or replace endpoint policy.
+
+
+Company administrators can open **Linux clients → Application version profiles**
+to define application release-file, JSON, regex or Git-tag detection. The method
+controls the displayed fields. Validate/preview and download configuration for
+local deployment, or select **Export PR proposal** for a ZIP with the recipe,
+example configuration and software description/explanation. This neither deploys
+profiles nor sends anything to GitHub. See [application profiles](../integrations/linux-application-probes.md).

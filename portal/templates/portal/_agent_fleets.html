@@ -1,5 +1,5 @@
 {% load static %}
-<p><a href="{% url 'agent-center' org.slug %}">Linux inventory reports →</a></p><h1>Automatic Linux registration · {{ org.name }}</h1>
+<p><a href="{% url 'agent-center' org.slug %}">Linux inventory reports →</a></p><h1>Automatic Linux registration · {{ org.name }}</h1><p><a class="button" href="{% url 'application-profiles' org.slug %}">Application version profile editor →</a></p>
 <p>Approve a rollout once and distribute its limited key through your deployment secret manager. Each installed host generates its own device key and registers itself; repeat installation keeps the identity. No per-host public-key copy, NetBox entry or enrollment code is needed.</p>
 <p>Each rollout records its inventory mode: <strong>Bearings only</strong>, or <strong>Managed NetBox</strong> when enabled by the platform operator. Existing rollout keys retain their original mode. Hostnames and IPs do not prove ownership and never attach a new key to an existing asset. Observed-only hosts remain distinct observations. Managed registration requires a new hostname or an explicit existing-asset selection. The rollout key cannot read inventory, replace existing devices or change connector permissions. Managed registration uses only the operator-enabled NetBox connection; read-only sources remain read-only.</p>
 

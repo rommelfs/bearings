@@ -162,6 +162,10 @@
       {
         "title": "Make company and national workspace navigation context-specific",
         "body": "Implemented company-scoped inventory/review/rollout/monitoring/action/risk links and company administration, distinct national research/data-review/evidence/coordination/platform menu, shared desktop/mobile lists and reauthorized company selection. Explicit scoped links survive another tab changing preference; global unscoped collections remain wide. Personal account tools retain personal scope. No roles, memberships or endpoint policy change. Workspace/denial/query-budget tests and 390/1440 Chromium toggle flows passed. See docs/user-guide/infrastructure-overview.md."
+      },
+      {
+        "title": "Author application profiles in a scoped GUI and export local PR proposals",
+        "body": "Implemented company-admin-only CSRF-protected profile editor with method-dependent fields, software name/product identity and explanation/public reference. Native published client parser and RE2 syntax-only validation; no application path reads, Git execution, collection or agent state on server. Private one-profile runtime JSON download and PR proposal ZIP containing profile.json, client-config.example.json and PR_PROPOSAL.md; example paths/IDs replace host values, no observations copied, no GitHub transfer/token/commit/PR. Contributed recipes under clients/linux/profiles remain opt-in data. Missing/outdated/checksum-invalid native artifacts refuse export. No draft persistence or remote deployment. Server migration0066, static collection, restart services and current clean client publication required; local clients updated separately preserving identity. Authorization/CSRF/actual-native tests and desktop/mobile browser checks documented in validation.md."
       }
     ]
   },

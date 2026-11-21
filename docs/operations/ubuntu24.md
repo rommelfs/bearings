@@ -326,3 +326,13 @@ not target secret-bearing configuration. No filesystem privileges are granted
 automatically. Configuration and minimal metadata permissions must
 be managed locally, independently of tenant UI permissions. See the
 [application profile reference](../integrations/linux-application-probes.md).
+
+
+The company-admin profile editor at `/organizations/<slug>/agents/profiles/`
+requires the newly published native client's `validate-applications` command;
+`prepare-linux-client` above is required even when only authoring profiles in the
+browser. Run static collection for `application-profile-editor.js` and restart
+web/worker/national as shown. The editor validates syntax only, exports local JSON
+or a PR proposal ZIP and never distributes profiles or contacts GitHub. It adds
+no migration beyond 0066. Existing monitored hosts need the client update above
+to collect generic profiles. Keep keys/state and local sandbox drop-ins intact.

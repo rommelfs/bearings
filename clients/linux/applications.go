@@ -137,6 +137,11 @@ func applicationProbes(config string) ([]applicationProbe, error) {
 		}
 		return probes, nil
 	}
+	return loadApplicationConfiguration(config)
+}
+
+// Validation must not use collection's missing-config autodetection fallback.
+func loadApplicationConfiguration(config string) ([]applicationProbe, error) {
 	f, err := openProbeFile(config, 65536)
 	if err != nil {
 		return nil, err
@@ -152,6 +157,15 @@ func applicationProbes(config string) ([]applicationProbe, error) {
 	}
 	ids, paths := map[string]bool{}, map[string]bool{}
 	for _, p := range cfg.Applications {
+		if p.Method != "misp-version-json" {
+			pattern, err := regexp.Compile(p.VersionPattern)
+			if err != nil {
+				return nil, errors.New("invalid Go/RE2 version expression")
+			}
+			if pattern.NumSubexp() != 1 {
+				return nil, errors.New("profile requires exactly one version capture")
+			}
+		}
 		if !probeID.MatchString(p.ID) || ids[p.ID] || paths[p.Path] || !filepath.IsAbs(p.Path) || filepath.Clean(p.Path) != p.Path || len(p.Path) > 1024 || strings.ContainsFunc(p.Path, func(r rune) bool { return r < 32 || r == 127 }) || !validApplicationProbe(p) {
 			return nil, errors.New("invalid or duplicate application probe")
 		}

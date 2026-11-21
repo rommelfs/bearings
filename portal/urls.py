@@ -5,6 +5,7 @@ from . import (
     workspace_views,
     views,
     agent_views,
+    application_profile_views,
     client_downloads,
     member_views,
     review_followup_views,
@@ -124,6 +125,11 @@ urlpatterns = [
     ),
     path("risks/", business_risk_views.register, name="risk-register"),
     path("discovery/", discovery_views.center, name="discovery"),
+    path(
+        "organizations/<slug:slug>/agents/profiles/",
+        application_profile_views.editor,
+        name="application-profiles",
+    ),
     path(
         "organizations/<slug:slug>/assets/<uuid:pk>/software/catalog/",
         views.installation_catalog,

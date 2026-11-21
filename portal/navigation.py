@@ -55,7 +55,7 @@ ROUTES = {
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
     "start": {"getting-started"},
     "applications": {"applications", "application", "source-reference", "sso-settings", "workspace-switch"},
-    "clients": {"linux-client-downloads", "agent-fleets", "agent-center"},
+    "clients": {"linux-client-downloads", "agent-fleets", "agent-center", "application-profiles"},
     "inventory": {
         "inventory",
         "company-members",

@@ -1503,3 +1503,30 @@ behavior, source credentials, schema or Linux-client changes are introduced.
   company scoping survives another tab's national navigation and unscoped global
   collections remain wide. Existing large-inventory and 12-asset query budgets
   still pass. No credentials or application source files are included in evidence.
+
+
+### Application profile editor and PR proposal export (2026-11-22)
+
+- 154 combined PostgreSQL regressions pass across application/package ingestion,
+  ownership, workspaces/query budgets, watches/reviews, NetBox exports and client
+  downloads, including six editor regressions: organization/admin policy and CSRF
+  before native execution, escaped structured preview, private runtime download,
+  exact three-file ZIP with software/explanation and example paths/IDs, and
+  unavailable/invalid validators refusing export. The actual freshly built native
+  parser accepts a Git profile whose repository does not exist, proving this is
+  syntax validation without collection. Unsupported RE2 lookaround and a checksum
+  mismatch are refused. Runtime source paths are never read by the web process.
+- Go tests with race detection pass, including contributed recipes validated as
+  data and an explicit missing configuration error for the validation CLI. The
+  command bypasses collection's built-in application autodetection fallback.
+- Responsive Chromium checks at 390/1440 px use actual Django-rendered editor
+  responses. Method changes hide irrelevant fields/update file-vs-repository
+  labels; runtime JSON and proposal ZIP downloads complete, their structures are
+  inspected, and no overflow or JavaScript errors occur. Browser POST responses
+  use saved backend-test exports; native parser/backend behavior is independently
+  exercised above. No GitHub request, production deployment, client distribution
+  or observed host-data publication is performed by the editor.
+- Frozen dependency sync, Django checks/migration drift, relevant Ruff/format and
+  diff checks pass. Migration 0066 belongs to the application-observation change;
+  the editor adds none. Publish the new reviewed client artifacts for native
+  validation and collect the new static JavaScript before restarting services.
