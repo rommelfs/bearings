@@ -1883,3 +1883,25 @@ main article p { overflow-wrap: anywhere; }
 .package-association h3 { font-size: 17px; }
 
 .package-check { overflow-wrap: anywhere; }
+
+/* Audit: show independent synchronization states and reduce navigation/action clutter. */
+.nav-disclosure { margin-top: 0; }
+.nav-disclosure > summary { color: #52636d; text-transform: uppercase; letter-spacing: 1.2px; font-size: 10px; margin: 0 12px 9px; }
+.nav-disclosure[open] > summary { margin-bottom: 9px; }
+.sync-status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.sync-status-grid > article { margin: 0; padding: 20px; min-width: 0; }
+.sync-status-grid h3 { margin-top: 0; }
+.sync-status-grid p { overflow-wrap: anywhere; }
+.sync-state { font-weight: 700; }
+.sync-state.state-good { color: #216449; }
+.sync-state.state-warning { color: #814414; }
+.sync-state.state-pending, .sync-state.state-neutral { color: #315e73; }
+.asset-secondary-actions { margin: 12px 0 24px; }
+@media (max-width: 900px) { .sync-status-grid { grid-template-columns: 1fr; } }
+
+.client-downloads { min-width: 0; }
+.client-downloads pre { max-width: 100%; min-width: 0; overflow-x: auto; padding: 16px; background: #edf2f4; border-radius: 6px; }
+.client-downloads code { overflow-wrap: anywhere; }
+
+.sync-explanation { margin-top: 8px; }
+.sync-explanation > summary { font-size: 12px; }

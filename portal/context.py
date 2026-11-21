@@ -14,12 +14,12 @@ def deployment(request):
         and (request.user.is_superuser or is_analyst(request.user))
     )
 
+    showcase = request.user.is_authenticated and DemoDataset.objects.filter(state="active").exists()
     return {
-        **workspace(request),
+        **workspace(request, show_examples=showcase),
         "selected_company_workspace": selected,
         **view_switch(request, selected, operator),
-        "synthetic_showcase_active": request.user.is_authenticated
-        and DemoDataset.objects.filter(state="active").exists(),
+        "synthetic_showcase_active": showcase,
         "development_environment": settings.DEBUG,
         "sso_enabled": settings.SSO_ENABLED,
         "sso_session": request.session.get("_auth_user_backend") == "config.oidc.ApprovedOpenIdConnect",

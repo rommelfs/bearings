@@ -372,6 +372,14 @@
       {
         "title": "Implement reviewed migration from CIRCL-hosted NetBox to customer-owned NetBox",
         "body": "Planned, not an implemented migration executor: complete tenant-only export and manifest, exclude credentials/private intelligence, explicit destination tenant/VRF/reference mapping and conflicts, dependency-ordered UUID-idempotent import, durable old/new ID receipts, pause/final delta, two-sided verification and audited authoritative-source switch preserving enrolled client keys/local software/reviews. Never repoint an endpoint beneath retained object IDs, run dual writers or delete CIRCL objects automatically. The current scoped host/interface/IP/software export and UUID provenance provide foundations only. Include independently validated source/destination versions, missing/foreign data and failure recovery before production cutover."
+      },
+      {
+        "title": "Audit and simplify workspace navigation and synchronization status",
+        "body": "Implemented first audit pass against public bearings.circl.lu: 24 read-only desktop/mobile layouts identify Linux-download command overflow; local authenticated synthetic checks verify its correction. Show separate client/host/export states even when export is off, preserve labelled historical receipts and raw source policy, group secondary asset actions and advanced single-host enrollment, correct client-report navigation, collapse optional integration/admin/help groups with active-route and keyboard support, and hide unconfigured demo navigation. No backend feature or permission is removed. Follow-ups: optional registration grouping, language continuity, user task testing and complete accessibility audit. See docs/audits/2026-11-21-ui-security.md."
+      },
+      {
+        "title": "Correct audited Python runtime dependencies and preserve explicit OIDC bindings",
+        "body": "Implemented targeted frozen root/native NetBox/FlowIntel security updates after advisory scanning, compatible auth-wrapper/MSAL upgrades, session-bound OIDC nonce regression, preserved issuer+subject digest namespace with upstream data-migration override, no email/provider-alias migration, compatible safe exception handling and URI-keyed JWKS test isolation. CI audits all three locked runtime sets on push/PR. Current scanned profiles report no known advisories; this does not certify deployed installations or image contents. Validate staged root/native upgrades with database backup, migrations, static collection, service restart and identity/tenant checks. Remaining: deployed infrastructure/image review, release signatures, device renewal, sustained load and full accessibility/pentest scope. See the audit record and validation.md."
       }
     ]
   }

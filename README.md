@@ -199,3 +199,5 @@ Native development uses `DJANGO_DEBUG=1 uv run python manage.py sync_netbox --al
 Native CIRCL operators can enable [managed NetBox host registration with VM technology tags](docs/operations/managed-netbox.md) after the read-only pilot. The staged command verifies both the external object and Bearings import while preserving existing client keys and software/CVE records. Existing rollout codes retain their original mode.
 
 Managed Linux inventory can export native interfaces/IP assignments to an explicitly configured tenant VRF and a structured OS/software/provenance snapshot to central or customer-owned NetBox. Per-customer RW setup and the separately planned NetBox-to-NetBox migration are described in [managed NetBox operations](docs/operations/managed-netbox.md#reported-inventory-export-migration-0064).
+
+The [21 November UI/security audit](docs/audits/2026-11-21-ui-security.md) records production read-only observations, synthetic authenticated checks, scoped UI corrections, frozen dependency security updates and remaining infrastructure/audit work.

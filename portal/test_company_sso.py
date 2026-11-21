@@ -31,8 +31,8 @@ class ConstituentSSOTests(Fixture):
     finish = SSOTests.finish
 
     def setUp(self):
-        ApprovedOpenIdConnect.get_jwks_keys.invalidate()
-        self.addCleanup(ApprovedOpenIdConnect.get_jwks_keys.invalidate)
+        ApprovedOpenIdConnect.get_jwks_keys_for_uri.invalidate()
+        self.addCleanup(ApprovedOpenIdConnect.get_jwks_keys_for_uri.invalidate)
         self.admin.set_password("Local-owner-Only!6428")
         self.admin.save()
         self.item = InfrastructureRegistration.objects.create(

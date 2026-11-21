@@ -65,6 +65,7 @@ for name, suffix in (
     ("JWKS_URI", "certs"),
 ):
     globals()["SOCIAL_AUTH_OIDC_" + name] = os.environ["OIDC_ISSUER"] + "/protocol/openid-connect/" + suffix
+SOCIAL_AUTH_OLD_ID_KEYS = {"oidc": None}
 SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
     "social_core.pipeline.social_auth.social_uid",

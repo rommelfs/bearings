@@ -677,6 +677,11 @@ def asset_detail(request, slug, pk):
     page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
+    from .inventory_status import synchronization_status
+
+    agent_device = (
+        AgentDevice.objects.filter(asset=asset, organization=org).order_by("-enabled", "-created_at").first()
+    )
     return render(
         request,
         "portal/asset.html",
@@ -686,9 +691,8 @@ def asset_detail(request, slug, pk):
             "facts": asset_context(asset, workspace=True),
             "software_page": software_page,
             "software_query": software_query,
-            "agent_device": AgentDevice.objects.filter(asset=asset, organization=org)
-            .order_by("-enabled", "-created_at")
-            .first(),
+            "agent_device": agent_device,
+            "sync_status": synchronization_status(asset, agent_device),
             "page": page,
             "editable": can_edit(request.user, org),
         },

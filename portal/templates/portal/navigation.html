@@ -1,4 +1,4 @@
 {% for group in navigation_groups %}
-<div class="nav-group"><p class="nav-group-label">{{ group.label }}</p>
+{% if group.collapsible %}<details class="nav-group nav-disclosure"{% if group.active %} open{% endif %}><summary>{{ group.label }}</summary>{% else %}<div class="nav-group"><p class="nav-group-label">{{ group.label }}</p>{% endif %}
 {% for item in group.items %}<a class="workspace-link area-{{ item.key }}{% if item.active %} is-active{% endif %}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}><span class="nav-marker" aria-hidden="true"></span>{{ item.label }}</a>{% endfor %}
-</div>{% endfor %}
+{% if group.collapsible %}</details>{% else %}</div>{% endif %}{% endfor %}

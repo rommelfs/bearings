@@ -19,7 +19,7 @@ AREAS = {
     "exposure": ("Exposure history", "plum", "assess"),
     "notifications": ("Notifications", "notifications", "respond"),
     "response": ("Incident coordination", "rtir", "respond"),
-    "companies": ("Company instances", "companies", "inventory"),
+    "companies": ("Federated company reports", "companies", "inventory"),
     "explore": ("Explore scenarios", "demo-explore", ""),
     "administration": ("Synthetic data", "demo-data", ""),
     "platform": ("Platform administration", "admin:index", ""),
@@ -51,6 +51,7 @@ ROUTES = {
     "applications": {"applications", "application", "source-reference", "sso-settings", "workspace-switch"},
     "inventory": {
         "agent-fleets",
+        "agent-center",
         "inventory",
         "company-members",
         "company-join",
@@ -93,7 +94,7 @@ ROUTES = {
 }
 
 
-def workspace(request):
+def workspace(request, *, show_examples=False):
     if not request.user.is_authenticated:
         return {}
     from .access import is_analyst
@@ -105,19 +106,20 @@ def workspace(request):
     if route in {"flowintel-new", "flowintel-case"}:
         stage = "respond"
     sections = [
-        ("Start", (["national"] if operator else []) + ["overview", "start"]),
-        ("Understand", ["actions", "inventory", "discovery", "review", "issues", "risks", "exposure"]),
-        (
-            "Act",
-            ["notifications"] + (["response"] if operator else []),
-        ),
-        (
-            "Workspace",
-            ["applications", "misp", "companies", "explore"] + (["registrations"] if operator else []),
-        ),
+        ("Overview", (["national"] if operator else []) + ["overview", "actions"], False),
+        ("Inventory", ["inventory", "issues"], False),
+        ("Security", ["review", "discovery", "risks", "exposure"], False),
+        ("Response", ["notifications"] + (["response"] if operator else []), False),
+        ("Integrations", ["applications", "misp", "companies"], True),
     ]
-    if request.user.is_superuser:
-        sections.append(("Administration", ["platform", "merges", "administration"]))
+    administration = (["registrations"] if operator else []) + (
+        ["platform", "merges", "administration"] if request.user.is_superuser else []
+    )
+    if administration:
+        sections.append(("Administration", administration, True))
+    sections.append(
+        ("Help & examples", ["start"] + (["explore"] if show_examples or area == "explore" else []), True)
+    )
     return {
         "workspace_home_url": reverse("circl-overview" if operator else "overview"),
         "workspace_area": area,
@@ -127,11 +129,13 @@ def workspace(request):
         "navigation_groups": [
             {
                 "label": heading,
+                "collapsible": collapsible,
+                "active": area in keys,
                 "items": [
                     {"label": AREAS[key][0], "url": reverse(AREAS[key][1]), "key": key, "active": key == area}
                     for key in keys
                 ],
             }
-            for heading, keys in sections
+            for heading, keys, collapsible in sections
         ],
     }

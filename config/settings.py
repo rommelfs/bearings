@@ -162,6 +162,7 @@ AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 MIDDLEWARE.insert(
     MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware") + 1, "portal.sso.SessionGuard"
 )
+SOCIAL_AUTH_OLD_ID_KEYS = {"oidc": None}  # Preserve explicit issuer+subject digest bindings during upgrades.
 SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
     "social_core.pipeline.social_auth.social_uid",

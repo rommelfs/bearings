@@ -98,6 +98,25 @@ class NativeLinkTests(unittest.TestCase):
         )
         self.assertEqual(self.permission.constraints, {"tenant_id": self.tenant.pk})
 
+    def test_shared_backend_preserves_digest_namespace_without_claim_alias_migration(self):
+        from django.utils.module_loading import import_string
+
+        self.link()
+        binding = UserSocialAuth.objects.get(user=self.user, provider="oidc")
+        backend = import_string(settings.REMOTE_AUTH_BACKEND[0])()
+        backend.id_token = {"sub": self.subject}
+        with patch.object(backend, "id_token_issuer", return_value=self.issuer):
+            self.assertEqual(backend.get_user_id({}, {}), binding.uid)
+        self.assertEqual(backend.id_key(), "")
+        self.assertIsNone(settings.SOCIAL_AUTH_OLD_ID_KEYS["oidc"])
+        lookup = {"provider": "oidc", "uid": binding.uid}
+        if hasattr(binding, "id_key"):
+            self.assertEqual(binding.id_key, "")
+            lookup["id_key"] = backend.id_key()
+        self.assertEqual(UserSocialAuth.objects.get(**lookup).pk, binding.pk)
+        self.assertEqual(backend.get_legacy_user_identifiers({}, {"sub": "different"}), [])
+        self.assertEqual(backend.get_legacy_user_ids({}, {"id": "different"}), [])
+
     def test_non_admin_actor_and_inactive_target_are_refused(self):
         with self.assertRaises(get_user_model().DoesNotExist):
             self.link(actor=self.user.username)

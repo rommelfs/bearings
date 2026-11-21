@@ -48,6 +48,22 @@ jobs:
       - run: uv run python manage.py makemigrations --check --dry-run
       - run: uv run python manage.py test
       - run: uv run python manage.py collectstatic --noinput
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Export the frozen Bearings production dependency set
+        run: uv export --frozen --extra production --no-dev --no-emit-project --format requirements-txt --output-file /tmp/bearings-runtime-requirements.txt
+      - name: Audit Bearings, native NetBox and native FlowIntel locks
+        run: |
+          uv run --no-project --with pip-audit==2.10.1 python -m pip_audit --requirement /tmp/bearings-runtime-requirements.txt --no-deps --disable-pip
+          uv run --no-project --with pip-audit==2.10.1 python -m pip_audit --requirement deploy/ubuntu24/ecosystem/netbox-requirements.txt --no-deps --disable-pip
+          uv run --no-project --with pip-audit==2.10.1 python -m pip_audit --requirement docker/flowintel/requirements.txt --no-deps --disable-pip
   production-profile:
     runs-on: ubuntu-latest
     steps:

@@ -133,6 +133,19 @@ class SSOTests(tests.Fixture):
         self.assertNotIn("id_token", self.binding.extra_data)
         self.assertEqual(self.client.get("/issues/").status_code, 200)
 
+    def test_valid_nonce_from_another_browser_is_rejected_without_consuming_its_login(self):
+        self.start()
+        original_client, original_params = self.client, self.params.copy()
+        self.client = Client()
+        self.start()
+        self.claim_overrides = {"nonce": original_params["nonce"]}
+        self.assertRedirects(self.finish(), "/accounts/login/", fetch_redirect_response=False)
+        self.assertNotIn(auth.SESSION_KEY, self.client.session)
+        self.client, self.params = original_client, original_params
+        self.claim_overrides = {}
+        self.assertRedirects(self.finish(), "/issues/", fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session[auth.SESSION_KEY]), self.admin.pk)
+
     def test_unapproved_same_email_does_not_create_or_link_account(self):
         self.claim_overrides = {"sub": "unapproved"}
         self.userinfo_sub = "unapproved"
@@ -296,7 +309,7 @@ class SSOTests(tests.Fixture):
 
     def test_redirects_arbitrary_endpoints_and_large_provider_responses_are_refused(self):
         from config.oidc import ApprovedOpenIdConnect
-        from social_core.exceptions import AuthForbidden, AuthTokenError
+        from config.oidc import AuthForbidden, AuthTokenError
 
         backend = ApprovedOpenIdConnect()
         with self.assertRaises(AuthForbidden):
