@@ -172,7 +172,12 @@ def home(request):
     )
     if query:
         reviews = reviews.annotate(
-            inventory_text=Cast("installation__asset__upstream_data", TextField())
+            inventory_text=Cast("installation__asset__upstream_data", TextField()),
+            assigned_ip_match=Exists(
+                assigned_addresses()
+                .filter(network_host_id=OuterRef("installation__asset_id"))
+                .filter(Q(name__icontains=query) | Q(address_dns__icontains=query))
+            ),
         ).filter(
             Q(record__external_id__icontains=query)
             | Q(installation__asset__name__icontains=query)
@@ -180,7 +185,33 @@ def home(request):
             | Q(installation__product__name__icontains=query)
             | Q(installation__asset__responsible_team__icontains=query)
             | Q(inventory_text__icontains=query)
+            | Q(assigned_ip_match=True)
         )
+    from .review_queue import BUCKETS, classified
+    from .distro_verdicts import decorate_package_verdict
+    from .inventory_presentation import host_network_summary
+
+    reviews = classified(reviews)
+    bucket = request.GET.get("state", "action")
+    if bucket not in dict(BUCKETS):
+        bucket = "action"
+    bucket_counts = dict(
+        reviews.order_by()
+        .values("queue_bucket")
+        .annotate(total=Count("pk"))
+        .values_list("queue_bucket", "total")
+    )
+    queue_states = [
+        {
+            "key": key,
+            "label": label,
+            "count": sum(bucket_counts.values()) if key == "all" else bucket_counts.get(key, 0),
+        }
+        for key, label in BUCKETS
+    ]
+    if bucket != "all":
+        reviews = reviews.filter(queue_bucket=bucket)
+    reviews = reviews.select_related("distro_match__component__device", "distro_match__advisory__feed")
     counts = {
         r["record__source_severity"]: r["total"]
         for r in reviews.order_by().values("record__source_severity").annotate(total=Count("pk"))
@@ -204,8 +235,16 @@ def home(request):
             user=request.user, organization_id__in=[finding.organization_id for finding in review_page]
         ).values_list("organization_id", "role")
     )
+    assets = {finding.installation.asset_id: finding.installation.asset for finding in review_page}
+    for finding in review_page:
+        assets[finding.installation.asset_id].organization = finding.organization
+    decorate_addresses(list(assets.values()))
+    networks = {pk: host_network_summary(asset) for pk, asset in assets.items()}
     for finding in review_page:
         decorate_finding(finding)
+        for key in ("addresses", "dns_names", "assigned_address_count", "addresses_truncated"):
+            finding.asset_context[key] = networks[finding.installation.asset_id][key]
+        decorate_package_verdict(finding)
         finding.notification_mode = ""
         if finding.record.shareable and finding.analyst_applicability != "not_affected":
             if operator and finding.organization.operator_visibility:
@@ -223,6 +262,9 @@ def home(request):
             "query": query,
             "severity": severity,
             "severity_counts": severity_counts,
+            "queue_states": queue_states,
+            "queue_state": bucket,
+            "queue_heading": dict(BUCKETS)[bucket],
             "review_total": review_total,
         },
     )

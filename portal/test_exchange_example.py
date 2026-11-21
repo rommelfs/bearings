@@ -143,7 +143,7 @@ class ExchangeExampleTests(Fixture):
         finding = self.seed()
         self.login(self.analyst)
         home = self.client.get(reverse("home"))
-        for text in [CVE, "High", "8.1", BUILD, "Review required", "confidential email", "No exploitation"]:
+        for text in [CVE, "High", "8.1", BUILD, "Manual assessment", "confidential email", "No exploitation"]:
             self.assertContains(home, text)
         self.assertContains(home, f"?finding={finding.pk}#finding-{finding.pk}")
         detail = self.client.get(self.url("intelligence", finding.organization), {"finding": finding.pk})

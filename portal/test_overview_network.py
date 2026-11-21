@@ -91,3 +91,22 @@ class OverviewNetworkTests(Fixture):
             summary = host_network_summary(asset)
         self.assertEqual(summary["addresses"], [])
         self.assertEqual(summary["dns_names"], [])
+
+    def test_global_review_queue_shows_and_searches_assigned_addresses(self):
+        self.record_finding()
+        self.address("192.0.2.10/24", 41)
+        self.address("2001:db8::10/64", 42)
+        Asset.objects.create(
+            organization=self.b,
+            source=self.sb,
+            network_host=self.asset,
+            name="198.51.100.99/24",
+            kind="ip_address",
+            object_type="ipam.ipaddress",
+        )
+        response = self.client.get(reverse("home"))
+        self.assertContains(response, "192.0.2.10/24")
+        self.assertContains(response, "2001:db8::10/64")
+        self.assertNotContains(response, "198.51.100.99")
+        self.assertEqual(self.client.get(reverse("home"), {"q": "2001:db8::10"}).context["review_total"], 1)
+        self.assertEqual(self.client.get(reverse("home"), {"q": "198.51.100.99"}).context["review_total"], 0)

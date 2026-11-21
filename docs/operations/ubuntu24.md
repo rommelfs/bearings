@@ -265,3 +265,12 @@ Expected regression result for Ubuntu 24.04 / python3-pip-whl
 and records python-pip as needs-triage. When Ubuntu supplies a version predicate,
 the normal feed refresh will reevaluate it. No special-case CVE override exists.
 See [the primary-source audit](../audits/2026-11-21-package-cve-correctness.md).
+
+Review queue classification follow-up: update to the reviewed commit and restart
+`bearings-web bearings-worker bearings-national`. No migration, client rebuild,
+new dependencies, or static collection is needed for this template/query change.
+The queue separates current affected package versions, vendor uncertainty,
+pending reevaluations and retained fixed/assessed reviews. After deployment,
+check `/reviews/` and the status tabs; historical review counts must not be
+interpreted as the current affected-version count. Existing worker reevaluation
+refreshes proof when inventory, vendor rules or evaluator inputs change.

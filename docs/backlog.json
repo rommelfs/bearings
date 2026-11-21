@@ -142,6 +142,10 @@
       {
         "title": "Prove package-version CVE outcomes instead of promoting package presence",
         "body": "Implemented per-component OVAL attribution separating Boolean definition truth from supported version proof. Pure existence/architecture and unsupported predicates remain unresolved with causes; OR witnesses cannot promote fixed/unknown siblings. Persist bounded native-version operands, source/binary identity, vendor comments and classification in receipts/revisions. Explicit affected/fixed/unresolved UI, cache/OS/rule/evaluator freshness gates, upgrade requeue and preserved human assessments. Canonical CVE-2026-97688/python3-pip-whl case verified against live OVAL and Ubuntu tracker: Noble python-pip needs-triage; no version bound supplied. See docs/audits/2026-11-21-package-cve-correctness.md. Compiler 3/evaluator 2; no schema/client changes."
+      },
+      {
+        "title": "Separate actionable package verdicts from historical open review workflows",
+        "body": "Implemented scoped SQL classification before queue aggregation/pagination: current affected versions/manual assessments, vendor uncertainty, pending current evaluations, fixed/not-matched/explicit human not-affected, and all retained workflows. Native Canonical CVE-2026-124757/needrestart 3.6-7ubuntu4.6 regression verifies the equal fixed boundary leaves the actionable list without closing human reviews. Proof operands/reasons/currentness are shown directly, analyst conflicts preserved, same-source NetBox assigned IP/DNS batched and searchable. Freshness and privacy/pagination/query-budget regressions; docs/audits/2026-11-21-package-cve-correctness.md. No schema/client/dependency changes."
       }
     ]
   },

@@ -146,3 +146,21 @@ a vendor presence-only rule. Original CVE evidence shows compared versions and
 vendor notes; a source package embedding another library can legitimately have
 a different package name/version. Old proofs are withheld while automatic
 reevaluation is pending. See the [package/CVE audit](../audits/2026-11-21-package-cve-correctness.md).
+
+### Distribution package verdicts in Vulnerability review
+
+`/reviews/` starts with **Affected versions & manual reviews**. A matching
+vendor version condition includes the installed version, affected/fixed bound
+and native comparison. The tabs separately expose **Vendor clarification
+needed**, **Awaiting current evaluation**, **Fixed / not affected / assessed**
+and **All retained open reviews**. Severity counts apply to the selected tab
+and search, before pagination. Counts are CVE–installation review records.
+
+An updated package with a proven vendor fix leaves the default queue after
+automatic reevaluation. Its review history and analyst assessment remain.
+An explicit analyst affected assessment remains actionable until reconciled.
+An explicit analyst not-affected decision is in the assessed category, with
+any conflicting automatic affected-version result shown. Missing/stale
+proof appears as awaiting evaluation; an empty action tab alone does not prove
+that all software has been checked. A vendor can report an unfixed CVE against
+the newest available distribution package.

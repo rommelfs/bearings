@@ -571,3 +571,7 @@ evidence, explicit affected/fixed/unresolved package verdicts, freshness guards
 and upgrade reevaluation. Presence-only Ubuntu triage entries are no longer
 version matches. Native comparisons and immutable human decisions are retained.
 See [case and implementation audit](audits/2026-11-21-package-cve-correctness.md).
+
+### Separate actionable package verdicts from historical open review workflows
+
+Implemented scoped SQL classification before queue aggregation/pagination: current affected versions/manual assessments, vendor uncertainty, pending current evaluations, fixed/not-matched/explicit human not-affected, and all retained workflows. Native Canonical CVE-2026-124757/needrestart 3.6-7ubuntu4.6 regression verifies the equal fixed boundary leaves the actionable list without closing human reviews. Proof operands/reasons/currentness are shown directly, analyst conflicts preserved, same-source NetBox assigned IP/DNS batched and searchable. Freshness and privacy/pagination/query-budget regressions; docs/audits/2026-11-21-package-cve-correctness.md. No schema/client/dependency changes.

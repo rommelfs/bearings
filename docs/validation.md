@@ -1391,3 +1391,25 @@ lost-ack recovery and local-only mail. Django check, no migration drift, Ruff an
 whitespace validation pass. Vendor downloads are public and send no company
 inventory. No production data, device credentials, review decisions or services
 were changed.
+
+### Patched packages and the global review queue (2026-11-21)
+
+- Read the audited full Canonical Noble OVAL feed locally: CVE-2026-124757
+  uses `needrestart < 3.6-7ubuntu4.6`. Its equal fixed boundary is not affected
+  under that vendor rule; factual normalized fixture retained with source/digest.
+- 124 PostgreSQL regressions passed across review classification, package
+  verdicts, source/organization visibility, asset review/search/paging, scoped
+  assigned IP/DNS, notifications and the Exchange exercise. Categories and
+  severity counts are computed before paging; 25-row vs five-row query budgets
+  verify constant query count. Currentness mutations cover schema/version,
+  binary/source identity, OS/feed, sequence, rule digest, vendor/observation age,
+  missing/disabled/expired inventory and compiler version. Human history and
+  contradictory explicit assessments remain intact.
+- Eight Chromium checks passed using actual isolated Django-rendered synthetic
+  responses and repository CSS/fonts: affected, unresolved, fixed, actual
+  needrestart boundary at 390/1440 px; explicit verdicts, five status filters,
+  native-version operands, and no horizontal overflow. These are local test
+  pages, not production or proof of production background-job completion.
+- Django check, no migration drift, relevant Ruff checks/format and diff checks
+  pass. No dependency, schema, connector/deployment or client change; no live
+  stack smoke rerun required for this scoped queue/template update.
