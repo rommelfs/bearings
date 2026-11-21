@@ -107,3 +107,35 @@ in one batched query for the displayed hosts, not one query per host. Existing I
 records, assessments and NetBox data are unchanged. Update source and restart
 `bearings-web`; no migration, client update or inventory import is needed when
 the assignments are already present.
+
+
+### Understanding why a CVE review appears
+
+The section is labelled **Servers with open actions or reviews**. A server card
+states why it is listed: overdue actions, an analyst’s affected assessment, an open
+high-priority operational issue, or outstanding CVE review/reconciliation. Counts
+represent CVE–installation records; they are not a count of unique vulnerabilities.
+
+Each CVE preview shows a concrete reason, product and recorded version, analyst
+assessment, saved automatic result and evaluation time, matching basis, advisory
+host and source severity. Missing versions and unresolved checks are explicit.
+A saved not-affected result with an open review calls for reconciliation; a human
+affected assessment conflicting with that result is shown as a conflict. These
+labels do not assert current feed/input freshness or a proven attack path.
+
+The linked-issue preview is ordered by overdue status, recorded analyst affectedness,
+high-priority operational issues, potential automated matches and source severity,
+with action dates/stable identities breaking ties. Saved not-affected checks rank
+below unresolved reviews. Older CVE-only records fill remaining slots, ordered by
+assessment, automated result, severity and stable identity. At most four records
+are previewed; the full scoped lists remain linked. Source severity is a source
+fact, separate from whether this installation is affected.
+
+**Next step** supplies an action even when none was entered. For CVEs it opens
+the original assessment; an explicitly recorded action retains its issue link.
+Risk scenarios are optional collapsed drafts, identified as hypotheses. Opening
+the overview never closes a review or changes an assessment; saved workflow and
+visibility policies determine when a record drops out.
+
+Update the reviewed checkout and restart `bearings-web`. No migration, client
+update/rebuild, static collection or worker restart is required.

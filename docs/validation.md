@@ -1353,3 +1353,18 @@ Actual local Chromium at 390/1440 px shows both assigned addresses on an attenti
 card without primary fields and follows the full-address link to the asset’s
 network section, without horizontal overflow. Django check, migration drift, Ruff
 and whitespace checks pass. Only synthetic browser fixture data was used.
+
+
+### Explainable CVE attention previews (2026-11-21)
+
+59 PostgreSQL overview, product, network and scenario/navigation tests pass. New
+cases cover explicit manual/missing-version reasons, source and assessment facts,
+saved automatic not-affected/analyst-affected reconciliation, distinct uncertain
+versus unassessed labels, overdue/assessment/match/severity ordering, legacy preview
+ordering, original assessment links, read-only GETs and disappearance on closure.
+Existing source/privacy/scenario integrity checks and forty-query preview budgets
+pass unchanged. Local Chromium at 390/1440 px verifies visible reason/software/
+version/next-step facts, collapsed draft scenarios with keyboard operation,
+retained network links and no horizontal overflow. Only synthetic local data was
+used. Django check, no migration drift, Ruff formatting/lint and whitespace checks
+pass. No assessment, notification, connector or production data was changed.

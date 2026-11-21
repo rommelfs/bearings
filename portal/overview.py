@@ -15,7 +15,8 @@ from .inventory_presentation import grouped_address_filter, decorate_addresses, 
 from .overview_monitoring import package_reporters
 from .models import Asset, BusinessRiskRevision, Contact, Installation, ProductWatch
 from .notifications import contact_policy
-from .presentation import ACTIVE_REVIEWS
+from .presentation import ACTIVE_REVIEWS, SEVERITY_ORDER
+from .overview_explanations import review_explanation
 
 
 def reviews_for(user):
@@ -338,9 +339,26 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
     ids = [asset.pk for asset in assets]
     ranked = perf_counter()
     timings["ranking"] = (ranked - started) * 1000
+
+    def severity_cases(prefix):
+        return Case(
+            *[When(**{prefix: value}, then=Value(index)) for index, value in enumerate(SEVERITY_ORDER)],
+            default=Value(len(SEVERITY_ORDER)),
+            output_field=IntegerField(),
+        )
+
     ranked_issues = (
         issues.filter(asset_id__in=ids)
         .annotate(
+            assessment_order=Case(
+                When(finding__analyst_applicability="affected", then=Value(0)),
+                When(finding__isnull=True, priority__in=["critical", "high"], then=Value(1)),
+                When(finding__applicability="potential", then=Value(2)),
+                When(finding__applicability="not_affected", then=Value(4)),
+                default=Value(3),
+                output_field=IntegerField(),
+            ),
+            severity_order=severity_cases("finding__record__source_severity"),
             urgent_order=Case(
                 When(action_due__lt=timezone.localdate(), then=Value(0)),
                 default=Value(1),
@@ -351,7 +369,13 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
             position=Window(
                 expression=RowNumber(),
                 partition_by=[F("asset_id")],
-                order_by=[F("urgent_order").asc(), F("action_due").asc(nulls_last=True), F("pk").asc()],
+                order_by=[
+                    F("urgent_order").asc(),
+                    F("assessment_order").asc(),
+                    F("severity_order").asc(),
+                    F("action_due").asc(nulls_last=True),
+                    F("pk").asc(),
+                ],
             )
         )
         .filter(position__lte=4)
@@ -376,6 +400,11 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
             "asset__criticality",
             "finding__status",
             "finding__analyst_applicability",
+            "finding__applicability",
+            "finding__rule",
+            "finding__evaluated_at",
+            "finding__record__source",
+            "finding__record__source_severity",
             "finding__record__external_id",
             "finding__record__payload",
             "finding__installation__version",
@@ -398,9 +427,23 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
         reviews.filter(installation__asset_id__in=needs_legacy)
         .filter(~Exists(issues.filter(finding_id=OuterRef("pk"))))
         .annotate(
+            assessment_order=Case(
+                When(analyst_applicability="affected", then=Value(0)),
+                When(applicability="potential", then=Value(1)),
+                When(applicability="not_affected", then=Value(3)),
+                default=Value(2),
+                output_field=IntegerField(),
+            ),
+            severity_order=severity_cases("record__source_severity"),
             position=Window(
-                expression=RowNumber(), partition_by=[F("installation__asset_id")], order_by=F("pk").asc()
-            )
+                expression=RowNumber(),
+                partition_by=[F("installation__asset_id")],
+                order_by=[
+                    F("assessment_order").asc(),
+                    F("severity_order").asc(),
+                    F("pk").asc(),
+                ],
+            ),
         )
         .filter(position__lte=4)
         .order_by("installation__asset_id", "position")
@@ -447,7 +490,17 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
                 "kind": issue.get_kind_display(),
                 "url": reverse("issue", args=[asset.organization.slug, issue.pk]),
                 "due": issue.action_due,
-                "next_action": issue.next_action,
+                "review": review_explanation(issue.finding) if issue.finding_id else None,
+                "review_url": reverse("intelligence", args=[asset.organization.slug])
+                + f"?finding={issue.finding_id}#finding-{issue.finding_id}"
+                if issue.finding_id and not issue.next_action
+                else "",
+                "next_action": issue.next_action
+                or (
+                    review_explanation(issue.finding)["next_action"]
+                    if issue.finding_id
+                    else "Review the recorded issue evidence and assign the next action"
+                ),
                 "scenario": draft_scenario(issue),
                 "scenario_url": reverse("automatic-scenario", args=[asset.organization.slug, issue.pk]),
             }
@@ -461,7 +514,8 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
                     "kind": "Vulnerability",
                     "url": reverse("intelligence", args=[asset.organization.slug])
                     + f"?finding={finding.pk}#finding-{finding.pk}",
-                    "next_action": "Review applicability and vendor fixes",
+                    "review": review_explanation(finding),
+                    "next_action": review_explanation(finding)["next_action"],
                 }
             )
         row["actions"] = [problem["next_action"] for problem in row["problems"] if problem.get("next_action")]

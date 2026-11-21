@@ -134,6 +134,10 @@
       {
         "title": "Use assigned IP records consistently on infrastructure attention cards",
         "body": "Implemented overview IP summary from primary and explicit same-source/same-company interface assignments. Deduplicate source identities, retain and label last-known/inactive records, use only recorded DNS metadata and link to full network details. One batched window query caps previews at sixteen assigned IPs per host; counts and existing query-budget checks retained. No inventory or applicability mutation; no migration or client rebuild."
+      },
+      {
+        "title": "Explain CVE attention previews and distinguish saved review evidence",
+        "body": "Implemented explicit server inclusion reason and per-CVE product/version, analyst assessment, saved automatic result/time, matching basis, advisory host, source severity and concrete next action. Missing-version and saved-not-affected/open-review conflicts are explained. Four-record previews use assessment/match/severity ordering rather than arbitrary identifiers alone; legacy-only records fill remaining slots. Generic risk scenarios are collapsed optional hypotheses; no assessment/workflow mutation, no severity-to-affectedness inference. Preserve role/source visibility and query budgets."
       }
     ]
   },

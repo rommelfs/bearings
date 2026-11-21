@@ -554,3 +554,11 @@ Attention cards now include explicit assigned IPs even without primary fields,
 with same-source/company isolation, primary deduplication, last-known labels and
 a link to full network records. A single bounded batch query preserves query budgets.
 See [infrastructure overview](user-guide/infrastructure-overview.md).
+
+
+## Explain CVE review attention — 2026-11-21
+
+Implemented inclusion reasons, product/version and saved assessment/matching facts,
+concrete next actions, explicit reconciliation and prioritized four-record previews.
+Optional risk scenarios are collapsed hypotheses; existing assessments and scope
+remain authoritative. See [overview guide](user-guide/infrastructure-overview.md).

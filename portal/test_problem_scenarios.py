@@ -61,7 +61,7 @@ class ProblemNavigationTests(Fixture):
         self.assertEqual(self.client.get(row["links"]["overdue"]).context["page"].paginator.count, 3)
         self.assertEqual(self.client.get(row["links"]["lifecycle"]).context["page"].paginator.count, 2)
         self.assertEqual(self.client.get(row["links"]["affected"]).context["page"].paginator.count, 1)
-        self.assertContains(response, "Automatic risk scenario")
+        self.assertContains(response, "Optional risk scenario · draft")
 
     def test_asset_filters_use_identity_not_ambiguous_names_and_reject_foreign_ids(self):
         other = Asset.objects.create(organization=self.a, source=self.sa, name=self.asset.name, kind="server")
