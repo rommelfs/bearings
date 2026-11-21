@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -248,6 +249,8 @@ func collect(inventory bool, selected []string, serviceName string) (*report, er
 	// Omission preserves the last server-side network observation and its age.
 	if host, err := networkClaim(); err == nil {
 		r.Host = &host
+	} else {
+		fmt.Fprintln(os.Stderr, "network observation unavailable:", err)
 	}
 	if serviceName != "" {
 		r.Scope = "nginx-packages"

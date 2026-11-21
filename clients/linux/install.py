@@ -22,7 +22,9 @@ import ssl
 import urllib.request
 from urllib.parse import urlsplit
 
-UNIT_SHA256 = "cbbc6eb75f24bd7ee356dc6718afa271e08fe24c2686fd3c638fc93675562ea1"
+UNIT_SHA256 = "aad8acca2d848bd8bf016d3fb30cb94a22cbda96025800f2a897c541b24b5a17"
+# Only this exact previously distributed unit may be upgraded automatically.
+PREVIOUS_UNIT_SHA256 = {"cbbc6eb75f24bd7ee356dc6718afa271e08fe24c2686fd3c638fc93675562ea1"}
 ACCOUNT = "bearings-linux"
 CLIENT = Path("/usr/local/bin/bearings-linux")
 UNIT = Path("/etc/systemd/system/bearings-linux.service")
@@ -39,6 +41,10 @@ with os.fdopen(fd,'rb') as f: data=f.read(limit+1)
 if len(data)>limit: sys.exit(1)
 sys.stdout.buffer.write(data)
 """
+
+
+def reviewed_unit(data):
+    return hashlib.sha256(data).hexdigest() in PREVIOUS_UNIT_SHA256 | {UNIT_SHA256}
 
 
 class InstallError(Exception):
@@ -239,7 +245,7 @@ def install(binary_path, unit_path, lxc_compatible=False):
     safe_parent(STATE.parent)
     regular(CLIENT)
     existing_unit = UNIT.read_bytes() if regular(UNIT) else None
-    if existing_unit is not None and existing_unit != unit:
+    if existing_unit is not None and not reviewed_unit(existing_unit):
         raise InstallError(
             "Existing unit differs from the bundled unit; retain it and reconcile explicitly. Use systemd drop-ins for customization"
         )
@@ -287,7 +293,7 @@ def install(binary_path, unit_path, lxc_compatible=False):
             if active:
                 systemctl("stop", "bearings-linux.service")
             atomic(CLIENT, binary, 0o755)
-            if existing_unit is None:
+            if existing_unit != unit:
                 atomic(UNIT, unit)
             if lxc_compatible:
                 atomic(lxc_path, LXC_OVERRIDE)

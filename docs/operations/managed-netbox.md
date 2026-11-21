@@ -101,3 +101,25 @@ Prepare this as an **export/import migration**, not bidirectional replication or
 4. Pause the source's import/export during a final delta and verify the destination from both APIs: identities, counts, relationships, software versions, IP scopes and retained local device/software/review links. Perform one explicit audited authoritative-source migration, preserving client keys and preventing two active writers. Retain the previous source receipt for rollback; do not delete CIRCL objects automatically.
 
 This migration executor and its preview UI are **not implemented** by the inventory-export change. Their own reviewable acceptance tests and explicit target authorization are required before moving a real customer's inventory. The new export schema/UUID provenance support that future work without claiming that host/IP export is already a complete NetBox-to-NetBox migration tool.
+
+### Network reports missing despite current software reports
+
+The original Linux unit allowed only AF_UNIX/AF_INET/AF_INET6. Go enumerates local
+interfaces through AF_NETLINK, so that sandbox prevented network collection even
+with the newer binary. Software-only reports remained valid and enrollment-time
+addresses were deliberately not refreshed or exported as current evidence.
+The corrected unit permits AF_NETLINK without adding capabilities or root access;
+network enumeration failures now appear in the client journal. The installer upgrades
+only the exact previous reviewed unit hash, preserving identity, private queue,
+service activation state and operator drop-ins; arbitrary edited units remain refused.
+Rebuild/publish client artifacts and rerun the existing central installer, then check
+a fresh report and the export receipt. Actual target systemd/NetBox acceptance is
+separate from local regression tests.
+
+Local validation for this correction: Go unit tests, eight unprivileged installer
+tests, disposable installer containers (real file/account/TLS/signature checks,
+controlled systemctl double), and `python3 scripts/linux_network_sandbox_smoke.py`.
+The latter applies real seccomp socket-domain filters to the compiled client:
+without AF_NETLINK it retains software and logs the omitted network observation;
+with AF_NETLINK it includes the host field. It does not emulate the entire systemd
+sandbox and does not contact NetBox.

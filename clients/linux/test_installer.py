@@ -71,6 +71,18 @@ class InstallerTests(unittest.TestCase):
         unit = Path(__file__).parent / "systemd/bearings-linux.service"
         self.assertEqual(hashlib.sha256(unit.read_bytes()).hexdigest(), installer.UNIT_SHA256)
 
+    def test_only_exact_reviewed_units_can_be_upgraded(self):
+        current = (Path(__file__).parent / "systemd/bearings-linux.service").read_bytes()
+        previous = current.replace(
+            b"# AF_NETLINK is required to read local interface/address metadata without probing.\n",
+            b"",
+        ).replace(b"AF_INET6 AF_NETLINK", b"AF_INET6")
+        self.assertTrue(installer.reviewed_unit(current))
+        self.assertTrue(installer.reviewed_unit(previous))
+        self.assertFalse(installer.reviewed_unit(previous + b"\nUser=root\n"))
+        families = next(line for line in current.decode().splitlines() if line.startswith("RestrictAddressFamilies="))
+        self.assertEqual(set(families.split("=", 1)[1].split()), {"AF_UNIX", "AF_INET", "AF_INET6", "AF_NETLINK"})
+
     def test_cli_requires_root_before_touching_system(self):
         with patch("sys.argv", ["install.py"]), patch.object(installer.os, "geteuid", return_value=1000):
             with patch.object(installer, "systemctl") as command, self.assertRaises(installer.InstallError):

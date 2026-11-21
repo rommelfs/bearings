@@ -75,6 +75,18 @@ p.write_text(json.dumps(s));sys.exit(code)
     assert (private / "key").read_bytes() == key_before
     assert not json.loads(state.read_text())["enabled"]
 
+    # Upgrade only the exact prior reviewed unit, preserving private state and stopped state.
+    unit_path = Path("/etc/systemd/system/bearings-linux.service")
+    current_unit = unit_path.read_bytes()
+    old_unit = current_unit.replace(
+        b"# AF_NETLINK is required to read local interface/address metadata without probing.\n", b""
+    ).replace(b"AF_INET6 AF_NETLINK", b"AF_INET6")
+    unit_path.write_bytes(old_unit)
+    call("--binary", "/test-client")
+    assert unit_path.read_bytes() == current_unit
+    assert (private / "key").read_bytes() == key_before
+    assert not json.loads(state.read_text())["active"]
+
     # Explicit LXC compatibility does not rewrite the hardened unit or device key.
     unit_before = Path("/etc/systemd/system/bearings-linux.service").read_bytes()
     lxc = Path("/etc/systemd/system/bearings-linux.service.d/bearings-lxc.conf")
