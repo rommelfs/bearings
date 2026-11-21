@@ -1,0 +1,32 @@
+[Unit]
+Description=Bearings web application
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
+[Service]
+User=bearings
+Group=www-data
+WorkingDirectory=/opt/bearings
+EnvironmentFile=/etc/bearings/bearings.env
+RuntimeDirectory=bearings
+RuntimeDirectoryMode=0750
+StateDirectory=bearings
+StateDirectoryMode=0700
+ExecStart=/opt/bearings/.venv/bin/gunicorn --bind unix:/run/bearings/web.sock --umask 7 --workers 3 --threads 2 --timeout 60 --max-requests 2000 --max-requests-jitter 200 --access-logfile /dev/null --error-logfile - config.wsgi:application
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=90
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/bearings /run/bearings
+RestrictSUIDSGID=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

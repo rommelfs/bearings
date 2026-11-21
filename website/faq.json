@@ -1,0 +1,382 @@
+[
+  {
+    "id": "what",
+    "en": [
+      "What is Bearings?",
+      "Bearings connects a company's infrastructure inventory with vulnerability evidence, business risk, accountable contacts and follow-up. It gives company teams a view of what needs attention and gives authorized CIRCL analysts a view across participating organizations."
+    ],
+    "de": [
+      "Was ist Bearings?",
+      "Bearings verbindet das Infrastrukturinventar einer Firma mit Schwachstelleninformationen, Geschäftsrisiken, verantwortlichen Ansprechpartnern und der Nachverfolgung. Firmen sehen, wo Handlungsbedarf besteht. Berechtigte CIRCL-Analysten erhalten einen Überblick über teilnehmende Organisationen."
+    ],
+    "fr": [
+      "Qu’est-ce que Bearings ?",
+      "Bearings relie l’inventaire informatique d’une entreprise aux informations sur les vulnérabilités, aux risques métier, aux responsables et au suivi des actions. Les équipes voient ce qui nécessite leur attention ; les analystes CIRCL autorisés disposent d’une vue sur les organisations participantes."
+    ],
+    "lb": [
+      "Wat ass Bearings?",
+      "Bearings verbënnt den Infrastrukturinventar vun enger Firma mat Informatiounen iwwer Sécherheetslücken, Geschäftsrisiken, zoustännege Kontaktpersounen an dem Suivi vun de Moossnamen. D’Firmenteame gesinn, wou si handele mussen. Berechtegt CIRCL-Analyste kréien en Iwwerbléck iwwer déi deelhuelend Organisatiounen."
+    ]
+  },
+  {
+    "id": "operator",
+    "en": [
+      "Who operates the Bearings service?",
+      "This Bearings installation is operated by CIRCL. CIRCL is Luxembourg’s CERT for the private sector and municipalities. The Law of 5 May 2026 implementing NIS2 designates CIRCL as a CSIRT; Article 9 names CIRCL as the coordinator for coordinated vulnerability disclosure. We scan for vulnerabilities and support voluntary information sharing so organizations can act earlier."
+    ],
+    "de": [
+      "Wer betreibt den Bearings-Dienst?",
+      "Diese Bearings-Installation wird von CIRCL betrieben. CIRCL ist das CERT für die Privatwirtschaft und Kommunen in Luxemburg. Das Gesetz vom 5. Mai 2026 zur Umsetzung von NIS2 nennt CIRCL als CSIRT; Artikel 9 benennt CIRCL als Koordinator für die koordinierte Offenlegung von Schwachstellen. Wir scannen nach Schwachstellen und unterstützen den freiwilligen Informationsaustausch, damit Organisationen frühzeitig handeln können."
+    ],
+    "fr": [
+      "Qui exploite le service Bearings ?",
+      "Cette installation Bearings est exploitée par le CIRCL. Le CIRCL est le CERT du secteur privé et des communes au Luxembourg. La loi du 5 mai 2026 transposant NIS2 désigne le CIRCL comme CSIRT ; son article 9 lui confie la coordination de la divulgation coordonnée des vulnérabilités. Nous réalisons des scans de vulnérabilités et soutenons le partage volontaire d’informations pour permettre aux organisations d’agir plus tôt."
+    ],
+    "lb": [
+      "Wien bedreift de Bearings-Service?",
+      "Dës Bearings-Installatioun gëtt vum CIRCL bedriwwen. De CIRCL ass de CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg. D’Gesetz vum 5. Mee 2026 fir d’Ëmsetzung vun NIS2 nennt de CIRCL als CSIRT; den Artikel 9 nennt de CIRCL als Koordinator fir d’koordinéiert Offenleeë vu Schwachstellen. Mir scannen no Schwachstellen an ënnerstëtzen de fräiwëllegen Informatiounsaustausch, fir datt Organisatioune fréi handele kënnen."
+    ]
+  },
+  {
+    "id": "free",
+    "en": [
+      "Is Bearings free to use?",
+      "Yes. The CIRCL-operated Bearings service is free and will remain free, including continued use after registration. Start with a responsible contact and one domain or network, then add details over time. Colleagues can join by invitation. Optional external tools have their own account and operating requirements."
+    ],
+    "de": [
+      "Bleibt die Nutzung von Bearings kostenlos?",
+      "Ja. Der von CIRCL betriebene Bearings-Dienst ist und bleibt kostenlos, auch nach der Registrierung. Beginnen Sie mit einem Verantwortlichen und einer Domain oder einem Netz und ergänzen Sie die Angaben später. Kollegen können per Einladung beitreten. Für optionale externe Werkzeuge gelten deren eigene Konto- und Betriebsanforderungen."
+    ],
+    "fr": [
+      "L’utilisation de Bearings restera-t-elle gratuite ?",
+      "Oui. Le service Bearings exploité par le CIRCL est gratuit et le restera, y compris après l’inscription. Commencez avec un responsable et un domaine ou un réseau, puis enrichissez les données. Les collègues peuvent rejoindre l’entreprise sur invitation. Les outils externes facultatifs conservent leurs propres conditions de compte et d’exploitation."
+    ],
+    "lb": [
+      "Bleift d’Benotzung vu Bearings gratis?",
+      "Jo. De vum CIRCL bedriwwene Bearings-Service ass a bleift gratis, och no der Registréierung. Fänkt mat enger zoustänneger Persoun an enger Domain oder engem Netz un an ergänzt d’Donnéeë spéider. D’Team ka per Invitatioun bäitrieden. Fir optional extern Instrumenter gëllen hir eege Konten- a Betribsufuerderungen."
+    ]
+  },
+  {
+    "id": "start",
+    "en": [
+      "Do I need a complete inventory to get started?",
+      "No. Start with a responsible contact and one domain, IP address or network. Add hardware, software and versions over time. A resumable setup guide and individual editors let you continue later. Unknown or missing data remains visible as a coverage gap."
+    ],
+    "de": [
+      "Brauche ich zum Start ein vollständiges Inventar?",
+      "Nein. Ein zuständiger Ansprechpartner und eine Domain, IP-Adresse oder ein Netz reichen für den Einstieg. Hardware, Software und Versionen können später folgen. Der Assistent speichert Ihren Fortschritt; alle Bereiche sind auch einzeln erreichbar. Fehlende Angaben bleiben als Lücken im Inventar sichtbar."
+    ],
+    "fr": [
+      "Faut-il un inventaire complet pour commencer ?",
+      "Non. Commencez par un contact responsable et un domaine, une adresse IP ou un réseau. Ajoutez ensuite le matériel, les logiciels et leurs versions. L’assistant sauvegarde la progression et les rubriques restent accessibles séparément. Les informations manquantes restent visibles comme des lacunes de couverture."
+    ],
+    "lb": [
+      "Brauche mir e kompletten Inventar fir unzefänken?",
+      "Nee. Eng zoustänneg Kontaktpersoun an eng Domain, IP-Adress oder en Netz ginn duer fir den Ufank. Hardware, Software a Versioune kënne spéider dobäikommen. Den Assistent späichert de Fortschrëtt, an déi eenzel Beräicher bleiwen separat zougänglech. Feelend Donnéeë bleiwen als Lücken an der Ofdeckung siichtbar."
+    ]
+  },
+  {
+    "id": "join",
+    "en": [
+      "How do I join my existing company?",
+      "Ask your company administrator for an email invitation. Accept its one-use code with your existing account, or create your own account if you do not have one. The first registrant of a new company becomes its administrator. Administrators can invite administrators, editors and readers; this never grants CIRCL or platform privileges."
+    ],
+    "de": [
+      "Wie trete ich einer bestehenden Firma bei?",
+      "Bitten Sie Ihren Firmenadministrator um eine E-Mail-Einladung. Nehmen Sie den einmaligen Code mit Ihrem bestehenden Konto an oder legen Sie ein eigenes Konto an. Die erste Person, die eine neue Firma registriert, wird deren Administrator. Firmenadministratoren können Administratoren, Bearbeiter und Leser einladen; daraus entstehen keine CIRCL- oder Plattformrechte."
+    ],
+    "fr": [
+      "Comment rejoindre une entreprise existante ?",
+      "Demandez une invitation par e-mail à l’administrateur de votre entreprise. Acceptez son code à usage unique avec votre compte existant ou créez votre propre compte. La première personne qui enregistre une nouvelle entreprise en devient administratrice. Les administrateurs peuvent inviter des administrateurs, des éditeurs et des lecteurs, sans attribuer de privilèges CIRCL ou de plateforme."
+    ],
+    "lb": [
+      "Wéi trieden ech enger bestoender Firma bäi?",
+      "Frot den Administrateur vun Ärer Firma no enger E-Mail-Invitatioun. Huelt den eemolege Code mat Ärem bestoende Kont un oder leet en eegene Kont un. Déi éischt Persoun, déi eng nei Firma registréiert, gëtt hiren Administrateur. Firmenadministrateure kënnen Administrateuren, Editeuren a Lieser invitéieren; domat ginn et keng CIRCL- oder Plattformrechter."
+    ]
+  },
+  {
+    "id": "approval",
+    "en": [
+      "When does the company get access, and when does CIRCL?",
+      "Email confirmation opens the private company workspace. CIRCL reviews sharing separately. Declared IPs and domains remain declarations until their responsibility is reviewed. Email possession, company membership and infrastructure authority are separate facts."
+    ],
+    "de": [
+      "Wann bekommt die Firma Zugang, wann CIRCL?",
+      "Nach der E-Mail-Bestätigung öffnet sich der private Firmenbereich. Die Freigabe für CIRCL erfolgt gesondert. Angegebene IPs und Domains bleiben zunächst Selbstauskünfte, bis die Zuständigkeit geprüft wurde. E-Mail-Zugriff, Firmenmitgliedschaft und Infrastrukturzuständigkeit sind getrennte Sachverhalte."
+    ],
+    "fr": [
+      "Quand l’entreprise obtient-elle l’accès, et quand le CIRCL ?",
+      "La confirmation de l’e-mail ouvre l’espace privé de l’entreprise. Le partage avec le CIRCL fait l’objet d’une validation distincte. Les IP et domaines déclarés restent des déclarations tant que la responsabilité n’a pas été vérifiée. L’accès à une boîte mail, l’appartenance à une entreprise et la responsabilité d’une infrastructure sont des faits distincts."
+    ],
+    "lb": [
+      "Wéini kritt d’Firma Zougang, a wéini de CIRCL?",
+      "No der E-Mail-Bestätegung geet de private Firmeberäich op. D’Fräigab fir de CIRCL gëtt separat iwwerpréift. Déi uginn IP-Adressen an Domainen bleiwen Deklaratiounen, bis d’Zoustännegkeet iwwerpréift gouf. Zougang zu enger Mailbox, Memberschaft an enger Firma an d’Verantwortung fir Infrastruktur si verschidde Saachen."
+    ]
+  },
+  {
+    "id": "inventory",
+    "en": [
+      "Can we reuse NetBox or import a spreadsheet?",
+      "Yes. Operator-approved NetBox connections import devices, VMs, IPs and prefixes. A manually maintained inventory supports reviewed CSV imports up to 500 rows / 1 MB. Each company has one authoritative inventory source. A CSV upload does not write to NetBox; software/version details are separate from basic network discovery."
+    ],
+    "de": [
+      "Können wir NetBox oder Tabellen weiterverwenden?",
+      "Ja. Freigegebene NetBox-Verbindungen importieren Geräte, VMs, IPs und Präfixe. Für manuell gepflegtes Inventar gibt es einen CSV-Import mit Vorschau bis 500 Zeilen / 1 MB. Jede Firma hat eine maßgebliche Inventarquelle. Ein CSV-Upload schreibt nicht in NetBox; Software- und Versionsangaben sind von den grundlegenden Netzobjekten getrennt."
+    ],
+    "fr": [
+      "Peut-on réutiliser NetBox ou importer un tableau ?",
+      "Oui. Des connexions NetBox approuvées importent les équipements, VM, IP et préfixes. L’inventaire géré manuellement accepte des imports CSV avec prévisualisation, limités à 500 lignes / 1 Mo. Chaque entreprise possède une seule source d’inventaire faisant autorité. Un import CSV n’écrit pas dans NetBox ; les logiciels et versions sont distincts des objets réseau de base."
+    ],
+    "lb": [
+      "Kënne mir NetBox weiderbenotzen oder eng Tabell importéieren?",
+      "Jo. Autoriséiert NetBox-Verbindungen importéieren Apparater, virtuell Maschinnen, IP-Adressen a Präfixer. Fir manuell gefouerten Inventar gëtt et e CSV-Import mat Virschau bis 500 Zeilen / 1 MB. All Firma huet eng eenzeg verbindlech Inventarquell. E CSV-Import schreift net an NetBox; Software- a Versiounsangabe si vun de Basis-Netzobjekter getrennt."
+    ]
+  },
+  {
+    "id": "updates",
+    "en": [
+      "Does a CVE match mean a server needs a patch?",
+      "A match starts a review. A product name or a high CVSS score alone does not prove that a particular installation is affected. Review the version, exposure and evidence, assign responsibility, and record the tested action. Bearings does not install patches or infer successful remediation from an empty issue list."
+    ],
+    "de": [
+      "Bedeutet ein CVE-Treffer, dass ein Server ein Update braucht?",
+      "Ein Treffer startet eine Prüfung. Produktname oder hoher CVSS-Wert beweisen allein nicht, dass eine Installation betroffen ist. Version, Exposition und Belege werden geprüft, Zuständige benannt und die getestete Maßnahme dokumentiert. Bearings installiert keine Updates und wertet eine leere Problemliste nicht als Nachweis erfolgreicher Behebung."
+    ],
+    "fr": [
+      "Une correspondance CVE signifie-t-elle qu’un serveur doit être corrigé ?",
+      "Une correspondance déclenche une vérification. Le nom du produit ou un score CVSS élevé ne prouve pas à lui seul qu’une installation est affectée. Vérifiez la version, l’exposition et les éléments probants, désignez un responsable et consignez l’action testée. Bearings n’installe pas de correctifs et ne considère pas une liste vide comme une preuve de remédiation."
+    ],
+    "lb": [
+      "Heescht e CVE-Treffer, datt e Server e Patch brauch?",
+      "En Treffer léist eng Iwwerpréiwung aus. De Produitnumm oder en héije CVSS-Wäert eleng beweist net, datt eng Installatioun betraff ass. Versioun, Expositioun a Beleeër ginn iwwerpréift, eng zoustänneg Persoun gëtt bestëmmt an déi getest Moossnam gëtt dokumentéiert. Bearings installéiert keng Patches a gesäit eng eidel Problemlëscht net als Beweis fir eng erfollegräich Behiewung."
+    ]
+  },
+  {
+    "id": "risk",
+    "en": [
+      "How does Bearings support risk analysis?",
+      "Vulnerability evidence can be linked to public MOSP/MONARC scenario definitions and company-specific consequences, treatment and review decisions. Automatic scenario drafts support human review. Source severity, local qualitative risk and a full native MONARC assessment remain distinct; a scenario suggestion is not a confirmed business impact."
+    ],
+    "de": [
+      "Wie unterstützt Bearings die Risikoanalyse?",
+      "Schwachstellenbelege können mit öffentlichen MOSP/MONARC-Szenariodefinitionen sowie firmenspezifischen Folgen, Maßnahmen und Prüfentscheidungen verknüpft werden. Automatische Szenarioentwürfe unterstützen die fachliche Prüfung. Quellenschweregrad, lokale qualitative Bewertung und eine vollständige native MONARC-Analyse bleiben getrennt; ein Vorschlag bestätigt noch keinen Geschäftsschaden."
+    ],
+    "fr": [
+      "Comment Bearings aide-t-il à analyser les risques ?",
+      "Les éléments sur les vulnérabilités peuvent être reliés aux définitions publiques de scénarios MOSP/MONARC et aux conséquences, mesures et décisions de l’entreprise. Des propositions automatiques de scénarios facilitent l’examen par les responsables. La gravité de la source, l’évaluation qualitative locale et une analyse MONARC native complète restent distinctes ; une suggestion ne confirme pas un impact métier."
+    ],
+    "lb": [
+      "Wéi ënnerstëtzt Bearings d’Risikoanalys?",
+      "Beleeër iwwer Sécherheetslücke kënne mat ëffentleche MOSP/MONARC-Szenariodefinitiounen an de firmespezifesche Konsequenzen, Moossnamen an Entscheedunge verbonne ginn. Automatesch Szenariovirschléi ënnerstëtzen d’fachlech Iwwerpréiwung. De Schwéiergrad vun der Quell, eng lokal qualitativ Bewäertung an eng komplett nativ MONARC-Analys bleiwen getrennt. E Virschlag bestätegt nach kee Geschäftsschued."
+    ]
+  },
+  {
+    "id": "no-cve",
+    "en": [
+      "Can analysts research an affected version before a CVE exists?",
+      "Yes. Authorized CIRCL analysts can search participating companies' recorded software/version inventory without a CVE. Findings are research leads limited by inventory freshness, exact recorded facts and current access. A restricted report does not automatically become a company notice or a finding."
+    ],
+    "de": [
+      "Kann man betroffene Versionen ohne vorhandene CVE recherchieren?",
+      "Ja. Berechtigte CIRCL-Analysten können die erfasste Software und Versionen teilnehmender Firmen auch ohne CVE durchsuchen. Ergebnisse sind Rechercheansätze innerhalb der aktuellen Rechte und der vorhandenen Datenqualität. Eine vertrauliche Meldung wird nicht automatisch zur Firmenbenachrichtigung oder zum bestätigten Befund."
+    ],
+    "fr": [
+      "Peut-on rechercher une version affectée avant l’existence d’une CVE ?",
+      "Oui. Les analystes CIRCL autorisés peuvent rechercher les logiciels et versions enregistrés par les entreprises participantes, même sans CVE. Les résultats sont des pistes limitées par l’actualité des données, les faits enregistrés et les droits d’accès. Un signalement confidentiel ne devient pas automatiquement une notification à l’entreprise ni un constat confirmé."
+    ],
+    "lb": [
+      "Kann een eng betraffe Versioun ouni CVE recherchéieren?",
+      "Jo. Berechtegt CIRCL-Analyste kënnen déi erfaasst Software a Versioune vun deelhuelende Firmen och ouni CVE duerchsichen. D’Resultater si Recherchepisten, begrenzt duerch d’Aktualitéit vun den Donnéeën, déi dokumentéiert Fakten an déi aktuell Zougangsrechter. Eng vertraulech Meldung gëtt net automatesch zu enger Firmeninformatioun oder engem bestätegte Befund."
+    ]
+  },
+  {
+    "id": "national",
+    "en": [
+      "Does National Overview describe all of Luxembourg?",
+      "It describes currently permitted, participating inventory: outstanding reviews, software-version prevalence, recorded activity and company locations. It does not claim complete national coverage, verified patch installation or a predictive security score. The map shows company locations, which may differ from server locations."
+    ],
+    "de": [
+      "Beschreibt National Overview ganz Luxemburg?",
+      "Die Ansicht beschreibt das aktuell freigegebene Inventar teilnehmender Firmen: offene Prüfungen, verbreitete Softwareversionen, erfasste Aktivitäten und Firmenstandorte. Sie behauptet keine vollständige nationale Abdeckung, nachgewiesene Patch-Installation oder Vorhersage der Sicherheit. Firmenstandort und Serverstandort können abweichen."
+    ],
+    "fr": [
+      "La vue nationale décrit-elle tout le Luxembourg ?",
+      "Elle décrit l’inventaire actuellement autorisé des organisations participantes : revues ouvertes, versions répandues, activités enregistrées et localisation des entreprises. Elle ne garantit ni couverture nationale complète, ni installation vérifiée des correctifs, ni score prédictif de sécurité. Le siège d’une entreprise peut différer de l’emplacement de ses serveurs."
+    ],
+    "lb": [
+      "Beschreift National Overview ganz Lëtzebuerg?",
+      "D’Usiicht weist den Inventar, dee vun deelhuelende Firme fräiginn ass: oppe Kontrollen, verbreet Softwareversiounen, erfaasst Aktivitéiten a Firmestanduerter. Si garantéiert keng komplett national Ofdeckung a beweist net, datt Patches installéiert sinn. Si ass och keng Prognos iwwer zukünfteg Sécherheet. De Firmestanduert ka vum Standuert vun de Serveren ofwäichen."
+    ]
+  },
+  {
+    "id": "misp",
+    "en": [
+      "Whose MISP permissions does a customer use?",
+      "Their own. Optional personal connections use the customer's read-only MISP key and isolated cache at an approved server. CIRCL's universal key is reserved for internal research and is never a customer fallback. Colleagues do not inherit personal caches. Default refresh/expiry is 5/10 minutes; the current pilot is bounded to 500 events / 20 MB."
+    ],
+    "de": [
+      "Welche MISP-Rechte gelten für Kunden?",
+      "Die eigenen. Optionale persönliche Verbindungen verwenden den MISP-API-Schlüssel des Kunden mit Leserechten und einen getrennten Cache an einem freigegebenen Server. Der universelle CIRCL-Schlüssel bleibt interner Recherche vorbehalten und ist kein Ersatz für Kundenrechte. Kollegen erhalten keinen Zugriff auf persönliche Caches. Standardmäßig wird alle 5 Minuten aktualisiert; die Daten laufen nach 10 Minuten ab. Der Pilot ist auf 500 Events / 20 MB begrenzt."
+    ],
+    "fr": [
+      "Quels droits MISP un client utilise-t-il ?",
+      "Les siens. Les connexions personnelles facultatives utilisent la clé MISP en lecture seule du client et un cache isolé sur un serveur approuvé. La clé universelle du CIRCL est réservée à la recherche interne et ne sert jamais de solution de repli pour un client. Les collègues n’héritent pas des caches personnels. Les valeurs par défaut sont 5 minutes d’actualisation et 10 minutes de validité ; le pilote est limité à 500 événements / 20 Mo."
+    ],
+    "lb": [
+      "Wéi eng MISP-Rechter benotzt e Client?",
+      "Seng eegen. Optional perséinlech Verbindunge benotzen de MISP-Schlëssel vum Client mat Liesrechter an en getrennte Cache op engem autoriséierte Server. Den universelle CIRCL-Schlëssel bleift fir intern Recherche a gëtt ni als Ersatz fir Clientsrechter benotzt. Kolleegen ierwe keng perséinlech Cachen. Standardméisseg gëtt all 5 Minutten aktualiséiert; d’Donnéeë lafen no 10 Minutten of. De Pilot ass op 500 Events / 20 MB begrenzt."
+    ]
+  },
+  {
+    "id": "ail",
+    "en": [
+      "Is Bearings directly connected to AIL?",
+      "No. Companies can supply optional keywords, separate Honeytoken indicators and a team notification mailbox. Bearings exports a configuration for manual import into AIL. Analysts review results and choose whether to notify through Bearings or AIL. There is no automatic AIL feed or unreviewed alert stream."
+    ],
+    "de": [
+      "Ist AIL direkt angebunden?",
+      "Nein. Firmen können optionale Keywords, gesonderte Honeytoken-Indikatoren und eine Team-Mailadresse hinterlegen. Bearings exportiert eine Konfiguration zum manuellen Import in AIL. Analysten prüfen Ergebnisse und entscheiden über Benachrichtigungen durch Bearings oder AIL. Es gibt keinen automatischen AIL-Feed oder ungeprüften Alarmstrom."
+    ],
+    "fr": [
+      "Bearings est-il directement connecté à AIL ?",
+      "Non. Les entreprises peuvent fournir des mots-clés facultatifs, des indicateurs Honeytoken distincts et une boîte mail d’équipe. Bearings exporte une configuration à importer manuellement dans AIL. Les analystes examinent les résultats et choisissent une notification via Bearings ou AIL. Il n’existe ni flux AIL automatique ni chaîne d’alertes sans revue."
+    ],
+    "lb": [
+      "Ass AIL direkt u Bearings ugebonnen?",
+      "Nee. Firme kënnen optional Schlësselwierder, separat Honeytoken-Indicateuren an eng Team-Mailadress uginn. Bearings exportéiert eng Konfiguratioun fir de manuellen Import an AIL. Analysten iwwerpréiwen d’Resultater a wielen eng Benoriichtegung iwwer Bearings oder AIL. Et gëtt keen automateschen AIL-Feed a keng ongepréift Alarmketten."
+    ]
+  },
+  {
+    "id": "mail",
+    "en": [
+      "How do data reviews and the email reaction test work?",
+      "The service emails responsible people to review their contacts and inventory and confirm a snapshot through a link. Platform administrators set the review schedule; CIRCL analysts can also manage it for approved companies. Registered companies cannot disable required review emails. Message preparation, delivery and an actual response remain separate evidence: a sent message alone does not count as confirmation."
+    ],
+    "de": [
+      "Wie funktionieren Datenprüfung und E-Mail-Reaktionstest?",
+      "Der Dienst fordert Verantwortliche per E-Mail auf, Kontakte und Inventar zu prüfen und einen Datenstand über einen Link zu bestätigen. Plattformadministratoren legen den Rhythmus fest; bei freigegebenen Firmen können auch CIRCL-Analysten ihn verwalten. Registrierte Firmen können verpflichtende Prüf-E-Mails nicht abwählen. Versandvorbereitung, Zustellung und tatsächliche Reaktion bleiben getrennte Nachweise. Eine versendete E-Mail allein zählt nicht als Bestätigung."
+    ],
+    "fr": [
+      "Comment fonctionnent la revue des données et le test de réaction par e-mail ?",
+      "Le service demande par e-mail aux responsables de vérifier les contacts et l’inventaire, puis de confirmer un état des données via un lien. Les administrateurs de plateforme fixent la périodicité ; les analystes CIRCL peuvent aussi la gérer pour les entreprises approuvées. Les entreprises inscrites ne peuvent pas désactiver les e-mails de vérification obligatoires. Préparation, livraison et réponse effective restent distinctes : un message envoyé n’est pas une confirmation."
+    ],
+    "lb": [
+      "Wéi funktionéieren d’Datekontroll an den E-Mail-Reaktiounstest?",
+      "De Service fuerdert déi zoustänneg Persoune per E-Mail op, Kontakter an Inventar ze kontrolléieren an en Donnéeëstand iwwer e Link ze bestätegen. Plattformadministrateure leeën de Rhythmus fest; bei fräiginnene Firme kënnen och CIRCL-Analysten en änneren. Registréiert Firme kënnen obligatoresch Kontrollmails net ausschalten. Virbereedung, Zoustellung an tatsächlech Reaktioun bleiwen getrennten Noweiser. Eng verschéckte Mail eleng ass keng Bestätegung."
+    ]
+  },
+  {
+    "id": "contacts",
+    "en": [
+      "Can a security team or DPO be included?",
+      "A separate team mailbox can be supplied, for example security@, abuse@ or noc@. Notification eligibility depends on mailbox/role review and the selected workflow. DPO inclusion is an optional reviewed audience choice, not an automatic escalation on every vulnerability. Emergency telephone details are collected separately."
+    ],
+    "de": [
+      "Können ein Security-Team oder ein DPO einbezogen werden?",
+      "Eine zusätzliche Team-Mailbox wie security@, abuse@ oder noc@ kann hinterlegt werden. Ihre Benachrichtigungsberechtigung hängt von Mailbox-/Rollenprüfung und dem gewählten Ablauf ab. Die DPO-Einbeziehung ist eine optionale, geprüfte Empfängerauswahl und keine automatische Eskalation jeder Schwachstelle. Eine Notfall-Telefonnummer wird gesondert erfasst."
+    ],
+    "fr": [
+      "Une équipe sécurité ou le DPO peuvent-ils être inclus ?",
+      "Une boîte d’équipe distincte, comme security@, abuse@ ou noc@, peut être renseignée. Son éligibilité aux notifications dépend des vérifications de la boîte et du rôle ainsi que du processus retenu. Le DPO peut être inclus après revue des destinataires ; il n’est pas automatiquement alerté pour chaque vulnérabilité. Le téléphone d’urgence est recueilli séparément."
+    ],
+    "lb": [
+      "Kënnen e Sécherheetsteam oder den DPO agebonne ginn?",
+      "Eng separat Team-Mailbox, zum Beispill security@, abuse@ oder noc@, kann uginn ginn. Ob si Benoriichtegunge kritt, hänkt vun der Iwwerpréiwung vun der Mailbox a vun der Roll souwéi vum gewielten Oflaf of. Den DPO kann no enger Empfängerpréiwung dobäikommen; et gëtt keng automatesch Eskalatioun bei all Sécherheetslück. Eng Noutfall-Telefonsnummer gëtt separat erfaasst."
+    ]
+  },
+  {
+    "id": "sso",
+    "en": [
+      "Is SSO available across the ecosystem?",
+      "Your company uses its Bearings account to access the CIRCL-operated workspace. Optional single sign-on depends on the login methods enabled by the operator. Connected applications keep their own permissions; a company invitation does not automatically grant access to MISP, NetBox or incident-coordination tools."
+    ],
+    "de": [
+      "Gibt es SSO im Ökosystem?",
+      "Ihr Team nutzt sein Bearings-Konto für den von CIRCL betriebenen Firmenbereich. Optionales Single Sign-on hängt von den freigeschalteten Anmeldeverfahren ab. Angebundene Anwendungen behalten ihre eigenen Rechte; eine Firmeneinladung erteilt nicht automatisch Zugang zu MISP, NetBox oder Werkzeugen zur Vorfallkoordination."
+    ],
+    "fr": [
+      "Le SSO est-il disponible dans l’écosystème ?",
+      "Votre équipe utilise son compte Bearings pour accéder à l’espace exploité par CIRCL. Le SSO facultatif dépend des méthodes de connexion activées par l’opérateur. Les applications connectées conservent leurs propres droits ; une invitation n’accorde pas automatiquement l’accès à MISP, NetBox ou aux outils de coordination."
+    ],
+    "lb": [
+      "Gëtt et SSO am Ökosystem?",
+      "Äert Team benotzt säi Bearings-Kont fir de vum CIRCL bedriwwene Firmeberäich. Optionalen SSO hänkt vun den aktivéierten Umeldemethoden of. Ugebonnen Applikatioune behalen hir eege Rechter; eng Firmeninvitatioun erlaabt net automatesch den Zougang zu MISP, NetBox oder Koordinatiounsinstrumenter."
+    ]
+  },
+  {
+    "id": "merge",
+    "en": [
+      "What happens if a company is registered twice or companies merge?",
+      "A platform administrator can review a company merge. Members of the original company join the target; users already in both companies retain their target role. Supported local manual inventory and evidence are transferred together, and the original company is archived. Native identities, external source bindings and conflicting data require separate reconciliation. Similar company names never automatically grant membership or trigger a merge."
+    ],
+    "de": [
+      "Was passiert bei Doppelregistrierungen oder Firmenfusionen?",
+      "Ein Plattformadministrator kann eine Firmenzusammenführung prüfen. Mitglieder der ursprünglichen Firma kommen zur Zielfirma; bereits dort vorhandene Benutzer behalten ihre Rolle. Unterstütztes lokales, manuell gepflegtes Inventar und Belege werden gemeinsam übertragen, die ursprüngliche Firma wird archiviert. Native Identitäten, externe Quellbindungen und Datenkonflikte erfordern gesonderte Klärung. Ähnliche Firmennamen erteilen nie automatisch Rechte und lösen keine Zusammenführung aus."
+    ],
+    "fr": [
+      "Que faire en cas de double inscription ou de fusion d’entreprises ?",
+      "Un administrateur de plateforme peut examiner une fusion. Les membres de la source rejoignent la cible ; les utilisateurs présents des deux côtés conservent leur rôle dans la cible. L’inventaire manuel local pris en charge et les éléments probants sont transférés ensemble, puis la source est archivée. Les identités natives, les connexions externes de la source et les conflits de données nécessitent une réconciliation distincte. Des noms proches ne déclenchent jamais de droits ou de fusion automatiques."
+    ],
+    "lb": [
+      "Wat geschitt bei Duebelregistréierungen oder Firmefusiounen?",
+      "E Plattformadministrateur kann eng Firmenzesummeféierung iwwerpréiwen. Membere vun der Quell trieden der Zielfirma bäi; Benotzer, déi schonn do sinn, behalen hir Zilroll. Ënnerstëtzte lokalen, manuell gefouerten Inventar a Beleeër ginn zesummen iwwerdroen, d’Quell gëtt archivéiert. Nativ Identitéiten, extern Quellverbindungen an Datekonflikter brauche separat Ofstëmmung. Änlech Firmennimm verginn ni automatesch Rechter a léise keng automatesch Zesummeféierung aus."
+    ]
+  },
+  {
+    "id": "production",
+    "en": [
+      "Is Bearings ready for production?",
+      "Bearings is a development and pilot project with automated tests and synthetic reference deployments. Tests with 40,000 companies and 1.2 million assets passed within the documented resource and workload limits. This is not a production approval: sustained testing on the intended deployment, real-service permissions and versions, operational email delivery, monitored jobs, backup/restore, retention and native-account revocation still require validation."
+    ],
+    "de": [
+      "Ist Bearings produktionsreif?",
+      "Bearings ist ein Entwicklungs- und Pilotprojekt mit automatisierten Tests und synthetischen Referenzumgebungen. Tests mit 40.000 Firmen und 1,2 Millionen Inventarobjekten waren innerhalb der dokumentierten Ressourcen- und Lastgrenzen erfolgreich. Das ist keine Produktionsfreigabe: Ein Dauertest auf der Zielumgebung, Rechte und Versionen realer Dienste, operativer E-Mail-Versand, überwachte Jobs, Backup/Restore, Aufbewahrung und der Widerruf nativer Konten müssen noch validiert werden."
+    ],
+    "fr": [
+      "Bearings est-il prêt pour la production ?",
+      "Bearings est un projet en développement et en phase pilote, doté de tests automatisés et d’environnements de référence synthétiques. Des tests avec 40 000 entreprises et 1,2 million d’éléments d’inventaire ont réussi dans les limites documentées de ressources et de charge. Cela ne constitue pas une validation de production : les tests prolongés sur le déploiement cible, les droits et versions des services réels, la livraison des e-mails, la supervision des tâches, les sauvegardes et restaurations, la conservation et la révocation des comptes natifs restent à valider."
+    ],
+    "lb": [
+      "Ass Bearings prett fir de produktive Betrib?",
+      "Bearings ass en Entwécklungs- a Pilotprojet mat automatiséierten Tester a synthetesche Referenzëmfelder. Tester mat 40.000 Firmen an 1,2 Milliounen Inventarobjete waren am Kader vun den dokumentéierte Ressourcen- a Laaschtgrenzen erfollegräich. Dat ass keng Produktiounsfräigab: En Dauertest op der Zilëmgebung, d’Rechter a Versioune vu reelle Servicer, d’E-Mail-Zoustellung, iwwerwaacht Aufgaben, Backup a Restauratioun, Späicherfristen an de Widderruff vu Konten an den ugebonnenen Applikatioune mussen nach validéiert ginn."
+    ]
+  },
+  {
+    "id": "license",
+    "en": [
+      "Is Bearings open source, and does this website show real company data?",
+      "The software is licensed under AGPL-3.0-or-later. Infrastructure and intelligence data retain their own access and redistribution rules. Every product image on this website uses synthetic example data. The website is static, has no application login, visitor analytics or advertising cookies, and does not connect to private CIRCL services."
+    ],
+    "de": [
+      "Ist Bearings Open Source, und zeigt diese Website echte Firmendaten?",
+      "Die Software steht unter AGPL-3.0-or-later. Für Infrastruktur- und Intelligence-Daten gelten weiterhin eigene Zugriffs- und Weitergaberegeln. Alle Produktbilder dieser Website verwenden synthetische Beispieldaten. Die Website ist statisch, hat keine Anwendungsanmeldung, Besucheranalyse oder Werbe-Cookies und verbindet sich nicht mit privaten CIRCL-Diensten."
+    ],
+    "fr": [
+      "Bearings est-il open source et le site montre-t-il des données réelles ?",
+      "Le logiciel est sous licence AGPL-3.0-or-later. Les données d’infrastructure et de renseignement conservent leurs propres règles d’accès et de redistribution. Toutes les images du produit utilisent des données d’exemple synthétiques. Ce site statique ne comporte ni connexion à l’application, ni analyse des visiteurs, ni cookies publicitaires, et n’accède pas aux services privés du CIRCL."
+    ],
+    "lb": [
+      "Ass Bearings Open Source, a weist d’Websäit reell Firmendonnéeën?",
+      "D’Software steet ënner AGPL-3.0-or-later. Fir Infrastruktur- a Sécherheetsinformatioune gëllen hir eege Zougangs- a Weidergabereegelen. All Produktbiller op dëser Websäit benotze synthetesch Beispilldaten. D’Websäit ass statesch, ouni Applikatiounslogin, Analys vum Visiteursverhalen oder Reklamm-Cookien, a verbënnt sech net mat private CIRCL-Servicer."
+    ]
+  },
+  {
+    "id": "linux-client",
+    "en": [
+      "Do we need a Linux client, and what does it do?",
+      "The client is optional. It keeps Linux package versions current in the CIRCL service and can be deployed with a limited rollout code. Each machine uses its own signing key and HTTPS. Supported distribution CVE checks run in Bearings; the client does not patch your systems. Managed NetBox registration is available when enabled by the operator. CSV and existing NetBox connections remain available."
+    ],
+    "de": [
+      "Brauchen wir einen Linux-Client, und was macht er?",
+      "Der Client ist optional. Er hält Linux-Paketversionen im CIRCL-Dienst aktuell und lässt sich mit einem begrenzten Rollout-Code verteilen. Jeder Rechner nutzt einen eigenen Signaturschlüssel und HTTPS. Der CVE-Abgleich für unterstützte Distributionen läuft in Bearings; der Client installiert keine Patches. Verwaltete NetBox-Registrierung ist nach Freigabe durch den Betreiber möglich. CSV und bestehende NetBox-Anbindungen bleiben nutzbar."
+    ],
+    "fr": [
+      "Faut-il un client Linux et à quoi sert-il ?",
+      "Le client est facultatif. Il tient les versions des paquets Linux à jour dans le service CIRCL et se déploie avec un code limité. Chaque machine utilise sa propre clé de signature et HTTPS. La comparaison des CVE pour les distributions prises en charge se fait dans Bearings ; le client n’installe pas de correctifs. L’enregistrement NetBox géré nécessite l’activation par l’opérateur. Les imports CSV et les connexions NetBox existantes restent disponibles."
+    ],
+    "lb": [
+      "Brauche mir e Linux-Client, a wat mécht en?",
+      "De Client ass optional. Hien hält d’Linux-Pakversiounen am CIRCL-Service aktuell a ka mat engem begrenzte Rollout-Code verdeelt ginn. All Rechner benotzt säin eegene Signaturschlëssel an HTTPS. De CVE-Verglach fir ënnerstëtzt Distributioune leeft a Bearings; de Client installéiert keng Patches. Eng verwaltete NetBox-Registréierung ass méiglech, wann de Bedreiwer se aktivéiert. CSV an déi bestoend NetBox-Ubindungen kënne weider benotzt ginn."
+    ]
+  }
+]

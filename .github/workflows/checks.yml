@@ -29,10 +29,102 @@ jobs:
           version: "0.12.23"
           python-version: "3.12"
           enable-cache: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - run: go test -race ./...
+        working-directory: clients/linux
+      - run: go vet ./...
+        working-directory: clients/linux
+      - run: python3 scripts/build_linux_client.py
+      - run: python3 -m unittest discover -s clients/linux -p test_installer.py
+      - name: Check installer on actual Python 3.8 with real credential drops
+        if: matrix.database == 'postgres'
+        run: >-
+          docker run --rm --network none --user 0:0 --cap-drop ALL
+          --cap-add SETUID --cap-add SETGID --cap-add DAC_OVERRIDE
+          -v "${{ github.workspace }}/clients/linux:/test-source:ro"
+          python:3.8-slim@sha256:1d52838af602b4b5a831beb13a0e4d073280665ea7be7f69ce2382f29c5a613f
+          python3 -m unittest discover -s /test-source -p test_installer.py
+      - run: python3 scripts/linux_network_sandbox_smoke.py
+      - run: python3 scripts/test_native_ecosystem.py
       - run: uv sync --frozen
+      - run: uv run --frozen --extra production python -m gunicorn --version
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run python manage.py check
       - run: uv run python manage.py makemigrations --check --dry-run
       - run: uv run python manage.py test
       - run: uv run python manage.py collectstatic --noinput
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Export the frozen Bearings production dependency set
+        run: uv export --frozen --extra production --no-dev --no-emit-project --format requirements-txt --output-file /tmp/bearings-runtime-requirements.txt
+      - name: Audit Bearings, native NetBox and native FlowIntel locks
+        run: |
+          uv run --no-project --with pip-audit==2.10.1 python -m pip_audit --requirement /tmp/bearings-runtime-requirements.txt --no-deps --disable-pip
+          uv run --no-project --with pip-audit==2.10.1 python -m pip_audit --requirement deploy/ubuntu24/ecosystem/netbox-requirements.txt --no-deps --disable-pip
+          uv run --no-project --with pip-audit==2.10.1 python -m pip_audit --requirement docker/flowintel/requirements.txt --no-deps --disable-pip
+  production-profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --no-dev --extra production
+      - run: uv run --frozen --no-dev --extra production python scripts/production_smoke.py
+  native-ecosystem:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen --no-dev --extra production
+      - run: python3 scripts/test_native_ecosystem.py
+      - name: Fetch pinned native application sources
+        run: |
+          git init /tmp/bearings-native-netbox
+          git -C /tmp/bearings-native-netbox fetch --depth 1 https://github.com/netbox-community/netbox.git 3cd2c1d6469caed6c50e80eddd4cde863e0e2cf5
+          git -C /tmp/bearings-native-netbox checkout --detach FETCH_HEAD
+          uv run --frozen --no-dev --extra production python -c 'from scripts.flowintel_source import prepare_source; prepare_source()'
+      - name: Check native NetBox and FlowIntel runtimes with disposable databases
+        run: uv run --frozen --no-dev --extra production python scripts/native_ecosystem_smoke.py --netbox-source /tmp/bearings-native-netbox --flowintel-source .local/dev-stack/flowintel-source
+      - name: Collect NetBox assets from read-only source
+        run: uv run --frozen --no-dev --extra production python scripts/native_static_smoke.py --netbox-source /tmp/bearings-native-netbox
+      - name: Check production Keycloak realm with disposable database
+        run: python3 scripts/native_keycloak_smoke.py
+      - name: Verify IPv4 and IPv6 TLS and ACME routing
+        run: uv run --frozen --no-dev --extra production python scripts/native_ipv6_smoke.py
+
+  bundled-netbox-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Build and check the actual bundled NetBox environment
+        run: |
+          docker build -f docker/netbox/Dockerfile -t bearings-netbox-patched .
+          docker run --rm --network none --entrypoint /usr/local/bin/uv bearings-netbox-patched pip check --python /opt/netbox/venv/bin/python
+          docker run --rm --network none --entrypoint /usr/local/bin/uv bearings-netbox-patched pip freeze --python /opt/netbox/venv/bin/python > /tmp/bearings-bundled-netbox.txt
+      - name: Audit installed bundled NetBox packages
+        run: uv run --no-project --with pip-audit==2.10.1 python -m pip_audit --requirement /tmp/bearings-bundled-netbox.txt --no-deps --disable-pip

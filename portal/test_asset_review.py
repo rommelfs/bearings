@@ -115,7 +115,7 @@ class AssetReviewTests(Fixture):
 
     def test_dashboard_locates_machine_and_links_entities_to_scoped_details(self):
         self.login(self.analyst)
-        response = self.client.get("/")
+        response = self.client.get(reverse("home"))
         for text in [
             "192.0.2.25",
             "mail.example.invalid",
@@ -134,9 +134,14 @@ class AssetReviewTests(Fixture):
             "Messaging",
             "CVE-2026-70571",
         ]:
-            self.assertEqual(self.client.get("/", {"q": text}).context["review_page"].paginator.count, 1)
+            self.assertEqual(
+                self.client.get(reverse("home"), {"q": text}).context["review_page"].paginator.count, 1
+            )
         self.assertEqual(
-            self.client.get("/", {"q": "absent.example.invalid"}).context["review_page"].paginator.count, 0
+            self.client.get(reverse("home"), {"q": "absent.example.invalid"})
+            .context["review_page"]
+            .paginator.count,
+            0,
         )
 
     def test_severity_order_filter_and_counts_are_global_not_per_page(self):
@@ -146,34 +151,34 @@ class AssetReviewTests(Fixture):
         critical["containers"]["cna"]["metrics"][0]["cvssV3_1"]["baseScore"] = 9.8
         first = persist_lookup(self.admin, self.installation, "fixture://review", "CVE-2026-99999", critical)
         self.login()
-        response = self.client.get("/")
+        response = self.client.get(reverse("home"))
         self.assertEqual([f.pk for f in response.context["review_page"]][:2], [first.pk, self.finding.pk])
         self.assertEqual(response.context["review_total"], 29)
-        high = self.client.get("/", {"severity": "high"})
+        high = self.client.get(reverse("home"), {"severity": "high"})
         self.assertEqual(high.context["review_page"].paginator.count, 1)
         counts = {v["key"]: v["count"] for v in high.context["severity_counts"]}
         self.assertEqual((counts["critical"], counts["high"], counts["unknown"]), (1, 1, 27))
-        self.assertContains(self.client.get("/", {"severity": "unknown"}), "Score missing")
+        self.assertContains(self.client.get(reverse("home"), {"severity": "unknown"}), "Score missing")
         self.assertEqual(
-            self.client.get("/", {"severity": "critical"}).context["review_page"][0].pk, first.pk
+            self.client.get(reverse("home"), {"severity": "critical"}).context["review_page"][0].pk, first.pk
         )
 
     def test_current_visibility_applies_to_search_counts_details_and_evidence(self):
         self.finding.record.shareable = False
         self.finding.record.save()
         self.login(self.admin)
-        response = self.client.get("/", {"q": "192.0.2.25"})
+        response = self.client.get(reverse("home"), {"q": "192.0.2.25"})
         self.assertEqual(response.context["review_total"], 0)
         page = self.client.get(self.url("asset", pk=self.asset.pk))
         self.assertContains(page, "192.0.2.25")
         self.assertNotContains(page, "CVE-2026-70571")
         self.assertEqual(page.context["page"].paginator.count, 0)
         self.login(self.analyst)
-        self.assertContains(self.client.get("/"), "CVE-2026-70571")
+        self.assertContains(self.client.get(reverse("home")), "CVE-2026-70571")
         self.a.operator_visibility = False
         self.a.save()
         self.assertEqual(self.client.get(self.url("asset", pk=self.asset.pk)).status_code, 404)
-        self.assertEqual(self.client.get("/").context["review_total"], 0)
+        self.assertEqual(self.client.get(reverse("home")).context["review_total"], 0)
         self.login(self.admin)
         self.assertEqual(self.client.get(self.url("asset", self.b, pk=self.asset.pk)).status_code, 404)
 
@@ -230,7 +235,7 @@ class AssetReviewTests(Fixture):
         self.asset.upstream_data["primary_ip4_dns_name"] = "<img src=x onerror=alert(1)>"
         self.asset.save()
         self.login()
-        response = self.client.get("/")
+        response = self.client.get(reverse("home"))
         self.assertContains(response, "&lt;script&gt;")
         self.assertNotContains(response, '<script>alert("site")</script>')
         self.assertNotContains(response, "<img src=x onerror=alert(1)>")
@@ -254,3 +259,43 @@ class AssetReviewTests(Fixture):
         )
         expected = self.url("intelligence") + f"?finding={self.finding.pk}#finding-{self.finding.pk}"
         self.assertRedirects(response, expected)
+
+
+class CompanyFindingOrderTests(Fixture):
+    def add_review(self, number, score=None, shareable=True):
+        payload = (
+            {}
+            if score is None
+            else {"containers": {"cna": {"metrics": [{"cvssV3_1": {"version": "3.1", "baseScore": score}}]}}}
+        )
+        finding = persist_lookup(
+            self.admin, self.installation, "fixture://severity-order", f"CVE-2026-{10000 + number}", payload
+        )
+        finding.record.shareable = shareable
+        finding.record.save()
+        return finding
+
+    def test_company_asset_and_intelligence_put_critical_first_unknown_last(self):
+        reviews = [self.add_review(i, score) for i, score in enumerate([None, 2.0, 5.0, 8.0, 10.0, 0.0])]
+        expected = [reviews[i].pk for i in [4, 3, 2, 1, 5, 0]]
+        self.login()
+        company = self.client.get(self.url("organization"))
+        self.assertEqual(company.context["finding_summary"]["total"], 6)
+        self.assertNotContains(company, "CVE-2026-")
+        for name, kwargs in [("asset", {"pk": self.asset.pk}), ("intelligence", {})]:
+            response = self.client.get(self.url(name, **kwargs))
+            self.assertEqual([f.pk for f in response.context["page"]], expected)
+
+    def test_sorting_applies_before_pagination_and_preserves_evidence_visibility(self):
+        critical = self.add_review(1, 10.0)
+        restricted = self.add_review(2, 10.0, shareable=False)
+        for i in range(3, 33):
+            self.add_review(i)
+        self.login(self.reader)
+        for name, kwargs in [("asset", {"pk": self.asset.pk}), ("intelligence", {})]:
+            response = self.client.get(self.url(name, **kwargs))
+            self.assertEqual(response.context["page"][0].pk, critical.pk)
+            self.assertEqual(response.context["page"].paginator.count, 31)
+            self.assertNotIn(restricted.pk, [f.pk for f in response.context["page"]])
+            second = self.client.get(self.url(name, **kwargs), {"page": 2})
+            self.assertEqual(len(second.context["page"]), 6)

@@ -56,10 +56,18 @@ class Command(BaseCommand):
         example_existed = Organization.objects.filter(slug="example-labs").exists()
         call_command("seed_demo", no_users=True)
         example = Organization.objects.get(slug="example-labs")
-        if not example_existed or created_users["company-admin"]:
+        if config["mode"] != "bundled" and (not example_existed or created_users["company-admin"]):
             Membership.objects.get_or_create(
                 user=users["company-admin"], organization=example, defaults={"role": "admin"}
             )
+        main_company = next(
+            (
+                item["organization_slug"]
+                for item in config["connections"]
+                if item["access_mode"] == "read_write"
+            ),
+            config["connections"][0]["organization_slug"],
+        )
         for item in config["connections"]:
             org, org_created = Organization.objects.get_or_create(
                 slug=item["organization_slug"],
@@ -68,7 +76,9 @@ class Command(BaseCommand):
                     "operator_visibility": config["mode"] == "bundled",
                 },
             )
-            if org_created or created_users["company-admin"]:
+            if (config["mode"] != "bundled" or item["organization_slug"] == main_company) and (
+                org_created or created_users["company-admin"]
+            ):
                 Membership.objects.get_or_create(
                     user=users["company-admin"], organization=org, defaults={"role": "admin"}
                 )

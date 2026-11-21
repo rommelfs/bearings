@@ -1,6 +1,6 @@
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
-from .models import AuditEvent, Organization
+from django.db.models import Q, Exists, OuterRef
+from .models import AuditEvent, Organization, Membership
 
 ANALYST_GROUP = "CIRCL analysts"
 
@@ -13,11 +13,13 @@ def organizations_for(user):
     if not user.is_authenticated:
         return Organization.objects.none()
     if user.is_superuser:
-        return Organization.objects.all()
-    q = Q(membership__user=user)
-    if is_analyst(user):
-        q |= Q(operator_visibility=True)
-    return Organization.objects.filter(q).distinct()
+        return Organization.objects.filter(merged_into__isnull=True)
+    if not is_analyst(user):
+        return Organization.objects.filter(membership__user=user, merged_into__isnull=True)
+    membership = Membership.objects.filter(user=user, organization_id=OuterRef("pk"))
+    policy = Q(Exists(membership))
+    policy |= Q(operator_visibility=True)
+    return Organization.objects.filter(policy, merged_into__isnull=True)
 
 
 def role_for(user, org):
@@ -65,12 +67,36 @@ def visible_findings_for(user):
     """Cross-organization queue with the same current raw/derived policy as workspace reads."""
     from .models import Finding
 
-    findings = Finding.objects.filter(organization__in=organizations_for(user)).select_related(
+    analyst = is_analyst(user) if not user.is_superuser else False
+    orgs = organizations_for(user)
+    findings = Finding.objects.filter(organization__in=orgs).select_related(
         "organization", "record", "installation__product", "installation__asset__source__instance"
     )
     if not user.is_superuser:
+        if not analyst:
+            ids = list(orgs.values_list("pk", flat=True)[:101])
+            if len(ids) <= 100:
+                findings = findings.filter(organization_id__in=ids)
         policy = Q(record__shareable=True)
-        if is_analyst(user):
+        if analyst:
             policy |= Q(organization__operator_visibility=True)
         findings = findings.filter(policy)
     return findings
+
+
+def audit_organizations(user, orgs):
+    """Audit actually displayed companies with bounded membership checks/inserts."""
+    orgs = list({org.pk: org for org in orgs}.values())
+    if not user.is_superuser and not is_analyst(user):
+        return
+    member_ids = set(
+        Membership.objects.filter(user=user, organization__in=orgs).values_list("organization_id", flat=True)
+    )
+    AuditEvent.objects.bulk_create(
+        [
+            AuditEvent(actor=user, organization=org, action="operator.access")
+            for org in orgs
+            if user.is_superuser or org.pk not in member_ids
+        ],
+        batch_size=100,
+    )

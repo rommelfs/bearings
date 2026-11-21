@@ -1,5 +1,7 @@
 # Agreed next phases
 
+Current status/navigation, reviewed 19 November 2026: use [current next steps](product/next-priorities.md), the [documentation index](README.md) and [FAQ](faq.md). The phases below preserve the historical planning baseline; they are not a list of entirely unimplemented work.
+
 Planning baseline: 2026-10-20. Implementation status is now mixed: phases 1/2 have bounded implementations, phase 3 has lifecycle outreach/draft subscriptions/opt-in SMTP, phase 4 has a bounded read-only snapshot pilot, and phase 5a has historical import/comparison. Live RT/Plum compatibility, production operational acceptance, scalable deltas and phase 5b remain open. Existing NetBox, Vulnerability-Lookup, MOSP/MONARC and FlowIntel capabilities remain described in the user guides and validation record.
 
 Bearings should provide one understandable view of organizational asset problems and their consequences: hardware, installed software/firmware, vulnerabilities, support/EOL, licenses, maintenance, warranty and observed network exposure. Each item must answer: what is affected, where it is, what evidence exists, why it matters, when action is due and who owns the next step.
@@ -60,6 +62,18 @@ See [Plum Island contract research](integrations/plum-island.md), [RT/RTIR desig
 
 ## Delivered first increments
 
-See [asset issues and the repeatable example](user-guide/asset-issues.md), [RT 5.x contract and hand-off](integrations/rt-rtir.md), [notification subscriptions/SMTP](user-guide/notifications.md), [company snapshot federation](integrations/federation.md) and [Plum import/comparison](integrations/plum-island.md). These guides define the implemented boundaries. No active scan coordination, automatic CVE discovery, remote MONARC assessment synchronization or operational delivery acceptance is implied.
+See [asset issues and the repeatable example](user-guide/asset-issues.md), [RT 5.x contract and hand-off](integrations/rt-rtir.md), [notification subscriptions/SMTP](user-guide/notifications.md), [company snapshot federation](integrations/federation.md) and [Plum import/comparison](integrations/plum-island.md). These guides define the implemented boundaries. No active scan coordination, remote MONARC assessment synchronization or operational delivery acceptance is implied. Product-watch discovery is separately delivered below.
 
 Native RTIR coordination is now delivered as an optional reference: `up --rtir`, CIRCL-only Incidents with multiple separately approved company/asset Investigations, native lifecycles/parent links, retained setup and shared SSO. See [RTIR deployment and workflow](operations/rtir-lab.md). External customer RTIR acceptance and broader graph/type synchronization remain separate.
+
+## Continuous-review delivery
+
+The three core gaps now have bounded implementations: explicit product watches discover new/changed CVEs and evaluate conservative exact/SemVer rules; structured contact functions and accountable asset owners support optional DPO inclusion and timed approval-required reminder/escalation drafts; company-local MOSP-linked assessments record likelihood, impact, controls, residual estimates, ownership and expiring acceptance with immutable revision history. The CIRCL/company risk register shows the latest currently visible assessment per issue. See [workflow and boundaries](user-guide/continuous-review.md). Broader version ecosystems/backports, production bounce handling/automatic delivery, a production scheduler and native MONARC assessment synchronization remain separate.
+
+## Infrastructure entry and automatic setup
+
+Delivered: recognized installed products enroll active watches automatically; unknown/conflicting identities use an integrated bounded public catalog picker. The company/CIRCL infrastructure overview is now the post-login landing page with separate action/review/coverage states, prioritized servers, next actions, deadlines and current monitoring. Page refresh is enabled every 60 seconds and defers while typing. Explicit pauses and existing mappings are preserved. [Guide](user-guide/infrastructure-overview.md).
+
+## Named problems and automatic scenario context
+
+Delivered exact problem deep links/filter sets from infrastructure cards and automatic conditional scenario drafts with compatible cached MOSP recommendations, prefilled justification and explicit evidence/catalog confirmation. Company impact/treatment context is proposed, while numeric scoring, risk acceptance and process-weakness validation remain human decisions. See [automatic scenarios](user-guide/automatic-scenarios.md).

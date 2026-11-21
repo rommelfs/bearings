@@ -15,7 +15,7 @@ def environment():
     os.environ["DJANGO_SECRET_KEY"] = (ROOT / "secrets/django_secret").read_text().strip()
     os.environ["SSL_CERT_FILE"] = str(ROOT / "trust/ca-bundle.pem")
     for path in (ROOT / "secrets").iterdir():
-        if re.fullmatch(r"(?:NETBOX|FLOWINTEL|RT|PLUM|FEDERATION)_[A-Z0-9_]*TOKEN", path.name):
+        if re.fullmatch(r"(?:NETBOX|FLOWINTEL|RT|PLUM|FEDERATION|MISP)_[A-Z0-9_]*TOKEN", path.name):
             os.environ[path.name] = path.read_text().strip()
     if os.getenv("BEARINGS_SSO_LAB") == "1":
         manifest = json.loads((ROOT / "secrets/oidc-lab.json").read_text())
@@ -25,6 +25,7 @@ def environment():
         os.environ["OIDC_CA_BUNDLE"] = str(ROOT / "trust/ca-bundle.pem")
         canvas_port = int(os.getenv("BEARINGS_CANVAS_PORT", "9441"))
         os.environ["BEARINGS_CANVAS_ORIGIN"] = f"https://localhost:{canvas_port}"
+        os.environ.setdefault("BEARINGS_PUBLIC_URL", f"https://localhost:{canvas_port}")
         os.environ["DJANGO_TRUST_PROXY_SSL"] = "1"
         # The retained lab client is narrowly migrated to this HTTPS callback during startup.
         os.environ["OIDC_LAB_CALLBACK"] = f"https://localhost:{canvas_port}/oauth/complete/oidc/"
@@ -79,6 +80,12 @@ def main():
                 print("Synthetic showcase state retained; no automatic reseeding or account/policy changes.")
             else:
                 call_command("seed_showcase")
+            call_command("seed_showcase_addresses", automatic=True)
+        if config.get("mode") == "bundled":
+            call_command("scope_company_admin")
+        from portal.product_matching import enroll_products
+
+        print(f"Auto-enabled {enroll_products()} recognized product watches; existing settings retained.")
     elif mode == "smoke":
         from docker.dev.smoke import main as smoke
 
@@ -95,12 +102,28 @@ def main():
             from docker.dev.rtir_smoke import main as rtir_smoke
 
             rtir_smoke()
+    elif mode == "national-worker":
+        from django.db import OperationalError, connections
+
+        while True:
+            try:
+                call_command("refresh_national", limit=500)
+            except OperationalError:
+                print("National refresh deferred; retained summaries remain explicitly pending.", flush=True)
+                connections.close_all()
+            else:
+                Path("/tmp/bearings-national-heartbeat").touch()
+            time.sleep(1)
     elif mode == "worker":
         while True:
             call_command("process_jobs")
+            call_command("process_agent_reports", limit=25)
+            call_command("remind_inventory", limit=5)
+            Path("/tmp/bearings-worker-heartbeat").touch()
             call_command("process_flowintel", all=True, due=True)
             call_command("process_rt_tickets", all=True, due=True)
             call_command("prepare_notifications", due=True)
+            call_command("prepare_followups", limit=25)
             Path("/tmp/bearings-worker-heartbeat").touch()
             call_command("process_notifications", limit=5)
             Path("/tmp/bearings-worker-heartbeat").touch()
@@ -114,6 +137,16 @@ def main():
             Path("/tmp/bearings-worker-heartbeat").touch()
             try:
                 call_command("sync_mosp", all=True, due=True)
+            except CommandError:
+                pass
+            Path("/tmp/bearings-worker-heartbeat").touch()
+            try:
+                call_command("sync_vulnerabilities", due=True, limit=2)
+            except CommandError:
+                pass
+            Path("/tmp/bearings-worker-heartbeat").touch()
+            try:
+                call_command("sync_misp", all=True, due=True, limit=1)
             except CommandError:
                 pass
             Path("/tmp/bearings-worker-heartbeat").touch()

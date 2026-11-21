@@ -6,7 +6,7 @@ from .browser_policy import browser_base, origin
 from .models import AuditEvent, FlowIntelInstance, NetBoxInstance, RTInstance
 from .tests import Fixture
 from config.oidc import ApprovedOpenIdConnect
-from social_core.exceptions import AuthForbidden
+from config.oidc import AuthForbidden
 
 
 @override_settings(

@@ -9,3 +9,5 @@
 - Live service instances, approved network destinations, least-privilege keys, NetBox site/type/role/tenant mapping and custom-field provisioning.
 - Production WSGI server/proxy, TLS, outbound enforcement, deployment topology, scheduler and delivery authorization.
 - Actual deployed connector versions. Latest upstream documentation is a starting point, not a tested compatibility promise.
+
+- AIL workflow (updated 2026-11-18): the owner deferred direct integration due to false positives. Implemented manual custom-YARA handoff from company keywords/separate Honeytokens; analysts monitor and review findings, then choose Bearings/AIL notification. Deployment-specific AIL import acceptance, matching/filter tuning and recipient handling remain operator decisions. No connector or automatic alert requirement is active.

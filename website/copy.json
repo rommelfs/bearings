@@ -1,0 +1,858 @@
+{
+  "en": {
+    "title": "Infrastructure, risk & response",
+    "description": "Know what you run, understand what needs attention and reach the people who can act. Discover Bearings, an open-source infrastructure and risk workspace.",
+    "nav": [
+      "Why Bearings",
+      "Use cases",
+      "How it works",
+      "FAQ",
+      "Documentation"
+    ],
+    "eyebrow": "THE CIRCL SERVICE FOR COMPANY TEAMS",
+    "hero": "See what needs attention.<br><em>Know who can act.</em>",
+    "intro": "Your infrastructure inventory, vulnerability reviews and responsible contacts in one workspace operated by CIRCL. See what needs attention, assign the next step and keep your team reachable.",
+    "primary": "Register for free",
+    "secondary": "See how it works",
+    "status": "Development & pilot stage",
+    "status_note": "Start with a contact and one domain. Add inventory at your own pace.",
+    "screen": "Product view · synthetic data",
+    "hero_alt": "Bearings infrastructure overview showing open reviews, coverage gaps and a server needing attention in a synthetic company.",
+    "why_label": "A practical benefit for your team",
+    "why_title": "Less searching across tools.<br>A clearer next action.",
+    "why_body": "When an alert arrives, find the systems and versions you have recorded, the evidence to check and the right person to act. Start small and add the information that is useful to your company.",
+    "pillars": [
+      [
+        "Prioritize",
+        "The right systems first",
+        "See urgent reviews, unknown versions and overdue actions, then open the evidence behind them."
+      ],
+      [
+        "Reach",
+        "The person who can act",
+        "Keep accountable owners and emergency contacts together. Periodic confirmation helps keep those details useful."
+      ],
+      [
+        "Reuse",
+        "The data you already have",
+        "Keep NetBox or review a CSV import. A contact and one domain or network are enough to get started."
+      ]
+    ],
+    "cases_label": "Two perspectives. A connected workflow.",
+    "cases_title": "Useful to the company.<br>Actionable for CIRCL.<br>Good for Luxembourg.",
+    "cases": [
+      [
+        "For company teams",
+        "Which systems need our attention?",
+        "A software issue should lead to the systems that may be affected, the supporting evidence and a clear next action. Bearings groups related reviews, keeps priorities visible and records who is responsible.",
+        [
+          "See urgent reviews and overdue actions",
+          "Keep software versions and contacts current",
+          "Invite your team with appropriate company roles"
+        ],
+        "company-actions.webp",
+        "Grouped software reviews and next actions for a fictional Luxembourg company."
+      ],
+      [
+        "For CIRCL analysts",
+        "Who may be affected, and who can act?",
+        "Explore permitted inventory across participating companies. Research a reported software version before a CVE exists, review prevalence and contact the appropriate responsible team.",
+        [
+          "Research software/version exposure without a CVE",
+          "View outstanding reviews and company locations",
+          "Prepare outreach with evidence and recipient review"
+        ],
+        "national-map.webp",
+        "A Luxembourg company-location heat map using synthetic demonstration data."
+      ]
+    ],
+    "map_note": "Company locations are approximate and may differ from server locations. The map describes participating inventory, not complete national coverage.",
+    "workflow_label": "Start small. Build confidence over time.",
+    "workflow_title": "A practical route into Bearings.",
+    "workflow": [
+      [
+        "Join or register",
+        "Accept your company admin's invitation, or register a new company and confirm your email. CIRCL sharing is reviewed separately."
+      ],
+      [
+        "Add your first useful details",
+        "Start with a contact and one domain or network. Add inventory manually, review a CSV import or reuse an approved NetBox source."
+      ],
+      [
+        "Review what matters",
+        "Check version and coverage gaps, review vulnerability evidence and assign the next action. A match alone is not confirmed affectedness."
+      ],
+      [
+        "Keep the loop alive",
+        "Confirm data periodically, review contact responsiveness and track actions. Setup saves along the way, so your team can return later."
+      ]
+    ],
+    "wizard_alt": "A Bearings configuration wizard with section progress, a save form and synthetic company information.",
+    "ecosystem_label": "Reuse the ecosystem",
+    "ecosystem_title": "One place to make sense<br>of the tools you already use.",
+    "integrations": [
+      [
+        "NetBox",
+        "Inventory",
+        "Approved, scoped device, VM, IP and prefix imports."
+      ],
+      [
+        "Vulnerability-Lookup",
+        "Vulnerability evidence",
+        "Public product mappings and CVE evidence for review."
+      ],
+      [
+        "MOSP / MONARC",
+        "Risk context",
+        "Public scenario definitions and reviewed company-specific business context."
+      ],
+      [
+        "MISP",
+        "Your MISP intelligence",
+        "Optional customer-owned keys; separate internal CIRCL research."
+      ],
+      [
+        "AIL",
+        "Monitoring configuration",
+        "Keyword and honeytoken export for manual import and analyst review."
+      ],
+      [
+        "FlowIntel · RT / RTIR",
+        "Coordination",
+        "Reviewed case/ticket hand-offs with independent native permissions."
+      ]
+    ],
+    "ecosystem_note": "Integrations have different maturity and deployment requirements. AIL is a manual export; the MISP cache is a bounded pilot. Core company workflows do not require an account in every connected tool.",
+    "trust_label": "Trust comes from explicit boundaries",
+    "trust_title": "Clear about what the data means.",
+    "trust": [
+      [
+        "Your company's scope",
+        "Company roles and separate CIRCL sharing control infrastructure access. Personal MISP views use their owner's upstream permissions."
+      ],
+      [
+        "Known gaps stay visible",
+        "Unknown versions, stale sources and incomplete coverage do not become a green assurance badge."
+      ],
+      [
+        "People make the decisions",
+        "Risk acceptance, recipient handling and outreach require review. Bearings does not install patches or turn every match into an incident."
+      ]
+    ],
+    "faq_label": "A few practical answers",
+    "faq_title": "Before you get started.",
+    "faq_all": "Read all frequently asked questions",
+    "faq_page_title": "Frequently asked questions",
+    "faq_intro": "Straight answers about access, inventory, intelligence and the current project stage.",
+    "search": "Search questions and answers",
+    "empty": "No matching questions. Try a broader term.",
+    "results": "questions shown",
+    "nojs": "All answers are available below; search is an optional browser enhancement.",
+    "closing": "Your first step is free. So is every step after.",
+    "closing_body": "Register with CIRCL, confirm your email and add a responsible contact plus one domain or network. Your private company workspace opens after confirmation; sharing with CIRCL is reviewed separately.",
+    "get_started": "Create your free company workspace",
+    "source": "Explore the source",
+    "footer": "The CIRCL-operated workspace for company infrastructure, vulnerability review and responsible contacts.",
+    "reviewed": "Content reviewed 20 November 2026",
+    "license": "Source licensed AGPL-3.0-or-later",
+    "privacy": "Static information website · no visitor analytics or advertising cookies",
+    "credits": "Map sources: Natural Earth (public domain) and GeoNames (CC BY 4.0). All product screenshots contain synthetic data.",
+    "zoom": "View full screenshot",
+    "close": "Close image",
+    "home": "Home",
+    "faq": "FAQ",
+    "skip": "Skip to content",
+    "lang": "Deutsch",
+    "back": "Back to top",
+    "real_label": "Real problems. A little personality.",
+    "real_title": "The vulnerabilities have an opinion.",
+    "real_intro": "Playful fictional quotes. Real CVEs. Each example shows why recorded versions and reachable contacts matter.",
+    "fact_label": "The real issue",
+    "benefit_label": "What your company gains",
+    "fiction": "Fictional vulnerability quote",
+    "advisory": "Source advisory",
+    "source_note": "Sources checked 19 November 2026. Historical examples, not a live threat feed. Check whether an installation is affected and how to address it using current vendor guidance.",
+    "languages": "Choose language",
+    "context_link": "Additional source",
+    "operator_short": "by CIRCL",
+    "operator_label": "Operated by CIRCL",
+    "operator_body": "CIRCL is Luxembourg’s CERT for the private sector and municipalities. The Law of 5 May 2026 implementing NIS2 designates CIRCL as a CSIRT; Article 9 names CIRCL as the coordinator for coordinated vulnerability disclosure. We scan for vulnerabilities and support voluntary information sharing so organizations can act earlier.",
+    "operator_link": "About CIRCL and its mission",
+    "analysis_link": "CIRCL analysis",
+    "testimonials_link": "What the vulnerabilities have to say",
+    "overview_label": "Infrastructure overview",
+    "principles": [
+      "Inventory",
+      "Evidence",
+      "Risk",
+      "Response"
+    ],
+    "additional_cves": " + {count} more CVEs",
+    "login": "Log in",
+    "legal_link": "NIS2 law · 5 May 2026",
+    "agent": {
+      "label": "THE OPTIONAL LINUX CLIENT",
+      "title": "Your inventory keeps up. Your team gets time back.",
+      "intro": "Install once on your Linux servers. The Bearings client regularly reports software versions to the CIRCL service, so updates become visible without maintaining package lists by hand.",
+      "cards": [
+        [
+          "Stay current",
+          "Ubuntu, Debian and RPM package versions are collected automatically. Configured checks can also cover software installed outside the package manager."
+        ],
+        [
+          "Roll out once",
+          "Use a limited rollout code with your existing deployment process. Each host creates its own key and sends signed reports over HTTPS; no files need to be carried back for import."
+        ],
+        [
+          "Act on evidence",
+          "Bearings compares supported distribution packages with vendor security rules and separates potential issues, unresolved checks and fixes already present in the installed version."
+        ]
+      ],
+      "managed": "With operator-enabled managed NetBox, hosts can also register in the correct company inventory. VM tags such as LXC, Incus, Proxmox or VMware keep the deployment type visible. Existing read-only inventories remain read-only.",
+      "cta": "Download the Linux client",
+      "nav": "Linux client"
+    }
+  },
+  "de": {
+    "title": "Infrastruktur, Risiken & Reaktion",
+    "description": "Wissen, was betrieben wird, wo Handlungsbedarf besteht und wer handeln kann. Bearings verbindet Infrastruktur, Schwachstellen und Verantwortliche.",
+    "nav": [
+      "Warum Bearings",
+      "Anwendungsfälle",
+      "So funktioniert es",
+      "FAQ",
+      "Dokumentation"
+    ],
+    "eyebrow": "DER CIRCL-DIENST FÜR FIRMENVERANTWORTLICHE",
+    "hero": "Sehen, wo Handlungsbedarf besteht.<br><em>Wissen, wer handeln kann.</em>",
+    "intro": "Firmeninventar, Schwachstellenprüfungen und zuständige Ansprechpartner in einem von CIRCL betriebenen Firmenbereich. Handlungsbedarf erkennen, nächste Schritte zuweisen und als Team erreichbar bleiben.",
+    "primary": "Kostenlos registrieren",
+    "secondary": "So funktioniert es",
+    "status": "Entwicklungs- & Pilotphase",
+    "status_note": "Mit einem Kontakt und einer Domain beginnen. Das Inventar im eigenen Tempo ergänzen.",
+    "screen": "Produktansicht · synthetische Daten",
+    "hero_alt": "Bearings-Infrastrukturübersicht mit offenen Prüfungen, Abdeckungslücken und einem Server mit Handlungsbedarf in einer synthetischen Firma.",
+    "why_label": "Konkreter Nutzen für Ihr Team",
+    "why_title": "Weniger an verschiedenen Stellen suchen.<br>Den nächsten Schritt klar erkennen.",
+    "why_body": "Bei einer Meldung die erfassten Systeme und Versionen, die nötigen Belege und den richtigen Verantwortlichen finden. Klein anfangen und die Angaben ergänzen, die Ihrer Firma helfen.",
+    "pillars": [
+      [
+        "Priorisieren",
+        "Die richtigen Systeme zuerst",
+        "Dringende Prüfungen, unbekannte Versionen und überfällige Maßnahmen erkennen und die zugehörigen Belege öffnen."
+      ],
+      [
+        "Erreichen",
+        "Den richtigen Ansprechpartner finden",
+        "Verantwortliche und Notfallkontakte an einem Ort erfassen. Regelmäßige Bestätigungen helfen, diese Angaben aktuell zu halten."
+      ],
+      [
+        "Weiterverwenden",
+        "Die vorhandenen Daten nutzen",
+        "NetBox behalten oder einen CSV-Import prüfen. Ein Kontakt und eine Domain oder ein Netz reichen für den Einstieg."
+      ]
+    ],
+    "cases_label": "Zwei Perspektiven. Ein zusammenhängender Ablauf.",
+    "cases_title": "Nützlich für die Firma.<br>Handlungsrelevant für CIRCL.<br>Gut für den Standort Luxemburg.",
+    "cases": [
+      [
+        "Für Firmenverantwortliche",
+        "Welche Systeme brauchen unsere Aufmerksamkeit?",
+        "Ein Softwareproblem soll zu den möglicherweise betroffenen Systemen, den Belegen und einem klaren nächsten Schritt führen. Bearings bündelt zusammengehörige Prüfungen, zeigt Prioritäten und hält die Zuständigkeit fest.",
+        [
+          "Dringende Prüfungen und überfällige Maßnahmen erkennen",
+          "Softwareversionen und Kontakte aktuell halten",
+          "Das Team mit passenden Firmenrechten einladen"
+        ],
+        "company-actions.webp",
+        "Gebündelte Softwareprüfungen und nächste Schritte einer fiktiven luxemburgischen Firma."
+      ],
+      [
+        "Für CIRCL-Analysten",
+        "Wer könnte betroffen sein – und wer kann handeln?",
+        "Freigegebenes Inventar teilnehmender Firmen durchsuchen. Gemeldete Softwareversionen vor einer CVE recherchieren, ihre Verbreitung prüfen und das zuständige Team erreichen.",
+        [
+          "Software und Versionen auch ohne CVE recherchieren",
+          "Offene Prüfungen und Firmenstandorte überblicken",
+          "Ansprache mit Belegen und Empfängerprüfung vorbereiten"
+        ],
+        "national-map.webp",
+        "Luxemburgische Firmenstandorte als Heatmap mit synthetischen Beispieldaten."
+      ]
+    ],
+    "map_note": "Firmenstandorte sind Näherungen und können von Serverstandorten abweichen. Die Karte beschreibt teilnehmendes Inventar, keine vollständige nationale Abdeckung.",
+    "workflow_label": "Klein anfangen. Schritt für Schritt vorankommen.",
+    "workflow_title": "Ein einfacher Einstieg.",
+    "workflow": [
+      [
+        "Beitreten oder registrieren",
+        "Die Einladung des Firmenadmins annehmen oder eine neue Firma registrieren und die E-Mail bestätigen. Die Freigabe für CIRCL erfolgt gesondert."
+      ],
+      [
+        "Die ersten nützlichen Angaben hinterlegen",
+        "Mit einem Kontakt und einer Domain oder einem Netz beginnen. Inventar manuell ergänzen, einen CSV-Import prüfen oder eine freigegebene NetBox-Quelle nutzen."
+      ],
+      [
+        "Das Wesentliche prüfen",
+        "Versions- und Abdeckungslücken klären, Schwachstellenbelege prüfen und Maßnahmen zuweisen. Ein Treffer allein bestätigt keine Betroffenheit."
+      ],
+      [
+        "Den Kreislauf aufrechterhalten",
+        "Daten regelmäßig bestätigen, Erreichbarkeit prüfen und Maßnahmen nachverfolgen. Der Assistent speichert den Fortschritt, damit Ihr Team später weitermachen kann."
+      ]
+    ],
+    "wizard_alt": "Ein Bearings-Konfigurationsassistent mit Abschnittsfortschritt, Formular und synthetischen Firmenangaben.",
+    "ecosystem_label": "Das bestehende Ökosystem nutzen",
+    "ecosystem_title": "Die vorhandenen Werkzeuge<br>in einen Zusammenhang bringen.",
+    "integrations": [
+      [
+        "NetBox",
+        "Inventar",
+        "Freigegebene Importe von Geräten, virtuellen Maschinen, IP-Adressen und Netzbereichen im festgelegten Firmenumfang."
+      ],
+      [
+        "Vulnerability-Lookup",
+        "Schwachstellenbelege",
+        "Öffentliche Produktzuordnung und CVE-Belege zur Prüfung."
+      ],
+      [
+        "MOSP / MONARC",
+        "Risikokontext",
+        "Öffentliche Szenariodefinitionen und geprüfter firmenspezifischer Geschäftskontext."
+      ],
+      [
+        "MISP",
+        "Eigene MISP-Informationen",
+        "Optionale eigene API-Schlüssel; getrennte interne CIRCL-Recherche."
+      ],
+      [
+        "AIL",
+        "Monitoring-Konfiguration",
+        "Export von Suchbegriffen und Honeytokens zum manuellen Import und zur fachlichen Prüfung."
+      ],
+      [
+        "FlowIntel · RT / RTIR",
+        "Koordination",
+        "Geprüfte Fall-/Ticketübergabe mit eigenständigen nativen Rechten."
+      ]
+    ],
+    "ecosystem_note": "Die Integrationen unterscheiden sich in Reife und Betriebsanforderungen. AIL ist ein manueller Export, der MISP-Cache ein begrenzter Pilot. Die grundlegenden Firmenabläufe erfordern kein Konto in jedem angebundenen Werkzeug.",
+    "trust_label": "Vertrauen braucht klare Grenzen",
+    "trust_title": "Klarheit darüber, was die Daten bedeuten.",
+    "trust": [
+      [
+        "Der Bereich der eigenen Firma",
+        "Firmenrollen und gesonderte CIRCL-Freigaben regeln den Infrastrukturzugriff. Persönliche MISP-Ansichten verwenden die Rechte ihres Inhabers."
+      ],
+      [
+        "Bekannte Lücken bleiben sichtbar",
+        "Unbekannte Versionen, veraltete Quellen und fehlende Abdeckung ergeben kein grünes Sicherheitsversprechen."
+      ],
+      [
+        "Menschen entscheiden",
+        "Risikoakzeptanz, Empfängerauswahl und Benachrichtigungen werden geprüft. Bearings installiert keine Patches und macht nicht jeden Treffer zum Vorfall."
+      ]
+    ],
+    "faq_label": "Praktische Antworten",
+    "faq_title": "Vor dem ersten Schritt.",
+    "faq_all": "Alle häufigen Fragen lesen",
+    "faq_page_title": "Häufige Fragen",
+    "faq_intro": "Antworten zu Zugang, Inventar, Sicherheitsinformationen und dem aktuellen Projektstand.",
+    "search": "Fragen und Antworten durchsuchen",
+    "empty": "Keine passenden Fragen. Versuchen Sie einen allgemeineren Begriff.",
+    "results": "Fragen angezeigt",
+    "nojs": "Alle Antworten stehen unten; die Suche ist eine optionale Browserfunktion.",
+    "closing": "Der erste Schritt ist kostenlos. Und jeder weitere auch.",
+    "closing_body": "Bei CIRCL registrieren, E-Mail bestätigen und einen Verantwortlichen sowie eine Domain oder ein Netz hinterlegen. Nach der Bestätigung öffnet sich Ihr privater Firmenbereich; die Freigabe für CIRCL erfolgt gesondert.",
+    "get_started": "Kostenlosen Firmenbereich anlegen",
+    "source": "Quellcode ansehen",
+    "footer": "Der von CIRCL betriebene Dienst für Firmeninventar, Schwachstellenprüfung und zuständige Ansprechpartner.",
+    "reviewed": "Inhalt geprüft am 20. November 2026",
+    "license": "Quellcode unter AGPL-3.0-or-later",
+    "privacy": "Statische Informationswebsite · keine Besucheranalyse oder Werbe-Cookies",
+    "credits": "Kartenquellen: Natural Earth (gemeinfrei) und GeoNames (CC BY 4.0). Alle Produktbilder enthalten synthetische Daten.",
+    "zoom": "Bild vollständig ansehen",
+    "close": "Bild schließen",
+    "home": "Startseite",
+    "faq": "FAQ",
+    "skip": "Zum Inhalt",
+    "lang": "English",
+    "back": "Nach oben",
+    "real_label": "Echte Probleme. Mit einem Augenzwinkern.",
+    "real_title": "Die Schwachstellen haben eine Meinung.",
+    "real_intro": "Erfundene Sprüche, echte CVEs. Die Beispiele zeigen, warum erfasste Versionen und erreichbare Verantwortliche einen Unterschied machen.",
+    "fact_label": "Das echte Problem",
+    "benefit_label": "Was Ihre Firma davon hat",
+    "fiction": "Erfundene Aussage der Schwachstelle",
+    "advisory": "Zum Sicherheitshinweis",
+    "source_note": "Quellen geprüft am 19. November 2026. Historische Beispiele, kein Live-Bedrohungsfeed. Tatsächliche Betroffenheit und Maßnahmen anhand aktueller Herstellerhinweise prüfen.",
+    "languages": "Sprache wählen",
+    "context_link": "Zusätzliche Quelle",
+    "operator_short": "von CIRCL",
+    "operator_label": "Betrieben von CIRCL",
+    "operator_body": "CIRCL ist das CERT für die Privatwirtschaft und Kommunen in Luxemburg. Das Gesetz vom 5. Mai 2026 zur Umsetzung von NIS2 nennt CIRCL als CSIRT; Artikel 9 benennt CIRCL als Koordinator für die koordinierte Offenlegung von Schwachstellen. Wir scannen nach Schwachstellen und unterstützen den freiwilligen Informationsaustausch, damit Organisationen frühzeitig handeln können.",
+    "operator_link": "Über CIRCL und seinen Auftrag",
+    "analysis_link": "CIRCL-Analyse",
+    "testimonials_link": "Was die Schwachstellen dazu sagen",
+    "overview_label": "Infrastrukturübersicht",
+    "principles": [
+      "Inventar",
+      "Belege",
+      "Risiko",
+      "Reaktion"
+    ],
+    "additional_cves": " + {count} weitere CVEs",
+    "login": "Anmelden",
+    "legal_link": "NIS2-Gesetz · 5. Mai 2026",
+    "agent": {
+      "label": "DER OPTIONALE LINUX-CLIENT",
+      "title": "Das Inventar bleibt aktuell. Ihr Team gewinnt Zeit.",
+      "intro": "Einmal auf Ihren Linux-Servern installieren: Der Bearings-Client meldet regelmäßig Softwareversionen an den CIRCL-Dienst. Updates werden sichtbar, ohne Paketlisten von Hand zu pflegen.",
+      "cards": [
+        [
+          "Aktuell bleiben",
+          "Paketversionen von Ubuntu, Debian und RPM-Systemen werden automatisch erfasst. Konfigurierte Versionsprüfungen können auch Software außerhalb des Paketmanagers abdecken."
+        ],
+        [
+          "Einmal ausrollen",
+          "Nutzen Sie einen begrenzten Rollout-Code mit Ihrem vorhandenen Verteilprozess. Jeder Rechner erzeugt seinen eigenen Schlüssel und sendet signierte Meldungen über HTTPS. Keine Dateien zum Zurückkopieren und Importieren."
+        ],
+        [
+          "Gezielt handeln",
+          "Bearings gleicht unterstützte Distributionspakete mit Sicherheitsregeln der Hersteller ab und trennt potenzielle Probleme, ungeklärte Prüfungen und bereits im Paket enthaltene Korrekturen."
+        ]
+      ],
+      "managed": "Bei vom Betreiber freigegebener, verwalteter NetBox können Hosts auch im richtigen Firmeninventar registriert werden. VM-Tags wie LXC, Incus, Proxmox oder VMware machen die Betriebsart sichtbar. Bestehende nur lesende Inventare bleiben nur lesend.",
+      "cta": "Linux-Client herunterladen",
+      "nav": "Linux-Client"
+    }
+  },
+  "fr": {
+    "title": "Infrastructure, risques et réponse",
+    "description": "Repérez les systèmes qui nécessitent votre attention, comprenez les risques et trouvez les personnes qui peuvent agir. Découvrez Bearings et son inscription gratuite.",
+    "nav": [
+      "Pourquoi Bearings",
+      "Cas d’usage",
+      "Comment ça marche",
+      "FAQ",
+      "Documentation"
+    ],
+    "eyebrow": "LE SERVICE CIRCL POUR LES ENTREPRISES",
+    "hero": "Identifiez les priorités.<br><em>Sachez qui peut agir.</em>",
+    "intro": "Votre inventaire, vos vérifications de vulnérabilités et vos interlocuteurs dans un espace exploité par le CIRCL. Identifiez les priorités, attribuez la prochaine action et gardez votre équipe joignable.",
+    "primary": "S’inscrire gratuitement",
+    "secondary": "Découvrir le fonctionnement",
+    "status": "Développement et phase pilote",
+    "status_note": "Commencez avec un contact et un domaine. Complétez l’inventaire à votre rythme.",
+    "screen": "Vue du produit · données synthétiques",
+    "hero_alt": "Vue d’ensemble Bearings avec revues ouvertes, lacunes de couverture et serveur à examiner dans une entreprise fictive.",
+    "why_label": "Un bénéfice concret pour votre équipe",
+    "why_title": "Moins de recherches dispersées.<br>La prochaine action clairement identifiée.",
+    "why_body": "Face à une alerte, retrouvez les systèmes et versions enregistrés, les éléments à vérifier et le bon responsable. Vous pouvez commencer petit, puis enrichir les données utiles à votre entreprise.",
+    "pillars": [
+      [
+        "Prioriser",
+        "Les bons systèmes en premier",
+        "Repérez les vérifications urgentes, les versions inconnues et les actions en retard, puis consultez les éléments probants."
+      ],
+      [
+        "Contacter",
+        "Le bon interlocuteur, disponible",
+        "Centralisez les responsables et les contacts d’urgence. Les confirmations périodiques vous aident à garder ces données à jour."
+      ],
+      [
+        "Réutiliser",
+        "Vos données existantes",
+        "Conservez NetBox ou importez un fichier CSV après vérification. Un contact et un domaine ou un réseau suffisent pour commencer."
+      ]
+    ],
+    "cases_label": "Deux perspectives, un même processus",
+    "cases_title": "Utile à l’entreprise.<br>Exploitable par le CIRCL.<br>Un atout pour le Luxembourg.",
+    "cases": [
+      [
+        "Pour les équipes d’entreprise",
+        "Quels systèmes nécessitent notre attention ?",
+        "Un problème logiciel doit mener aux équipements potentiellement concernés, aux éléments probants et à une prochaine action claire. Bearings regroupe les vérifications liées, rend les priorités visibles et consigne les responsabilités.",
+        [
+          "Voir les vérifications urgentes et les actions en retard",
+          "Garder les versions et contacts à jour",
+          "Inviter l’équipe avec les rôles adaptés"
+        ],
+        "company-actions.webp",
+        "Vérifications logicielles regroupées et actions suivantes pour une entreprise luxembourgeoise fictive."
+      ],
+      [
+        "Pour les analystes CIRCL",
+        "Qui pourrait être affecté, et qui peut agir ?",
+        "Explorez l’inventaire autorisé des entreprises participantes. Recherchez une version signalée avant l’existence d’une CVE, examinez sa diffusion et contactez l’équipe responsable.",
+        [
+          "Rechercher logiciels et versions sans CVE",
+          "Visualiser les vérifications en cours et les emplacements des entreprises",
+          "Préparer une prise de contact avec des éléments probants et vérifier les destinataires"
+        ],
+        "national-map.webp",
+        "Carte thermique des entreprises luxembourgeoises avec des données synthétiques."
+      ]
+    ],
+    "map_note": "Les emplacements des entreprises sont approximatifs et peuvent différer de ceux des serveurs. La carte décrit les participants, sans prétendre à une couverture nationale complète.",
+    "workflow_label": "Commencer petit, progresser ensemble",
+    "workflow_title": "Un parcours simple pour démarrer.",
+    "workflow": [
+      [
+        "Rejoindre une entreprise ou en inscrire une",
+        "Acceptez l’invitation de votre administrateur ou inscrivez une nouvelle entreprise et confirmez votre e-mail. Le partage avec le CIRCL est validé séparément."
+      ],
+      [
+        "Ajouter les premières informations utiles",
+        "Commencez avec un contact et un domaine ou réseau. Complétez manuellement, vérifiez un import CSV ou réutilisez une source NetBox approuvée."
+      ],
+      [
+        "Vérifier ce qui compte",
+        "Examinez les lacunes de version et de couverture, les informations de vulnérabilité et les actions à attribuer. Une correspondance ne prouve pas à elle seule qu’un système est affecté."
+      ],
+      [
+        "Entretenir le suivi",
+        "Confirmez les données périodiquement, vérifiez la réactivité des contacts et suivez les actions. La configuration se sauvegarde pour permettre une reprise ultérieure."
+      ]
+    ],
+    "wizard_alt": "Assistant de configuration Bearings avec progression des rubriques, formulaire et informations d’entreprise synthétiques.",
+    "ecosystem_label": "Réutiliser l’écosystème",
+    "ecosystem_title": "Donnez du sens aux outils<br>que vous utilisez déjà.",
+    "integrations": [
+      [
+        "NetBox",
+        "Inventaire",
+        "Imports approuvés d’équipements, de machines virtuelles, d’adresses IP et de préfixes, limités au périmètre de l’entreprise."
+      ],
+      [
+        "Vulnerability-Lookup",
+        "Vulnérabilités",
+        "Correspondances avec le catalogue public de produits et éléments CVE à examiner."
+      ],
+      [
+        "MOSP / MONARC",
+        "Contexte de risque",
+        "Définitions publiques de scénarios et contexte métier propre à l’entreprise."
+      ],
+      [
+        "MISP",
+        "Renseignement de sécurité",
+        "Clés propres aux clients ; recherche interne CIRCL distincte."
+      ],
+      [
+        "AIL",
+        "Configuration de veille",
+        "Export de mots-clés et de honeytokens pour import manuel et examen par les analystes."
+      ],
+      [
+        "FlowIntel · RT / RTIR",
+        "Coordination",
+        "Transferts vérifiés vers des dossiers et des tickets, avec des droits propres à chaque application."
+      ]
+    ],
+    "ecosystem_note": "La maturité et les conditions d’exploitation diffèrent selon l’intégration. AIL repose sur un export manuel ; le cache MISP est un pilote limité. Les fonctions de base ne nécessitent pas de compte dans chaque outil connecté.",
+    "trust_label": "La confiance repose sur des limites explicites",
+    "trust_title": "Savoir ce que les données signifient.",
+    "trust": [
+      [
+        "Le périmètre de votre entreprise",
+        "Les rôles d’entreprise et le partage distinct avec le CIRCL contrôlent l’accès. Les vues MISP personnelles utilisent les droits de leur propriétaire."
+      ],
+      [
+        "Les lacunes restent visibles",
+        "Versions inconnues, sources anciennes et couverture incomplète ne deviennent pas une garantie de sécurité."
+      ],
+      [
+        "Les personnes décident",
+        "L’acceptation des risques, le choix des destinataires et les communications sont soumis à vérification. Bearings n’installe pas de correctifs et ne transforme pas chaque correspondance en incident."
+      ]
+    ],
+    "faq_label": "Des réponses pratiques",
+    "faq_title": "Avant de commencer.",
+    "faq_all": "Lire toutes les questions fréquentes",
+    "faq_page_title": "Questions fréquentes",
+    "faq_intro": "Des réponses sur l’accès, l’inventaire, le renseignement et le stade actuel du projet.",
+    "search": "Rechercher dans les questions et réponses",
+    "empty": "Aucune question correspondante. Essayez un terme plus général.",
+    "results": "questions affichées",
+    "nojs": "Toutes les réponses figurent ci-dessous ; la recherche est une fonction facultative du navigateur.",
+    "closing": "Votre premier pas est gratuit. Tous les suivants aussi.",
+    "closing_body": "Inscrivez-vous auprès du CIRCL, confirmez votre e-mail et ajoutez un responsable ainsi qu’un domaine ou réseau. Votre espace privé s’ouvre après confirmation ; le partage avec le CIRCL est validé séparément.",
+    "get_started": "Créer votre espace entreprise gratuit",
+    "source": "Consulter le code source",
+    "footer": "Le service exploité par le CIRCL pour l’inventaire des entreprises, la vérification des vulnérabilités et les personnes à contacter.",
+    "reviewed": "Contenu vérifié le 20 novembre 2026",
+    "license": "Code sous AGPL-3.0-or-later",
+    "privacy": "Site d’information statique · sans analyse des visiteurs ni cookies publicitaires",
+    "credits": "Sources cartographiques : Natural Earth (domaine public) et GeoNames (CC BY 4.0). Toutes les captures du produit utilisent des données synthétiques.",
+    "zoom": "Agrandir la capture",
+    "close": "Fermer l’image",
+    "home": "Accueil",
+    "faq": "FAQ",
+    "skip": "Aller au contenu",
+    "lang": "Français",
+    "back": "Haut de page",
+    "real_label": "De vrais problèmes. Avec un clin d’œil.",
+    "real_title": "Les vulnérabilités ont leur avis.",
+    "real_intro": "Des citations imaginaires, de vraies CVE. Ces exemples montrent l’intérêt de connaître ses versions et de pouvoir joindre les responsables.",
+    "fact_label": "Le problème réel",
+    "benefit_label": "Le bénéfice pour votre entreprise",
+    "fiction": "Citation fictive de la vulnérabilité",
+    "advisory": "Consulter l’avis de sécurité",
+    "source_note": "Sources vérifiées le 19 novembre 2026. Exemples historiques, pas un flux de menaces en direct. Vérifiez l’exposition et les mesures à partir des consignes actuelles de l’éditeur.",
+    "languages": "Choisir la langue",
+    "context_link": "Source complémentaire",
+    "operator_short": "par le CIRCL",
+    "operator_label": "Exploité par le CIRCL",
+    "operator_body": "Le CIRCL est le CERT du secteur privé et des communes au Luxembourg. La loi du 5 mai 2026 transposant NIS2 désigne le CIRCL comme CSIRT ; son article 9 lui confie la coordination de la divulgation coordonnée des vulnérabilités. Nous réalisons des scans de vulnérabilités et soutenons le partage volontaire d’informations pour permettre aux organisations d’agir plus tôt.",
+    "operator_link": "À propos du CIRCL et de sa mission",
+    "analysis_link": "Analyse du CIRCL",
+    "testimonials_link": "Ce qu’en disent les vulnérabilités",
+    "overview_label": "Vue d’ensemble de l’infrastructure",
+    "principles": [
+      "Inventaire",
+      "Éléments probants",
+      "Risque",
+      "Réponse"
+    ],
+    "additional_cves": " + {count} autres CVE",
+    "login": "Se connecter",
+    "legal_link": "Loi NIS2 · 5 mai 2026",
+    "agent": {
+      "label": "LE CLIENT LINUX FACULTATIF",
+      "title": "Un inventaire à jour. Du temps rendu à votre équipe.",
+      "intro": "Installez-le une fois sur vos serveurs Linux. Le client Bearings transmet régulièrement les versions des logiciels au service CIRCL : les mises à jour deviennent visibles sans tenir des listes de paquets à la main.",
+      "cards": [
+        [
+          "Rester à jour",
+          "Les versions des paquets Ubuntu, Debian et des systèmes RPM sont collectées automatiquement. Des contrôles configurés peuvent aussi couvrir les logiciels installés hors du gestionnaire de paquets."
+        ],
+        [
+          "Déployer simplement",
+          "Utilisez un code de déploiement limité avec vos outils habituels. Chaque machine crée sa propre clé et transmet des rapports signés via HTTPS. Aucun fichier à rapporter pour importation."
+        ],
+        [
+          "Agir sur des éléments concrets",
+          "Bearings compare les paquets des distributions prises en charge aux règles de sécurité des éditeurs et distingue les problèmes potentiels, les vérifications non résolues et les correctifs déjà présents."
+        ]
+      ],
+      "managed": "Avec une intégration NetBox gérée et activée par l’opérateur, les machines peuvent aussi être enregistrées dans l’inventaire de leur entreprise. Des tags de VM tels que LXC, Incus, Proxmox ou VMware précisent le type de déploiement. Les inventaires existants en lecture seule le restent.",
+      "cta": "Télécharger le client Linux",
+      "nav": "Client Linux"
+    }
+  },
+  "lb": {
+    "title": "Infrastruktur, Risiken a Reaktioun",
+    "description": "Erkennt, wéi eng Systemer Opmierksamkeet brauchen, wat d’Risike sinn a wien handele kann. Entdeckt Bearings an déi gratis Registréierung.",
+    "nav": [
+      "Firwat Bearings",
+      "Uwendungsfäll",
+      "Esou funktionéiert et",
+      "FAQ",
+      "Dokumentatioun"
+    ],
+    "eyebrow": "DE CIRCL-SERVICE FIR FIRMEN",
+    "hero": "Prioritéiten erkennen.<br><em>Zilgeriicht handelen.</em>",
+    "intro": "Firmeninventar, Informatiounen iwwer Sécherheetslücken an zoustänneg Kontaktpersounen an engem vum CIRCL bedriwwene Firmeberäich. Erkennt, wou Dir handele musst, verdeelt déi nächst Schrëtt a bleift als Team erreechbar.",
+    "primary": "Gratis registréieren",
+    "secondary": "Den Oflaf entdecken",
+    "status": "Entwécklungs- a Pilotphas",
+    "status_note": "Fänkt mat engem Kontakt an enger Domain un. Ergänzt den Inventar an Ärem Rhythmus.",
+    "screen": "Produktusiicht · synthetesch Donnéeën",
+    "hero_alt": "Bearings-Infrastrukturiwwersiicht mat oppene Kontrollen, Lücken am Inventar an engem Server, dee muss iwwerpréift ginn, an enger fiktiver Firma.",
+    "why_label": "E konkrete Virdeel fir Äert Team",
+    "why_title": "Manner op verschiddene Plaze sichen.<br>De nächste Schrëtt kloer erkennen.",
+    "why_body": "Bei enger Meldung fannt Dir déi erfaasst Systemer a Versiounen, déi néideg Beleeër an déi zoustänneg Persoun. Dir kënnt kleng ufänken a schrëttweis déi Donnéeën ergänzen, déi Ärer Firma hëllefen.",
+    "pillars": [
+      [
+        "Prioriséieren",
+        "Déi richteg Systemer fir d’éischt",
+        "Erkennt dréngend Kontrollen, onbekannt Versiounen an iwwerfälleg Moossnamen a kuckt déi zougehéiereg Beleeër no."
+      ],
+      [
+        "Erreechen",
+        "Déi richteg Kontaktpersoun",
+        "Halt déi Verantwortlech an Noutfallkontakter op enger Plaz fest. Periodesch Bestätegungen hëllefen, dës Donnéeën aktuell ze halen."
+      ],
+      [
+        "Weiderbenotzen",
+        "Är bestoend Donnéeën",
+        "Benotzt NetBox weider oder importéiert e CSV no enger Iwwerpréiwung. E Kontakt an eng Domain oder en Netz ginn duer fir unzefänken."
+      ]
+    ],
+    "cases_label": "Zwou Perspektiven. Een zesummenhänkenden Oflaf.",
+    "cases_title": "Nëtzlech fir d’Firma.<br>Handlungsrelevant fir de CIRCL.<br>Gutt fir de Standuert Lëtzebuerg.",
+    "cases": [
+      [
+        "Fir Firmenverantwortlech",
+        "Wéi eng Systemer brauchen eis Opmierksamkeet?",
+        "E Softwareproblem soll op déi méiglecherweis betraffen Apparater, déi néideg Beleeër an en nächste Schrëtt hiweisen. Bearings faasst zesummenhänkend Kontrollen zesummen, weist Prioritéiten a hält fest, wien zoustänneg ass.",
+        [
+          "Dréngend Kontrollen an iwwerfälleg Moossnamen erkennen",
+          "Softwareversiounen a Kontakter aktuell halen",
+          "D’Team mat passende Firmerollen invitéieren"
+        ],
+        "company-actions.webp",
+        "Softwarekontrollen an déi nächst Schrëtt fir eng fiktiv Lëtzebuerger Firma."
+      ],
+      [
+        "Fir CIRCL-Analysten",
+        "Wien kéint betraff sinn, a wien kann handelen?",
+        "Duerchsicht den Inventar, dee vun den deelhuelende Firme fräiginn ass. Recherchéiert eng gemellte Softwareversioun, och wann et nach keng CVE gëtt, kuckt hir Verbreedung a kontaktéiert dat zoustännegt Team.",
+        [
+          "Software a Versiounen och ouni CVE recherchéieren",
+          "Oppe Kontrollen a Firmestanduerter iwwerblécken",
+          "Eng Benoriichtegung mat Beleeër virbereeden an d’Empfänger iwwerpréiwen"
+        ],
+        "national-map.webp",
+        "Lëtzebuergesch Firmestanduerter als Heatmap mat synthetesche Beispilldaten."
+      ]
+    ],
+    "map_note": "D’Firmestanduerter sinn ongeféier uginn a kënne vun de Serverstanduerter ofwäichen. D’Kaart weist déi deelhuelend Firmen, keng komplett national Ofdeckung.",
+    "workflow_label": "Kleng ufänken. Schrëtt fir Schrëtt virukommen.",
+    "workflow_title": "E praktesche Wee fir unzefänken.",
+    "workflow": [
+      [
+        "Bäitrieden oder registréieren",
+        "Huelt d’Invitatioun vum Firmenadministrateur un oder registréiert eng nei Firma a bestätegt Är E-Mail. D’Fräigab fir de CIRCL gëtt separat iwwerpréift."
+      ],
+      [
+        "Déi éischt nëtzlech Donnéeën uginn",
+        "Fänkt mat engem Kontakt an enger Domain oder engem Netz un. Ergänzt den Inventar manuell, iwwerpréift e CSV-Import oder benotzt eng autoriséiert NetBox-Quell."
+      ],
+      [
+        "Dat Wesentlecht iwwerpréiwen",
+        "Kläert feelend Versiounsangaben a Lücken am Inventar, iwwerpréift Beleeër iwwer Sécherheetslücken a verdeelt déi nächst Schrëtt. En Treffer eleng beweist net, datt eng Installatioun betraff ass."
+      ],
+      [
+        "Den Oflaf um Lafen halen",
+        "Bestätegt Donnéeë periodesch, préift d’Erreechbarkeet a verfollegt Moossnamen. D’Konfiguratioun gëtt gespäichert, fir datt Äert Team spéider weiderfuere kann."
+      ]
+    ],
+    "wizard_alt": "E Bearings-Konfiguratiounsassistent mat enger Fortschrëttsuweis, engem Formulaire a synthetesche Firmenangaben.",
+    "ecosystem_label": "Dat bestoend Ökosystem benotzen",
+    "ecosystem_title": "Déi bestoend Instrumenter<br>an en Zesummenhang bréngen.",
+    "integrations": [
+      [
+        "NetBox",
+        "Inventar",
+        "Autoriséiert Importer vun Apparater, virtuelle Maschinnen, IP-Adressen a Präfixer, begrenzt op de Beräich vun der Firma."
+      ],
+      [
+        "Vulnerability-Lookup",
+        "Informatiounen iwwer Sécherheetslücken",
+        "Ëffentlech Produktzouuerdnungen a CVE-Beleeër fir d’Iwwerpréiwung."
+      ],
+      [
+        "MOSP / MONARC",
+        "Risikokontext",
+        "Ëffentlech Szenariodefinitiounen a gepréifte firmespezifesche Geschäftskontext."
+      ],
+      [
+        "MISP",
+        "Är MISP-Informatiounen",
+        "Optional eege MISP-Schlësselen; separat intern Recherche vum CIRCL."
+      ],
+      [
+        "AIL",
+        "Monitoring-Konfiguratioun",
+        "Export vu Schlësselwierder an Honeytokens fir de manuellen Import an d’Iwwerpréiwung duerch Analysten."
+      ],
+      [
+        "FlowIntel · RT / RTIR",
+        "Koordinatioun",
+        "Gepréiften Iwwergank a Fäll oder Ticketen, mat eegene Rechter an all Applikatioun."
+      ]
+    ],
+    "ecosystem_note": "D’Integratiounen hu verschidde Reifegraden a Betribsufuerderungen. AIL ass e manuellen Export, de MISP-Cache e begrenzte Pilot. Fir d’Basis-Firmenofleef braucht Dir net an all Instrument en eegene Kont.",
+    "trust_label": "Vertraue brauch kloer Grenzen",
+    "trust_title": "Kloerheet iwwer d’Bedeitung vun den Donnéeën.",
+    "trust": [
+      [
+        "De Beräich vun Ärer Firma",
+        "Firmerollen an eng separat CIRCL-Fräigab reegelen den Infrastrukturzougang. Perséinlech MISP-Usiichte benotzen d’Rechter vun hirem Besëtzer."
+      ],
+      [
+        "Bekannt Lücke bleiwen ze gesinn",
+        "Onbekannt Versiounen, veralt Quelle a feelend Ofdeckung ginn net zu engem grénge Sécherheetsverspriechen."
+      ],
+      [
+        "Mënschen entscheeden",
+        "D’Akzeptanz vu Risiken, d’Auswiel vun den Empfänger an d’Benoriichtegunge ginn iwwerpréift. Bearings installéiert keng Patches a mécht net aus all Treffer e Virfall."
+      ]
+    ],
+    "faq_label": "Praktesch Äntwerten",
+    "faq_title": "Éier Dir ufänkt.",
+    "faq_all": "All heefeg gestallte Froe liesen",
+    "faq_page_title": "Heefeg gestallte Froen",
+    "faq_intro": "Äntwerten iwwer Zougang, Inventar, Sécherheetsinformatiounen an den aktuelle Stand vum Projet.",
+    "search": "Froen an Äntwerten duerchsichen",
+    "empty": "Keng passend Froen. Probéiert e méi allgemengt Wuert.",
+    "results": "Froe gewisen",
+    "nojs": "All Äntwerte stinn hei drënner; d’Sich ass eng optional Browserfunktioun.",
+    "closing": "Den éischte Schrëtt ass gratis. An all weidere Schrëtt och.",
+    "closing_body": "Beim CIRCL registréieren, Är E-Mail bestätegen an eng zoustänneg Persoun souwéi eng Domain oder en Netz uginn. Duerno geet Äre private Firmeberäich op; d’Fräigab fir de CIRCL gëtt separat iwwerpréift.",
+    "get_started": "Äre gratis Firmeberäich uleeën",
+    "source": "Quellcode ukucken",
+    "footer": "De vum CIRCL bedriwwene Service fir Firmeninventar, Informatiounen iwwer Sécherheetslücken an zoustänneg Kontaktpersounen.",
+    "reviewed": "Inhalt iwwerpréift den 20. November 2026",
+    "license": "Quellcode ënner AGPL-3.0-or-later",
+    "privacy": "Statesch Informatiounssäit · keng Analys vum Visiteursverhalen a keng Reklamm-Cookien",
+    "credits": "Kaartequellen: Natural Earth (fräi vun Auteursrechter) a GeoNames (CC BY 4.0). All Produktbiller benotze synthetesch Donnéeën.",
+    "zoom": "Dat ganzt Bild ukucken",
+    "close": "Bild zoumaachen",
+    "home": "Startsäit",
+    "faq": "FAQ",
+    "skip": "Bei den Inhalt",
+    "lang": "Lëtzebuergesch",
+    "back": "No uewen",
+    "real_label": "Reell Problemer. Mat engem klenge Laachen.",
+    "real_title": "D’Sécherheetslücken hunn eng Meenung.",
+    "real_intro": "Fiktiv Aussoen, reell CVEen. D’Beispiller weisen, firwat erfaasst Versiounen an erreechbar Kontaktpersounen en Ënnerscheed maachen.",
+    "fact_label": "De reelle Problem",
+    "benefit_label": "De Virdeel fir Är Firma",
+    "fiction": "Fiktiv Ausso vun enger Sécherheetslück",
+    "advisory": "De Sécherheetshinweis liesen",
+    "source_note": "Quellen iwwerpréift den 19. November 2026. Historesch Beispiller, keng Live-Meldungen iwwer Bedrohungen. Iwwerpréift mat den aktuelle Fabrikanthinweiser, ob eng Installatioun betraff ass a wat ze maachen ass.",
+    "languages": "Sprooch wielen",
+    "context_link": "Weider Quell",
+    "operator_short": "vum CIRCL",
+    "operator_label": "Bedriwwe vum CIRCL",
+    "operator_body": "De CIRCL ass de CERT fir d’Privatwirtschaft an d’Gemengen zu Lëtzebuerg. D’Gesetz vum 5. Mee 2026 fir d’Ëmsetzung vun NIS2 nennt de CIRCL als CSIRT; den Artikel 9 nennt de CIRCL als Koordinator fir d’koordinéiert Offenleeë vu Schwachstellen. Mir scannen no Schwachstellen an ënnerstëtzen de fräiwëllegen Informatiounsaustausch, fir datt Organisatioune fréi handele kënnen.",
+    "operator_link": "Iwwer de CIRCL a säin Optrag",
+    "analysis_link": "Analys vum CIRCL",
+    "testimonials_link": "Wat d’Sécherheetslücken dovun halen",
+    "overview_label": "Infrastrukturiwwersiicht",
+    "principles": [
+      "Inventar",
+      "Beleeër",
+      "Risiko",
+      "Reaktioun"
+    ],
+    "additional_cves": " + {count} weider CVEen",
+    "login": "Aloggen",
+    "legal_link": "NIS2-Gesetz · 5. Mee 2026",
+    "agent": {
+      "label": "DEN OPTIONALE LINUX-CLIENT",
+      "title": "Den Inventar bleift aktuell. Äert Team gewënnt Zäit.",
+      "intro": "Installéiert en eemol op Äre Linux-Serveren. De Bearings-Client mellt reegelméisseg Softwareversiounen un de CIRCL-Service. Esou ginn Updates siichtbar, ouni Paklëschte vun Hand ze fleegen.",
+      "cards": [
+        [
+          "Aktuell bleiwen",
+          "D’Versioune vun Ubuntu-, Debian- a RPM-Pakete ginn automatesch erfaasst. Konfiguréiert Versiounspréifunge kënnen och Software ausserhalb vum Pakmanager ofdecken."
+        ],
+        [
+          "Einfach ausrullen",
+          "Benotzt e begrenzte Rollout-Code mat Ärem bestoende Verdeelungsprozess. All Rechner erstellt säin eegene Schlëssel a schéckt ënnerschriwwe Meldungen iwwer HTTPS. Keng Dateien zeréckkopéieren an importéieren."
+        ],
+        [
+          "Gezielt handelen",
+          "Bearings vergläicht ënnerstëtzt Distributiounspakete mat de Sécherheetsreegele vun den Hiersteller. Potenziell Problemer, ongekläerte Kontrollen a Korrekturen, déi schonn am Pak sinn, ginn getrennt ugewisen."
+        ]
+      ],
+      "managed": "Bei enger vum Bedreiwer aktivéierter, verwalteter NetBox kënnen d’Rechner och am richtege Firmeninventar registréiert ginn. VM-Tags wéi LXC, Incus, Proxmox oder VMware weisen d’Betribsart. Bestoend Inventaren am Liesmodus bleiwen am Liesmodus.",
+      "cta": "Linux-Client eroflueden",
+      "nav": "Linux-Client"
+    }
+  }
+}

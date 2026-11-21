@@ -135,6 +135,10 @@ def seed(actor, *, companies=10, assets_per_company=30, restore=False):
     if dataset.state == "removed" and not restore:
         return dataset, False
     if not new and dataset.state == "active" and dataset.entries.exists():
+        from .demo_addresses import fill_showcase_addresses
+
+        fill_showcase_addresses(actor)
+        dataset.refresh_from_db()
         return dataset, False
     if dataset.state == "removed":
         dataset.state, dataset.removed_at = "active", None
@@ -206,7 +210,7 @@ def seed(actor, *, companies=10, assets_per_company=30, restore=False):
             from django.contrib.auth import get_user_model
 
             account = get_user_model().objects.filter(username="company-admin", is_active=True).first()
-            if account:
+            if account and c == 0 and not Membership.objects.filter(user=account).exists():
                 Membership.objects.create(organization=org, user=account, role="admin")
             for k in range(3):
                 Contact.objects.create(
@@ -425,6 +429,10 @@ def seed(actor, *, companies=10, assets_per_company=30, restore=False):
                             )
             _notification_preview(actor, org)
         _workflows(actor, focus_issues, focus_findings)
+    from .demo_addresses import fill_showcase_addresses
+
+    fill_showcase_addresses(actor)
+    dataset.refresh_from_db()
     audit(actor, None, "demo.seeded", dataset.key, configuration=dataset.configuration)
     return dataset, True
 

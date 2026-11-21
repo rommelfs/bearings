@@ -3,9 +3,10 @@ import json
 from pathlib import Path
 from urllib.parse import urlsplit, unquote
 from portal.browser_policy import origin as canvas_origin
+from config.smtp import relay_hostname
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-LOCAL_DIR = BASE_DIR / ".local"
+LOCAL_DIR = Path(os.getenv("BEARINGS_DATA_DIR", str(BASE_DIR / ".local")))
 LOCAL_DIR.mkdir(exist_ok=True)
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "")
@@ -25,6 +26,7 @@ INSTALLED_APPS = [
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "portal.security_headers.BrowserPolicy",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -37,6 +39,7 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "APP_DIRS": True,
+        "DIRS": [BASE_DIR / "portal" / "templates"],
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
@@ -75,27 +78,43 @@ LANGUAGE_CODE = "en"
 TIME_ZONE = "UTC"
 USE_TZ = True
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = Path(os.getenv("DJANGO_STATIC_ROOT", str(BASE_DIR / "staticfiles")))
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/infrastructure/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
-# Intentionally a local delivery sink. Production delivery requires a separate authorized change.
+# General/contact mail uses a local sink; service mail and reviewed outreach have explicit transport switches.
 EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
 EMAIL_FILE_PATH = LOCAL_DIR / "mail"
 DEFAULT_FROM_EMAIL = os.getenv("DJANGO_DEFAULT_FROM_EMAIL", "bearings@example.invalid")
-# Reviewed outreach has its own explicit transport switch; other application mail stays local.
+# Reviewed vulnerability outreach has a separate explicit transport switch.
 NOTIFICATION_TRANSPORT = os.getenv("BEARINGS_NOTIFICATION_TRANSPORT", "file")
 CIRCL_CAMPAIGN_MAX_REVIEWS = int(os.getenv("BEARINGS_CIRCL_CAMPAIGN_MAX_REVIEWS", "10000"))
 CIRCL_CAMPAIGN_MAX_RECIPIENTS = int(os.getenv("BEARINGS_CIRCL_CAMPAIGN_MAX_RECIPIENTS", "2000"))
 if not 1 <= CIRCL_CAMPAIGN_MAX_REVIEWS <= 50000 or not 1 <= CIRCL_CAMPAIGN_MAX_RECIPIENTS <= 10000:
     raise ValueError("Campaign limits must be 1–50000 reviews and 1–10000 recipients")
-EMAIL_HOST = os.getenv("SMTP_HOST", "")
+EMAIL_RELAY_HOST = os.getenv("SMTP_HOST", "")
+EMAIL_HOST = relay_hostname(EMAIL_RELAY_HOST)
+MAIL_SUBJECT_PREFIX = os.getenv("BEARINGS_MAIL_SUBJECT_PREFIX", "").strip()
+if any(char in MAIL_SUBJECT_PREFIX for char in "\r\n\x00") or len(MAIL_SUBJECT_PREFIX) > 80:
+    raise ValueError("Mail subject prefix must be one line of at most 80 characters")
 EMAIL_PORT = int(os.getenv("SMTP_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("SMTP_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("SMTP_STARTTLS", "1") == "1"
 EMAIL_USE_SSL = os.getenv("SMTP_TLS", "0") == "1"
+EMAIL_TLS_VERIFY = os.getenv("SMTP_TLS_VERIFY", "1") == "1"
+EMAIL_TLS_UNVERIFIED_HOST = relay_hostname(os.getenv("SMTP_TLS_UNVERIFIED_HOST", ""))
+if os.getenv("SMTP_TLS_VERIFY", "1") not in {"0", "1"}:
+    raise ValueError("SMTP_TLS_VERIFY must be 0 or 1")
+if not EMAIL_TLS_VERIFY and (
+    not EMAIL_TLS_UNVERIFIED_HOST
+    or EMAIL_HOST.lower().rstrip(".") != EMAIL_TLS_UNVERIFIED_HOST.lower().rstrip(".")
+    or EMAIL_USE_TLS == EMAIL_USE_SSL
+):
+    raise ValueError(
+        "Unverified SMTP requires an explicitly matching relay hostname and exactly one TLS mode"
+    )
 EMAIL_TIMEOUT = 10
 CONTACT_REVIEW_DAYS = int(os.getenv("CONTACT_REVIEW_DAYS", "183"))
 VULNERABILITY_LOOKUP_URL = os.getenv("VULNERABILITY_LOOKUP_URL", "https://vulnerability.circl.lu")
@@ -121,7 +140,10 @@ if os.getenv("DJANGO_TRUST_PROXY_SSL") == "1":
 CONNECTOR_PROXY_DNS = os.getenv("CONNECTOR_PROXY_DNS", "0") == "1"
 CONNECTOR_ALLOWED_HOSTS = [
     h.strip().lower()
-    for h in os.getenv("CONNECTOR_ALLOWED_HOSTS", "vulnerability.circl.lu,objects.monarc.lu").split(",")
+    for h in os.getenv(
+        "CONNECTOR_ALLOWED_HOSTS",
+        "vulnerability.circl.lu,objects.monarc.lu,security-metadata.canonical.com,www.debian.org,security.access.redhat.com",
+    ).split(",")
     if h.strip()
 ]
 
@@ -141,15 +163,18 @@ AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 MIDDLEWARE.insert(
     MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware") + 1, "portal.sso.SessionGuard"
 )
+SOCIAL_AUTH_OLD_ID_KEYS = {"oidc": None}  # Preserve explicit issuer+subject digest bindings during upgrades.
 SOCIAL_AUTH_PIPELINE = (
     "social_core.pipeline.social_auth.social_details",
     "social_core.pipeline.social_auth.social_uid",
     "social_core.pipeline.social_auth.social_user",
+    "portal.sso_onboarding.link_verified_identity",
     "config.oidc.require_approved_user",
 )
+SOCIAL_AUTH_OIDC_CONSTITUENT_ONBOARDING = True
 SOCIAL_AUTH_MAX_SESSION_LENGTH = SSO_SESSION_SECONDS
 SOCIAL_AUTH_SESSION_EXPIRATION = True
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = "/"
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = "/infrastructure/"
 SOCIAL_AUTH_LOGIN_ERROR_URL = "/accounts/login/"
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = not DEBUG
 SOCIAL_AUTH_RAISE_EXCEPTIONS = True  # Sanitized by SessionGuard, including in DEBUG mode.
@@ -199,3 +224,20 @@ LOGGING = {
     "handlers": {"django.server": {"class": "logging.StreamHandler", "filters": ["oidc_redaction"]}},
     "loggers": {"django.server": {"handlers": ["django.server"], "level": "INFO", "propagate": False}},
 }
+
+# Service messages (registration/data review) are separate from approved vulnerability outreach.
+PUBLIC_REGISTRATION_ENABLED = os.getenv("BEARINGS_PUBLIC_REGISTRATION", "1") == "1"
+PUBLIC_REGISTRATION_LIMIT = int(os.getenv("BEARINGS_REGISTRATION_HOURLY_LIMIT", "30"))
+SERVICE_MAIL_TRANSPORT = os.getenv("BEARINGS_SERVICE_MAIL_TRANSPORT", "file")
+PUBLIC_BASE_URL = os.getenv("BEARINGS_PUBLIC_URL", "").rstrip("/")
+if SERVICE_MAIL_TRANSPORT not in {"file", "smtp"} or not 1 <= PUBLIC_REGISTRATION_LIMIT <= 1000:
+    raise ValueError("Configure a supported service-mail transport and a registration limit of 1–1000")
+if SERVICE_MAIL_TRANSPORT == "smtp" and (not EMAIL_HOST or not (EMAIL_USE_TLS or EMAIL_USE_SSL)):
+    raise ValueError("Service SMTP requires an operator-configured host and TLS")
+
+# Public artifacts must be reviewed/operator-built. Production has no implicit filesystem source.
+LINUX_CLIENT_DOWNLOAD_DIR = os.getenv(
+    "BEARINGS_LINUX_CLIENT_DIR", str(BASE_DIR / ".local/linux-client") if DEBUG else ""
+)
+
+DISTRO_CVE_ENABLED = os.getenv("BEARINGS_DISTRO_CVE_ENABLED", "1") == "1"

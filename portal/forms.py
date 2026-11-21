@@ -3,11 +3,22 @@ from .models import Asset, Contact, InfrastructureClaim, Installation, Product, 
 
 
 class ContactForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["function"].required = False
+        if self.is_bound and "function" not in self.data:
+            self.data = self.data.copy()
+            self.data["function"] = self.instance.function or "security"
+
+    def clean_function(self):
+        return self.cleaned_data.get("function") or self.instance.function or "security"
+
     class Meta:
         model = Contact
         fields = [
             "name",
             "role",
+            "function",
             "email",
             "phone",
             "emergency_phone",
@@ -146,6 +157,25 @@ class RiskWithdrawalForm(forms.Form):
 
 
 class LocalAssetForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["responsible_contact"].queryset = Contact.objects.filter(
+            organization=self.instance.organization
+        ).order_by("name")
+
     class Meta:
         model = Asset
-        fields = ["criticality", "lifecycle", "responsible_team"]
+        fields = ["criticality", "lifecycle", "responsible_team", "responsible_contact"]
+
+
+class ManualAssetForm(LocalAssetForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["kind"].choices = [
+            (value, label)
+            for value, label in self.fields["kind"].choices
+            if value not in {"ip_address", "prefix"}
+        ]
+
+    class Meta(LocalAssetForm.Meta):
+        fields = ["name", "kind", *LocalAssetForm.Meta.fields]

@@ -3,18 +3,47 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, F
+from django.db.models.functions import Coalesce, Upper
 from django.utils import timezone
 
 
 class Organization(models.Model):
+    merged_into = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="merged_organizations",
+        editable=False,
+    )
     name = models.CharField(max_length=180)
+    postal_address = models.TextField(max_length=1000, blank=True)
     slug = models.SlugField(unique=True)
+    misp_org_uuid = models.UUIDField(
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="Optional MISP organization reference, manually checked by the platform operator. This is not proof of a user's membership.",
+    )
+    misp_uuid_attested_at = models.DateTimeField(null=True, blank=True)
+    misp_uuid_attested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="misp_organization_attestations",
+    )
     operator_visibility = models.BooleanField(
         default=False, help_text="Allow CIRCL analysts to access this organization"
     )
 
+    @property
+    def display_label(self):
+        label = f"{self.name} · {self.slug} · #{self.pk}"
+        return label + (f" · Archived → #{self.merged_into_id}" if self.merged_into_id else "")
+
     def __str__(self):
-        return self.name
+        return self.display_label
 
 
 class Membership(models.Model):
@@ -22,6 +51,9 @@ class Membership(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     role = models.CharField(max_length=10, choices=ROLES)
+
+    def __str__(self):
+        return f"{self.user.get_username()} · {self.organization.name} · {self.get_role_display()}"
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["organization", "user"], name="unique_membership")]
@@ -40,6 +72,16 @@ class Contact(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="contacts")
     name = models.CharField(max_length=180)
     role = models.CharField(max_length=120, default="Primary security contact")
+    function = models.CharField(
+        max_length=12,
+        default="security",
+        choices=[
+            ("security", "Security"),
+            ("technical", "Technical owner"),
+            ("management", "Management / escalation"),
+            ("dpo", "Data protection officer"),
+        ],
+    )
     email = models.EmailField()
     phone = models.CharField(max_length=80, blank=True)
     emergency_phone = models.CharField(max_length=80, blank=True)
@@ -62,6 +104,9 @@ class Contact(models.Model):
     )
     next_review = models.DateField(null=True, blank=True)
     availability_confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.name} · {self.get_function_display()} · {self.email}"
 
     @property
     def overdue(self):
@@ -144,6 +189,7 @@ class NetBoxInstance(models.Model):
         blank=True,
         help_text="Dedicated organization, or blank for a shared instance requiring tenant-scoped bindings",
     )
+    virtualization_tags = models.JSONField(default=dict, blank=True, editable=False)
     site_id = models.PositiveIntegerField(null=True, blank=True)
     role_id = models.PositiveIntegerField(null=True, blank=True)
     device_type_id = models.PositiveIntegerField(null=True, blank=True)
@@ -183,6 +229,8 @@ class NetBoxInstance(models.Model):
 
 
 class InventorySource(models.Model):
+    agent_export_policy = models.JSONField(default=dict, blank=True, editable=False)
+    agent_managed = models.BooleanField(default=False, editable=False)
     organization = models.OneToOneField(
         Organization, on_delete=models.CASCADE, related_name="inventory_source"
     )
@@ -191,6 +239,7 @@ class InventorySource(models.Model):
         max_length=12,
         choices=[
             ("development", "DEVELOPMENT fixture"),
+            ("manual", "Company-reported inventory"),
             ("central", "Central NetBox"),
             ("external", "Organization NetBox"),
         ],
@@ -246,9 +295,11 @@ class InventorySource(models.Model):
             )
         if self.tenant_id is not None and self.tenant_id < 1:
             raise ValidationError("NetBox tenant ID must be positive or explicitly unset")
-        if self.mode == "development":
+        if self.mode in {"development", "manual"}:
             if self.instance_id:
-                raise ValidationError("Development sources cannot use a live NetBox instance")
+                raise ValidationError("Local sources cannot use a live NetBox instance")
+            if self.mode == "manual" and self.tenant_id is not None:
+                raise ValidationError("Manual inventory cannot bind a NetBox tenant")
         else:
             if not self.instance_id:
                 raise ValidationError("Select an operator-approved NetBox instance")
@@ -259,8 +310,8 @@ class InventorySource(models.Model):
 
     @property
     def can_write(self):
-        if self.mode == "development":
-            return self.instance_id is None
+        if self.mode in {"development", "manual"}:
+            return self.instance_id is None and (self.mode != "manual" or self.tenant_id is None)
         return bool(
             self.mode in {"central", "external"}
             and self.instance_id
@@ -272,7 +323,29 @@ class InventorySource(models.Model):
         )
 
 
+VIRTUALIZATION_TYPES = [
+    ("", "Not specified"),
+    ("lxc", "LXC"),
+    ("incus", "Incus"),
+    ("proxmox", "Proxmox"),
+    ("vmware", "VMware"),
+    ("kvm", "KVM"),
+    ("hyperv", "Hyper-V"),
+]
+
+
 class Asset(models.Model):
+    network_host = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_addresses",
+        editable=False,
+    )
+    virtualization_type = models.CharField(
+        max_length=20, choices=VIRTUALIZATION_TYPES, blank=True, default=""
+    )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="assets")
     source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
@@ -290,10 +363,15 @@ class Asset(models.Model):
         max_length=20, default="active", choices=[("active", "Active"), ("retired", "Retired")]
     )
     responsible_team = models.CharField(max_length=180, blank=True)
+    responsible_contact = models.ForeignKey(
+        Contact, on_delete=models.PROTECT, null=True, blank=True, related_name="owned_assets"
+    )
     object_type = models.CharField(max_length=60, default="dcim.device")
     external_id = models.CharField(max_length=100, blank=True)
     state = models.CharField(
-        max_length=12, default="pending", choices=[(x, x.title()) for x in ["pending", "synced", "failed"]]
+        max_length=12,
+        default="pending",
+        choices=[(x, x.title()) for x in ["pending", "synced", "failed", "recorded"]],
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -335,11 +413,28 @@ class Asset(models.Model):
         ]
 
     def clean(self):
+        if self.network_host_id:
+            parent = self.network_host
+            if (
+                self.object_type != "ipam.ipaddress"
+                or parent.object_type not in {"dcim.device", "virtualization.virtualmachine"}
+                or parent.pk == self.pk
+                or parent.organization_id != self.organization_id
+                or parent.source_id != self.source_id
+            ):
+                raise ValidationError(
+                    "Address assignment must reference a host in the same source and organization"
+                )
+        if self.virtualization_type and self.kind != "vm":
+            raise ValidationError("Virtualization type is only supported for virtual machines")
         if self.source_id and self.organization_id != self.source.organization_id:
             raise ValidationError("Asset and source must belong to the same organization")
+        if self.responsible_contact_id and self.responsible_contact.organization_id != self.organization_id:
+            raise ValidationError("Responsible contact must belong to the asset organization")
 
 
 class InventoryWrite(models.Model):
+    agent_managed = models.BooleanField(default=False, editable=False)
     asset = models.OneToOneField(Asset, on_delete=models.CASCADE, related_name="write")
     attempts = models.PositiveIntegerField(default=0)
     error = models.CharField(max_length=200, blank=True)
@@ -363,6 +458,148 @@ class Product(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["organization", "name", "identifier"], name="unique_product")
         ]
+        indexes = [
+            models.Index(Upper("name"), name="product_name_upper_idx"),
+            models.Index(Upper("identifier"), name="product_ident_upper_idx"),
+            models.Index(
+                fields=["id"],
+                condition=~Q(identifier__startswith="pkg:deb/") & ~Q(identifier__startswith="pkg:rpm/"),
+                name="product_upstream_candidates",
+            ),
+        ]
+
+
+class ProductWatch(models.Model):
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="watch")
+    vendor = models.CharField(max_length=120)
+    product_key = models.CharField(max_length=120)
+    source_url = models.URLField(max_length=250)
+    enabled = models.BooleanField(default=True)
+    interval_minutes = models.PositiveIntegerField(default=60)
+    requested = models.BooleanField(default=True)
+    last_attempt = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=250, blank=True)
+    summary = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(interval_minutes__gte=15), name="watch_interval_min")
+        ]
+
+    def clean(self):
+        from .product_matching import valid_key
+        from .connectors.http import validate_base, ConnectorError
+
+        for field in ("vendor", "product_key"):
+            if not valid_key(getattr(self, field)):
+                raise ValidationError({field: "Use the exact lowercase public vendor/product key"})
+        try:
+            self.source_url = validate_base(self.source_url).geturl().rstrip("/")
+        except ConnectorError as exc:
+            raise ValidationError({"source_url": str(exc)}) from None
+        if self.interval_minutes < 15:
+            raise ValidationError("The minimum refresh interval is 15 minutes")
+        old = type(self).objects.filter(pk=self.pk).first()
+        if old and old.source_url != self.source_url:
+            raise ValidationError("An existing watch source cannot be repointed")
+
+    @property
+    def stale(self):
+        from datetime import timedelta
+
+        return bool(
+            self.error
+            or not self.last_success
+            or timezone.now() - self.last_success > timedelta(minutes=self.interval_minutes * 2)
+        )
+
+
+class DiscoveryMatch(models.Model):
+    watch = models.ForeignKey(ProductWatch, on_delete=models.PROTECT)
+    finding = models.OneToOneField("Finding", on_delete=models.PROTECT, related_name="discovery")
+    evidence_revision = models.ForeignKey("SourceRecordRevision", on_delete=models.PROTECT)
+    input_hash = models.CharField(max_length=64)
+    explanation = models.TextField()
+    result = models.CharField(max_length=20)
+    evaluated_at = models.DateTimeField(default=timezone.now)
+    review_required = models.BooleanField(default=True)
+
+    @property
+    def inputs_changed(self):
+        from .intelligence import digest
+
+        installation = self.finding.installation
+        return self.input_hash != digest(
+            [
+                digest(self.finding.record.payload),
+                self.watch.vendor,
+                self.watch.product_key,
+                installation.product.identifier,
+                installation.version,
+                installation.build,
+                installation.edition,
+            ]
+        )
+
+
+class DiscoveryRevision(models.Model):
+    match = models.ForeignKey(DiscoveryMatch, on_delete=models.PROTECT, related_name="history")
+    fingerprint = models.CharField(max_length=64)
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["match", "fingerprint"], name="unique_discovery_revision")
+        ]
+        indexes = [
+            models.Index(fields=["match", "created_at", "id"], name="discovery_first_idx"),
+        ]
+
+
+class BusinessRiskRevision(models.Model):
+    issue = models.ForeignKey("AssetIssue", on_delete=models.PROTECT, related_name="business_risks")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(default=timezone.now)
+    snapshot = models.JSONField()
+    evidence_hash = models.CharField(max_length=64)
+    previous = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True)
+
+    class Meta:
+        ordering = ["-pk"]
+
+
+class OutreachPolicy(models.Model):
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="outreach_policy"
+    )
+    include_dpo = models.BooleanField(
+        default=False, help_text="Include opted-in DPOs in new previews by default"
+    )
+    reminder_days = models.PositiveSmallIntegerField(default=0, help_text="0 disables timed reminder drafts")
+    escalation_days = models.PositiveSmallIntegerField(
+        default=0, help_text="0 disables management escalation drafts"
+    )
+
+    def clean(self):
+        if self.escalation_days and self.reminder_days and self.escalation_days <= self.reminder_days:
+            raise ValidationError("Escalation must follow the reminder")
+
+
+class NotificationFollowup(models.Model):
+    delivery = models.ForeignKey("NotificationDelivery", on_delete=models.PROTECT, related_name="followups")
+    kind = models.CharField(max_length=12, choices=[("reminder", "Reminder"), ("escalation", "Escalation")])
+    batch = models.OneToOneField(
+        "NotificationBatch", on_delete=models.PROTECT, null=True, blank=True, related_name="followup"
+    )
+    error = models.CharField(max_length=250, blank=True)
+    checked_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["delivery", "kind"], name="unique_notification_followup")
+        ]
 
 
 class Installation(models.Model):
@@ -375,6 +612,9 @@ class Installation(models.Model):
         max_length=10, default="software", choices=[("software", "Software"), ("firmware", "Firmware")]
     )
     is_operating_system = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [models.Index(fields=["product", "version", "asset"], name="installed_product_ver_idx")]
 
     def clean(self):
         if self.asset_id and self.product_id and self.asset.organization_id != self.product.organization_id:
@@ -455,6 +695,9 @@ class FindingHistory(models.Model):
     status = models.CharField(max_length=20)
     reason = models.TextField()
     created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [models.Index(fields=["status", "created_at"], name="finding_status_time_idx")]
 
 
 class SourceRecordRevision(models.Model):
@@ -604,6 +847,7 @@ class NotificationDelivery(models.Model):
     status = models.CharField(max_length=20, default="draft")
     filed_at = models.DateTimeField(null=True)
     acknowledged_at = models.DateTimeField(null=True)
+    followup_checked_at = models.DateTimeField(null=True, blank=True)
     acknowledged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
 
 
@@ -916,7 +1160,22 @@ class AssetIssue(models.Model):
                 name="issue_vulnerability_reference",
             )
         ]
-        indexes = [models.Index(fields=["organization", "status", "event_date"])]
+        indexes = [
+            models.Index(fields=["organization", "status", "event_date"]),
+            models.Index(
+                models.Case(
+                    models.When(priority="critical", then=models.Value(0)),
+                    models.When(priority="high", then=models.Value(1)),
+                    models.When(priority="review", then=models.Value(2)),
+                    default=models.Value(3),
+                    output_field=models.IntegerField(),
+                ),
+                Coalesce("action_due", "event_date"),
+                F("updated_at").desc(),
+                F("id"),
+                name="issue_attention_order_idx",
+            ),
+        ]
 
 
 class IssueRevision(models.Model):
@@ -1335,4 +1594,800 @@ class DemoObject(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["model_label", "object_pk"], name="unique_demo_object_owner")
+        ]
+
+
+class InfrastructureRegistration(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    organization = models.OneToOneField(Organization, on_delete=models.PROTECT, null=True, blank=True)
+    company_name = models.CharField(max_length=180)
+    company_address = models.TextField(max_length=1000, blank=True)
+    contact_name = models.CharField(max_length=180)
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    job_title = models.CharField(max_length=120, blank=True)
+    email = models.EmailField(unique=True)
+    notification_email = models.EmailField(blank=True)
+    notification_contact = models.ForeignKey(
+        Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name="registration_notifications"
+    )
+    emergency_phone = models.CharField(max_length=80, blank=True)
+    pgp_public_key = models.TextField(max_length=50000, blank=True)
+    smime_certificate = models.TextField(max_length=30000, blank=True)
+    authority_attested_at = models.DateTimeField(null=True, blank=True)
+    periodic_review_consented_at = models.DateTimeField(null=True, blank=True)
+    updates_committed_at = models.DateTimeField(null=True, blank=True)
+    commitments_version = models.CharField(max_length=32, blank=True)
+    scopes = models.JSONField(default=list)
+    review_days = models.PositiveSmallIntegerField(default=90)
+    email_reminders = models.BooleanField(default=True)
+    consent_at = models.DateTimeField(default=timezone.now)
+    status = models.CharField(
+        max_length=24,
+        default="awaiting_email",
+        choices=[
+            (x, x.replace("_", " ").title())
+            for x in ["awaiting_email", "awaiting_review", "approved", "rejected"]
+        ],
+    )
+    manually_activated_at = models.DateTimeField(null=True, blank=True)
+    manually_activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="manually_activated_registrations",
+    )
+    manual_activation_note = models.TextField(max_length=2000, blank=True)
+    verification_digest = models.CharField(max_length=64, unique=True)
+    verification_expires = models.DateTimeField()
+    verification_attempted_at = models.DateTimeField(null=True, blank=True)
+    verification_error = models.BooleanField(default=False)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="infrastructure_registrations_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(max_length=2000, blank=True)
+    decision_mail_sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+
+class PublicRegistrationBucket(models.Model):
+    key = models.CharField(max_length=64, unique=True)
+    attempts = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+
+
+class InventoryReviewPolicy(models.Model):
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="inventory_review_policy"
+    )
+    interval_days = models.PositiveSmallIntegerField(default=90)
+    reminder_days = models.PositiveSmallIntegerField(default=7)
+    email_enabled = models.BooleanField(default=True)
+    next_due = models.DateField(default=timezone.localdate, db_index=True)
+    next_reminder_at = models.DateTimeField(default=timezone.now, db_index=True)
+    last_reviewed_at = models.DateTimeField(null=True, blank=True)
+    last_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(interval_days__gte=1, interval_days__lte=365),
+                name="valid_inventory_review_interval",
+            ),
+            models.CheckConstraint(
+                condition=Q(reminder_days__gte=1, reminder_days__lte=90),
+                name="valid_inventory_reminder_interval",
+            ),
+        ]
+
+
+class InventoryReviewConfirmation(models.Model):
+    policy = models.ForeignKey(InventoryReviewPolicy, on_delete=models.PROTECT, related_name="confirmations")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    reviewed_at = models.DateTimeField(default=timezone.now)
+    review_due_date = models.DateField(null=True, blank=True)
+    data_digest = models.CharField(max_length=64)
+    fingerprint = models.CharField(max_length=64, unique=True)
+    counts = models.JSONField(default=dict)
+    next_due = models.DateField()
+
+
+class InventoryReviewDelivery(models.Model):
+    policy = models.ForeignKey(InventoryReviewPolicy, on_delete=models.PROTECT, related_name="deliveries")
+    due_date = models.DateField()
+    recipient = models.EmailField()
+    fingerprint = models.CharField(max_length=64, unique=True)
+    status = models.CharField(
+        max_length=12,
+        default="pending",
+        choices=[(x, x.title()) for x in ["pending", "sent", "error", "suppressed"]],
+    )
+    attempts = models.PositiveSmallIntegerField(default=0)
+    next_attempt = models.DateTimeField(default=timezone.now, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=200, blank=True)
+    transport = models.CharField(
+        max_length=10,
+        default="unknown",
+        choices=[("unknown", "Legacy / unknown"), ("file", "Local file"), ("smtp", "SMTP relay")],
+    )
+    delivery_outcome = models.CharField(
+        max_length=10,
+        default="unknown",
+        choices=[
+            ("unknown", "Not known"),
+            ("bounced", "Bounce reported"),
+            ("delivered", "Delivery reported"),
+        ],
+    )
+    feedback_at = models.DateTimeField(null=True, blank=True)
+    feedback_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    feedback_note = models.CharField(max_length=1000, blank=True)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="requested_review_followups",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+
+class OrganizationLocation(models.Model):
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="map_location")
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    address_digest = models.CharField(max_length=64)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(latitude__gte=-90, latitude__lte=90), name="map_latitude_range"
+            ),
+            models.CheckConstraint(
+                condition=Q(longitude__gte=-180, longitude__lte=180), name="map_longitude_range"
+            ),
+        ]
+
+
+class OrganizationConfiguration(models.Model):
+    """Owner-managed preferences; no AIL execution, mail proof or key identity claim."""
+
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="configuration")
+    pgp_public_key = models.TextField(max_length=50000, blank=True)
+    smime_certificate = models.TextField(max_length=30000, blank=True)
+    ail_enabled = models.BooleanField(default=False)
+    ail_keywords = models.JSONField(default=list)
+    ail_honeytokens = models.JSONField(default=list)
+    ail_notification_email = models.EmailField(blank=True)
+
+
+class ConfigurationSection(models.Model):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="configuration_sections"
+    )
+    section = models.CharField(max_length=20)
+    revision = models.PositiveIntegerField(default=0)
+    draft = models.JSONField(default=dict)
+    reviewed = models.BooleanField(default=False)
+    last_opened_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "section"], name="unique_configuration_section")
+        ]
+
+
+class MISPServer(models.Model):
+    """Operator-approved destinations offered for optional customer-owned API credentials."""
+
+    name = models.CharField(max_length=100, unique=True)
+    base_url = models.URLField(max_length=250, default="https://misppriv.circl.lu", unique=True)
+    enabled = models.BooleanField(default=False)
+    allow_private = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        from .connectors.http import validate_base, ConnectorError
+
+        try:
+            validate_base(self.base_url)
+        except ConnectorError:
+            raise ValidationError("Use an operator-approved credential-free HTTPS MISP URL") from None
+        if self.pk:
+            old = MISPServer.objects.get(pk=self.pk)
+            if old.base_url != self.base_url:
+                raise ValidationError(
+                    "A saved MISP endpoint cannot be repointed; create a new approved server"
+                )
+
+
+class MISPInstance(models.Model):
+    """An operator-approved read-only cache source; disabled until explicitly configured."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="personal_misp_sources",
+    )
+    misp_user_id = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Operator-verified MISP user ID owning this personal key; checked with users/view/me on every refresh",
+    )
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, on_delete=models.PROTECT, related_name="personal_misp_sources"
+    )
+    server = models.ForeignKey(MISPServer, null=True, blank=True, on_delete=models.PROTECT)
+    credential_kind = models.CharField(
+        max_length=12,
+        default="environment",
+        choices=[("environment", "Operator secret reference"), ("encrypted", "Personal encrypted key")],
+    )
+    credential_nonce = models.UUIDField(default=uuid.uuid4, editable=False)
+    credential_ciphertext = models.TextField(blank=True, editable=False)
+    name = models.CharField(max_length=100, unique=True)
+    base_url = models.URLField(max_length=250, default="https://misppriv.circl.lu")
+    token_env_var = models.CharField(max_length=100, unique=True, default="MISP_CIRCL_TOKEN")
+    enabled = models.BooleanField(default=False)
+    allow_private = models.BooleanField(default=False)
+    refresh_minutes = models.PositiveIntegerField(default=5)
+    max_age_minutes = models.PositiveIntegerField(default=10)
+    last_attempt = models.DateTimeField(null=True, blank=True)
+    last_success = models.DateTimeField(null=True, blank=True)
+    error = models.CharField(max_length=250, blank=True)
+    generation = models.UUIDField(null=True, blank=True, editable=False)
+    syncing_until = models.DateTimeField(null=True, blank=True, editable=False)
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        import re
+        from .connectors.http import ConnectorError, validate_base
+
+        try:
+            validate_base(self.base_url)
+        except ConnectorError:
+            raise ValidationError(
+                "MISP requires an operator-approved credential-free HTTPS base URL"
+            ) from None
+        if not re.fullmatch(r"MISP_[A-Z0-9_]*TOKEN", self.token_env_var):
+            raise ValidationError("Use a server-side MISP_*TOKEN credential reference")
+        if not 5 <= self.refresh_minutes <= 60 or not self.refresh_minutes <= self.max_age_minutes <= 60:
+            raise ValidationError("Refresh must be 5–60 minutes and maximum cache age refresh–60 minutes")
+        if self.organization_id and (self.credential_kind != "encrypted" or not self.server_id):
+            raise ValidationError(
+                "Customer connections require the customer's own encrypted key and an approved endpoint; operator/CIRCL environment keys cannot be assigned to a company"
+            )
+        if self.enabled:
+            from .misp import owner_eligible, endpoint_eligible
+
+            if (
+                not self.owner_id
+                or not self.misp_user_id
+                or not owner_eligible(self)
+                or not endpoint_eligible(self)
+            ):
+                raise ValidationError(
+                    "An enabled MISP source requires its current personal owner, company membership where applicable, approved endpoint and pinned native user ID"
+                )
+            if self.credential_kind == "encrypted" and (
+                not self.organization_id or not self.credential_ciphertext
+            ):
+                raise ValidationError(
+                    "Personal customer connections require an encrypted key and company context"
+                )
+        if self.pk:
+            old = MISPInstance.objects.get(pk=self.pk)
+            protected = (
+                old.credential_kind == "encrypted" or MISPEvent.objects.filter(source_id=self.pk).exists()
+            )
+            if protected and (
+                old.base_url != self.base_url
+                or old.token_env_var != self.token_env_var
+                or old.owner_id != self.owner_id
+                or old.misp_user_id != self.misp_user_id
+                or old.organization_id != self.organization_id
+                or old.server_id != self.server_id
+                or old.credential_nonce != self.credential_nonce
+            ):
+                raise ValidationError(
+                    "A source with a personal key or cached events cannot be repointed; create a new source"
+                )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "organization", "server"],
+                condition=Q(enabled=True),
+                name="personal_customer_misp_connection",
+            )
+        ]
+
+
+class MISPEvent(models.Model):
+    source = models.ForeignKey(MISPInstance, on_delete=models.PROTECT, related_name="events")
+    event_uuid = models.UUIDField()
+    remote_id = models.PositiveBigIntegerField()
+    timestamp = models.PositiveBigIntegerField()
+    info = models.CharField(max_length=1000)
+    payload = models.JSONField(default=dict)
+    digest = models.CharField(max_length=64)
+    available = models.BooleanField(default=True)
+    cached_at = models.DateTimeField(default=timezone.now)
+    review_digest = models.CharField(max_length=64, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=1000, blank=True)
+    readers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="permitted_misp_events",
+        help_text="Explicit authorized CIRCL recipients for this exact event revision, including all nested restrictions. No participant access.",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["source", "event_uuid"], name="misp_source_event_uuid")
+        ]
+        indexes = [models.Index(fields=["source", "available", "-timestamp"])]
+
+    def __str__(self):
+        return str(self.event_uuid)
+
+
+class InventoryCSVBatch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    rows = models.JSONField(default=list)
+    errors = models.JSONField(default=list)
+    baseline = models.CharField(max_length=64)
+    status = models.CharField(max_length=12, default="preview")
+    result = models.JSONField(default=dict)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(db_index=True)
+
+
+class CSVAssetBinding(models.Model):
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    asset = models.OneToOneField(Asset, on_delete=models.PROTECT, related_name="csv_binding")
+    key = models.CharField(max_length=100)
+    managed_digest = models.CharField(max_length=64)
+    installations = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["source", "key"], name="csv_source_key")]
+
+
+class OrganizationInvitation(models.Model):
+    domain_code = models.ForeignKey("OrganizationDomainCode", null=True, blank=True, on_delete=models.PROTECT)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    inviter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    email = models.EmailField()
+    role = models.CharField(max_length=10, choices=Membership.ROLES)
+    digest = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    mail_error = models.BooleanField(default=False)
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+
+class OrganizationDomainCode(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    domain = models.CharField(max_length=253)
+    role = models.CharField(max_length=10, choices=[("reader", "Reader"), ("editor", "Inventory editor")])
+    digest = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    max_acceptances = models.PositiveIntegerField(default=100)
+
+    def __str__(self):
+        return f"{self.organization} · @{self.domain} · {self.get_role_display()}"
+
+
+class NationalState(models.Model):
+    organization = models.OneToOneField(
+        Organization, primary_key=True, on_delete=models.CASCADE, related_name="national_state"
+    )
+    dirty = models.BooleanField(default=True, db_index=True)
+    projection_version = models.PositiveSmallIntegerField(null=True)
+    refreshed_at = models.DateTimeField(null=True)
+    operator_counts = models.JSONField(default=dict)
+    shared_counts = models.JSONField(default=dict)
+    inventory_assets = models.PositiveIntegerField(default=0)
+    installations = models.PositiveIntegerField(default=0)
+    unknown_versions = models.PositiveIntegerField(default=0)
+
+
+class NationalVersion(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    product_name = models.CharField(max_length=180)
+    identity = models.CharField(max_length=255)
+    name = models.CharField(max_length=180)
+    version = models.CharField(max_length=120)
+    assets = models.PositiveIntegerField()
+    total = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "product_name", "identity", "version"], name="national_org_version"
+            )
+        ]
+
+
+class NationalProblem(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    shared = models.BooleanField()
+    external_id = models.CharField(max_length=120)
+    reviews = models.PositiveIntegerField()
+    assets = models.PositiveIntegerField()
+    affected = models.PositiveIntegerField()
+    accepted = models.PositiveIntegerField()
+    severity_rank = models.PositiveSmallIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "shared", "external_id"], name="national_org_problem"
+            )
+        ]
+
+
+class NationalActivity(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    shared = models.BooleanField()
+    day = models.DateField(db_index=True)
+    new = models.PositiveIntegerField(default=0)
+    closed = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "shared", "day"], name="national_org_activity")
+        ]
+
+
+class NationalProductVersion(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, db_constraint=False)
+    version = models.CharField(max_length=120)
+    total = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["product", "version"], name="national_product_version")
+        ]
+
+
+class AgentFleet(models.Model):
+    """Expiring company-scoped rollout authorization; shared secret is never stored."""
+
+    inventory_mode = models.CharField(
+        max_length=12,
+        default="observed",
+        choices=[("observed", "Bearings only"), ("managed", "Managed NetBox")],
+        editable=False,
+    )
+    virtualization_type = models.CharField(
+        max_length=20, choices=VIRTUALIZATION_TYPES, blank=True, default=""
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    name = models.CharField(max_length=100)
+    token_hash = models.CharField(max_length=64, editable=False)
+    source_fingerprint = models.CharField(max_length=64, editable=False)
+    new_asset_kind = models.CharField(
+        max_length=20,
+        choices=[
+            ("vm", "Virtual machine"),
+            ("server", "Server"),
+            ("desktop", "Desktop"),
+            ("laptop", "Laptop"),
+        ],
+    )
+    max_devices = models.PositiveIntegerField(default=1000)
+    issued_devices = models.PositiveIntegerField(default=0, editable=False)
+    enabled = models.BooleanField(default=True)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(max_devices__gte=1, max_devices__lte=100000), name="agent_fleet_device_limit"
+            ),
+            models.CheckConstraint(
+                condition=Q(issued_devices__lte=F("max_devices")), name="agent_fleet_quota"
+            ),
+        ]
+
+
+class AgentEnrollment(models.Model):
+    """One-use, public-key-bound authorization, created by a company administrator."""
+
+    virtualization_type = models.CharField(
+        max_length=20, choices=VIRTUALIZATION_TYPES, blank=True, default=""
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    fleet = models.ForeignKey(AgentFleet, on_delete=models.PROTECT, null=True, blank=True)
+    observed_only = models.BooleanField(default=False)
+    asset = models.ForeignKey(Asset, on_delete=models.PROTECT, null=True, blank=True)
+    new_asset_kind = models.CharField(max_length=20, blank=True)
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    public_key = models.CharField(max_length=44, db_index=True)
+    token_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    request_hash = models.CharField(max_length=64, blank=True)
+    signed_body = models.BinaryField(default=bytes, blank=True)
+    signature_input = models.TextField(blank=True)
+    signature = models.TextField(blank=True)
+    request_url = models.CharField(max_length=2048, blank=True)
+    device_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
+
+class AgentFleetRegistration(models.Model):
+    fleet = models.ForeignKey(AgentFleet, on_delete=models.PROTECT, related_name="registrations")
+    public_key = models.CharField(max_length=44, unique=True)
+    request_id = models.UUIDField()
+    enrollment = models.OneToOneField(AgentEnrollment, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(default=timezone.now)
+
+
+class AgentDevice(models.Model):
+    netbox_export_pending = models.BooleanField(default=False)
+    netbox_export_after = models.DateTimeField(default=timezone.now)
+    netbox_export_receipt = models.JSONField(default=dict, blank=True, editable=False)
+    netbox_export_error = models.CharField(max_length=180, blank=True)
+    network_observed_at = models.DateTimeField(null=True, blank=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT)
+    asset = models.ForeignKey(Asset, on_delete=models.PROTECT, related_name="agent_devices")
+    source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
+    public_key = models.CharField(max_length=44, unique=True)
+    enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    last_sequence = models.PositiveBigIntegerField(default=0)
+    daily_bytes = models.PositiveBigIntegerField(default=0)
+    daily_reports = models.PositiveIntegerField(default=0)
+    applied_sequence = models.PositiveBigIntegerField(default=0)
+    distro_requested = models.BooleanField(default=True)
+    distro_checked_at = models.DateTimeField(null=True, blank=True)
+    distro_summary = models.JSONField(default=dict, blank=True)
+    auto_software = models.BooleanField(default=True)
+    software_sync_pending = models.BooleanField(default=True)
+    last_received_at = models.DateTimeField(null=True, blank=True)
+    last_observed_at = models.DateTimeField(null=True, blank=True)
+    last_complete_at = models.DateTimeField(null=True, blank=True)
+    reported_network = models.JSONField(default=dict, blank=True)
+    os = models.JSONField(default=dict, blank=True)
+    services = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["netbox_export_after"],
+                condition=Q(netbox_export_pending=True),
+                name="agent_netbox_export_due_idx",
+            ),
+            models.Index(
+                fields=["id"],
+                condition=Q(enabled=True, distro_requested=True),
+                name="agent_distro_pending_idx",
+            ),
+            models.Index(
+                fields=["id"],
+                condition=Q(enabled=True, auto_software=True, software_sync_pending=True),
+                name="agent_software_pending_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asset"], condition=Q(enabled=True), name="one_active_agent_per_asset"
+            )
+        ]
+
+    @property
+    def stale(self):
+        from datetime import timedelta
+
+        return not self.last_observed_at or self.last_observed_at < timezone.now() - timedelta(hours=12)
+
+    @property
+    def runtime_services(self):
+        from datetime import timedelta
+        from django.utils.dateparse import parse_datetime
+
+        result = []
+        for item in self.services:
+            observed = parse_datetime(item.get("observed_at", ""))
+            result.append({**item, "stale": not observed or observed < timezone.now() - timedelta(hours=12)})
+        return result
+
+    def __str__(self):
+        return f"{self.asset.name} · {self.id}"
+
+
+class AgentReport(models.Model):
+    """Exact signed input, retained independently of its current inventory projection."""
+
+    id = models.UUIDField(primary_key=True, editable=False)
+    device = models.ForeignKey(AgentDevice, on_delete=models.PROTECT, related_name="reports")
+    sequence = models.PositiveBigIntegerField()
+    observed_at = models.DateTimeField()
+    received_at = models.DateTimeField(default=timezone.now)
+    body = models.BinaryField()
+    body_hash = models.CharField(max_length=64)
+    signature_input = models.TextField()
+    signature = models.TextField()
+    request_url = models.CharField(max_length=2048)
+    content_type = models.CharField(max_length=100)
+    public_key = models.CharField(max_length=44)
+    status = models.CharField(
+        max_length=12,
+        default="pending",
+        choices=[(s, s) for s in ["pending", "applied", "rejected", "superseded"]],
+    )
+    error = models.CharField(max_length=120, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    component_count = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["device", "sequence"], name="agent_device_sequence")]
+        indexes = [models.Index(fields=["status", "received_at"], name="agent_pending_reports_idx")]
+
+
+class AgentComponent(models.Model):
+    distro_check = models.JSONField(default=dict, blank=True, editable=False)
+    package_source = models.JSONField(default=dict, blank=True)
+    package_identity = models.JSONField(default=dict, blank=True)
+    automatic_installation = models.BooleanField(default=False)
+    inventory_excluded = models.BooleanField(default=False)
+    binary = models.JSONField(default=dict, blank=True)
+    device = models.ForeignKey(AgentDevice, on_delete=models.PROTECT, related_name="components")
+    key = models.CharField(max_length=255)
+    name = models.CharField(max_length=128)
+    manager = models.CharField(max_length=8)
+    architecture = models.CharField(max_length=64)
+    version = models.CharField(max_length=120)
+    observed_at = models.DateTimeField()
+    missing_since = models.DateTimeField(null=True, blank=True)
+    last_report = models.ForeignKey(AgentReport, on_delete=models.PROTECT)
+    installation = models.OneToOneField(
+        Installation, on_delete=models.PROTECT, null=True, blank=True, related_name="agent_component"
+    )
+
+    @property
+    def stale(self):
+        from datetime import timedelta
+
+        return self.observed_at < timezone.now() - timedelta(hours=12)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["device", "id"],
+                condition=Q(installation__isnull=True, inventory_excluded=False),
+                name="agent_unbound_inventory_idx",
+            )
+        ]
+        constraints = [models.UniqueConstraint(fields=["device", "key"], name="agent_component_identity")]
+
+
+class DistroFeed(models.Model):
+    key = models.CharField(max_length=40, unique=True)
+    enabled = models.BooleanField(default=True)
+    generation = models.UUIDField(null=True, editable=False)
+    content_hash = models.CharField(max_length=64, blank=True, editable=False)
+    last_attempt = models.DateTimeField(null=True, editable=False)
+    last_success = models.DateTimeField(null=True, editable=False)
+    error = models.CharField(max_length=200, blank=True, editable=False)
+    summary = models.JSONField(default=dict, blank=True, editable=False)
+    lease_id = models.UUIDField(null=True, editable=False)
+    lease_until = models.DateTimeField(null=True, editable=False)
+
+
+class DistroAdvisory(models.Model):
+    feed = models.ForeignKey(DistroFeed, on_delete=models.PROTECT)
+    identity = models.CharField(max_length=200)
+    generation = models.UUIDField()
+    metadata = models.JSONField()
+    criteria = models.JSONField()
+    content_hash = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["feed", "identity"], name="distro_definition_identity")
+        ]
+
+
+class DistroAdvisoryPackage(models.Model):
+    feed = models.ForeignKey(DistroFeed, on_delete=models.CASCADE)
+    advisory = models.ForeignKey(DistroAdvisory, on_delete=models.CASCADE)
+    manager = models.CharField(max_length=8)
+    name = models.CharField(max_length=128)
+
+    class Meta:
+        indexes = [models.Index(fields=["feed", "manager", "name"], name="distro_package_lookup_idx")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["advisory", "manager", "name"], name="distro_package_rule_identity"
+            )
+        ]
+
+
+class DistroMatch(models.Model):
+    finding = models.OneToOneField(Finding, on_delete=models.PROTECT, related_name="distro_match")
+    component = models.ForeignKey(AgentComponent, on_delete=models.PROTECT)
+    advisory = models.ForeignKey(DistroAdvisory, on_delete=models.PROTECT)
+    result = models.CharField(
+        max_length=20, choices=[(v, v) for v in ["potential", "unknown", "not_affected", "not_observed"]]
+    )
+    evidence_revision = models.ForeignKey(SourceRecordRevision, on_delete=models.PROTECT)
+    input_hash = models.CharField(max_length=64)
+    snapshot = models.JSONField(default=dict)
+    evaluated_at = models.DateTimeField(default=timezone.now)
+    review_required = models.BooleanField(default=True)
+
+    @property
+    def inputs_changed(self):
+        return (
+            self.snapshot.get("version") != self.component.version
+            or self.snapshot.get("source_package", {}) != self.component.package_source
+            or self.component.installation_id != self.finding.installation_id
+            or self.component.stale
+            or self.component.missing_since is not None
+            or not self.component.device.enabled
+            or self.component.device.expires_at <= timezone.now()
+        )
+
+
+class DistroMatchRevision(models.Model):
+    match = models.ForeignKey(DistroMatch, on_delete=models.PROTECT, related_name="history")
+    fingerprint = models.CharField(max_length=64)
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["match", "fingerprint"], name="distro_match_revision_unique")
         ]

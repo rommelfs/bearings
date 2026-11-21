@@ -4,14 +4,23 @@ from django.urls import reverse
 
 
 AREAS = {
+    "merges": ("Merge organizations", "company-merge", ""),
+    "misp": ("My MISP", "misp", "assess"),
+    "registrations": ("Registrations", "registration-applications", ""),
+    "national": ("National overview", "circl-overview", ""),
+    "overview": ("Infrastructure overview", "overview", ""),
     "start": ("Start here", "getting-started", ""),
     "inventory": ("Inventory & organizations", "inventory", "inventory"),
+    "clients": ("Linux clients", "linux-client-downloads", "inventory"),
     "review": ("Vulnerability review", "home", "assess"),
+    "discovery": ("Automatic CVE discovery", "discovery", "assess"),
+    "risks": ("Company risk register", "risk-register", "assess"),
+    "actions": ("What needs attention?", "company-actions", "assess"),
     "issues": ("Asset issues & lifecycle", "issues", "assess"),
     "exposure": ("Exposure history", "plum", "assess"),
     "notifications": ("Notifications", "notifications", "respond"),
     "response": ("Incident coordination", "rtir", "respond"),
-    "companies": ("Company instances", "companies", "inventory"),
+    "companies": ("Federated company reports", "companies", "inventory"),
     "explore": ("Explore scenarios", "demo-explore", ""),
     "administration": ("Synthetic data", "demo-data", ""),
     "platform": ("Platform administration", "admin:index", ""),
@@ -19,16 +28,50 @@ AREAS = {
 }
 
 ROUTES = {
+    "merges": {"company-merge"},
+    "misp": {"misp", "misp-event", "misp-connections", "misp-legacy", "misp-event-legacy"},
+    "actions": {"company-actions", "company-action"},
+    "registrations": {
+        "registration-applications",
+        "registration-application",
+        "service-mail",
+        "service-mail-message",
+    },
+    "national": {
+        "review-followups",
+        "review-followup",
+        "circl-overview",
+        "circl-research",
+        "circl-findings",
+        "circl-map-location",
+    },
+    "overview": {"overview"},
+    "risks": {"risk-register", "business-risk", "automatic-scenario"},
+    "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
     "start": {"getting-started"},
-    "applications": {"applications", "application", "source-reference"},
+    "applications": {"applications", "application", "source-reference", "sso-settings", "workspace-switch"},
+    "clients": {"linux-client-downloads", "agent-fleets", "agent-center"},
     "inventory": {
         "inventory",
+        "company-members",
+        "company-join",
         "organization",
+        "company-address",
+        "company-start",
+        "csv-upload",
+        "csv-preview",
+        "csv-template",
+        "configuration",
+        "configuration-section",
+        "setup-resume",
+        "setup-section",
         "asset",
         "edit-local-asset",
+        "inventory-review",
         "create-contact",
         "edit-contact",
         "create-claim",
+        "correct-scope",
         "create-asset",
         "create-installation",
     },
@@ -43,7 +86,7 @@ ROUTES = {
     },
     "issues": {"issues", "issue", "issue-new", "issue-edit", "issue-risk-add"},
     "exposure": {"plum", "plum-import", "plum-snapshot"},
-    "notifications": {"notifications", "notification-batch"},
+    "notifications": {"notifications", "notification-batch", "outreach-policy"},
     "response": {"rtir", "rt-new", "rt-ticket"},
     "companies": {"companies"},
     "explore": {"demo-explore"},
@@ -51,29 +94,34 @@ ROUTES = {
 }
 
 
-def workspace(request):
+def workspace(request, *, show_examples=False):
     if not request.user.is_authenticated:
         return {}
     from .access import is_analyst
 
+    operator = request.user.is_superuser or is_analyst(request.user)
     route = request.resolver_match.url_name if request.resolver_match else ""
     area = next((key for key, names in ROUTES.items() if route in names), "review")
     label, target, stage = AREAS[area]
     if route in {"flowintel-new", "flowintel-case"}:
         stage = "respond"
     sections = [
-        ("Start", ["start"]),
-        ("Understand", ["inventory", "review", "issues", "exposure"]),
-        (
-            "Act",
-            ["notifications"]
-            + (["response"] if request.user.is_superuser or is_analyst(request.user) else []),
-        ),
-        ("Workspace", ["applications", "companies", "explore"]),
+        ("Overview", (["national"] if operator else []) + ["overview", "actions"], False),
+        ("Inventory", ["inventory", "clients", "issues"], False),
+        ("Security", ["review", "discovery", "risks", "exposure"], False),
+        ("Response", ["notifications"] + (["response"] if operator else []), False),
+        ("Integrations", ["applications", "misp", "companies"], True),
     ]
-    if request.user.is_superuser:
-        sections.append(("Administration", ["platform", "administration"]))
+    administration = (["registrations"] if operator else []) + (
+        ["platform", "merges", "administration"] if request.user.is_superuser else []
+    )
+    if administration:
+        sections.append(("Administration", administration, True))
+    sections.append(
+        ("Help & examples", ["start"] + (["explore"] if show_examples or area == "explore" else []), True)
+    )
     return {
+        "workspace_home_url": reverse("circl-overview" if operator else "overview"),
         "workspace_area": area,
         "workspace_label": label,
         "workspace_url": reverse(target),
@@ -81,11 +129,13 @@ def workspace(request):
         "navigation_groups": [
             {
                 "label": heading,
+                "collapsible": collapsible,
+                "active": area in keys,
                 "items": [
                     {"label": AREAS[key][0], "url": reverse(AREAS[key][1]), "key": key, "active": key == area}
                     for key in keys
                 ],
             }
-            for heading, keys in sections
+            for heading, keys, collapsible in sections
         ],
     }

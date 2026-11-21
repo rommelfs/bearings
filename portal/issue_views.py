@@ -1,19 +1,30 @@
+from .overview_queries import bounded_list
 from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Case, F, IntegerField, Q, TextField, Value, When
+from django.db.models import Case, Count, F, IntegerField, Q, TextField, Value, When
 from django.db.models.functions import Cast, Coalesce
 from django.http import JsonResponse
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from . import issues
-from .access import audit_operator_access, organizations_for, require, can_edit, can_operator_review
+from .access import (
+    audit_organizations,
+    audit,
+    is_analyst,
+    organizations_for,
+    require,
+    can_edit,
+    can_operator_review,
+)
 from .asset_context import asset_context
+from .pagination import object_page
 from .issue_forms import IssueForm, RiskForm
-from .models import AssetIssue, IssueRiskLink
+from .models import Asset, AssetIssue, IssueRiskLink, Membership
 from .presentation import vulnerability_summary
 from .views import organization
 
@@ -30,6 +41,7 @@ def decorate(issue):
 
 
 @login_required
+@bounded_list
 def board(request):
     orgs = organizations_for(request.user).order_by("name")
     base = issues.visible_issues(request.user)
@@ -37,17 +49,87 @@ def board(request):
     if org_id:
         org = get_object_or_404(orgs, slug=org_id)
         base = base.filter(organization=org)
-    # Counts, filters and pagination all start from the same currently visible rows.
-    for org in orgs:
-        audit_operator_access(request.user, org)
-        org.issue_editable = can_edit(request.user, org) or can_operator_review(request.user, org)
+    representative = request.GET.get("group_issue", "")
+    if representative:
+        import uuid
+
+        try:
+            group_id = uuid.UUID(representative)
+        except ValueError:
+            raise Http404 from None
+        group = get_object_or_404(issues.visible_issues(request.user), pk=group_id)
+        base = base.filter(
+            organization=group.organization,
+            kind=group.kind,
+            installation__product_id=group.installation.product_id if group.installation_id else None,
+        )
+        if not group.finding_id:
+            base = base.filter(title=group.title)
+    product_id = request.GET.get("product", "")
+    if product_id:
+        if not product_id.isdigit() or len(product_id) > 10:
+            raise Http404
+        base = base.filter(installation__product_id=int(product_id))
+    asset = None
+    if request.GET.get("asset"):
+        import uuid
+
+        try:
+            asset_id = uuid.UUID(request.GET["asset"])
+        except (ValueError, TypeError):
+            raise Http404 from None
+        asset = get_object_or_404(
+            Asset.objects.filter(organization__in=orgs, source__organization_id=F("organization_id")),
+            pk=asset_id,
+        )
+        if org_id and asset.organization_id != org.pk:
+            raise Http404
+        base = base.filter(asset=asset)
+    attention = request.GET.get("attention", "")
+    if attention in {"all", "overdue", "affected", "critical", "lifecycle"}:
+        base = base.filter(asset__lifecycle="active").exclude(finding__analyst_applicability="not_affected")
+        if attention == "overdue":
+            base = base.filter(action_due__lt=timezone.localdate())
+        elif attention == "affected":
+            base = base.filter(finding__analyst_applicability="affected")
+        elif attention == "critical":
+            base = base.filter(finding__record__source_severity="critical")
+        elif attention == "lifecycle":
+            base = base.filter(finding__isnull=True, priority__in=["critical", "high"])
+    else:
+        attention = ""
+    # Bound selectors/permission work independently of the national result set.
+    company_query = request.GET.get("company_q", "")[:160].strip()
+    if company_query:
+        orgs = orgs.filter(Q(name__icontains=company_query) | Q(slug__icontains=company_query))
+        base = base.filter(organization__in=orgs)
+    choices = list(orgs.filter(slug=org_id) if org_id else orgs[:50])
+    roles = dict(
+        Membership.objects.filter(user=request.user, organization__in=choices).values_list(
+            "organization_id", "role"
+        )
+    )
+    operator = request.user.is_superuser or is_analyst(request.user)
+    if operator:
+        audit(request.user, None, "operator.issue_queue")
+    audit_organizations(request.user, choices)
+    for choice in choices:
+        choice.issue_editable = (
+            request.user.is_superuser
+            or (operator and choice.operator_visibility)
+            or roles.get(choice.pk) in {"admin", "editor"}
+        )
     kind = request.GET.get("kind", "")
     if kind in dict(AssetIssue.KINDS):
         base = base.filter(kind=kind)
     else:
         kind = ""
     state = request.GET.get("state", "active")
-    if state == "active":
+    if state == "map-open":
+        base = base.filter(
+            finding__isnull=True, asset__lifecycle="active", status__in=[*issues.ACTIVE, "accepted_risk"]
+        )
+    elif state == "active":
         base = base.filter(issues.active_filter())
     elif state == "closed":
         base = base.exclude(issues.active_filter())
@@ -75,14 +157,12 @@ def board(request):
         ),
     )
     today = timezone.localdate()
-    counts = {
-        "total": base.count(),
-        "overdue": base.filter(deadline_order__lt=today).count(),
-        "soon": base.filter(
-            deadline_order__gte=today, deadline_order__lte=today + timedelta(days=30)
-        ).count(),
-        "unknown": base.filter(deadline_order__isnull=True).count(),
-    }
+    counts = base.aggregate(
+        total=Count("pk"),
+        overdue=Count("pk", filter=Q(deadline_order__lt=today)),
+        soon=Count("pk", filter=Q(deadline_order__gte=today, deadline_order__lte=today + timedelta(days=30))),
+        unknown=Count("pk", filter=Q(deadline_order__isnull=True)),
+    )
     timing = request.GET.get("timing", "")
     if timing == "overdue":
         base = base.filter(deadline_order__lt=today)
@@ -92,9 +172,18 @@ def board(request):
         base = base.filter(deadline_order__isnull=True)
     else:
         timing = ""
-    page = Paginator(
-        base.order_by("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk"), 25
-    ).get_page(request.GET.get("page"))
+    page = object_page(
+        base.order_by("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk"),
+        25,
+        request.GET.get("page"),
+        count=counts[timing] if timing else counts["total"],
+        key_source=AssetIssue.objects.filter(organization__in=orgs.filter(slug=org_id) if org_id else orgs)
+        .annotate(
+            deadline_order=Coalesce("action_due", "event_date"),
+            priority_order=base.query.annotations["priority_order"],
+        )
+        .order_by("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk"),
+    )
     for issue in page:
         decorate(issue)
     filters = request.GET.copy()
@@ -104,7 +193,8 @@ def board(request):
         "portal/issues.html",
         {
             "page": page,
-            "orgs": orgs,
+            "orgs": choices,
+            "company_query": company_query,
             "kind_choices": AssetIssue.KINDS,
             "kind": kind,
             "state": state,
@@ -113,6 +203,8 @@ def board(request):
             "counts": counts,
             "timing": timing,
             "filters": filters.urlencode(),
+            "asset_filter": asset,
+            "attention": attention,
         },
     )
 
@@ -135,6 +227,8 @@ def detail(request, slug, pk):
     can_rt_export = any(
         rt.can_write(request.user, issue, instance) for instance in instances(request.user, issue)
     )
+    from .scenario_suggestions import draft_scenario
+
     return render(
         request,
         "portal/issue.html",
@@ -149,6 +243,7 @@ def detail(request, slug, pk):
             "rt_tickets": rt_rows,
             "can_rt_export": can_rt_export,
             "risk_form": RiskForm(),
+            "automatic_scenario": draft_scenario(issue),
         },
     )
 

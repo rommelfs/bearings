@@ -9,6 +9,7 @@ from django.test import TransactionTestCase
 
 from unittest.mock import patch
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.management import call_command
 from django.test import override_settings
 from django.urls import reverse
 from . import demo_data, issues, tests
@@ -40,6 +41,49 @@ class DemoDataTests(tests.Fixture):
         plan, _ = demo_data.removal_plan(dataset)
         self.assertEqual(plan["blockers"], [])
         return demo_data.purge(self.platform, dataset.key, plan["fingerprint"])
+
+    def test_luxembourg_showcase_addresses_are_local_owned_and_repeat_preserves_edits(self):
+        from .demo_addresses import fill_showcase_addresses
+        from .geography import local_location
+
+        dataset, _ = self.seed()
+        orgs = list(Organization.objects.filter(slug__startswith="demo-explore-").order_by("pk"))
+        for org in orgs:
+            self.assertIn("SYNTHETIC ADDRESS", org.postal_address)
+            self.assertIsNotNone(local_location(org.postal_address))
+        orgs[0].postal_address = "User supplied address"
+        orgs[0].save()
+        orgs[1].postal_address = ""
+        orgs[1].save()
+        self.assertEqual(fill_showcase_addresses(self.platform), 0)
+        orgs[0].refresh_from_db()
+        orgs[1].refresh_from_db()
+        self.assertEqual(orgs[0].postal_address, "User supplied address")
+        self.assertEqual(orgs[1].postal_address, "")
+        self.assertEqual(self.a.postal_address, "")
+        plan, _ = demo_data.removal_plan(dataset)
+        self.assertTrue(any("company address" in text for text in plan["blockers"]))
+
+    def test_existing_legacy_showcase_extension_only_fills_safe_blank_owned_addresses(self):
+        from .demo_addresses import fill_showcase_addresses
+
+        dataset, _ = self.seed()
+        dataset.configuration.pop("map_addresses_v1")
+        dataset.save()
+        orgs = list(Organization.objects.filter(slug__startswith="demo-explore-").order_by("pk"))
+        Organization.objects.filter(pk__in=[org.pk for org in orgs]).update(postal_address="")
+        with patch.dict("os.environ", {"BEARINGS_SHOWCASE": "0"}):
+            call_command("seed_showcase_addresses", actor=self.platform.username, automatic=True)
+        self.assertFalse(Organization.objects.get(pk=orgs[0].pk).postal_address)
+        self.assertEqual(fill_showcase_addresses(self.platform), 2)
+        self.assertEqual(fill_showcase_addresses(self.platform), 0)
+        self.assertFalse(Organization.objects.get(pk=self.a.pk).postal_address)
+        with self.assertRaises(PermissionDenied):
+            fill_showcase_addresses(self.analyst)
+        dataset.refresh_from_db()
+        dataset.state = "removed"
+        dataset.save()
+        self.assertEqual(fill_showcase_addresses(self.platform), 0)
 
     def test_rich_offline_dataset_and_repeat_preserve_review_decisions(self):
         dataset, created = self.seed()

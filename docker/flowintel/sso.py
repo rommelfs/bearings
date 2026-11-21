@@ -1,4 +1,4 @@
-"""Explicit issuer/subject bindings for the pinned FlowIntel lab. Roles stay local."""
+"""Explicit issuer/subject bindings for pinned FlowIntel runtimes. Roles stay local."""
 
 import json
 import os
@@ -10,6 +10,7 @@ from flask import abort, flash, redirect, request, session
 from flask_login import current_user, login_user, logout_user
 from jinja2 import ChoiceLoader, DictLoader
 from sqlalchemy import select
+from urllib.parse import urlsplit
 
 from app.extensions import db
 from app.db_class.db import User
@@ -25,6 +26,40 @@ bindings = db.Table(
 
 
 def settings():
+    if os.environ.get("BEARINGS_FLOWINTEL_NATIVE") == "1":
+        from urllib.parse import urlsplit
+
+        issuer = os.environ["OIDC_ISSUER"]
+        origin = os.environ["FLOWINTEL_ORIGIN"]
+        for url in (issuer, origin):
+            parsed = urlsplit(url)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("Native SSO requires explicit credential-free HTTPS endpoints")
+        if urlsplit(origin).path or urlsplit(issuer).path != "/realms/bearings":
+            raise ValueError("Unexpected native issuer/origin")
+        return {
+            "issuer": issuer,
+            "client": "flowintel",
+            "secret": os.environ["OIDC_CLIENT_SECRET"],
+            "callback": origin + "/bearings-sso/callback",
+            "ca": "/etc/ssl/certs/ca-certificates.crt",
+            **{
+                name: issuer + "/protocol/openid-connect/" + path
+                for name, path in (
+                    ("authorization", "auth"),
+                    ("token", "token"),
+                    ("userinfo", "userinfo"),
+                    ("jwks", "certs"),
+                )
+            },
+        }
     manifest = json.loads(Path("/run/sso/flowintel.json").read_text())
     issuer = manifest["issuer"]
     base = "https://netbox.bearings.test:444/realms/bearings-lab/protocol/openid-connect/"
@@ -115,14 +150,26 @@ def install(app):
 
         return app
     client = Client(settings())
-    canvas_port = int(os.getenv("BEARINGS_CANVAS_PORT", "9441"))
+    authorization = urlsplit(client.settings["authorization"])
+    idp_origin = f"{authorization.scheme}://{authorization.netloc}"
+    native = os.environ.get("BEARINGS_FLOWINTEL_NATIVE") == "1"
+    canvas_origin = None if native else f"https://localhost:{int(os.getenv('BEARINGS_CANVAS_PORT', '9441'))}"
 
     def canvas_headers(response):
         # Keep every native directive; replace only the known frame-ancestor rule.
         auth_page = request.path.startswith(("/account/", "/bearings-sso/", "/api/"))
         policy = response.headers.get("Content-Security-Policy", "")
-        ancestor = "'none'" if auth_page else f"'self' https://localhost:{canvas_port}"
+        ancestor = "'none'" if auth_page else (f"'self' {canvas_origin}" if canvas_origin else "'self'")
         directives = [part.strip() for part in policy.split(";") if part.strip()]
+        form_actions = [part for part in directives if part.startswith("form-action ")]
+        # Browsers apply form-action to redirects too: the CSRF-protected POST
+        # to our own begin endpoint redirects to this one configured HTTPS IdP.
+        # Keep all other pages and unexpected upstream restrictions unchanged.
+        if request.path in {"/account/login", "/bearings-sso/login"} and form_actions == [
+            "form-action 'self'"
+        ]:
+            directives = [part for part in directives if not part.startswith("form-action ")]
+            directives.append(f"form-action 'self' {idp_origin}")
         current = [part for part in directives if part.startswith("frame-ancestors ")]
         # An unexpected upstream policy fails closed; never silently widen it.
         if current != ["frame-ancestors 'self'"]:
@@ -156,6 +203,11 @@ def install(app):
         + local_form,
         1,
     )
+    if native:
+        source = source.replace(
+            "Lab account: circl-analyst. Company accounts are not linked to this CIRCL workspace.",
+            "Access requires an explicitly linked account. Application permissions remain local.",
+        )
     app.jinja_env.loader = ChoiceLoader([DictLoader({"account/login.html": source}), app.jinja_env.loader])
 
     @app.post("/bearings-sso/login")

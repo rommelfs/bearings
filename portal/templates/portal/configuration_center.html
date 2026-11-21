@@ -1,0 +1,11 @@
+{% extends 'portal/base.html' %}{% block content %}
+<p class="eyebrow">COMPANY CONFIGURATION</p><h1>Set up {{ org.name }}</h1>
+<p>Start small and add details over time. Saved settings and drafts are shared with your company administrators, so you can continue on another device.</p>
+<p><a class="button primary" href="{% url 'company-start' org.slug %}">Start with one domain or network →</a>{% if org.inventory_source.mode == 'manual' %} <a class="button" href="{% url 'csv-upload' org.slug %}">Import inventory CSV →</a>{% endif %}</p>
+{% include 'portal/configuration_progress.html' %}
+{% if available %}<p><a class="button primary" href="{% url 'setup-resume' org.slug %}">Start / resume guided setup →</a></p>{% else %}<aside><strong>Guided setup opens after CIRCL approval.</strong><p>You can already use the individual sections below in your private company area. Approval and later sharing changes do not verify your IP/domain authority.</p></aside>{% endif %}
+<div class="cards">{% for item in setup.items %}<article><p class="eyebrow">SECTION {{ forloop.counter }}</p><h2>{{ item.label }}</h2><p>{% if item.complete %}✓ Reviewed{% else %}Ready to complete at your own pace{% endif %}</p><a class="button" href="{% url 'configuration-section' org.slug item.key %}">Open section →</a></article>{% endfor %}</div>
+{% if member_admin %}<p><a class="button" href="{% url 'company-members' org.slug %}">Company members & invitations →</a></p>{% endif %}
+<p><a href="{% url 'misp-connections' %}">Optional: connect my own MISP account →</a></p>
+<p><a href="{% url 'organization' org.slug %}">Company inventory, contacts and individual editors →</a></p>
+{% if user.is_superuser %}<p><a href="{% url 'company-merge' %}">Merge organizations (platform administration) →</a></p>{% endif %}{% endblock %}

@@ -16,6 +16,7 @@ from .models import (
     NotificationDelivery,
     NotificationReceipt,
     NotificationSubscription,
+    NotificationFollowup,
 )
 from .issues import exportable_issues
 from .notifications import (
@@ -74,6 +75,8 @@ def center(request):
                     "domain",
                     "kind",
                     "subscription_name",
+                    "include_dpo",
+                    "include_management",
                 ]
             },
         }
@@ -214,6 +217,13 @@ def center(request):
             "inbox_page": inbox_page,
             "recent_batches": recent_batches,
             "subscriptions": subscriptions,
+            "followups": [
+                row
+                for row in NotificationFollowup.objects.filter(delivery__batch__creator=request.user)
+                .select_related("delivery__organization", "batch")
+                .order_by("-checked_at")[:50]
+                if authorized_delivery(request.user, row.delivery)
+            ],
             "issue_domain": form.is_valid() and form.cleaned_data.get("domain") == "asset_issues",
         },
     )

@@ -1,16 +1,32 @@
+from .overview_queries import bounded_list
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Case, Count, IntegerField, Q, TextField, Value, When
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    OuterRef,
+    Prefetch,
+    Q,
+    TextField,
+    Value,
+    When,
+)
 from django.db.models.functions import Cast
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.cache import never_cache
+from django.views.decorators.debug import sensitive_post_parameters
 from .access import (
     audit,
     audit_operator_access,
+    audit_organizations,
     can_edit,
     can_operator_review,
     can_review_contact,
@@ -32,9 +48,20 @@ from .forms import (
     MissingReviewForm,
     VulnerabilityForm,
 )
-from .presentation import ACTIVE_REVIEWS, decorate_finding
+from .presentation import ACTIVE_REVIEWS, decorate_finding, severity_first
 from .asset_context import asset_context
-from .models import Asset, Contact, ContactToken, InfrastructureClaim, Installation, Product
+from .inventory_presentation import top_level_assets, assigned_addresses, decorate_addresses
+from .pagination import object_page
+from .models import (
+    AgentDevice,
+    Asset,
+    Contact,
+    ContactToken,
+    InfrastructureClaim,
+    Installation,
+    Product,
+    Membership,
+)
 from .services import (
     issue_contact_token,
     lookup_for_installation,
@@ -51,34 +78,76 @@ def organization(request, slug):
     return org
 
 
+def company_cards(user, orgs, page_number):
+    page = Paginator(orgs, 24).get_page(page_number)
+    page.object_list = list(
+        page.object_list.select_related("inventory_source__instance").prefetch_related("contacts")
+    )
+    ids = [org.pk for org in page]
+    asset_counts = dict(
+        top_level_assets(
+            Asset.objects.filter(
+                organization_id__in=ids,
+                source__organization_id=F("organization_id"),
+            )
+        )
+        .values("organization_id")
+        .annotate(total=Count("pk"))
+        .values_list("organization_id", "total")
+    )
+    finding_counts = dict(
+        visible_findings_for(user)
+        .filter(organization_id__in=ids, status__in=ACTIVE_REVIEWS)
+        .order_by()
+        .values("organization_id")
+        .annotate(total=Count("pk"))
+        .values_list("organization_id", "total")
+    )
+    audit_organizations(user, page.object_list)
+    for org in page:
+        org.asset_count = asset_counts.get(org.pk, 0)
+        org.overdue_count = sum(c.overdue for c in org.contacts.all())
+        org.finding_count = finding_counts.get(org.pk, 0)
+    return page
+
+
 @login_required
 def inventory(request):
     query = request.GET.get("q", "")[:160].strip()
-    orgs = organizations_for(request.user).order_by("name", "pk")
+    orgs = (
+        organizations_for(request.user)
+        .annotate(inventory_has_records=Exists(Asset.objects.filter(organization_id=OuterRef("pk"))))
+        .order_by("-inventory_has_records", "name", "pk")
+    )
     if query:
         orgs = orgs.filter(Q(name__icontains=query) | Q(slug__icontains=query))
-    page = Paginator(
-        orgs.prefetch_related("contacts", "inventory_source__instance").annotate(
-            asset_count=Count("assets", distinct=True)
-        ),
-        24,
-    ).get_page(request.GET.get("page"))
+    page = company_cards(request.user, orgs, request.GET.get("page"))
+    main, pending = [], []
     for org in page:
-        audit_operator_access(request.user, org)
-        org.overdue_count = sum(contact.overdue for contact in org.contacts.all())
-        org.finding_count = visible_findings(request.user, org).filter(status__in=ACTIVE_REVIEWS).count()
-    return render(request, "portal/inventory.html", {"page": page, "query": query})
+        (pending if not org.inventory_has_records and not org.finding_count and not query else main).append(
+            org
+        )
+    return render(
+        request,
+        "portal/inventory.html",
+        {
+            "page": page,
+            "query": query,
+            "main_orgs": main,
+            "pending_orgs": pending,
+        },
+    )
 
 
 @login_required
+@bounded_list
 def home(request):
-    orgs = list(
-        organizations_for(request.user).prefetch_related("contacts", "assets", "inventory_source__instance")
+    org_page = company_cards(
+        request.user, organizations_for(request.user).order_by("name", "pk"), request.GET.get("org_page")
     )
-    for org in orgs:
-        audit_operator_access(request.user, org)
-        org.overdue_count = sum(c.overdue for c in org.contacts.all())
-        org.finding_count = visible_findings(request.user, org).filter(status__in=ACTIVE_REVIEWS).count()
+    orgs = org_page.object_list
+    if request.user.is_superuser or is_analyst(request.user):
+        audit(request.user, None, "operator.review_queue")
     query = request.GET.get("q", "")[:160].strip()
     severity = request.GET.get("severity", "").lower()
     severity_choices = ["critical", "high", "medium", "low", "none", "unknown"]
@@ -122,23 +191,33 @@ def home(request):
     review_total = sum(counts.values())
     if severity:
         reviews = reviews.filter(record__source_severity=severity)
-    review_page = Paginator(reviews, 25).get_page(request.GET.get("review_page"))
+    review_page = object_page(
+        reviews,
+        25,
+        request.GET.get("review_page"),
+        count=counts.get(severity, 0) if severity else review_total,
+    )
+    audit_organizations(request.user, [finding.organization for finding in review_page])
+    operator = request.user.is_superuser or is_analyst(request.user)
+    roles = dict(
+        Membership.objects.filter(
+            user=request.user, organization_id__in=[finding.organization_id for finding in review_page]
+        ).values_list("organization_id", "role")
+    )
     for finding in review_page:
         decorate_finding(finding)
         finding.notification_mode = ""
         if finding.record.shareable and finding.analyst_applicability != "not_affected":
-            if (
-                can_operator_review(request.user, finding.organization)
-                and finding.organization.operator_visibility
-            ):
+            if operator and finding.organization.operator_visibility:
                 finding.notification_mode = "circl"
-            elif can_edit(request.user, finding.organization):
+            elif request.user.is_superuser or roles.get(finding.organization_id) in {"admin", "editor"}:
                 finding.notification_mode = "company"
     return render(
         request,
         "portal/home.html",
         {
             "orgs": orgs,
+            "org_page": org_page,
             "operator": request.user.is_superuser or is_analyst(request.user),
             "review_page": review_page,
             "query": query,
@@ -151,29 +230,77 @@ def home(request):
 
 @login_required
 def detail(request, slug):
+    from .models import OrganizationConfiguration
+
     org = organization(request, slug)
+    role = org.membership_set.filter(user=request.user).values_list("role", flat=True).first()
+    editable = request.user.is_superuser or role in {"admin", "editor"}
+    finding_summary = (
+        visible_findings(request.user, org)
+        .order_by()
+        .aggregate(
+            total=Count("pk"),
+            pending=Count("pk", filter=Q(status__in=["new", "under_review"])),
+            confirmed=Count("pk", filter=Q(status="confirmed")),
+            accepted_risk=Count("pk", filter=Q(status="accepted_risk")),
+            closed=Count("pk", filter=Q(status__in=["resolved", "false_positive"])),
+        )
+    )
+    inventory_page = Paginator(
+        top_level_assets(org.assets.all())
+        .select_related("source__instance")
+        .annotate(upstream_status=F("upstream_data__status"))
+        .defer("upstream_data")
+        .prefetch_related(
+            Prefetch(
+                "installations",
+                queryset=Installation.objects.filter(product__organization=org)
+                .select_related("product")
+                .order_by("product__name", "pk")[:10],
+                to_attr="software_preview",
+            )
+        )
+        .order_by("name", "pk"),
+        50,
+    ).get_page(request.GET.get("inventory_page"))
+    inventory_page.object_list = list(inventory_page.object_list)
+    decorate_addresses(inventory_page.object_list, org)
+    counts = dict(
+        Installation.objects.filter(asset_id__in=[a.pk for a in inventory_page], product__organization=org)
+        .values("asset_id")
+        .annotate(total=Count("pk"))
+        .values_list("asset_id", "total")
+    )
+    from .distro_display import decorate_installations
+
+    decorate_installations(request.user, [i for a in inventory_page for i in a.software_preview])
+    for a in inventory_page:
+        a.software_count = counts.get(a.pk, 0)
     return render(
         request,
         "portal/detail.html",
         {
             "org": org,
-            "editable": can_edit(request.user, org),
-            "inventory_writable": can_edit(request.user, org)
+            "editable": editable,
+            "inventory_writable": editable
             and hasattr(org, "inventory_source")
             and org.inventory_source.can_write,
-            "contact_reviewer": can_review_contact(request.user, org),
+            "public_keys": OrganizationConfiguration.objects.filter(organization=org)
+            .values("pgp_public_key", "smime_certificate")
+            .first(),
+            "contact_reviewer": request.user.is_superuser or role == "admin",
+            "member_admin": role == "admin",
             "operator_reviewer": can_operator_review(request.user, org),
-            "findings": visible_findings(request.user, org),
+            "finding_summary": finding_summary,
+            "contact_page": Paginator(org.contacts.order_by("name", "pk"), 25).get_page(
+                request.GET.get("contact_page")
+            ),
+            "scope_page": Paginator(org.claims.order_by("kind", "value", "pk"), 25).get_page(
+                request.GET.get("scope_page")
+            ),
             "claim_review_form": ClaimReviewForm(),
-            "finding_review_form": FindingReviewForm(),
-            "lookup_form": VulnerabilityForm(),
             "missing_review_form": MissingReviewForm(),
-            "inventory_page": Paginator(
-                org.assets.select_related("source__instance")
-                .prefetch_related("installations__product")
-                .order_by("name", "pk"),
-                50,
-            ).get_page(request.GET.get("inventory_page")),
+            "inventory_page": inventory_page,
         },
     )
 
@@ -206,8 +333,27 @@ def contact_action(request, slug, pk, action):
             "Role and details reviewed. Channel reachability and emergency availability are separate.",
         )
     elif action == "verify":
-        issue_contact_token(request.user, contact)
-        messages.success(request, "Verification prepared in the local development mail sink (.local/mail).")
+        service = contact.registration_notifications.exists()
+        if service:
+            try:
+                sent = issue_contact_token(request.user, contact, service=True)
+            except Exception:
+                sent = False
+                audit(request.user, org, "contact.service_verification_failed", contact.pk)
+            if sent:
+                messages.success(
+                    request, "Team mailbox verification prepared using the configured service mail transport."
+                )
+            else:
+                messages.warning(
+                    request,
+                    "Team verification was not prepared. Allow 15 minutes between requests or check service mail configuration and retry.",
+                )
+        else:
+            issue_contact_token(request.user, contact)
+            messages.success(
+                request, "Verification prepared in the local development mail sink (.local/mail)."
+            )
     elif action == "availability":
         contact.availability_confirmed_at = timezone.now()
         contact.save(update_fields=["availability_confirmed_at"])
@@ -222,6 +368,9 @@ def contact_action(request, slug, pk, action):
     return redirect("organization", slug=slug)
 
 
+@never_cache
+@sensitive_post_parameters()
+@require_http_methods(["GET", "POST"])
 def verify_contact(request):
     if request.method == "POST":
         success = redeem_contact_token(request.POST.get("token", ""))
@@ -229,7 +378,7 @@ def verify_contact(request):
             request,
             "portal/verify.html",
             {
-                "result": "Development channel confirmation recorded; external reachability remains untested."
+                "result": "Mailbox confirmation recorded. Contact role, emergency availability and infrastructure authority remain separate."
                 if success
                 else "Invalid or expired token."
             },
@@ -346,6 +495,18 @@ def create_installation(request, slug, pk):
             installation.asset, installation.product = asset, product
             installation.full_clean()
             installation.save()
+            from .models import ProductWatch
+            from .product_matching import ensure_watch
+            from django.core.exceptions import ValidationError
+
+            try:
+                ensure_watch(product, request.user)
+            except ValidationError:
+                messages.warning(
+                    request, "Software saved. Automatic monitoring needs an operator-approved source."
+                )
+
+            ProductWatch.objects.filter(product=product).update(requested=True)
             audit(request.user, org, "software.installed", installation.pk)
         return redirect("organization", slug=slug)
     return render(
@@ -370,7 +531,9 @@ def lookup_vulnerability(request, slug, pk):
                 request, "Vulnerability record retrieved for review. Applicability remains unknown."
             )
     else:
-        messages.error(request, "Enter a CVE identifier, for example CVE-2021-44228.")
+        messages.error(
+            request, "Enter the CVE identifier you want to investigate, in CVE-year-number format."
+        )
     return redirect("organization", slug=slug)
 
 
@@ -499,7 +662,7 @@ def edit_contact(request, slug, pk):
                 ContactToken.objects.filter(contact=contact, used_at__isnull=True).update(
                     used_at=timezone.now()
                 )
-            if set(changed) & {"availability", "time_zone", "phone", "emergency_phone", "role"}:
+            if set(changed) & {"availability", "time_zone", "phone", "emergency_phone", "role", "function"}:
                 contact.availability_confirmed_at = None
             form.save()
             audit(request.user, org, "contact.updated", contact.pk, fields=changed)
@@ -525,7 +688,8 @@ def api_evidence(request, slug, pk):
 def asset_detail(request, slug, pk):
     org = organization(request, slug)
     asset = get_object_or_404(
-        org.assets.select_related("source__instance").prefetch_related("installations__product"), pk=pk
+        org.assets.select_related("source__instance", "network_host"),
+        pk=pk,
     )
     findings = (
         visible_findings(request.user, org)
@@ -533,16 +697,52 @@ def asset_detail(request, slug, pk):
         .filter(installation__asset=asset)
         .order_by("-evaluated_at", "pk")
     )
-    page = Paginator(findings, 25).get_page(request.GET.get("page"))
+    software = (
+        asset.installations.filter(product__organization=org)
+        .select_related("product", "agent_component__device")
+        .order_by("product__name", "pk")
+    )
+    software_query = request.GET.get("software_q", "")[:128].strip()
+    if software_query:
+        software = software.filter(
+            Q(product__name__icontains=software_query) | Q(product__identifier__icontains=software_query)
+        )
+    software_page = Paginator(software, 100).get_page(request.GET.get("software_page"))
+    from .distro_display import decorate_installations
+
+    software_page.object_list = list(software_page.object_list)
+    decorate_installations(request.user, software_page.object_list)
+    page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
+    from .inventory_status import synchronization_status
+
+    agent_device = (
+        AgentDevice.objects.filter(asset=asset, organization=org).order_by("-enabled", "-created_at").first()
+    )
     return render(
         request,
         "portal/asset.html",
         {
             "org": org,
             "asset": asset,
+            "missing_review_form": MissingReviewForm(),
             "facts": asset_context(asset, workspace=True),
+            "network_host": asset.network_host
+            if (
+                asset.network_host_id
+                and asset.network_host.organization_id == org.pk
+                and asset.network_host.source_id == asset.source_id
+            )
+            else None,
+            "assigned_address_page": Paginator(
+                assigned_addresses(org).filter(network_host=asset),
+                100,
+            ).get_page(request.GET.get("address_page")),
+            "software_page": software_page,
+            "software_query": software_query,
+            "agent_device": agent_device,
+            "sync_status": synchronization_status(asset, agent_device),
             "page": page,
             "editable": can_edit(request.user, org),
         },
@@ -554,7 +754,11 @@ def edit_local_asset(request, slug, pk):
     org = organization(request, slug)
     require(can_edit(request.user, org))
     asset = get_object_or_404(org.assets, pk=pk)
-    form = LocalAssetForm(request.POST or None, instance=asset)
+    from .forms import ManualAssetForm
+
+    form = (ManualAssetForm if asset.source.mode == "manual" else LocalAssetForm)(
+        request.POST or None, instance=asset
+    )
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             from .models import InventorySource

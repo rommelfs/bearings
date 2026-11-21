@@ -237,6 +237,53 @@ class StarterPrerequisiteTests(TestCase):
             self.assertFalse(dev.LOCAL.exists())
             run.assert_not_called()
 
+    def test_up_restarts_python_processes_and_waits_in_every_mode(self):
+        cases = [("bundled", False), ("bundled", True), ("external", False)]
+        for mode, sso in cases:
+            with self.subTest(mode=mode, sso=sso), tempfile.TemporaryDirectory() as directory:
+                local = Path(directory)
+                state = local / "active.json"
+                if mode == "external":
+                    (local / "external").mkdir()
+                    (local / "external/connection.json").write_text(json.dumps({"name": "external-test"}))
+                state.write_text(
+                    json.dumps(
+                        dict(
+                            mode=mode, project="restart-test", flowintel=False, sso=sso, rt=False, rtir=False
+                        )
+                    )
+                )
+                args = ["dev.py", "up", "--no-build"] + (["--external"] if mode == "external" else [])
+                with (
+                    patch.object(dev, "LOCAL", local),
+                    patch.object(dev, "STATE", state),
+                    patch.object(dev, "check_docker"),
+                    patch.object(dev, "run") as run,
+                    patch("sys.argv", args),
+                    patch("sys.stdout", new_callable=io.StringIO),
+                ):
+                    dev.main()
+                commands = [call.args[0] for call in run.call_args_list]
+                restart = next(
+                    i
+                    for i, command in enumerate(commands)
+                    if command[-4:] == ["restart", "web", "worker", "national-worker"]
+                )
+                migration = next(
+                    i
+                    for i, command in enumerate(commands)
+                    if command[-3:] == ["manage", "migrate", "--noinput"]
+                )
+                self.assertLess(migration, restart)
+                waited = commands[restart + 1]
+                self.assertIn("--wait", waited)
+                self.assertIn("--no-deps", waited)
+                self.assertEqual(
+                    waited[waited.index("--no-deps") + 1 :],
+                    ["web", "worker", "national-worker"] + (["bearings-tls"] if sso else []),
+                )
+                self.assertFalse(any("--build" in command for command in commands))
+
     def test_unavailable_compose_and_engine_have_actionable_errors(self):
         cases = [
             ([dev.subprocess.CalledProcessError(1, "docker")], "Compose is unavailable"),

@@ -1,0 +1,25 @@
+{
+  "synthetic_local": true,
+  "inventory": [
+    {
+      "width": 390,
+      "inventory_cards": 1,
+      "host_count": 1,
+      "pending_workspaces": 2,
+      "keyboard_disclosure": true,
+      "reader_cannot_see_merge_actions": true,
+      "javascript_errors": []
+    },
+    {
+      "width": 1440,
+      "inventory_cards": 1,
+      "host_count": 1,
+      "pending_workspaces": 2,
+      "keyboard_disclosure": true,
+      "reader_cannot_see_merge_actions": true,
+      "javascript_errors": []
+    }
+  ],
+  "platform_preselected_preview": true,
+  "merge_committed": false
+}

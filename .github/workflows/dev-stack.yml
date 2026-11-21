@@ -7,8 +7,12 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'docker/**'
+      - 'clients/linux/**'
+      - 'scripts/linux_installer_smoke.py'
+      - 'scripts/build_linux_client.py'
       - 'scripts/dev.py'
       - 'scripts/sso_smoke.py'
+      - 'scripts/flowintel_browser_smoke.py'
       - 'scripts/rt_sso.py'
       - 'scripts/rt_local_smoke.py'
       - 'scripts/flowintel_source.py'
@@ -23,8 +27,12 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - 'docker/**'
+      - 'clients/linux/**'
+      - 'scripts/linux_installer_smoke.py'
+      - 'scripts/build_linux_client.py'
       - 'scripts/dev.py'
       - 'scripts/sso_smoke.py'
+      - 'scripts/flowintel_browser_smoke.py'
       - 'scripts/rt_sso.py'
       - 'scripts/rt_local_smoke.py'
       - 'scripts/flowintel_source.py'
@@ -69,8 +77,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start real Bearings and NetBox
         run: python3 scripts/dev.py up ${{ matrix.flowintel && '--flowintel' || '--no-flowintel' }} ${{ matrix.sso && '--sso' || '--no-sso' }} ${{ matrix.rt && '--rt' || '--no-rt' }} ${{ matrix.rtir && '--rtir' || '' }} --timeout 900
+      - uses: actions/setup-go@v5
+        if: matrix.rtir
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - name: Verify current and Python 3.8 installers with noexec runtime storage
+        if: matrix.rtir
+        run: |
+          python3 scripts/build_linux_client.py
+          python3 scripts/linux_installer_smoke.py
+          python3 scripts/linux_installer_smoke.py --python38
       - name: Exercise HTTPS, scoped queries, portal writes and recovery
         run: python3 scripts/dev.py smoke
+      - name: Verify native NetBox SSO linking without the Django admin app
+        run: python3 scripts/check_netbox_native_link.py
       - name: Verify FlowIntel session isolation and revocation in its pinned runtime
         if: matrix.flowintel
         run: docker exec -i bearings-dev-flowintel-1 /home/flowintel/venv/bin/python - < docker/flowintel/test_sso.py
@@ -80,6 +101,19 @@ jobs:
       - name: Verify real OIDC and tenant-isolated NetBox access
         if: matrix.sso
         run: python3 scripts/dev.py sso-smoke
+      - uses: astral-sh/setup-uv@v6
+        if: matrix.flowintel && matrix.sso
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+      - name: Verify actual Chromium and WebKit form redirects and FlowIntel SSO
+        if: matrix.flowintel && matrix.sso
+        run: |
+          uv venv /tmp/bearings-browser-checks --python 3.12
+          uv pip install --python /tmp/bearings-browser-checks/bin/python playwright==1.62.0
+          /tmp/bearings-browser-checks/bin/python -m playwright install --with-deps chromium webkit
+          /tmp/bearings-browser-checks/bin/python scripts/flowintel_browser_smoke.py --browser chromium
+          /tmp/bearings-browser-checks/bin/python scripts/flowintel_browser_smoke.py --browser webkit
       - name: Verify real RT local password path
         if: matrix.rt && !matrix.sso
         run: python3 scripts/dev.py rt-local-smoke

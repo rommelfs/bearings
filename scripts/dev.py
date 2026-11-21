@@ -219,6 +219,13 @@ def exchange_example(base, mode, *, inventory_only=False):
 def main():
     import sys
 
+    if len(sys.argv) > 1 and sys.argv[1] == "website":
+        sys.path.insert(0, str(ROOT))
+        from website.serve import main as website_main
+
+        website_main(sys.argv[2:], open_browser=True)
+        return
+
     # Delegate the independent stdlib generator with its own option/help parser.
     if len(sys.argv) > 1 and sys.argv[1] == "rt-sso":
         sys.path.insert(0, str(ROOT))
@@ -228,6 +235,7 @@ def main():
         return
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+    commands.add_parser("website", help="Build the local website and open it in your browser")
     up = commands.add_parser("up", help="Start the bundled lab, or use --external for an existing NetBox")
     up.add_argument("--external", action="store_true")
     up.add_argument(
@@ -255,6 +263,19 @@ def main():
     )
     up.add_argument("--no-build", action="store_true")
     up.add_argument("--timeout", type=int, default=600)
+    misp = commands.add_parser(
+        "configure-misp", help="Configure a disabled MISP cache source and private key; no upstream request"
+    )
+    misp.add_argument("--owner", required=True, help="Individual Bearings user owning this personal key")
+    misp.add_argument(
+        "--misp-user-id", type=int, required=True, help="Pinned native MISP user ID for this key"
+    )
+    misp.add_argument("--url", default="https://misppriv.circl.lu")
+    misp.add_argument("--name")
+    misp.add_argument("--credential-ref")
+    misp.add_argument("--token-file")
+    misp.add_argument("--actor", default="platform-admin")
+    misp.add_argument("--allow-private", action="store_true")
     connect = commands.add_parser("configure", help="Configure an external NetBox without logging its token")
     connect.add_argument("--url", required=True)
     scope = connect.add_mutually_exclusive_group(required=True)
@@ -295,6 +316,25 @@ def main():
         "manage", help="Run a Bearings management command with stack credentials/trust loaded"
     )
     manage.add_argument("arguments", nargs=argparse.REMAINDER)
+    enrollment = commands.add_parser(
+        "enroll-company-sso",
+        help="Plan/apply approved constituent SSO and own-tenant NetBox access in the bundled lab",
+    )
+    enrollment.add_argument("--username", required=True)
+    enrollment.add_argument("--actor", default="platform-admin")
+    enrollment.add_argument("--without-netbox", action="store_true")
+    enrollment.add_argument("--apply", action="store_true")
+    timing = commands.add_parser("web-timing", help="Measure the running bundled SSO lab over HTTP/HTTPS")
+    timing_mode = timing.add_mutually_exclusive_group()
+    timing_mode.add_argument(
+        "--national", action="store_true", help="Measure the CIRCL national page as circl-analyst"
+    )
+    timing_mode.add_argument(
+        "--registration",
+        action="store_true",
+        help="Measure public and signed-in registration without loading dashboard aggregates",
+    )
+    timing.add_argument("--username", choices=["company-admin", "circl-analyst"], default="company-admin")
     rt_sso = commands.add_parser(
         "rt-sso", help="Generate private RT 5.x Apache/OIDC configuration; no remote changes", add_help=False
     )
@@ -307,7 +347,16 @@ def main():
     if args.action not in {"configure", "rt-sso"}:
         check_docker()
     LOCAL.mkdir(parents=True, exist_ok=True)
+    (ROOT / ".local/linux-client").mkdir(parents=True, exist_ok=True, mode=0o755)
     (LOCAL / "external").mkdir(exist_ok=True)
+    if args.action == "configure-misp":
+        import sys
+
+        sys.path.insert(0, str(ROOT))
+        from scripts.configure_misp import execute
+
+        execute(args)
+        return
     if args.action == "configure":
         configure(args)
         return
@@ -376,24 +425,55 @@ def main():
         if not args.no_build:
             options.append("--build")
         run(compose(mode, project, flowintel, sso, rt, rtir) + options)
-        if sso:
-            # Bind-mounted OIDC/runtime changes must also apply to retained images.
-            sso_base = compose(mode, project, flowintel, sso, rt, rtir)
-            run(sso_base + ["restart", "web", "worker"])
+        # Python runs without autoreload. Compose keeps unchanged containers even
+        # when their bind-mounted application code changed after git pull.
+        runtime_base = compose(mode, project, flowintel, sso, rt, rtir)
+        run(
+            runtime_base
+            + [
+                "exec",
+                "-T",
+                "web",
+                "/app/.venv/bin/python",
+                "docker/dev/entrypoint.py",
+                "manage",
+                "migrate",
+                "--noinput",
+            ]
+        )
+        if mode == "bundled" and os.getenv("BEARINGS_SHOWCASE", "1") == "1":
             run(
-                sso_base
+                runtime_base
                 + [
-                    "up",
-                    "-d",
-                    "--wait",
-                    "--wait-timeout",
-                    str(args.timeout),
-                    "--no-deps",
+                    "exec",
+                    "-T",
                     "web",
-                    "worker",
-                    "bearings-tls",
+                    "/app/.venv/bin/python",
+                    "docker/dev/entrypoint.py",
+                    "manage",
+                    "seed_showcase_addresses",
+                    "--automatic",
                 ]
             )
+        if mode == "bundled":
+            run(
+                runtime_base
+                + [
+                    "exec",
+                    "-T",
+                    "web",
+                    "/app/.venv/bin/python",
+                    "docker/dev/entrypoint.py",
+                    "manage",
+                    "scope_company_admin",
+                ]
+            )
+        run(runtime_base + ["restart", "web", "worker", "national-worker"])
+        runtime_services = ["web", "worker", "national-worker"] + (["bearings-tls"] if sso else [])
+        run(
+            runtime_base
+            + ["up", "-d", "--wait", "--wait-timeout", str(args.timeout), "--no-deps", *runtime_services]
+        )
         if rt:
             # RT reads the generated account overlay once per FastCGI process.
             # Re-read it on update even when its image/Compose configuration did not change.
@@ -456,7 +536,14 @@ def main():
         state.get("rt", False),
         state.get("rtir", False),
     )
-    if args.action == "example-exchange":
+    if args.action == "enroll-company-sso":
+        import sys
+
+        sys.path.insert(0, str(ROOT))
+        from scripts.enroll_company_sso import execute
+
+        execute(args)
+    elif args.action == "example-exchange":
         exchange_example(base, state["mode"], inventory_only=args.inventory_only)
     elif args.action == "flowintel-sso":
         if state["mode"] != "bundled" or not state.get("flowintel") or not state.get("sso"):
@@ -480,6 +567,17 @@ def main():
         from scripts.rt_local_smoke import main as local_smoke
 
         local_smoke()
+    elif args.action == "web-timing":
+        import sys
+
+        sys.path.insert(0, str(ROOT))
+        from scripts.web_timing import main as web_timing
+
+        web_timing(
+            "circl-analyst" if args.national else args.username,
+            national=args.national,
+            registration=args.registration,
+        )
     elif args.action == "sso-smoke":
         import sys
 
@@ -538,28 +636,12 @@ def main():
             if state.get("rt"):
                 run(base + ["exec", "-T", "rt", "python3", "/adapter/start.py", "smoke"])
     elif args.action == "credentials":
-        if state.get("rt"):
-            print(
-                "Bundled RT: company-admin and circl-analyst use their own scoped queues. Local recovery user root at the RT recovery URL printed at startup; existing passwords are unchanged."
-            )
-        if state.get("sso"):
-            print(
-                "Keycloak SSO: company-admin (Bearings/NetBox), circl-analyst (also enabled FlowIntel), unassigned-demo (no app access). Existing IdP passwords are preserved. Enabled bundled RT shares SSO; external RT uses its operator-configured frontend."
-            )
-        if state.get("flowintel"):
-            print(
-                "Bundled FlowIntel logins: platform-admin@example.com and circl-analyst@example.com. Existing passwords are unchanged."
-            )
-        print("LOCAL DEVELOPMENT ONLY: Bearings users platform-admin, company-admin, circl-analyst.")
-        if state["mode"] == "bundled":
-            print(
-                "Bundled NetBox user: netbox-admin. All new demo users share this generated local password:"
-            )
-        else:
-            print(
-                "External NetBox accounts are unchanged. New Bearings demo users share this generated local password:"
-            )
-        run(base + ["exec", "-T", "web", "cat", "/run/bearings/secrets/demo_password"])
+        import sys
+
+        sys.path.insert(0, str(ROOT))
+        from scripts.dev_credentials import directory
+
+        directory(state, base, run, LOCAL / "external/connection.json")
     elif args.action == "trust":
         container = run(base + ["ps", "-a", "-q", "dev-init"], capture_output=True, text=True).stdout.strip()
         if not container:

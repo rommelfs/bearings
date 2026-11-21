@@ -1,0 +1,17 @@
+<section class="linux-install-instructions" aria-label="Linux installation commands">
+<h3>1. Download and install on your Linux server</h3>
+<p>Run this complete block in a terminal on the machine you want to monitor. Python 3.8+, curl, systemd and sudo are required. Paste your rollout key at the hidden prompt.</p>
+<pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
+sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt</pre>
+<p><a href="{% url 'linux-client-artifact' 'install.py' %}">Download installer (install.py)</a> · <a href="{% url 'linux-client-artifact' 'SHA256SUMS' %}">Checksums</a></p>
+<details><summary>Installing inside a constrained LXC container</summary><p>Use this complete block instead:</p>
+<pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
+sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt --lxc-compatible</pre></details>
+<h3>2. Check that reporting has started</h3>
+<pre>sudo systemctl --no-pager --full status bearings-linux.service</pre>
+<p>After successful registration, periodic reporting starts automatically. Check the device under your company’s <strong>Linux inventory reports</strong>.</p>
+<details><summary>Automated rollout with a secret manager</summary><p>Run as root. First have your secret manager provision a root-readable file at <code>/run/secrets/bearings-rollout-key</code> (permissions 0600). This path is an example: adapt it to your deployment. The following block downloads the installer, then reads the key from that file through standard input:</p>
+<pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
+python3 bearings-install.py --server '{{ origin }}' --bootstrap-stdin &lt; /run/secrets/bearings-rollout-key</pre>
+<p>Add <code>--lxc-compatible</code> for constrained LXC. Keep the key out of command arguments, logs and reusable images. Each machine generates its own device identity.</p></details>
+</section>

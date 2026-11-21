@@ -1,0 +1,642 @@
+{
+  "date": "2026-11-21",
+  "scope": "First UI and security audit; public production GETs, source review, isolated synthetic runtime tests",
+  "public_before": {
+    "origin": "https://bearings.circl.lu",
+    "read_only": true,
+    "checked": 24,
+    "rows": [
+      {
+        "title": "Bearings — Infrastructure, risk & response",
+        "lang": "en",
+        "h1": [
+          "See what needs attention.\nKnow who can act."
+        ],
+        "overflow": false,
+        "headings": [
+          "Less searching across tools.\nA clearer next action.",
+          "The vulnerabilities have an opinion.",
+          "Useful to the company.\nActionable for CIRCL.\nGood for Luxembourg.",
+          "A practical route into Bearings.",
+          "Your inventory keeps up. Your team gets time back.",
+          "One place to make sense\nof the tools you already use.",
+          "Clear about what the data means.",
+          "Before you get started.",
+          "Your first step is free. So is every step after."
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/en/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Infrastruktur, Risiken & Reaktion",
+        "lang": "de",
+        "h1": [
+          "Sehen, wo Handlungsbedarf besteht.\nWissen, wer handeln kann."
+        ],
+        "overflow": false,
+        "headings": [
+          "Weniger an verschiedenen Stellen suchen.\nDen nächsten Schritt klar erkennen.",
+          "Die Schwachstellen haben eine Meinung.",
+          "Nützlich für die Firma.\nHandlungsrelevant für CIRCL.\nGut für den Standort Luxemburg.",
+          "Ein einfacher Einstieg.",
+          "Das Inventar bleibt aktuell. Ihr Team gewinnt Zeit.",
+          "Die vorhandenen Werkzeuge\nin einen Zusammenhang bringen.",
+          "Klarheit darüber, was die Daten bedeuten.",
+          "Vor dem ersten Schritt.",
+          "Der erste Schritt ist kostenlos. Und jeder weitere auch."
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/de/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Infrastructure, risques et réponse",
+        "lang": "fr",
+        "h1": [
+          "Identifiez les priorités.\nSachez qui peut agir."
+        ],
+        "overflow": false,
+        "headings": [
+          "Moins de recherches dispersées.\nLa prochaine action clairement identifiée.",
+          "Les vulnérabilités ont leur avis.",
+          "Utile à l’entreprise.\nExploitable par le CIRCL.\nUn atout pour le Luxembourg.",
+          "Un parcours simple pour démarrer.",
+          "Un inventaire à jour. Du temps rendu à votre équipe.",
+          "Donnez du sens aux outils\nque vous utilisez déjà.",
+          "Savoir ce que les données signifient.",
+          "Avant de commencer.",
+          "Votre premier pas est gratuit. Tous les suivants aussi."
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/fr/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Infrastruktur, Risiken a Reaktioun",
+        "lang": "lb",
+        "h1": [
+          "Prioritéiten erkennen.\nZilgeriicht handelen."
+        ],
+        "overflow": false,
+        "headings": [
+          "Manner op verschiddene Plaze sichen.\nDe nächste Schrëtt kloer erkennen.",
+          "D’Sécherheetslücken hunn eng Meenung.",
+          "Nëtzlech fir d’Firma.\nHandlungsrelevant fir de CIRCL.\nGutt fir de Standuert Lëtzebuerg.",
+          "E praktesche Wee fir unzefänken.",
+          "Den Inventar bleift aktuell. Äert Team gewënnt Zäit.",
+          "Déi bestoend Instrumenter\nan en Zesummenhang bréngen.",
+          "Kloerheet iwwer d’Bedeitung vun den Donnéeën.",
+          "Éier Dir ufänkt.",
+          "Den éischte Schrëtt ass gratis. An all weidere Schrëtt och."
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/lb/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Frequently asked questions",
+        "lang": "en",
+        "h1": [
+          "Frequently asked questions"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 1,
+        "path": "/en/faq/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Häufige Fragen",
+        "lang": "de",
+        "h1": [
+          "Häufige Fragen"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 1,
+        "path": "/de/faq/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Questions fréquentes",
+        "lang": "fr",
+        "h1": [
+          "Questions fréquentes"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 1,
+        "path": "/fr/faq/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Heefeg gestallte Froen",
+        "lang": "lb",
+        "h1": [
+          "Heefeg gestallte Froen"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 1,
+        "path": "/lb/faq/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "CIRCL · Bearings",
+        "lang": "en",
+        "h1": [
+          "Know your infrastructure.\nUnderstand your exposure."
+        ],
+        "overflow": false,
+        "headings": [
+          "Local account / administrator sign-in"
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 2,
+        "path": "/accounts/login/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "CIRCL · Bearings",
+        "lang": "en",
+        "h1": [
+          "Register your organization"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 15,
+        "path": "/register/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "CIRCL · Bearings",
+        "lang": "en",
+        "h1": [
+          "Join an existing organization"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 7,
+        "path": "/join/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Linux client · Bearings",
+        "lang": "en",
+        "h1": [
+          "Install the Bearings Linux client"
+        ],
+        "overflow": false,
+        "headings": [
+          "Automatic company registration",
+          "Alternative: approve one existing or managed host"
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/downloads/linux/",
+        "width": 1440,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Infrastructure, risk & response",
+        "lang": "en",
+        "h1": [
+          "See what needs attention.\nKnow who can act."
+        ],
+        "overflow": false,
+        "headings": [
+          "Less searching across tools.\nA clearer next action.",
+          "The vulnerabilities have an opinion.",
+          "Useful to the company.\nActionable for CIRCL.\nGood for Luxembourg.",
+          "A practical route into Bearings.",
+          "Your inventory keeps up. Your team gets time back.",
+          "One place to make sense\nof the tools you already use.",
+          "Clear about what the data means.",
+          "Before you get started.",
+          "Your first step is free. So is every step after."
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/en/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Infrastruktur, Risiken & Reaktion",
+        "lang": "de",
+        "h1": [
+          "Sehen, wo Handlungsbedarf besteht.\nWissen, wer handeln kann."
+        ],
+        "overflow": false,
+        "headings": [
+          "Weniger an verschiedenen Stellen suchen.\nDen nächsten Schritt klar erkennen.",
+          "Die Schwachstellen haben eine Meinung.",
+          "Nützlich für die Firma.\nHandlungsrelevant für CIRCL.\nGut für den Standort Luxemburg.",
+          "Ein einfacher Einstieg.",
+          "Das Inventar bleibt aktuell. Ihr Team gewinnt Zeit.",
+          "Die vorhandenen Werkzeuge\nin einen Zusammenhang bringen.",
+          "Klarheit darüber, was die Daten bedeuten.",
+          "Vor dem ersten Schritt.",
+          "Der erste Schritt ist kostenlos. Und jeder weitere auch."
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/de/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Infrastructure, risques et réponse",
+        "lang": "fr",
+        "h1": [
+          "Identifiez les priorités.\nSachez qui peut agir."
+        ],
+        "overflow": false,
+        "headings": [
+          "Moins de recherches dispersées.\nLa prochaine action clairement identifiée.",
+          "Les vulnérabilités ont leur avis.",
+          "Utile à l’entreprise.\nExploitable par le CIRCL.\nUn atout pour le Luxembourg.",
+          "Un parcours simple pour démarrer.",
+          "Un inventaire à jour. Du temps rendu à votre équipe.",
+          "Donnez du sens aux outils\nque vous utilisez déjà.",
+          "Savoir ce que les données signifient.",
+          "Avant de commencer.",
+          "Votre premier pas est gratuit. Tous les suivants aussi."
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/fr/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Infrastruktur, Risiken a Reaktioun",
+        "lang": "lb",
+        "h1": [
+          "Prioritéiten erkennen.\nZilgeriicht handelen."
+        ],
+        "overflow": false,
+        "headings": [
+          "Manner op verschiddene Plaze sichen.\nDe nächste Schrëtt kloer erkennen.",
+          "D’Sécherheetslücken hunn eng Meenung.",
+          "Nëtzlech fir d’Firma.\nHandlungsrelevant fir de CIRCL.\nGutt fir de Standuert Lëtzebuerg.",
+          "E praktesche Wee fir unzefänken.",
+          "Den Inventar bleift aktuell. Äert Team gewënnt Zäit.",
+          "Déi bestoend Instrumenter\nan en Zesummenhang bréngen.",
+          "Kloerheet iwwer d’Bedeitung vun den Donnéeën.",
+          "Éier Dir ufänkt.",
+          "Den éischte Schrëtt ass gratis. An all weidere Schrëtt och."
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/lb/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Frequently asked questions",
+        "lang": "en",
+        "h1": [
+          "Frequently asked questions"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 1,
+        "path": "/en/faq/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Häufige Fragen",
+        "lang": "de",
+        "h1": [
+          "Häufige Fragen"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 1,
+        "path": "/de/faq/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Questions fréquentes",
+        "lang": "fr",
+        "h1": [
+          "Questions fréquentes"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 1,
+        "path": "/fr/faq/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "Bearings — Heefeg gestallte Froen",
+        "lang": "lb",
+        "h1": [
+          "Heefeg gestallte Froen"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 1,
+        "path": "/lb/faq/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "CIRCL · Bearings",
+        "lang": "en",
+        "h1": [
+          "Know your infrastructure.\nUnderstand your exposure."
+        ],
+        "overflow": false,
+        "headings": [
+          "Local account / administrator sign-in"
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 2,
+        "path": "/accounts/login/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "CIRCL · Bearings",
+        "lang": "en",
+        "h1": [
+          "Register your organization"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 15,
+        "path": "/register/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "CIRCL · Bearings",
+        "lang": "en",
+        "h1": [
+          "Join an existing organization"
+        ],
+        "overflow": false,
+        "headings": [],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 7,
+        "path": "/join/",
+        "width": 390,
+        "status": 200
+      },
+      {
+        "title": "Linux client · Bearings",
+        "lang": "en",
+        "h1": [
+          "Install the Bearings Linux client"
+        ],
+        "overflow": true,
+        "headings": [
+          "Automatic company registration",
+          "Alternative: approve one existing or managed host"
+        ],
+        "unlabelled": [],
+        "brokenAnchors": [],
+        "inputs": 0,
+        "path": "/downloads/linux/",
+        "width": 390,
+        "status": 200
+      }
+    ],
+    "javascript_errors": [],
+    "http_failures": [],
+    "blocked_non_read_requests": [],
+    "authenticated_session": false,
+    "transport": "Verified HTTPS via HTTPX/proxy; rendered in Chromium with same-origin response interception"
+  },
+  "local_after": {
+    "checks": [
+      {
+        "width": 1440,
+        "export_disabled_visible": true,
+        "host_client_independent": true,
+        "mobile_navigation": true,
+        "active_submenu_visible": true,
+        "advanced_enrollment_keyboard": true,
+        "no_horizontal_overflow": true
+      },
+      {
+        "width": 390,
+        "export_disabled_visible": true,
+        "host_client_independent": true,
+        "mobile_navigation": true,
+        "active_submenu_visible": true,
+        "advanced_enrollment_keyboard": true,
+        "no_horizontal_overflow": true
+      }
+    ],
+    "javascript_errors": [],
+    "synthetic": true
+  },
+  "dependency_tool": "pip-audit 2.10.1",
+  "runtime_profiles": [
+    {
+      "profile": "Bearings",
+      "checked_records": 33,
+      "remaining_advisory_records": 0,
+      "updated_vulnerable_packages": [
+        {
+          "name": "certifi",
+          "before": "2026.7.22",
+          "after": "2026.11.20",
+          "advisories": [
+            "PYSEC-2026-4320"
+          ]
+        },
+        {
+          "name": "oauthlib",
+          "before": "4.0.0",
+          "after": "4.0.1",
+          "advisories": [
+            "CVE-2026-49272"
+          ]
+        },
+        {
+          "name": "social-auth-core",
+          "before": "4.9.1",
+          "after": "6.2.0",
+          "advisories": [
+            "CVE-2026-115910",
+            "CVE-2026-62322",
+            "PYSEC-2026-4165",
+            "PYSEC-2026-4166",
+            "PYSEC-2026-4167",
+            "PYSEC-2026-4168",
+            "PYSEC-2026-4169"
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "Native NetBox",
+      "checked_records": 98,
+      "remaining_advisory_records": 0,
+      "updated_vulnerable_packages": [
+        {
+          "name": "djangorestframework",
+          "before": "3.18.0",
+          "after": "3.18.2",
+          "advisories": [
+            "CVE-2026-114136",
+            "CVE-2026-114137",
+            "CVE-2026-114138"
+          ]
+        },
+        {
+          "name": "pillow",
+          "before": "12.3.0",
+          "after": "13.0.0",
+          "advisories": [
+            "CVE-2026-112390",
+            "CVE-2026-112391",
+            "CVE-2026-112393",
+            "CVE-2026-112395",
+            "CVE-2026-112399",
+            "CVE-2026-112400",
+            "CVE-2026-112401",
+            "CVE-2026-112404",
+            "CVE-2026-112406",
+            "CVE-2026-112891",
+            "CVE-2026-112892",
+            "CVE-2026-112893",
+            "CVE-2026-112894",
+            "CVE-2026-112895",
+            "CVE-2026-112897",
+            "CVE-2026-112899",
+            "CVE-2026-112900",
+            "CVE-2026-128066",
+            "CVE-2026-128067",
+            "CVE-2026-96638",
+            "CVE-2026-96640",
+            "CVE-2026-96778",
+            "GHSA-78g4-xqwv-q3g8",
+            "PYSEC-2026-4326",
+            "PYSEC-2026-4327",
+            "PYSEC-2026-4328",
+            "PYSEC-2026-4329",
+            "PYSEC-2026-4330",
+            "PYSEC-2026-4331",
+            "PYSEC-2026-4332",
+            "PYSEC-2026-4333",
+            "PYSEC-2026-4334",
+            "PYSEC-2026-4335",
+            "PYSEC-2026-4336",
+            "PYSEC-2026-4337",
+            "PYSEC-2026-4338",
+            "PYSEC-2026-4339",
+            "PYSEC-2026-4340",
+            "PYSEC-2026-4341",
+            "PYSEC-2026-4342",
+            "PYSEC-2026-4343",
+            "PYSEC-2026-4363"
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "FlowIntel",
+      "checked_records": 76,
+      "remaining_advisory_records": 0,
+      "updated_vulnerable_packages": [
+        {
+          "name": "cryptography",
+          "before": "48.0.1",
+          "after": "50.0.2",
+          "advisories": [
+            "PYSEC-2026-3552",
+            "PYSEC-2026-3553",
+            "PYSEC-2026-3554"
+          ]
+        },
+        {
+          "name": "dnspython",
+          "before": "2.9.0",
+          "after": "2.9.2",
+          "advisories": [
+            "CVE-2026-128089"
+          ]
+        },
+        {
+          "name": "werkzeug",
+          "before": "3.1.8",
+          "after": "3.1.9",
+          "advisories": [
+            "PYSEC-2026-4312"
+          ]
+        }
+      ]
+    }
+  ],
+  "production_mutated": false,
+  "production_authenticated_session": false,
+  "complete_penetration_test": false,
+  "native_runtime_smoke": {
+    "netbox_login": 200,
+    "flowintel_login": 200,
+    "tenant_isolation": true,
+    "identities_preserved": true,
+    "disposable_postgresql": 16,
+    "private_redis_socket": true
+  },
+  "retained_stack_smoke": true,
+  "retained_netbox_link_tests": 5
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "file": "circl.svg",
+    "source": "User-supplied logo_CIRCL.svg",
+    "sha256": "f36c9a7f9578b3e83b2bdf070724b8eaf57964f0a019106834abb69dbb8c6a0c"
+  },
+  {
+    "file": "circl-symbol.svg",
+    "source": "User-supplied logo-circl_no_text.svg",
+    "sha256": "37cb9056a37e41ed5553096e86bb9e387b2b8d314bba8b93f236fc4378e73728"
+  },
+  {
+    "file": "bearings-mark-source.png",
+    "source": "Image generation using the user-supplied CIRCL symbol reference; 2026-11-19",
+    "sha256": "b86235c5f06ee8353b2738cc3fdda64bd6e4564e4364d8dd2abc1dd0cdf0bed1"
+  }
+]

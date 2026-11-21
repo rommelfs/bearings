@@ -133,6 +133,19 @@ class SSOTests(tests.Fixture):
         self.assertNotIn("id_token", self.binding.extra_data)
         self.assertEqual(self.client.get("/issues/").status_code, 200)
 
+    def test_valid_nonce_from_another_browser_is_rejected_without_consuming_its_login(self):
+        self.start()
+        original_client, original_params = self.client, self.params.copy()
+        self.client = Client()
+        self.start()
+        self.claim_overrides = {"nonce": original_params["nonce"]}
+        self.assertRedirects(self.finish(), "/accounts/login/", fetch_redirect_response=False)
+        self.assertNotIn(auth.SESSION_KEY, self.client.session)
+        self.client, self.params = original_client, original_params
+        self.claim_overrides = {}
+        self.assertRedirects(self.finish(), "/issues/", fetch_redirect_response=False)
+        self.assertEqual(int(self.client.session[auth.SESSION_KEY]), self.admin.pk)
+
     def test_unapproved_same_email_does_not_create_or_link_account(self):
         self.claim_overrides = {"sub": "unapproved"}
         self.userinfo_sub = "unapproved"
@@ -180,6 +193,19 @@ class SSOTests(tests.Fixture):
         self.assertRedirects(self.finish(), "/accounts/login/", fetch_redirect_response=False)
         self.assertNotIn(auth.SESSION_KEY, self.client.session)
 
+    def test_authenticated_navigation_reports_session_time_without_provider_requests(self):
+        self.start()
+        self.finish()
+        self.http.reset_mock()
+        with patch("portal.sso.perf_counter", side_effect=[10, 10.025, 10.125]):
+            response = self.client.get("/infrastructure/")
+        self.assertEqual(response.status_code, 200)
+        timing = response.headers["Server-Timing"]
+        self.assertIn("overview;dur=", timing)
+        self.assertIn("session;dur=25.0", timing)
+        self.assertIn("django;dur=125.0", timing)
+        self.http.assert_not_called()
+
     def test_revoked_disabled_and_expired_sessions_end_without_changing_local_password_access(self):
         self.admin.set_password("synthetic-local-emergency-password")
         self.admin.save()
@@ -221,7 +247,7 @@ class SSOTests(tests.Fixture):
             identity_uid(ISSUER, "subject-alice"), identity_uid(ISSUER + "-other", "subject-alice")
         )
         self.start("https://attacker.example.invalid/")
-        self.assertRedirects(self.finish(), "/", fetch_redirect_response=False)
+        self.assertRedirects(self.finish(), "/infrastructure/", fetch_redirect_response=False)
         self.assertEqual(self.client.post("/oauth/login/unapproved/").status_code, 404)
         self.http.assert_called()
 
@@ -283,7 +309,7 @@ class SSOTests(tests.Fixture):
 
     def test_redirects_arbitrary_endpoints_and_large_provider_responses_are_refused(self):
         from config.oidc import ApprovedOpenIdConnect
-        from social_core.exceptions import AuthForbidden, AuthTokenError
+        from config.oidc import AuthForbidden, AuthTokenError
 
         backend = ApprovedOpenIdConnect()
         with self.assertRaises(AuthForbidden):

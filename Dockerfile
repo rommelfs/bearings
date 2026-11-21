@@ -9,6 +9,7 @@ RUN --mount=type=secret,id=cloud-ca \
     uv sync --frozen --no-dev
 COPY config ./config
 COPY portal ./portal
+COPY website ./website
 COPY manage.py LICENSE ./
 COPY docker ./docker
 COPY scripts ./scripts
