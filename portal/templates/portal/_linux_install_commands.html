@@ -14,4 +14,14 @@ sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt --lx
 <pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
 python3 bearings-install.py --server '{{ origin }}' --bootstrap-stdin &lt; /run/secrets/bearings-rollout-key</pre>
 <p>Add <code>--lxc-compatible</code> for constrained LXC. Keep the key out of command arguments, logs and reusable images. Each machine generates its own device identity.</p></details>
+<h3>3. Optional: enable automatic client updates</h3>
+<p>After installation and registration, run once as an administrator. The client checks this trusted HTTPS server daily with a randomized delay of up to four hours. Unchanged releases download only checksums and do not restart reporting. Keys, profiles, pending reports and local service drop-ins are retained.</p>
+<pre>sudo python3 bearings-install.py auto-update-enable --server '{{ origin }}'</pre>
+<p>The installed updater stays local; it never downloads and executes a replacement installer. Failed replacements restore the previous client and quarantine that publication. Server operators still publish reviewed client releases explicitly.</p>
+<details><summary>Update status, immediate check and disabling</summary>
+<pre>sudo python3 /usr/local/lib/bearings-linux/update.py auto-update-status
+sudo systemctl start bearings-linux-update.service
+sudo journalctl -u bearings-linux-update.service --no-pager -n 40
+sudo python3 /usr/local/lib/bearings-linux/update.py auto-update-disable</pre>
+<p>Disabling updates keeps ordinary inventory reporting running. A startup check confirms service activity, not successful report delivery or complete application health.</p></details>
 </section>

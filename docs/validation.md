@@ -1530,3 +1530,38 @@ behavior, source credentials, schema or Linux-client changes are introduced.
   diff checks pass. Migration 0066 belongs to the application-observation change;
   the editor adds none. Publish the new reviewed client artifacts for native
   validation and collect the new static JavaScript before restarting services.
+
+### Recoverable Linux client automatic updates (2026-11-22)
+
+The updater is explicitly enabled locally after enrollment. Real disposable
+installer acceptance covers native binary downloads over a fixture's verified
+HTTPS, actual account/file permissions and actual noexec `/run`, in both manual
+and fleet enrollment modes. The update cases exercise manifest-only no-op checks
+without a reporting restart, changed native ELF installation, checksum corruption,
+HTTP 503/redirect refusal, failed systemd restart, late failed-service probation,
+publication quarantine, interrupted binary recovery, boot recovery without starting
+the client, corrupt backup refusal, an injected ENOSPC write, an actual SIGKILL of the updater/child process group
+after binary replacement and before commit, customized main-unit
+refusal, shared process-lock exclusion, sudo administrative access to root-private state
+without weakening untrusted-input credential drops, paused-state preservation and disabling.
+Enrollment keys/configuration/queue and local drop-ins are retained. The fixtures
+use an explicit systemd control double; they do not claim a live production
+systemd boot/power-cut test. They emulate persisted interrupted transactions.
+
+Both the current interpreter and actual Python 3.8 are exercised. Twelve local
+installer tests cover additional privilege/source/CLI/CA/unit-digest boundaries
+(one root-only credential test skips in the unprivileged runner; privileged
+acceptance runs in disposable containers). The actual systemd unit parser accepts
+all five updater/calendar/retry/recovery units and the ordered dependent client. A seven-second
+multi-check startup window and 24-hour failed-service probation are not complete
+application-health/report-delivery attestation. No independent release signature,
+canary orchestration, hardware-failure guarantee or production enablement is
+claimed. The local updater does not replace itself from downloaded code.
+
+Nine PostgreSQL download-page regressions, frozen sync, Django check/migration
+drift, applicable Ruff/format and diff checks pass. No schema/dependency/Go runtime
+change is introduced; both architectures and corresponding installer source must
+be republished from the clean reviewed checkout. Existing CI installer acceptance
+jobs cover the expanded scenarios in current and Python 3.8 modes. The guarded
+real bundled NetBox/FlowIntel/RT/RTIR smoke also passes; no production destinations
+or external notification delivery are used.

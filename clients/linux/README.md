@@ -224,3 +224,26 @@ bearings-linux validate-applications --config client-config.example.json
 
 Reusable contribution recipes live in `profiles/`; they are not automatically
 enabled by installation. See the [profile editor and contribution contract](../../docs/integrations/linux-application-probes.md#gui-editor-and-exporting-a-pr-proposal).
+
+
+## Automatic client updates
+
+After enrollment, opt in once with the reviewed installer:
+
+```sh
+sudo python3 bearings-install.py auto-update-enable --server https://bearings.example
+```
+
+A randomized daily systemd check uses verified HTTPS, skips unchanged binaries,
+retains identity/state/profiles/drop-ins, and restores the previous version when
+replacement/startup fails. Interrupted transactions have boot recovery, failed
+publications are quarantined, and a failed client during 24-hour probation can
+restore its previous version. The updater stays local and does not execute a
+replacement installer downloaded from the server. Inspect/disable with:
+
+```sh
+sudo python3 /usr/local/lib/bearings-linux/update.py auto-update-status
+sudo python3 /usr/local/lib/bearings-linux/update.py auto-update-disable
+```
+
+See [update operations, recovery and limits](../../docs/operations/linux-client-updates.md).

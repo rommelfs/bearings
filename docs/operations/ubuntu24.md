@@ -336,3 +336,16 @@ web/worker/national as shown. The editor validates syntax only, exports local JS
 or a PR proposal ZIP and never distributes profiles or contacts GitHub. It adds
 no migration beyond 0066. Existing monitored hosts need the client update above
 to collect generic profiles. Keep keys/state and local sandbox drop-ins intact.
+
+
+### Opt-in automatic Linux client updates
+
+Publish the new reviewed installer with
+`python3 deploy/ubuntu24/ecosystem.py prepare-linux-client` from a clean checkout. Restart `bearings-web` for the updated
+installation instructions; no migration/dependency change is added. On each
+already enrolled host, download the installer outside `/opt/bearings` and run
+`python3 bearings-install.py auto-update-enable --server https://bearings.circl.lu`.
+The timer checks daily with jitter; unchanged releases avoid binary download and
+restart. Recovery, quarantine, status/disable commands, trust boundaries and
+refreshing the local updater are documented in [Linux client updates](linux-client-updates.md).
+Existing clients are not silently enrolled in automatic updates.

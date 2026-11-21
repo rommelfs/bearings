@@ -137,6 +137,20 @@ class InstallerTests(unittest.TestCase):
                     installer.main()
             command.assert_not_called()
 
+    def test_update_origin_rejected_before_account_or_system_changes(self):
+        for origin in (
+            "http://example.invalid",
+            "https://user:secret@example.invalid",
+            "https://example.invalid/path",
+            "https://example.invalid/?token=x",
+        ):
+            with (
+                patch.object(installer, "lookup_account") as account,
+                self.assertRaises(installer.InstallError),
+            ):
+                installer.configure_updates(origin)
+            account.assert_not_called()
+
     def test_cli_requires_root_before_touching_system(self):
         with patch("sys.argv", ["install.py"]), patch.object(installer.os, "geteuid", return_value=1000):
             with patch.object(installer, "systemctl") as command, self.assertRaises(installer.InstallError):

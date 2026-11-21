@@ -13,6 +13,8 @@ from pathlib import Path
 import pwd
 import secrets
 import socket
+import signal
+import time
 import ssl
 import subprocess
 import sys
@@ -57,12 +59,23 @@ def main():
 import json,sys
 from pathlib import Path
 p=Path('/run/synthetic-systemd.json');s=json.loads(p.read_text());a=sys.argv[1:];code=0
+unit=next((x for x in a if x.endswith(('.service','.timer'))),'bearings-linux.service')
+u=s if unit=='bearings-linux.service' else s.setdefault('units',{}).setdefault(unit,{'active':False,'enabled':False})
+s.setdefault('calls',[]).append(a)
+if a[0]=='daemon-reload' and s.pop('pause_reload',False):
+ import time
+ p.write_text(json.dumps(s));Path('/run/updater-paused').touch();time.sleep(90)
+if unit=='bearings-linux.service' and a[0]=='restart' and s.pop('fail_next_restart',False):
+ u['active']=False;p.write_text(json.dumps(s));sys.exit(1)
 if a[0]=='show':print('synthetic-test-only')
-elif a[0]=='is-active':code=0 if s['active'] else 3
-elif a[0]=='status':print('synthetic systemd status');code=0 if s['active'] else 3
-elif a[0]=='stop':s['active']=False
-elif a[0] in ('start','restart'):s['active']=True
-elif a[0]=='enable':s['enabled']=True;s['active']=s['active'] or '--now' in a
+elif a[0]=='is-active':code=0 if u['active'] else 3
+elif a[0]=='is-enabled':code=0 if u['enabled'] else 1
+elif a[0]=='is-failed':code=0 if u.get('failed',False) else 1
+elif a[0]=='status':print('synthetic systemd status');code=0 if u['active'] else 3
+elif a[0]=='stop':u['active']=False;u['failed']=False
+elif a[0] in ('start','restart'):u['active']=True;u['failed']=False
+elif a[0]=='enable':u['enabled']=True;u['active']=u['active'] or '--now' in a
+elif a[0]=='disable':u['enabled']=False;u['active']=False
 elif a[0]!='daemon-reload':code=99
 p.write_text(json.dumps(s));sys.exit(code)
 """)
@@ -161,20 +174,32 @@ p.write_text(json.dumps(s));sys.exit(code)
             assert key_id in ("enroll:" + grant_id, "fleet:" + fleet_id)
             return ed25519.Ed25519PublicKey.from_public_bytes(base64.b64decode(public["public_key"]))
 
+    publication = {"suffix": b"", "corrupt": False, "response": 200}
+    fetched_artifacts = []
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
 
         def do_GET(self):
+            if publication["response"] != 200:
+                self.send_response(publication["response"])
+                if publication["response"] == 302:
+                    self.send_header("Location", "https://example.invalid/unapproved")
+                self.end_headers()
+                return
             artifacts = {
-                "bearings-linux-amd64": Path("/test-client").read_bytes(),
+                "bearings-linux-amd64": Path("/test-client").read_bytes() + publication["suffix"],
                 "bearings-linux.service": (source / "systemd/bearings-linux.service").read_bytes(),
             }
             manifest = "".join(
                 hashlib.sha256(data).hexdigest() + "  " + name + "\n" for name, data in artifacts.items()
             ).encode()
             name = self.path.rsplit("/", 1)[-1]
+            fetched_artifacts.append(name)
             response = manifest if name == "SHA256SUMS" else artifacts[name]
+            if publication["corrupt"] and name == "bearings-linux-amd64":
+                response += b"corrupt"
             self.send_response(200)
             self.send_header("Content-Length", str(len(response)))
             self.end_headers()
@@ -288,6 +313,202 @@ p.write_text(json.dumps(s));sys.exit(code)
             call("start")
         else:
             call("enroll", "--code-stdin", "--ca-file", str(ca), stdin=code + b"\n")
+
+        # Real updater files/downloads; only systemd control is doubled.
+        call("auto-update-enable", "--server", origin, "--ca-file", str(ca))
+        installed_updater = Path("/usr/local/lib/bearings-linux/update.py")
+        assert installed_updater.read_bytes() == installer.read_bytes()
+        assert installed_updater.stat().st_uid == 0 and not installed_updater.stat().st_mode & 0o022
+        updater_state = Path("/var/lib/bearings-linux-updater")
+        update_config = Path("/etc/bearings-linux/update.json")
+        assert update_config.stat().st_mode & 0o777 == 0o600
+        enabled_status = json.loads(call("auto-update-status"))
+        assert enabled_status["timer_active"] and enabled_status["timer_enabled"]
+        config_before_update = (private / "config.json").read_bytes()
+        before_calls = len(json.loads(state.read_text())["calls"])
+        fetched_artifacts.clear()
+        call("auto-update")
+        assert fetched_artifacts == ["SHA256SUMS"]
+        assert json.loads((updater_state / "status.json").read_text())["result"] == "unchanged"
+        assert not any("restart" in row for row in json.loads(state.read_text())["calls"][before_calls:])
+        assert not (updater_state / "pending.json").exists()
+
+        publication["suffix"] = b"synthetic-new-publication"
+        call("auto-update")
+        installed = Path("/usr/local/bin/bearings-linux")
+        accepted_binary = installed.read_bytes()
+        assert accepted_binary == Path("/test-client").read_bytes() + publication["suffix"]
+        assert json.loads((updater_state / "status.json").read_text())["result"] == "updated"
+        assert (private / "key").read_bytes() == key_before
+        assert (private / "config.json").read_bytes() == config_before_update
+
+        # Local administrative controls must work through sudo as well as direct root.
+        # Private installed state is read as root; untrusted input reads still drop privileges.
+        os.environ["SUDO_UID"] = str(account.pw_uid)
+        try:
+            assert json.loads(call("auto-update-status"))["timer_enabled"]
+            call("auto-update")
+        finally:
+            os.environ.pop("SUDO_UID", None)
+
+        # A late process failure during probation recovers the retained baseline too.
+        service = json.loads(state.read_text())
+        service["active"] = False
+        service["failed"] = True
+        state.write_text(json.dumps(service))
+        call("auto-update-recover")
+        assert installed.read_bytes() == Path("/test-client").read_bytes()
+        assert json.loads(state.read_text())["active"]
+        publication["suffix"] = b"synthetic-next-working-publication"
+        call("auto-update")
+        accepted_binary = installed.read_bytes()
+
+        # Corrupt response never changes a live client or initiates recovery.
+        publication["suffix"] = b"synthetic-corrupted-publication"
+        publication["corrupt"] = True
+        call("auto-update", ok=False)
+        assert installed.read_bytes() == accepted_binary
+        assert json.loads(state.read_text())["active"]
+        assert not (updater_state / "pending.json").exists()
+        publication["corrupt"] = False
+
+        for response_status in (503, 302):
+            publication["response"] = response_status
+            call("auto-update", ok=False)
+            assert installed.read_bytes() == accepted_binary and json.loads(state.read_text())["active"]
+            assert not (updater_state / "pending.json").exists()
+        publication["response"] = 200
+
+        # Candidate bytes execute, but systemd restart fails: restore known-good bytes.
+        publication["suffix"] = b"synthetic-broken-publication"
+        service = json.loads(state.read_text())
+        service["fail_next_restart"] = True
+        state.write_text(json.dumps(service))
+        call("auto-update", ok=False)
+        assert installed.read_bytes() == accepted_binary and json.loads(state.read_text())["active"]
+        assert json.loads((updater_state / "status.json").read_text())["result"] == "rolled_back"
+        before_calls = len(json.loads(state.read_text())["calls"])
+        call("auto-update", ok=False)
+        assert not any("restart" in row for row in json.loads(state.read_text())["calls"][before_calls:])
+        assert installed.read_bytes() == accepted_binary
+
+        # Emulate power loss between durable checkpoint and successful commit.
+        spec = importlib.util.spec_from_file_location("updater_fixture", installer)
+        updater = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(updater)
+        updater.checkpoint_update("f" * 64, updater.UNIT_SHA256)
+        updater.atomic(installed, b"interrupted binary", 0o755)
+        call("auto-update-recover")
+        assert installed.read_bytes() == accepted_binary and json.loads(state.read_text())["active"]
+        assert not (updater_state / "pending.json").exists()
+
+        # Boot recovery restores bytes before systemd starts the dependent client.
+        updater.checkpoint_update("e" * 64, updater.UNIT_SHA256)
+        updater.atomic(installed, b"interrupted boot candidate", 0o755)
+        service = json.loads(state.read_text())
+        service["active"] = False
+        state.write_text(json.dumps(service))
+        call("auto-update-recover-boot")
+        assert installed.read_bytes() == accepted_binary and not json.loads(state.read_text())["active"]
+        recovery_dependency = Path("/etc/systemd/system/bearings-linux.service.d/auto-update-recovery.conf")
+        assert "Requires=bearings-linux-update-recover-boot.service" in recovery_dependency.read_text()
+        call("start")
+
+        # Missing/corrupted backups never authorize a guessed recovery.
+        updater.checkpoint_update("d" * 64, updater.UNIT_SHA256)
+        previous_binary = (updater_state / "previous-client").read_bytes()
+        updater.atomic(updater_state / "previous-client", b"damaged backup", 0o700)
+        call("auto-update-recover", ok=False)
+        assert installed.read_bytes() == accepted_binary and (updater_state / "pending.json").exists()
+        updater.atomic(updater_state / "previous-client", previous_binary, 0o700)
+        call("auto-update-recover")
+
+        # A disk write failure restores the prior client and resumes reporting.
+        from unittest.mock import patch
+
+        publication["suffix"] = b"synthetic-disk-failure-publication"
+        original_atomic = updater.atomic
+        failed_write = []
+
+        def disk_full(path, *args, **kwargs):
+            if path == installed and not failed_write:
+                failed_write.append(True)
+                raise OSError(errno.ENOSPC, "synthetic full filesystem")
+            return original_atomic(path, *args, **kwargs)
+
+        calls_before = len(json.loads(state.read_text())["calls"])
+        with patch.object(updater, "atomic", side_effect=disk_full):
+            try:
+                updater.automatic_update()
+            except updater.InstallError:
+                pass
+            else:
+                raise AssertionError("Expected disk failure")
+        assert failed_write and installed.read_bytes() == accepted_binary
+        # Installer stops immediately before its atomic write; recovery restarts the prior client.
+        assert json.loads(state.read_text())["active"]
+        assert not (updater_state / "pending.json").exists()
+
+        # Kill an actual updater process after replacement but before transaction commit.
+        publication["suffix"] = b"synthetic-process-death-publication"
+        service = json.loads(state.read_text())
+        service["pause_reload"] = True
+        state.write_text(json.dumps(service))
+        paused = Path("/run/updater-paused")
+        process = subprocess.Popen(
+            [os.environ.get("BEARINGS_INSTALLER_PYTHON", sys.executable), installer, "auto-update"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
+        try:
+            deadline = time.monotonic() + 15
+            while not paused.exists() and process.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.05)
+            assert paused.exists() and (updater_state / "pending.json").exists()
+            assert installed.read_bytes() != accepted_binary
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGKILL)
+            process.communicate(timeout=5)
+        call("auto-update-recover")
+        assert installed.read_bytes() == accepted_binary and json.loads(state.read_text())["active"]
+        assert not (updater_state / "pending.json").exists()
+
+        # A customized main unit is refused before creating an unrecoverable marker.
+        old_unit = unit_path.read_bytes()
+        unit_path.write_bytes(old_unit + b"\n# deliberate local main-unit change\n")
+        publication["suffix"] = b"synthetic-next-publication"
+        call("auto-update", ok=False)
+        assert not (updater_state / "pending.json").exists()
+        assert installed.read_bytes() == accepted_binary
+        unit_path.write_bytes(old_unit)
+
+        # Manual and scheduled installers share an exclusive process lock.
+        import fcntl
+
+        with Path("/run/bearings-linux-installer.lock").open("r+") as locked:
+            fcntl.flock(locked, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            call("auto-update", ok=False)
+        assert installed.read_bytes() == accepted_binary
+
+        # A new publication clears the practical quarantine; paused reporting stays paused.
+        publication["suffix"] = b"synthetic-corrected-publication"
+        service = json.loads(state.read_text())
+        service["active"] = False
+        state.write_text(json.dumps(service))
+        call("auto-update")
+        assert not json.loads(state.read_text())["active"]
+        call("auto-update-disable")
+        assert not json.loads(update_config.read_text())["enabled"]
+        disabled_status = json.loads(call("auto-update-status"))
+        assert not disabled_status["timer_active"] and not disabled_status["timer_enabled"]
+        calls_before = len(json.loads(state.read_text())["calls"])
+        call("auto-update")
+        assert not any("restart" in row for row in json.loads(state.read_text())["calls"][calls_before:])
+        assert (private / "key").read_bytes() == key_before
+        assert (private / "config.json").read_bytes() == config_before_update
+        call("start")
     finally:
         server.shutdown()
         server.server_close()
@@ -298,7 +519,7 @@ p.write_text(json.dumps(s));sys.exit(code)
     assert config["device_id"] == device_id and config["ca_file"] == "/etc/bearings-linux/ca.pem"
     assert grant.read_bytes() == original
     assert len(received) == 1 and not list(Path("/run").glob("bearings-linux-enroll-*"))
-    assert json.loads(state.read_text()) == {"active": True, "enabled": True}
+    assert all(json.loads(state.read_text())[key] is True for key in ("active", "enabled"))
     assert Path(config["ca_file"]).read_bytes() == ca.read_bytes()
 
     # A pending queue and operator drop-in survive upgrades and deliberate stops.
@@ -312,7 +533,8 @@ p.write_text(json.dumps(s));sys.exit(code)
     for active in (True, False):
         state.write_text(json.dumps({"active": active, "enabled": True}))
         call("--binary", "/test-client")
-        assert json.loads(state.read_text()) == {"active": active, "enabled": True}
+        assert json.loads(state.read_text())["active"] is active
+        assert json.loads(state.read_text())["enabled"] is True
         assert (private / "key").read_bytes() == key_before
         assert json.loads((private / "config.json").read_text()) == config
         assert queue.read_bytes() == b"synthetic queued observation" and dropin.exists()
@@ -354,6 +576,9 @@ p.write_text(json.dumps(s));sys.exit(code)
                 "update_preserves_state_and_dropins": True,
                 "stopped_service_preserved": True,
                 "source_privileges_enforced": True,
+                "auto_update_unchanged_no_restart": True,
+                "auto_update_rollback_quarantine_recovery": True,
+                "auto_update_disable_and_paused_state": True,
                 "systemd": "controlled test double",
             }
         )

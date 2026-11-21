@@ -598,3 +598,8 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   configuration, software explanation and validation steps). No automatic GitHub
   submission, profile persistence or remote deployment; contributed recipes stay
   opt-in. See [profile editor](integrations/linux-application-probes.md).
+
+- Implemented: opt-in Linux client auto-updates with jitter, no-op checks, durable
+  rollback/boot recovery, failed-release quarantine and 24-hour probation recovery.
+  Explicit local updater refresh; deployment/status/disable/recovery instructions
+  in [Linux client updates](operations/linux-client-updates.md).
