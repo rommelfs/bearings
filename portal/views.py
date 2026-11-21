@@ -542,17 +542,37 @@ def create_installation(request, slug, pk):
             from django.core.exceptions import ValidationError
 
             try:
-                ensure_watch(product, request.user)
+                selected = (
+                    (form.cleaned_data.get("vendor"), form.cleaned_data.get("product_key"))
+                    if form.cleaned_data.get("vendor")
+                    else None
+                )
+                watch, _ = ensure_watch(product, request.user, identity=selected)
+                if watch:
+                    messages.success(
+                        request,
+                        "Software saved. Automatic CVE monitoring is queued."
+                        if watch.enabled
+                        else "Software saved. Its existing CVE monitoring is paused; enable it in Automatic CVE discovery when ready.",
+                    )
+                else:
+                    messages.warning(
+                        request,
+                        "Software saved. Choose its manufacturer/product mapping in Automatic CVE discovery to enable monitoring.",
+                    )
             except ValidationError:
                 messages.warning(
-                    request, "Software saved. Automatic monitoring needs an operator-approved source."
+                    request,
+                    "Software saved. Review Automatic CVE discovery to complete monitoring; any saved mapping was preserved.",
                 )
 
             ProductWatch.objects.filter(product=product).update(requested=True)
             audit(request.user, org, "software.installed", installation.pk)
         return redirect("organization", slug=slug)
     return render(
-        request, "portal/form.html", {"form": form, "title": f"Software on {asset.name}", "org": org}
+        request,
+        "portal/installation_form.html",
+        {"form": form, "title": f"Software on {asset.name}", "org": org, "asset": asset},
     )
 
 
@@ -816,3 +836,37 @@ def edit_local_asset(request, slug, pk):
     return render(
         request, "portal/form.html", {"org": org, "form": form, "title": f"Local assessment · {asset.name}"}
     )
+
+
+@login_required
+@require_POST
+def installation_catalog(request, slug, pk):
+    """Search before creating software; only explicit public search terms leave Bearings."""
+    from django.conf import settings
+    from .connectors.vulnerability_lookup import browse_products
+
+    org = organization(request, slug)
+    require(can_edit(request.user, org))
+    asset = get_object_or_404(Asset, pk=pk, organization=org)
+    try:
+        result = browse_products(
+            settings.VULNERABILITY_LOOKUP_URL,
+            kind=request.POST.get("kind", "vendors"),
+            query=request.POST.get("q", ""),
+            vendor=request.POST.get("vendor", ""),
+            page=int(request.POST.get("page", "1")),
+        )
+    except (ConnectorError, ValueError):
+        return JsonResponse(
+            {
+                "error": "Product catalog unavailable or search invalid. Enter a CPE directly or retry; your form is retained."
+            },
+            status=400,
+        )
+    if request.POST.get("kind") == "products":
+        from .product_matching import catalog_cpe
+
+        for item in result["results"]:
+            item["identifier"] = catalog_cpe(request.POST.get("vendor", ""), item["key"])
+    audit(request.user, org, "vulnerability.installation_catalog_searched", asset.pk)
+    return JsonResponse(result)

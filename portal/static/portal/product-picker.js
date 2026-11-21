@@ -9,6 +9,16 @@
   const status = root.querySelector("[data-picker-status]");
   const results = root.querySelector("[data-picker-results]");
   const pages = root.querySelector("[data-picker-pages]");
+  const installation = root.hasAttribute("data-installation-picker");
+  if (installation) {
+    form.elements.product_identifier.addEventListener("input", () => { vendor.value = ""; product.value = ""; changed(); });
+    form.elements.existing_product.addEventListener("change", () => {
+      if (!form.elements.existing_product.value) return;
+      vendor.value = ""; product.value = "";
+      form.elements.product_name.value = ""; form.elements.product_identifier.value = "";
+      changed(); status.textContent = "Saved organization product selected. Enter its installed version below.";
+    });
+  }
   let generation = 0;
   let controller;
   const clearResults = () => { results.replaceChildren(); pages.replaceChildren(); };
@@ -16,10 +26,17 @@
   vendor.addEventListener("input", changed);
   product.addEventListener("input", changed);
   query.addEventListener("input", changed);
-  function apply(vendorKey, productKey) {
+  function apply(vendorKey, productKey, identifier = "") {
     changed();
     vendor.value = vendorKey;
     product.value = productKey;
+    if (installation) {
+      form.elements.existing_product.value = "";
+      form.elements.product_identifier.value = identifier;
+      if (productKey) form.elements.product_name.value = productKey;
+      status.textContent = productKey ? `Selected ${vendorKey} / ${productKey}. Enter the installed version, then save software to queue monitoring.` : `Manufacturer ${vendorKey} selected. Search its products next.`;
+      return;
+    }
     status.textContent = productKey ? "Product selected. Save to apply this mapping and start auto-refresh." : "Manufacturer selected. Enter a product search term, then choose Find product.";
   }
   document.querySelectorAll("[data-mapping-vendor]").forEach(button => {
@@ -52,7 +69,7 @@
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = `Use ${item.key}`;
-        button.addEventListener("click", () => apply(kind === "vendors" ? item.key : vendorKey, kind === "vendors" ? "" : item.key));
+        button.addEventListener("click", () => apply(kind === "vendors" ? item.key : vendorKey, kind === "vendors" ? "" : item.key, item.identifier || ""));
         li.append(button); results.append(li);
       });
       [["Previous", data.page - 1], ["Next", data.page + 1]].forEach(([label, target]) => {

@@ -11,5 +11,5 @@
 </section>
 {% if suggestions|length > 1 %}<div class="actions">{% for match in suggestions %}<button type="button" data-mapping-vendor="{{ match.vendor }}" data-mapping-product="{{ match.product_key }}">Use {{ match.vendor }} / {{ match.product_key }} · {{ match.reason }}</button>{% endfor %}</div>{% endif %}
 {{ form.as_p }}<button class="primary">Save</button></form>
-<script src="{% static 'portal/product-picker.js' %}" defer></script>
+<script src="{% static 'portal/product-picker.js' %}?v=installation-20261121" defer></script>
 {% endblock %}

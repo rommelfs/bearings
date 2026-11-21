@@ -150,6 +150,10 @@
       {
         "title": "Explain vendor ESM fix paths and separate CVSS from distributor priority",
         "body": "Implemented independent CVSS severity/color and named vendor priority with explicit sorting semantics; current package reviews pair satisfied version predicates with explicit vendor fixed-version notes and ESM Apps channel. Read-only APT candidate/Pro diagnostic, explicit unverified host update availability, narrow audited Ubuntu pip bundled-urllib3 context, preserved human assessments. Actual CVE-2025-66471 Noble pip-whl +esm3 fixture, independent public Ubuntu tracker evidence, PostgreSQL and browser regressions. APT candidate, repository and entitlement collection remain future protocol work; no automatic enablement/subscription or package installation. See docs/audits/2026-11-21-package-cve-correctness.md."
+      },
+      {
+        "title": "Offer public product selection while adding installed software",
+        "body": "Implemented scoped CSRF-protected public manufacturer/product picker directly on software entry with canonical NVD-verified MISP CPE/name recognition, separate installed version, explicit watch creation and read-only fallback guidance. Clarify organization-only saved products vs public catalog. Retain paused/approved-source mappings; reject conflicting identities and foreign records. Other public CNA keys are not fabricated CPEs. Existing bounded approved Vulnerability-Lookup API, public search terms only; no full NVD CPE/version dictionary or arbitrary app-version discovery. Live NVD/Vulnerability-Lookup MISP reads, PostgreSQL and responsive browser flow validation in docs/validation.md; user steps in docs/user-guide/company-first-steps.md. Static collection and web/worker/national restart; no migrations/client updates."
       }
     ]
   },

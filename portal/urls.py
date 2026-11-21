@@ -125,6 +125,11 @@ urlpatterns = [
     path("risks/", business_risk_views.register, name="risk-register"),
     path("discovery/", discovery_views.center, name="discovery"),
     path(
+        "organizations/<slug:slug>/assets/<uuid:pk>/software/catalog/",
+        views.installation_catalog,
+        name="installation-catalog",
+    ),
+    path(
         "organizations/<slug:slug>/products/<int:pk>/watch/",
         discovery_views.configure,
         name="discovery-configure",

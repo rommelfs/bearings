@@ -283,3 +283,11 @@ not evidence of local subscription status or installable candidates. Use
 read-only `apt-cache policy python3-pip-whl` and `pro status` on the affected
 host to investigate those separately. This change does not enable subscriptions
 or install the reported package update.
+
+Software-entry public catalog picker / MISP mapping: update the reviewed
+checkout, run `./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null`
+and restart `bearings-web bearings-worker bearings-national` so web templates,
+picker JavaScript and background exact-name enrollment use the same code.
+No migration, dependency or client binary update is required. Searches reuse
+the existing operator-approved Vulnerability-Lookup source and bounded HTTP
+contract; no full CPE dictionary is downloaded into the application database.

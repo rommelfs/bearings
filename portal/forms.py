@@ -58,10 +58,20 @@ class AssetForm(forms.ModelForm):
 
 class InstallationForm(forms.ModelForm):
     existing_product = forms.ModelChoiceField(
-        queryset=Product.objects.none(), required=False, label="Select an existing product"
+        queryset=Product.objects.none(),
+        required=False,
+        label="Reuse a product already in this organization",
+        help_text="This list contains your organization’s saved products, not the public CPE catalog.",
     )
     product_name = forms.CharField(max_length=180, required=False)
-    product_identifier = forms.CharField(max_length=255, required=False)
+    product_identifier = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Product identifier / CPE (optional)",
+        help_text="A CPE identifies the product; enter the installed version separately below. Example: cpe:2.3:a:misp:misp:*:*:*:*:*:*:*:*",
+    )
+    vendor = forms.CharField(max_length=120, required=False, widget=forms.HiddenInput)
+    product_key = forms.CharField(max_length=120, required=False, widget=forms.HiddenInput)
 
     class Meta:
         model = Installation
@@ -78,6 +88,7 @@ class InstallationForm(forms.ModelForm):
 
     def __init__(self, *args, organization=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.organization = organization
         self.fields["component_type"].required = False
         if organization:
             self.fields["existing_product"].queryset = Product.objects.filter(
@@ -89,6 +100,39 @@ class InstallationForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        vendor, key = data.get("vendor", ""), data.get("product_key", "")
+        if vendor or key:
+            from .product_matching import valid_key, catalog_cpe
+
+            if not valid_key(vendor) or not valid_key(key):
+                raise forms.ValidationError(
+                    "Choose both manufacturer and product from the public catalog, or clear the selection and enter a CPE directly."
+                )
+            if data.get("existing_product"):
+                raise forms.ValidationError(
+                    "Choose a saved organization product or a public catalog product, not both."
+                )
+            data["product_name"] = data.get("product_name") or key
+            identifier = data.get("product_identifier", "")
+            if identifier:
+                parts = identifier.split(":")
+                if len(parts) != 13 or parts[:3] != ["cpe", "2.3", "a"] or tuple(parts[3:5]) != (vendor, key):
+                    raise forms.ValidationError(
+                        "The CPE and catalog selection identify different products. Clear one selection and retry."
+                    )
+            else:
+                data["product_identifier"] = catalog_cpe(vendor, key)
+            from .models import ProductWatch
+
+            watch = ProductWatch.objects.filter(
+                product__organization=self.organization,
+                product__name=data["product_name"],
+                product__identifier=data["product_identifier"],
+            ).first()
+            if watch and (watch.vendor, watch.product_key) != (vendor, key):
+                raise forms.ValidationError(
+                    "This saved product already has a different monitoring identity. Review its existing mapping in Automatic CVE discovery first."
+                )
         if not data.get("existing_product") and not data.get("product_name"):
             raise forms.ValidationError("Select a product or enter a new product name")
         if data.get("existing_product") and (data.get("product_name") or data.get("product_identifier")):

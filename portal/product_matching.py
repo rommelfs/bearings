@@ -9,6 +9,7 @@ from .models import Product, ProductWatch
 
 KEY_PATTERN = r"[a-z0-9][a-z0-9_.+ -]{0,119}"
 KNOWN_PRODUCTS = {
+    "misp": ("misp", "misp"),
     "apache log4j": ("apache", "log4j"),
     "log4j": ("apache", "log4j"),
     "microsoft exchange server": ("microsoft", "exchange_server"),
@@ -50,13 +51,32 @@ def suggestions(product):
 
 
 @transaction.atomic
-def ensure_watch(product, actor=None):
+def ensure_watch(product, actor=None, *, identity=None):
     # Same product lock as manual configuration; never replace/pause/re-enable a saved watch.
     product = Product.objects.select_for_update().get(pk=product.pk)
     existing = ProductWatch.objects.filter(product=product).first()
     if existing:
+        if identity is not None and tuple(identity) != (existing.vendor, existing.product_key):
+            from django.core.exceptions import ValidationError
+
+            raise ValidationError(
+                "Existing product monitoring identity is preserved; review its mapping separately"
+            )
         return existing, False
-    matches = suggestions(product)
+    if identity is not None:
+        from django.core.exceptions import ValidationError
+
+        if (
+            not isinstance(identity, (tuple, list))
+            or len(identity) != 2
+            or not all(valid_key(key) for key in identity)
+        ):
+            raise ValidationError("Choose valid public manufacturer and product keys")
+        matches = [
+            {"vendor": identity[0], "product_key": identity[1], "reason": "Explicit public catalog selection"}
+        ]
+    else:
+        matches = suggestions(product)
     if len(matches) != 1:
         return None, False
     match = matches[0]
@@ -109,3 +129,14 @@ def enroll_products():
             continue
         created += int(new)
     return created
+
+
+def catalog_cpe(vendor, product):
+    """Only identities independently verified in NVD become a CPE automatically.
+
+    Public CNA vendor/product keys are not necessarily CPE dictionary keys,
+    nor do they prove the CPE part (application, OS or hardware).
+    """
+    if (vendor, product) == ("misp", "misp"):
+        return "cpe:2.3:a:misp:misp:*:*:*:*:*:*:*:*"
+    return ""

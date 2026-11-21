@@ -29,3 +29,34 @@ Open a problem and choose **Acknowledge / assign / record evidence**. This short
 The action page uses bounded, paginated local queries with a private/no-store response and explicit unavailable state on query timeout. It makes no connector request, introduces no new task database and sends no notification.
 
 ![Synthetic grouped actions](../images/company-actions-1440.png)
+
+### Add MISP or another application to a host
+
+Open the host, choose **Add software or OS**, then use **Find software in the
+public product catalog**. Search `misp`, choose manufacturer `misp`, search its
+products and choose `misp` (the main application, separately from modules).
+Enter the MISP version actually installed on that host, leave Edition/Build
+empty when unknown, keep Component type Software and leave Operating system
+unchecked. Save queues automatic vendor/product CVE monitoring.
+
+The saved-product dropdown contains only products already in this organization.
+It is not the public CPE dictionary. The public search uses the operator-approved
+Vulnerability-Lookup manufacturer/product catalog and sends only submitted
+public search terms; the organization, host and installed version stay local.
+It does not load the complete NVD CPE/version dictionary. Products/aliases such
+as MISP Modules are separate choices, not automatic aliases of the main MISP
+application.
+
+Without JavaScript or when the catalog is unavailable, enter product name
+`MISP`, product identifier `cpe:2.3:a:misp:misp:*:*:*:*:*:*:*:*`, and the installed
+version separately. The exact MISP name is also recognized automatically.
+MISP's canonical vendor/product identity was independently checked in NVD;
+other public vendor/product keys are not automatically asserted to be NVD CPE
+entries. Unverified catalog selections can still create an explicit monitoring
+mapping without inventing a CPE. Existing mappings, approved source endpoints
+and paused watches are retained. Conflicting selections require correction.
+
+A product/CPE selection asserts identity, not affectedness. CVE evaluation uses
+the installed version and available source evidence. A manual application entry
+has a manually maintained version; the package client does not automatically
+attest to a Git/application deployment version just because MISP is listed.

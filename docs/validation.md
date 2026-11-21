@@ -1432,3 +1432,34 @@ CVSS/vendor labels and colors, package/fix/channel/availability wording,
 read-only diagnostic, bundled-library explanation and no horizontal overflow.
 These fixtures do not attest to production repository availability or patching.
 Django check, migration drift, relevant Ruff/format and diff checks pass.
+
+### Software-entry catalog search and canonical MISP identity (2026-11-21)
+
+Read-only public checks returned HTTP 200 from NVD's CPE API for `misp`: the
+first results include `cpe:2.3:a:misp:misp:0.1:*:*:*:*:*:*:*`, 0.2 and 2.1
+(113 records reported at check time). The version-independent identity offered
+for MISP uses that independently confirmed application/vendor/product tuple;
+it does not assert the host runs any returned version. Source query:
+`https://services.nvd.nist.gov/rest/json/cpes/2.0?keywordSearch=misp&resultsPerPage=3`.
+
+Live public Vulnerability-Lookup bounded browse calls also returned HTTP 200:
+`/api/browse/vendors?q=misp&page=1&per_page=20` includes misp, misp-project and
+misp_project; `/api/browse/vendors/misp/products` includes misp and related
+modules. These are public catalog checks, not production inventory reads or
+proof of complete alias/CVE coverage. Other CNA product keys do not become
+invented application CPEs. No account, private hostname or installed version was
+sent to either service.
+
+77 PostgreSQL tests cover software creation, canonical CPE/name matching,
+explicit catalog mapping and watch queuing, paused/conflicting watches,
+organization/asset scope, reader denial, CSRF/method guards, trusted source
+selection, public-term-only forwarding, failure retention, no writes during
+search, and existing product setup/worker/application behavior. Two Chromium
+flows at 390/1440 px use actual Django-rendered form fixtures and intercepted
+catalog responses: choose manufacturer/product, preserve the installed version,
+submit CPE and mapping keys, retain inputs on unavailable catalog, switch to a
+local product without stale mapping fields, and no horizontal overflow or JS
+errors. Browser network stubs are distinct from the live public checks above.
+Django check/migration drift, frozen sync, relevant Ruff/format and diff checks
+pass. The existing bounded connector is reused; no deployment/native connector
+behavior, source credentials, schema or Linux-client changes are introduced.
