@@ -1413,3 +1413,22 @@ were changed.
 - Django check, no migration drift, relevant Ruff checks/format and diff checks
   pass. No dependency, schema, connector/deployment or client change; no live
   stack smoke rerun required for this scoped queue/template update.
+
+### Ubuntu ESM fix path and CVSS/vendor priority (2026-11-21)
+
+158 PostgreSQL regressions passed for package verdicts/currentness, review
+categories, scoped evidence and asset review, notification cues and the
+Exchange exercise, including the actual CVE-2025-66471 pip-whl ESM boundary.
+The audited Canonical Noble rule and independently fetched Ubuntu tracker both
+confirm the `+esm3` fix, bundled urllib3 context, vendor Medium and CVSS 4.0 8.9
+High. A patched report removes the automatic actionable row while preserving
+human workflow. Negative explanation tests cover sibling/unmatched predicates,
+non-Ubuntu channels, unrelated packages and unsafe shell names. No local APT
+candidate or subscription availability is inferred from vendor metadata.
+
+Four local Chromium checks use actual Django-rendered isolated responses at
+390/1440 px: affected ESM pip and the subsequently fixed package; independent
+CVSS/vendor labels and colors, package/fix/channel/availability wording,
+read-only diagnostic, bundled-library explanation and no horizontal overflow.
+These fixtures do not attest to production repository availability or patching.
+Django check, migration drift, relevant Ruff/format and diff checks pass.

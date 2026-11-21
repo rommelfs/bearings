@@ -1928,3 +1928,23 @@ main article p { overflow-wrap: anywhere; }
 
 .inventory-pending-workspaces { margin: 1.5rem 0; }
 .inventory-pending-workspaces > summary { cursor: pointer; font-weight: 650; }
+
+/* Independent scales: a vendor Medium priority must not color a CVSS High score. */
+.severity-ratings {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  max-width: 350px;
+}
+.severity-ratings .rating-explanation {
+  flex-basis: 100%;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #526a79;
+  font-weight: 400;
+}
+@media (max-width: 760px) {
+  .severity-ratings { justify-content: flex-start; max-width: 100%; }
+}

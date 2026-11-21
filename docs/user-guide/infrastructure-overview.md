@@ -164,3 +164,17 @@ any conflicting automatic affected-version result shown. Missing/stale
 proof appears as awaiting evaluation; an empty action tab alone does not prove
 that all software has been checked. A vendor can report an unfixed CVE against
 the newest available distribution package.
+
+CVSS and distributor priority appear separately. For example, CVSS 4.0 8.9 is
+**High**, even when Ubuntu independently prioritizes the CVE **Medium**. Vendor
+priority remains the sorting/filter scale; it is not a relabeling of CVSS.
+
+For a current affected package with an explicit vendor fix, the review shows
+the installed and vendor fixed versions and any declared Ubuntu ESM Apps
+channel. This does not prove the update is available in the host's configured
+repositories. `apt-cache policy <package>` checks the local candidate without
+installing anything; an installed version equal to the candidate can still be
+below the vendor's ESM fix. Check Ubuntu Pro/ESM configuration with the system
+administrator. Updating a separately installed library does not necessarily
+patch a copy bundled in another package. A later client inventory report and
+vendor evaluation refresh the automatic result without closing human history.

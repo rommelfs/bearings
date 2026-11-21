@@ -51,6 +51,10 @@ def vulnerability_summary(payload):
     ):
         result["severity"] = distro["severity"].title()
         result["vendor_priority"] = True
+        feed = str(distro.get("feed", "")).split(":", 1)[0]
+        result["priority_source"] = {"ubuntu": "Ubuntu", "debian": "Debian", "rhel": "Red Hat"}.get(
+            feed, "Vendor"
+        )
     metrics = cna.get("metrics")
     if not isinstance(metrics, list):
         return result
@@ -75,7 +79,9 @@ def vulnerability_summary(payload):
                 if score > 0
                 else "None"
             )
-            result.update(score=score, cvss_version=version)
+            result.update(
+                score=score, cvss_version=version, score_severity=severity, score_key=severity.lower()
+            )
             if not result.get("vendor_priority"):
                 result["severity"] = severity
             return result

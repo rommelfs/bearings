@@ -274,3 +274,12 @@ pending reevaluations and retained fixed/assessed reviews. After deployment,
 check `/reviews/` and the status tabs; historical review counts must not be
 interpreted as the current affected-version count. Existing worker reevaluation
 refreshes proof when inventory, vendor rules or evaluator inputs change.
+
+Pip/ESM update explanation and separate CVSS/priority badges: after updating,
+run `./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null` and restart
+`bearings-web`. No migration, dependency synchronization or client update is
+needed. The interface performs no APT/probe calls; vendor-listed ESM fixes are
+not evidence of local subscription status or installable candidates. Use
+read-only `apt-cache policy python3-pip-whl` and `pro status` on the affected
+host to investigate those separately. This change does not enable subscriptions
+or install the reported package update.
