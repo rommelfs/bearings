@@ -81,6 +81,27 @@ class InfrastructureRegistrationForm(PublicKeysForm, forms.ModelForm):
             "updates_consent",
         ]
 
+    @property
+    def registration_sections(self):
+        groups = (
+            ("Organization and account", ("company_name", "username", "email")),
+            ("Responsible contact", ("first_name", "last_name", "job_title", "emergency_phone")),
+            ("Participation commitments", ("consent", "attestation", "periodic_consent", "updates_consent")),
+        )
+        return [(title, [self[name] for name in names]) for title, names in groups]
+
+    @property
+    def registration_optional_fields(self):
+        return [
+            self[name]
+            for name in ("company_address", "notification_email", "pgp_public_key", "smime_certificate")
+        ]
+
+    @property
+    def registration_optional_open(self):
+        # A collapsed invalid field must never hide the reason submission failed.
+        return any(field.errors or field.value() for field in self.registration_optional_fields)
+
     def clean(self):
         data = super().clean()
         full_name = " ".join(part for part in [data.get("first_name", ""), data.get("last_name", "")] if part)

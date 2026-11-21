@@ -1,6 +1,6 @@
 {% load static %}<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}{% if org %}{{ org.name }} · {% endif %}{{ workspace_label|default:'CIRCL' }} · Bearings{% endblock %}</title><link rel="icon" type="image/png" href="{% static 'portal/brand/bearings-favicon.png' %}"><link rel="stylesheet" href="{% static 'portal/style.css' %}?v=circl-20261121-audit"></head>
+<title>{% block title %}{% if org %}{{ org.name }} · {% endif %}{{ workspace_label|default:'CIRCL' }} · Bearings{% endblock %}</title><link rel="icon" type="image/png" href="{% static 'portal/brand/bearings-favicon.png' %}"><link rel="stylesheet" href="{% static 'portal/style.css' %}?v=circl-20261121-audit2"></head>
 <body class="{% if user.is_authenticated %}workspace{% else %}public-page{% endif %} area-{{ workspace_area|default:'review' }} {% if rtir_operator %}operator-workspace{% endif %} {% block bodyclass %}{% endblock %}">
 <a class="skip-link" href="#main-content">Skip to content</a>
 <header class="app-header"><a class="brand" href="{{ workspace_home_url|default:'/' }}"><img class="brand-mark" src="{% static 'portal/brand/bearings-mark.webp' %}" width="44" height="44" alt=""><span class="brand-word">BEARINGS <span class="brand-caption">CIRCL · Infrastructure & intelligence</span></span></a>

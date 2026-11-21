@@ -1,0 +1,135 @@
+{
+  "profile": "actual bundled NetBox image",
+  "source": "netboxcommunity/netbox:v4.7.3-5.1.1@sha256:1d6e0b5fbd48da9868376900561ee55992e04446ce7861dab5e9a42ae01f3fcb",
+  "python": "3.14.4",
+  "audit_date": "2026-11-21",
+  "checked_packages": 135,
+  "flagged_before": [
+    {
+      "package": "certifi",
+      "version": "2026.7.22",
+      "advisories": [
+        "PYSEC-2026-4320",
+        "PYSEC-2026-4320"
+      ]
+    },
+    {
+      "package": "djangorestframework",
+      "version": "3.18.0",
+      "advisories": [
+        "CVE-2026-114138",
+        "CVE-2026-114136",
+        "CVE-2026-114137"
+      ]
+    },
+    {
+      "package": "graphql-core",
+      "version": "3.3.0",
+      "advisories": [
+        "CVE-2026-119286"
+      ]
+    },
+    {
+      "package": "oauthlib",
+      "version": "4.0.0",
+      "advisories": [
+        "CVE-2026-49272"
+      ]
+    },
+    {
+      "package": "opentelemetry-api",
+      "version": "1.45.1",
+      "advisories": [
+        "CVE-2026-126360"
+      ]
+    },
+    {
+      "package": "pillow",
+      "version": "12.3.0",
+      "advisories": [
+        "PYSEC-2026-4327",
+        "PYSEC-2026-4328",
+        "PYSEC-2026-4326",
+        "PYSEC-2026-4339",
+        "PYSEC-2026-4340",
+        "PYSEC-2026-4343",
+        "PYSEC-2026-4334",
+        "PYSEC-2026-4337",
+        "PYSEC-2026-4341",
+        "PYSEC-2026-4330",
+        "PYSEC-2026-4338",
+        "PYSEC-2026-4335",
+        "PYSEC-2026-4336",
+        "PYSEC-2026-4331",
+        "PYSEC-2026-4332",
+        "PYSEC-2026-4329",
+        "PYSEC-2026-4333",
+        "PYSEC-2026-4342",
+        "PYSEC-2026-4363",
+        "CVE-2026-112895",
+        "CVE-2026-112400",
+        "CVE-2026-112897",
+        "CVE-2026-112395",
+        "CVE-2026-112404",
+        "CVE-2026-112899",
+        "CVE-2026-112900",
+        "CVE-2026-112893",
+        "CVE-2026-112891",
+        "CVE-2026-112390",
+        "CVE-2026-112401",
+        "CVE-2026-112391",
+        "CVE-2026-112894",
+        "CVE-2026-112406",
+        "CVE-2026-112399",
+        "CVE-2026-112892",
+        "CVE-2026-112393",
+        "CVE-2026-96638",
+        "CVE-2026-96640",
+        "CVE-2026-96778",
+        "GHSA-78g4-xqwv-q3g8",
+        "CVE-2026-128067",
+        "CVE-2026-128066"
+      ]
+    },
+    {
+      "package": "pyasn1",
+      "version": "0.6.4",
+      "advisories": [
+        "CVE-2026-119196",
+        "CVE-2026-119194",
+        "CVE-2026-119197",
+        "CVE-2026-119195"
+      ]
+    },
+    {
+      "package": "social-auth-core",
+      "version": "5.2.0",
+      "advisories": [
+        "CVE-2026-115910"
+      ]
+    }
+  ],
+  "updated_versions": {
+    "certifi": "2026.11.20",
+    "djangorestframework": "3.18.2",
+    "graphql-core": "3.3.1",
+    "oauthlib": "4.0.1",
+    "opentelemetry-api": "1.45.2",
+    "pillow": "13.0.0",
+    "pyasn1": "0.6.5",
+    "social-auth-app-django": "7.2.0",
+    "social-auth-core": "6.2.0"
+  },
+  "remaining_advisory_records": 0,
+  "limits": "Python package advisory lookup only; not an OS/image vulnerability scan or production verification.",
+  "other_rebuilt_runtime_profiles": {
+    "Bearings": {
+      "checked_packages": 32,
+      "remaining_advisory_records": 0
+    },
+    "FlowIntel": {
+      "checked_packages": 76,
+      "remaining_advisory_records": 0
+    }
+  }
+}

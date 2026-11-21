@@ -1,0 +1,11 @@
+# Security overrides on top of the reviewed NetBox v4.7.3 / docker 5.1.1 image.
+# No dependency removal or application/source/entrypoint replacement.
+certifi==2026.11.20
+oauthlib==4.0.1
+social-auth-app-django==7.2.0
+social-auth-core==6.2.0
+djangorestframework==3.18.2
+Pillow==13.0.0
+graphql-core==3.3.1
+opentelemetry-api==1.45.2
+pyasn1==0.6.5

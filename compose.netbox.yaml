@@ -1,6 +1,9 @@
-# Bundled official NetBox, isolated PostgreSQL/Valkey and verified local HTTPS.
+# Bundled reviewed NetBox with hash-locked security overrides, isolated PostgreSQL/Valkey and verified HTTPS.
 x-netbox: &netbox
-  image: netboxcommunity/netbox:v4.7.3-5.1.1
+  image: bearings-netbox-patched
+  build:
+    context: .
+    dockerfile: docker/netbox/Dockerfile
   user: netbox:root
   environment: &netbox-env
     BEARINGS_NETBOX_BROWSER_URL: https://localhost:${NETBOX_PORT:-8443}

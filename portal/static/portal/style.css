@@ -1905,3 +1905,17 @@ main article p { overflow-wrap: anywhere; }
 
 .sync-explanation { margin-top: 8px; }
 .sync-explanation > summary { font-size: 12px; }
+
+.registration-section { min-width: 0; margin: 1.5rem 0; padding: 1.25rem; border: 1px solid var(--line, #ccd7de); border-radius: 6px; }
+.registration-section legend { padding: 0 .4rem; font-weight: 700; }
+.registration-field { margin: 0 0 1.2rem; }
+.registration-field:last-child { margin-bottom: 0; }
+.registration-field textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+.registration-optional { margin: 1.5rem 0; }
+.registration-optional summary { cursor: pointer; font-weight: 600; }
+.registration-optional[open] summary { margin-bottom: 1rem; }
+
+.registration-check { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr); gap: .7rem; align-items: start; }
+.registration-check input { margin-top: .35rem; }
+.registration-check label { margin: 0; font-size: inherit; font-weight: 400; }
+.registration-check .errorlist { grid-column: 2; margin: 0; }

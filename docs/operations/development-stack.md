@@ -13,7 +13,7 @@ python3 scripts/dev.py credentials
 
 First startup applies NetBox's migrations and can take several minutes. The default readiness timeout is 600 seconds; use `up --timeout 900` on a slow machine. If a startup check fails, inspect `python3 scripts/dev.py status` and `python3 scripts/dev.py logs`, correct the cause, then retry `up`. Existing data is retained.
 
-Services: Bearings web, a durable-write worker, its PostgreSQL database, official NetBox v4.7.3 / netbox-docker 5.1.1, a NetBox worker, a separate PostgreSQL database, Valkey 9.1 (separate logical DBs for queues/cache), and an Nginx 1.28 HTTPS gateway. Short-lived initializers generate secrets/certificates, provision the isolated NetBox, and migrate/prepare Bearings before serving requests. Valkey and databases expose no host ports in this stack. The old minimal `compose.yaml` remains available independently.
+Services: Bearings web, a durable-write worker, its PostgreSQL database, reviewed NetBox v4.7.3 / netbox-docker 5.1.1 base with Bearings hash-locked Python security overrides, a NetBox worker, a separate PostgreSQL database, Valkey 9.1 (separate logical DBs for queues/cache), and an Nginx 1.28 HTTPS gateway. Short-lived initializers generate secrets/certificates, provision the isolated NetBox, and migrate/prepare Bearings before serving requests. Valkey and databases expose no host ports in this stack. The old minimal `compose.yaml` remains available independently.
 
 `compose.dev.yaml` defines Bearings and its storage; `compose.netbox.yaml` adds the bundled backend. The helper selects files and isolated project names. The default bundled project is `bearings-dev`. Export `BEARINGS_DEV_PROJECT` to use another project namespace. Ports default to Bearings 8000 and NetBox HTTPS 8443; set `BEARINGS_PORT` / `NETBOX_PORT` in your shell or a gitignored `.env` file before startup to change them. The Compose runtime can also load additional operator-owned credential variables from `.env`; bare host Django still does not auto-load that file.
 
@@ -137,3 +137,33 @@ Configured native binary version probes are an optional local-client scope, docu
 `python3 scripts/build_linux_client.py` now also packages the installer, pinned service unit, checksums, license and corresponding client source. In DEBUG mode `/downloads/linux/` serves that generated `.local/linux-client` directory through a fixed allowlist and manifest checks. Production requires an explicit `BEARINGS_LINUX_CLIENT_DIR` absolute approved/read-only directory; no public production download source is assumed. Rebuild artifacts after client/installer changes and reload the web service after adding this view/configuration. No new dependency or migration is introduced. Use a reachable trusted HTTPS public origin for remote targets; localhost URLs remain local-only.
 
 `python3 scripts/linux_installer_smoke.py` validates account/files, actual client/TLS signatures and headless enrollment inside a disposable network-isolated root container using the retained Bearings development image. Its systemd controller is a controlled test double: no host account/service is modified, and real distro PID1 lifecycle acceptance remains required. See [roll-out integration](../integrations/linux-rollout.md).
+
+## Bundled NetBox security updates
+
+The bundled services build `bearings-netbox-patched` from the digest-pinned upstream
+NetBox image in `docker/netbox/Dockerfile`. A small hash-locked override set updates
+authentication, DRF, Pillow, GraphQL, telemetry and ASN.1 dependencies without syncing
+away the upstream image's additional packages. The build checks the complete installed
+dependency graph. The original upstream entrypoint, application source, service user,
+volumes and per-tenant credentials remain in use. The native Ubuntu profile has its
+own complete lock; neither profile silently substitutes for the other.
+
+Use the normal `python3 scripts/dev.py up` build/recreation workflow; restart/rebuild
+only after backing up retained databases and configuration. Do not delete volumes or
+rerun source/identity enrollment to upgrade dependencies. The mounted NetBox OIDC
+configuration must be present before upstream social-auth migrations so existing
+issuer/subject digest bindings retain their namespace. CI builds this actual image
+and audits its installed Python packages, alongside the separate frozen runtime locks.
+Local acceptance covers Linux amd64; other image architectures need their own build
+and runtime acceptance. This is a Python advisory check, not an OS image scan.
+
+An optional BuildKit `build_ca` secret supplies a public CA bundle for the NetBox
+build in managed build environments. It is not copied into the resulting image and
+does not disable TLS verification. Ordinary public-CA builds need no secret.
+
+Bundled NetBox/SSO/FlowIntel Nginx gateways re-resolve their constant Docker backend
+names after container replacement, so retained gateways can recover from changed
+application IPs. They use Docker's internal resolver, not user-supplied proxy hosts.
+Native Ubuntu socket-based Nginx configurations are independent. FlowIntel's unused
+Gunicorn administrative control socket is disabled; its application/API remains on
+the existing port and all management commands retain their existing authorization.

@@ -80,8 +80,12 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue(installer.reviewed_unit(current))
         self.assertTrue(installer.reviewed_unit(previous))
         self.assertFalse(installer.reviewed_unit(previous + b"\nUser=root\n"))
-        families = next(line for line in current.decode().splitlines() if line.startswith("RestrictAddressFamilies="))
-        self.assertEqual(set(families.split("=", 1)[1].split()), {"AF_UNIX", "AF_INET", "AF_INET6", "AF_NETLINK"})
+        families = next(
+            line for line in current.decode().splitlines() if line.startswith("RestrictAddressFamilies=")
+        )
+        self.assertEqual(
+            set(families.split("=", 1)[1].split()), {"AF_UNIX", "AF_INET", "AF_INET6", "AF_NETLINK"}
+        )
 
     def test_cli_requires_root_before_touching_system(self):
         with patch("sys.argv", ["install.py"]), patch.object(installer.os, "geteuid", return_value=1000):

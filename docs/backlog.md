@@ -468,3 +468,18 @@ A later CIRCL-to-customer NetBox move is documented as a separate planned export
 Read-only production inspection covers 24 public layouts; local synthetic authenticated checks verify visible disabled/export/host/client states, grouped navigation/actions, correct client orientation and mobile command-block overflow correction. Optional functionality is disclosed without deleting backend capabilities or changing authorization. Frozen root/native NetBox/FlowIntel locks are updated for known advisories and audited by CI; the shared OIDC adapter preserves existing digest identities/tombstones while using session-bound nonce checks. Target deployment, independent release signatures/renewal, full infrastructure/image review, registration/language refinements, complete accessibility and sustained capacity remain separate work. See [audit findings, corrections and evidence](audits/2026-11-21-ui-security.md).
 
 Linux network follow-up: permit AF_NETLINK for local interface enumeration; report capture failures in the journal. Upgrade only the exact previous reviewed unit, preserving device state and custom drop-ins. Target systemd/NetBox acceptance remains separate.
+
+## UI and security audit follow-up — 2026-11-21
+
+The bundled NetBox now uses a digest-pinned base plus nine hash-locked Python
+security overrides and installed dependency checks; CI audits the actual built
+image. All 135 installed packages have zero remaining advisory records in the local
+check. Registration groups required account/contact/commitments and optional details,
+keeping entered values/errors visible. Default same-origin CSP blocks inline scripts
+and preserves approved integration frames; local desktop/mobile and authenticated
+map/asset/integration browser checks pass. See the [audit](audits/2026-11-21-ui-security.md).
+Deployment acceptance, independent client release signing/credential renewal,
+production egress, MFA, language continuity and full accessibility/sustained fleet
+load acceptance remain open; source publication does not complete those controls.
+
+Actual rebuilt Bearings/FlowIntel environments are also audited (32/76 packages, zero advisory records). Bundled gateways re-resolve fixed backend names after container replacement; verified HTTPS logins recover after a further FlowIntel recreation. Its unused administrative Gunicorn control socket is disabled.

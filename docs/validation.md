@@ -1097,3 +1097,48 @@ The pre-change security baseline passes 121 PostgreSQL tests. The updated releas
 Advisory scanning updates certifi/oauthlib/social-auth-core in Bearings, DRF/Pillow and shared SSO in native NetBox, and cryptography/dnspython/Werkzeug in FlowIntel. Compatible social-auth-app-django/MSAL updates are required by those changes. Frozen/hash-locked profiles now report no known advisories across **33/98/76 profile records** respectively; duplicates in baseline advisories are deduplicated in the evidence. The original PKCE setting mitigates the generic OIDC shared-nonce default flow; unused SAML/VK/LoginRadius/Vend backends and server-side device grants are not labelled exploitable Bearings paths. The adapter preserves approved issuer+subject digest UIDs in the historical empty identifier-key namespace and blocks raw-claim alias migration; upstream social-auth migrations are configured not to reinterpret existing OIDC rows. No memberships, passwords, permissions, tokens or tenant/source identities are reset. CI repeats the three lock audits on pushes/PRs.
 
 Final isolated native runtime smoke passes with the complete updated NetBox and FlowIntel locks: both login pages return 200, tenant isolation and retained identities hold, and PostgreSQL/Redis remain disposable/private. The complete retained NetBox/FlowIntel/RT/RTIR stack smoke passes after its backend/worker startup; five additional real NetBox ORM link/namespace tests pass. Retained bundled images are compatibility regression fixtures, not proof that their old packaged dependency versions have been patched. Production requires frozen dependency synchronization before management commands, upstream social-auth migrations, static collection and application/worker restart; native services use their own reviewed hash-locked environments. Source publication does not patch running processes/images or enable the currently disabled production NetBox export. No operational email, account registration, active scan or production deployment is performed.
+
+
+## Audit follow-up: installed images and browser boundaries — 2026-11-21
+
+The actual bundled NetBox v4.7.3/docker 5.1.1 Python 3.14.4 environment is now
+built from its digest-pinned upstream image with nine hash-locked security overrides.
+All 135 installed Python distributions pass dependency consistency and advisory checks
+(zero remaining advisory records; the baseline has 55 records across eight packages,
+including duplicate/alias records). Rebuilt retained Bearings/FlowIntel environments
+also have zero reported advisory records across their actual 32/76 installed packages.
+This is not an OS/image scan or production-deployment claim. The separate native
+locks remain separate. CI now checks the built bundled NetBox environment too.
+
+**137 PostgreSQL tests pass**: 67 registration/public/guide/application/browser-policy
+cases and 70 SSO/company-SSO/agent/fleet/status cases. Five real NetBox ORM identity
+checks pass against the updated image. After applying the retained Bearings
+social-auth upstream migrations with identifier-key preservation, the actual
+Keycloak SSO smoke also passes across Bearings/NetBox/FlowIntel/RT/RTIR, including
+shared sessions, company scope, foreign/unapproved denials and native frame policy. The complete retained NetBox/FlowIntel/RT/RTIR
+stack smoke passes with the rebuilt runtime images and existing credentials/data.
+The checks cover scoped RO/RW API access, general GET-only import, retained missing
+objects/local assessments, private cases, durable/lost-ack writes and native RTIR links.
+No operational messages, scanning, role grants or production changes occur.
+
+During backend recreation, a stale static Docker upstream IP caused FlowIntel gateway
+502s. Fixed NetBox/SSO/FlowIntel gateways re-resolve only their fixed Docker service
+names; native Ubuntu socket proxy configuration is unchanged. Syntax/reload checks
+pass and, after a further FlowIntel recreation without recreating its gateway, all
+three verified-TLS login endpoints return 200. The unused FlowIntel Gunicorn control
+socket is disabled instead of attempting to write to an unowned home directory.
+
+Registration now separates required account/contact/commitments and optional
+address/team/public encryption fields. Invalid optional fields and entered values
+remain expanded. Local Chromium at 390/1440 pixels verifies labels, required consents,
+keyboard disclosure and no horizontal overflow; a real inline-script probe is blocked
+by CSP. An authenticated synthetic national map, asset and integrations page has no
+CSP violations or JavaScript errors. The temporary synthetic account is disabled
+afterward. Default policy permits inline styles for Leaflet/admin compatibility and
+preserves the exact explicit application frame policy. This is partial accessibility
+and CSP acceptance, not WCAG conformance or a complete penetration test.
+
+Frozen sync, Django checks, no migration drift, full Ruff lint/format and whitespace
+checks pass. Production acceptance, signing/renewal, operator egress/MFA, language
+continuity and sustained national fleet workload acceptance remain open as listed
+in the [audit](audits/2026-11-21-ui-security.md).

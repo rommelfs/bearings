@@ -21,6 +21,15 @@ class RegistrationEntryTests(Fixture):
         self.assertIn("database;dur=0.0", response.headers["Server-Timing"])
         self.assertIn("no-store", response.headers["Cache-Control"])
 
+    def test_optional_invalid_or_retained_values_remain_visible(self):
+        for values in ({"notification_email": "invalid-address"}, {"company_address": "Synthetic address"}):
+            response = self.client.post(reverse("registration"), values)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, 'class="registration-optional" open')
+            self.assertContains(response, 'name="notification_email"')
+            self.assertContains(response, 'name="consent"')
+            self.assertFalse(Organization.objects.filter(name="Synthetic address").exists())
+
     def test_signed_in_registration_does_not_redirect_or_load_dashboard_data(self):
         self.client.force_login(self.admin)
         with CaptureQueriesContext(connection) as queries:

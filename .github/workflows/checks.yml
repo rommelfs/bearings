@@ -39,6 +39,7 @@ jobs:
         working-directory: clients/linux
       - run: python3 scripts/build_linux_client.py
       - run: python3 -m unittest discover -s clients/linux -p test_installer.py
+      - run: python3 scripts/linux_network_sandbox_smoke.py
       - run: python3 scripts/test_native_ecosystem.py
       - run: uv sync --frozen
       - run: uv run --frozen --extra production python -m gunicorn --version
@@ -101,3 +102,21 @@ jobs:
         run: python3 scripts/native_keycloak_smoke.py
       - name: Verify IPv4 and IPv6 TLS and ACME routing
         run: uv run --frozen --no-dev --extra production python scripts/native_ipv6_smoke.py
+
+  bundled-netbox-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Build and check the actual bundled NetBox environment
+        run: |
+          docker build -f docker/netbox/Dockerfile -t bearings-netbox-patched .
+          docker run --rm --network none --entrypoint /usr/local/bin/uv bearings-netbox-patched pip check --python /opt/netbox/venv/bin/python
+          docker run --rm --network none --entrypoint /usr/local/bin/uv bearings-netbox-patched pip freeze --python /opt/netbox/venv/bin/python > /tmp/bearings-bundled-netbox.txt
+      - name: Audit installed bundled NetBox packages
+        run: uv run --no-project --with pip-audit==2.10.1 python -m pip_audit --requirement /tmp/bearings-bundled-netbox.txt --no-deps --disable-pip

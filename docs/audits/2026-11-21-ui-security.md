@@ -43,11 +43,11 @@ The isolated native NetBox/FlowIntel fixture uses complete hash-locked requireme
 
 ## Remaining work, in priority order
 
-1. **Confirm target updates and NetBox activation.** Last supplied production status has export disabled and enrollment-age network observations. Source publication is not activation; verify the target receipts and current client network observations after deployment.
+1. **Confirm target updates and NetBox activation.** The latest supplied production status confirms managed VM/tenant binding and export of 761 software components. Network export still has no current observation; the AF_NETLINK sandbox correction is locally reproduced and published, but target acceptance remains pending. Source publication is not activation; verify the target receipts and current client network observations after deployment.
 2. **Independent Linux release signatures and automated device credential renewal.** HTTPS manifest hashes are integrity checks, not independent release signatures. Device renewal remains an operational lifecycle gap for large fleets.
-3. **Review deployed boundaries and every packaged component.** Confirm operator egress/DNS-rebinding enforcement, restricted service/token permissions, backups/restore, proxy header trust, effective login limits, Keycloak/RT and actual bundled/container image advisories. No active production verification of those controls was performed here. The retained bundled NetBox image still reports social-auth-core 5.2.0, DRF 3.18.0 and Pillow 12.3.0; its official image needs a separately reviewed patched build/upgrade before being treated as patched. The native lock corrections do not alter that image. The ordinary shared HTTP client still requires its documented operator egress boundary; a DNS precheck alone is not socket pinning.
-4. **Browser hardening and identity lifecycle.** Review a broader CSP without breaking approved native frames, MFA/operator requirements and native dependency lifecycle. Do not weaken CSP/CSRF/TLS to make an integration work. The Linux agent currently observes system packages and configured binaries; Python virtualenv/container/SBOM coverage is a separate inventory extension, not implied by a clean dpkg/RPM result.
-5. **Further UX cleanup.** Group the public registration's optional address/team/crypto material, preserve the chosen language through login/registration, and test real company-admin/operator tasks with users. Usage-based feature removal needs evidence; no backend feature is removed in this pass.
+3. **Review deployed boundaries and every packaged component.** Confirm operator egress/DNS-rebinding enforcement, restricted service/token permissions, backups/restore, proxy header trust, effective login limits, Keycloak/RT and actual bundled/container image advisories. No active production verification of those controls was performed here. The follow-up below patches and checks the actual bundled NetBox Python environment, and rebuilds the local Bearings/FlowIntel images. OS image advisories and production image deployment remain separate checks. The ordinary shared HTTP client still requires its documented operator egress boundary; a DNS precheck alone is not socket pinning.
+4. **Browser hardening and identity lifecycle.** A default CSP is implemented and browser-tested in the follow-up below. MFA/operator requirements and broader identity lifecycle acceptance remain open. Do not weaken CSP/CSRF/TLS to make an integration work. The Linux agent currently observes system packages and configured binaries; Python virtualenv/container/SBOM coverage is a separate inventory extension, not implied by a clean dpkg/RPM result.
+5. **Further UX cleanup.** Public registration grouping is implemented below. Preserving the chosen language through login/registration and real company-admin/operator task testing remain open. Usage-based feature removal needs evidence; no backend feature is removed in this pass.
 6. **Complete accessibility and sustained load validation.** The rendering checks do not constitute a WCAG audit. The bounded UI/queue tests and small synthetic exports do not establish sustained 40,000-company or national fleet ingest/export capacity.
 
 ## Deployment
@@ -55,3 +55,61 @@ The isolated native NetBox/FlowIntel fixture uses complete hash-locked requireme
 Back up databases and protected configuration, deploy the reviewed commit, and synchronize the correct frozen environment **before** Django management commands. Bearings needs `uv sync --frozen --no-dev --extra production`, `migrate`, `collectstatic`, checks and web/worker/national restart. There is no new portal schema migration, but the updated social-auth Django package has its own migrations. Restart in-progress OIDC logins after the upgrade; do not reset bindings or accounts.
 
 Native NetBox/FlowIntel use their own venvs. Stop their application/workers, synchronize the respective reviewed hash-locked requirement files with `uv pip sync --python ... --require-hashes ...`, run NetBox migrations/static collection/checks through the existing protected ecosystem management wrapper, and restart. The native configuration is loaded from the reviewed repository and must include the identifier-key preservation setting **before** its social-auth migration. Do not rerun first installation, connector setup, identity linking, realm import or mail setup. Do not substitute an unreviewed upstream requirements file. Container deployments require reviewed rebuilt images; changing a host venv does not patch an existing image. See the [native operations guide](../operations/ubuntu24.md).
+
+## Follow-up: actual bundled image, registration and browser policy
+
+The actual bundled upstream NetBox image has 135 installed Python distributions,
+with 55 advisory records across eight packages before updates (records include
+aliases/duplicates). Nine pinned overrides, including the companion social-auth
+Django package, produce zero remaining advisory records in that same complete
+installed package set. The image retains its digest-pinned NetBox application,
+entrypoint/user and existing volumes; it does not replace the environment with
+the smaller native profile lock. `uv pip check` validates the full dependency graph.
+The additional packages discovered here are graphql-core, opentelemetry-api and
+pyasn1. See [installed image evidence](2026-11-21-bundled-netbox.json). CI now builds
+and audits the actual bundled NetBox image rather than inferring its contents from
+the native requirements. This does not cover OS packages or other architectures.
+
+The registration form separates organization/account, responsible contact and
+participation commitments. Optional address, team mailbox and public encryption
+material use a keyboard-operable disclosure. Submitted optional values and errors
+keep that section open; an error summary links to invalid controls. Required
+consents and server-side submission/verification rules are unchanged.
+
+Default HTML responses now use a same-origin CSP for scripts, fonts and connections,
+block objects/framing and constrain base URLs. Inline JavaScript and external
+scripts are blocked; inline styles remain allowed for existing Leaflet/admin layout.
+Explicit integration frame policies are preserved. Camera, microphone and browser
+geolocation permissions are disabled; the map uses recorded company coordinates.
+No TLS/CSRF/SSO policy is relaxed. This CSP is defense in depth; it does not replace
+escaping, authorization or the production egress boundary.
+
+Local Chromium checks at 390/1440 pixels verify labels, required controls, optional
+section keyboard access and no page overflow. An injected inline-script probe is
+blocked. Authenticated synthetic national-map, asset and integration pages have no
+CSP violations or JavaScript errors. These checks use an actual loopback development
+server; they do not establish production browser/firewall acceptance or full WCAG
+conformance. The temporary synthetic account is disabled again after checking.
+
+The retained local Bearings and FlowIntel images were also rebuilt with their
+updated locks: their actual installed environments contain 32 and 76 distributions,
+respectively, with zero reported advisory records. FlowIntel's full dependency check
+passes. These are installed-environment checks, not just input-file scans.
+
+During retained-image recreation, the bundled FlowIntel gateway initially returned
+502 because its static upstream name retained an obsolete backend IP. Bundled NetBox,
+SSO and FlowIntel gateway configurations now re-resolve only their constant Docker
+service names through Docker's internal resolver; externally supplied hosts never
+select the proxy destination. NetBox gateways overwrite incoming forwarded client-IP
+claims consistently with the other lab gateways. The native Ubuntu Unix-socket
+reverse proxy is unchanged. A further FlowIntel backend recreation leaves its gateway
+running and all three verified-TLS login endpoints return 200 afterward. Gunicorn's
+unused FlowIntel control socket is explicitly disabled rather than trying to create
+an administrative socket in an unwritable home directory.
+
+After synchronizing the retained Bearings database through social-auth migrations
+0018–0022 with the namespace-preservation setting already loaded, the real Keycloak
+SSO flow passes across Bearings, NetBox, FlowIntel and RT/RTIR. Shared sessions,
+company/foreign/unapproved identity boundaries and the HTTPS integration canvas are
+verified. Replacing only an application image while skipping these upstream
+migrations is insufficient; the deployment sequence above remains required.
