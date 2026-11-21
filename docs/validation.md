@@ -1329,3 +1329,14 @@ keys, queues, stopped-service state and local drop-ins. systemd is simulated.
 Eleven actual Python 3.8 unit cases include redacted phase/exit error reporting;
 ten host unit cases pass with the privileged one skipped outside a root runner.
 Django check, Ruff and whitespace checks pass. No production state changed.
+
+
+### Client download discoverability (2026-11-21)
+
+23 PostgreSQL navigation/workspace/download/public-site tests pass. The Linux
+client entry is in the always-expanded Inventory group, with active downloads,
+reports and fleet routes. All four public locales link directly to downloads.
+Actual local Chromium at 390/1440 px verifies visible public header navigation,
+anonymous arrival at the installer action, desktop/mobile workspace navigation,
+active destination and no horizontal overflow. No rollout or device was created.
+The static multilingual site builds successfully; Django check and Ruff pass.

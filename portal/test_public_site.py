@@ -34,6 +34,7 @@ class PublicSiteTests(Fixture):
             self.assertContains(response, "/2026/05/05/a225/jo")
             self.assertContains(response, "CSIRT")
             self.assertContains(response, 'id="linux-client"')
+            self.assertContains(response, 'href="/downloads/linux/"')
             self.assertContains(response, "RPM")
             self.assertContains(response, "HTTPS")
             self.assertContains(response, "Incus")

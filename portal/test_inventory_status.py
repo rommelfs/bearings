@@ -96,12 +96,16 @@ class InventoryStatusTests(Fixture):
         self.assertEqual(result["client"]["label"], "Client binding needs review")
         self.assertEqual(result["receipt"], {})
 
-    def test_agent_routes_use_inventory_navigation_and_optional_groups_open_for_active_destination(self):
+    def test_agent_routes_use_clients_navigation_and_optional_groups_open_for_active_destination(self):
         self.login(self.reader)
         response = self.client.get(reverse("agent-center", args=[self.a.slug]))
-        self.assertEqual(response.context["workspace_area"], "inventory")
+        self.assertEqual(response.context["workspace_area"], "clients")
         self.assertEqual(response.context["workflow_stage"], "inventory")
         groups = response.context["navigation_groups"]
+        inventory = next(g for g in groups if g["label"] == "Inventory")
+        clients = next(item for item in inventory["items"] if item["key"] == "clients")
+        self.assertTrue(clients["active"])
+        self.assertEqual(clients["url"], reverse("linux-client-downloads"))
         self.assertNotIn("Administration", [g["label"] for g in groups])
         self.assertEqual(
             [g["label"] for g in groups if not g["collapsible"]],

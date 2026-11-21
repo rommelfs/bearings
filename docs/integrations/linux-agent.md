@@ -176,3 +176,17 @@ redownload the installer on affected hosts. No migration or manual client restar
 The disposable installer smoke now mounts `/run` with `noexec`, verifies direct
 execution there is actually denied, and exercises manual/fleet installation on
 both current Python and Python 3.8. The bundled-stack CI runs this regression.
+
+### Finding the client download
+
+In the signed-in workspace use **Inventory → Linux clients** (also in the mobile
+workspace menu). The direct page is `/downloads/linux/`; download, report and fleet
+routes now keep this item active. The download page starts with **Download Linux
+installer** and **Set up a rollout key** when a complete build is published.
+
+The public website also links **Linux client** in its header, and its client-section
+button opens the download page instead of registration in all four locales.
+Anonymous downloads remain public; organization rollout permissions are unchanged.
+This navigation change requires only source update and `bearings-web` restart.
+No migration, static rebuild, client rebuild or client restart is needed for the
+integrated website. Standalone static sites need a normal website rebuild.

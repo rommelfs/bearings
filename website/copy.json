@@ -209,7 +209,8 @@
         ]
       ],
       "managed": "With operator-enabled managed NetBox, hosts can also register in the correct company inventory. VM tags such as LXC, Incus, Proxmox or VMware keep the deployment type visible. Existing read-only inventories remain read-only.",
-      "cta": "Get started with the free service"
+      "cta": "Download the Linux client",
+      "nav": "Linux client"
     }
   },
   "de": {
@@ -422,7 +423,8 @@
         ]
       ],
       "managed": "Bei vom Betreiber freigegebener, verwalteter NetBox können Hosts auch im richtigen Firmeninventar registriert werden. VM-Tags wie LXC, Incus, Proxmox oder VMware machen die Betriebsart sichtbar. Bestehende nur lesende Inventare bleiben nur lesend.",
-      "cta": "Den kostenlosen Dienst nutzen"
+      "cta": "Linux-Client herunterladen",
+      "nav": "Linux-Client"
     }
   },
   "fr": {
@@ -635,7 +637,8 @@
         ]
       ],
       "managed": "Avec une intégration NetBox gérée et activée par l’opérateur, les machines peuvent aussi être enregistrées dans l’inventaire de leur entreprise. Des tags de VM tels que LXC, Incus, Proxmox ou VMware précisent le type de déploiement. Les inventaires existants en lecture seule le restent.",
-      "cta": "Utiliser le service gratuit"
+      "cta": "Télécharger le client Linux",
+      "nav": "Client Linux"
     }
   },
   "lb": {
@@ -848,7 +851,8 @@
         ]
       ],
       "managed": "Bei enger vum Bedreiwer aktivéierter, verwalteter NetBox kënnen d’Rechner och am richtege Firmeninventar registréiert ginn. VM-Tags wéi LXC, Incus, Proxmox oder VMware weisen d’Betribsart. Bestoend Inventaren am Liesmodus bleiwen am Liesmodus.",
-      "cta": "De gratis Service benotzen"
+      "cta": "Linux-Client eroflueden",
+      "nav": "Linux-Client"
     }
   }
 }

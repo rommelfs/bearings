@@ -1,8 +1,9 @@
 {% extends 'portal/base.html' %}{% block title %}Linux client · Bearings{% endblock %}{% block content %}
 <section class="client-downloads">
 <h1>Install the Bearings Linux client</h1>
+{% if ready %}<p class="actions"><a class="button primary" href="{% url 'linux-client-artifact' 'install.py' %}">Download Linux installer</a><a class="button" href="#rollout-setup">Set up a rollout key</a></p>{% endif %}
 <p>Download directly on your Linux server. You need Python 3.8+, systemd and sudo; no Go compiler is needed on the monitored machine. Trust this installation's HTTPS certificate first.</p>
-<h2>Your organization’s rollout key</h2>
+<h2 id="rollout-setup">Your organization’s rollout key</h2>
 {% if rollout_organizations %}<form method="get"><label>Organization <select name="organization">{% for company in rollout_organizations %}<option value="{{ company.slug }}"{% if company.pk == org.pk %} selected{% endif %}>{{ company.name }} · {{ company.slug }} · #{{ company.pk }}</option>{% endfor %}</select></label><button>Show rollout controls</button></form>
 {% if org %}{% include 'portal/_agent_fleets.html' %}{% else %}<p>Select an organization to create a rollout key or manage its existing rollouts.</p>{% endif %}
 {% elif request.user.is_authenticated %}<p>A company administrator must create your rollout key. Your account has no organization administrator access.</p>

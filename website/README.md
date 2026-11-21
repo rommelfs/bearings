@@ -85,3 +85,7 @@ All product screenshots use fictional data. The Luxembourg map retains Natural E
 The public-facing copy focuses on registration for the CIRCL-operated SaaS. Self-hosting/federation promotion and local-start CTAs are intentionally omitted; the loopback preview and developer build instructions here are not part of the landing-page pitch. License/source notices remain.
 
 The current corporate theme follows [circl.lu](https://circl.lu/): locally hosted Raleway, white headers, CIRCL blue/red, neutral surfaces and a blue introductory panel. The same identity applies to the authenticated workspace and administration; risk/status colours remain distinct. See [reference colours, font provenance/license and screenshot scope](branding/README.md#circl-corporate-theme--20-november-2026). Deployment needs normal source update, `collectstatic --noinput` and web-process restart; no new migration or dependency is introduced by the theme.
+
+The public header and Linux client section link directly to `/downloads/linux/`
+on the registration service origin. In the integrated authenticated workspace,
+use **Inventory → Linux clients**. Rollout controls still require a company admin.
