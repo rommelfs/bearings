@@ -246,3 +246,22 @@ preview lists every incoming resulting membership role. A target's earlier archi
 no longer prevent receiving another independently reviewed registration; source
 archive chains remain blocked. Existing previews must be recreated after this
 merge-policy update. No production organizations are merged by deployment.
+
+
+### Upgrade package/CVE evaluation semantics
+
+Update the reviewed checkout, run `./deploy/ubuntu24/manage.py check` and restart
+`bearings-web bearings-worker bearings-national`. No migration, dependency sync,
+client rebuild or client restart is required by this change. The new worker
+automatically requeues fresh inventories and recompiles supported cached vendor
+feeds once (compiler version 3, receipt/evaluator version 2). This can take several
+minutes for a large Ubuntu feed; it runs in the background. Old proofs are marked
+awaiting evaluation meanwhile. Failed refreshes retain prior evidence and retry
+under existing bounded policy; they do not imply fixed or unaffected packages.
+
+Expected regression result for Ubuntu 24.04 / python3-pip-whl
+24.0+dfsg-1ubuntu1.3 / CVE-2026-97688, using the vendor state reviewed on
+21 November 2026: **unresolved**, because Ubuntu supplies only package presence
+and records python-pip as needs-triage. When Ubuntu supplies a version predicate,
+the normal feed refresh will reevaluate it. No special-case CVE override exists.
+See [the primary-source audit](../audits/2026-11-21-package-cve-correctness.md).

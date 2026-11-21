@@ -139,3 +139,10 @@ visibility policies determine when a record drops out.
 
 Update the reviewed checkout and restart `bearings-web`. No migration, client
 update/rebuild, static collection or worker restart is required.
+
+
+Package matching now distinguishes a concrete affected/fixed package version from
+a vendor presence-only rule. Original CVE evidence shows compared versions and
+vendor notes; a source package embedding another library can legitimately have
+a different package name/version. Old proofs are withheld while automatic
+reevaluation is pending. See the [package/CVE audit](../audits/2026-11-21-package-cve-correctness.md).

@@ -168,12 +168,12 @@ class NegativeProofTests(SimpleTestCase):
             metadata={"cves": ["CVE-2099-99999"]},
         )
         checks = distro_results.Collector()
-        checks.add(advisory, {("dpkg", True, "nginx-source"): [fact]}, False, set(), {})
+        checks.add(advisory, {("dpkg", True, "nginx-source"): [fact]}, False, {1: False}, {})
         result = checks.results[1]["CVE-2099-99999"]
         self.assertEqual(result["result"], "fixed")
         self.assertEqual(result["compared_version"], "1.24.0-2")
         self.assertEqual(result["comparison_basis"], "source package")
         advisory.criteria = {"operator": "AND", "children": [leaf, {"unknown": "unsupported OS guard"}]}
         checks = distro_results.Collector()
-        checks.add(advisory, {("dpkg", True, "nginx-source"): [fact]}, False, set(), {})
+        checks.add(advisory, {("dpkg", True, "nginx-source"): [fact]}, False, {1: False}, {})
         self.assertEqual(checks.results[1]["CVE-2099-99999"]["result"], "not_matched")

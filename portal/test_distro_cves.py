@@ -436,7 +436,7 @@ class DistroTests(Fixture):
         self.send()
         agents.process_pending()
         self.load(XML.replace('<l:state state_ref="s1"/>', ""))
-        self.assertEqual(distro_cves.evaluate_device(self.device.pk)["potential"], 1)
+        self.assertEqual(distro_cves.evaluate_device(self.device.pk)["uncertain"], 1)
         self.load(XML.replace('<l:dpkginfo_state id="s1">', '<l:dpkginfo_state id="s1" operator="OR">'))
         result = distro_cves.evaluate_device(self.device.pk)
         self.assertEqual(result["potential"], 0)

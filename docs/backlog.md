@@ -562,3 +562,12 @@ Implemented inclusion reasons, product/version and saved assessment/matching fac
 concrete next actions, explicit reconciliation and prioritized four-record previews.
 Optional risk scenarios are collapsed hypotheses; existing assessments and scope
 remain authoritative. See [overview guide](user-guide/infrastructure-overview.md).
+
+
+## Reliable package-version CVE decisions — 2026-11-21
+
+Implemented independent per-component version proof, source/binary comparison
+evidence, explicit affected/fixed/unresolved package verdicts, freshness guards
+and upgrade reevaluation. Presence-only Ubuntu triage entries are no longer
+version matches. Native comparisons and immutable human decisions are retained.
+See [case and implementation audit](audits/2026-11-21-package-cve-correctness.md).

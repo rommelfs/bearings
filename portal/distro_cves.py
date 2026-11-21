@@ -181,6 +181,7 @@ def evaluate_device(pk):
     state = feed_state(feed) if key else "unsupported"
     if state != "ready":
         device.distro_summary = {
+            "evaluator_version": distro_results.VERSION,
             "state": state,
             "feed": key or "",
             "message": "Vendor cache not ready/stale or distribution release unsupported; coverage is unknown.",
@@ -246,34 +247,41 @@ def evaluate_device(pk):
     for advisory in advisories.iterator(chunk_size=200):
         if time.monotonic() > deadline:
             raise ConnectorError("Device evaluation time budget exceeded")
-        result, contributors = distro_oval.evaluate(
+        result, contributors = distro_oval.evaluate_matches(
             advisory.criteria,
             facts,
             {"binary": complete, "source": complete and not source_missing},
             device.os,
         )
-        checks.add(advisory, facts, result, contributors, device.os)
-        evaluated[advisory.pk] = result
+        checks.add(
+            advisory,
+            facts,
+            result,
+            contributors,
+            device.os,
+            {"binary": complete, "source": complete and not source_missing},
+        )
+        evaluated[advisory.pk] = (result, contributors)
         rules += 1
         if result is None:
             unknown += 1
         if result is False:
             continue
-        for cid in contributors:
-            if cid not in by_id:
+        for cid, package_result in contributors.items():
+            if cid not in by_id or package_result is False:
                 continue
             for cve in advisory.metadata["cves"]:
                 found[(cid, advisory.pk, cve)] = (
                     by_id[cid],
                     advisory,
-                    "potential" if result is True else "unknown",
+                    "potential" if package_result is True else "unknown",
                 )
         if len(found) > 2000:
             raise ConnectorError("Device CVE result budget exceeded; no partial evaluation published")
     for (cid, aid, cve), (component, advisory, result) in found.items():
         if time.monotonic() > deadline:
             raise ConnectorError("Device publication time budget exceeded")
-        publish(device, feed, component, advisory, cve, result)
+        publish(device, feed, component, advisory, cve, result, checks.details.get((cid, aid)))
     # A changed package can update automated evidence; never close a human workflow.
     old = DistroMatch.objects.filter(component__device=device).select_related(
         "finding__record", "advisory", "component__installation"
@@ -289,7 +297,7 @@ def evaluate_device(pk):
             result = "not_observed"
         elif match.advisory.generation != feed.generation or match.advisory.feed_id != feed.pk:
             result = "unknown"
-        elif evaluated.get(match.advisory_id, "absent") is False:
+        elif evaluated.get(match.advisory_id, (None, {}))[1].get(match.component_id) is False:
             result = "not_affected"
         else:
             result = "unknown"
@@ -300,7 +308,15 @@ def evaluate_device(pk):
             and match.advisory.feed_id == feed.pk
             and match.advisory.generation == feed.generation
         ):
-            publish(device, feed, component, match.advisory, match.finding.record.external_id, result)
+            publish(
+                device,
+                feed,
+                component,
+                match.advisory,
+                match.finding.record.external_id,
+                result,
+                checks.details.get((component.pk, match.advisory_id)),
+            )
         else:
             update_match(match, component, feed, result)
     checked_at = timezone.now()
@@ -308,6 +324,7 @@ def evaluate_device(pk):
         component.distro_check = checks.receipt(component, device, feed, checked_at)
     AgentComponent.objects.bulk_update(list(by_id.values()), ["distro_check"], batch_size=200)
     summary = {
+        "evaluator_version": distro_results.VERSION,
         "state": "partial"
         if source_missing or unknown or feed.summary.get("unindexed_definitions", 0)
         else "ready",
@@ -331,11 +348,14 @@ def evaluate_device(pk):
 
 
 def payload(advisory, cve, feed):
+    score = advisory.metadata.get("cvss", {}).get(cve)
+    metrics = [{"cvssV" + score["version"].replace(".", "_"): score}] if score else []
     return {
         "cveMetadata": {"cveId": cve},
         "containers": {
             "cna": {
                 "title": advisory.metadata["title"],
+                "metrics": metrics,
                 "descriptions": [{"lang": "en", "value": advisory.metadata["description"]}],
             }
         },
@@ -350,7 +370,7 @@ def payload(advisory, cve, feed):
     }
 
 
-def publish(device, feed, component, advisory, cve, result):
+def publish(device, feed, component, advisory, cve, result, package_check=None):
     source = distro_sources.url_for(feed.key) + "#" + advisory.identity
     if len(source) > 250:
         raise ConnectorError("Definition source identity too long")
@@ -389,11 +409,11 @@ def publish(device, feed, component, advisory, cve, result):
         },
     )
     match.evidence_revision = revision
-    update_match(match, component, feed, result)
+    update_match(match, component, feed, result, package_check)
     ensure_vulnerability_issue(finding)
 
 
-def update_match(match, component, feed, result):
+def update_match(match, component, feed, result, package_check=None):
     # Human review locks Finding first; use the same order to avoid a review/evaluation deadlock.
     revision = match.evidence_revision
     finding = Finding.objects.select_for_update().get(pk=match.finding_id)
@@ -402,15 +422,28 @@ def update_match(match, component, feed, result):
     match.evidence_revision = revision
     snapshot = {
         "feed": feed.key,
+        "evaluator_version": distro_results.VERSION,
+        "package_check": package_check or {},
         "generation": str(feed.generation),
         "result": result,
         "version": component.version if component else "",
         "package": component.package_identity if component else {},
+        "os": component.device.os if component else {},
+        "inventory_sequence": component.device.applied_sequence if component else None,
+        "report_id": str(component.last_report_id) if component else None,
         "source_package": component.package_source if component else {},
         "rule_sha256": match.advisory.content_hash,
     }
-    fingerprint = digest({k: v for k, v in snapshot.items() if k != "generation"})
+    fingerprint = digest(
+        {k: v for k, v in snapshot.items() if k not in {"generation", "inventory_sequence", "report_id"}}
+    )
     if fingerprint == match.input_hash:
+        # Revalidate unchanged proof against the latest report without reopening
+        # human review or manufacturing another immutable evidence revision.
+        match.snapshot = snapshot
+        match.evaluated_at = timezone.now()
+        match.save(update_fields=["snapshot", "evaluated_at"])
+        Finding.objects.filter(pk=finding.pk).update(evaluated_at=match.evaluated_at)
         return
     match.result = result
     match.input_hash = fingerprint
@@ -423,7 +456,9 @@ def update_match(match, component, feed, result):
     )
     finding = match.finding
     finding.applicability = result if result in {"potential", "unknown", "not_affected"} else "unknown"
-    finding.explanation = f"{feed.key} vendor OVAL: {result}. Reported package version {snapshot['version']}; source package {snapshot['source_package']}. Exact native Debian/RPM comparison; unsupported conditions remain unknown. Package origin/runtime and remediation are not attested. Human assessment and workflow are unchanged."
+    detail = snapshot["package_check"]
+    reason = detail.get("reason", "The available package evidence does not establish affectedness.")
+    finding.explanation = f"{feed.key} vendor OVAL: {result}. Reported package version {snapshot['version']}. {reason} Human assessment and workflow are unchanged."
     finding.evaluated_at = timezone.now()
     finding.save(update_fields=["applicability", "explanation", "evaluated_at"])
 
@@ -431,6 +466,17 @@ def update_match(match, component, feed, result):
 def run(limit=5):
     if not settings.DISTRO_CVE_ENABLED:
         return 0
+    # An evaluator upgrade must recheck fresh inventories without waiting for a
+    # new report, including receipts whose old checks were reported as complete.
+    old_evaluator = Q(distro_summary__evaluator_version__isnull=True) | ~Q(
+        distro_summary__evaluator_version=distro_results.VERSION
+    )
+    AgentDevice.objects.filter(
+        enabled=True,
+        distro_requested=False,
+        last_observed_at__gte=timezone.now() - timedelta(hours=12),
+        expires_at__gt=timezone.now(),
+    ).filter(old_evaluator).update(distro_requested=True)
     pending = list(
         AgentDevice.objects.filter(
             enabled=True,
@@ -476,6 +522,7 @@ def run(limit=5):
                 distro_requested=False,
                 distro_checked_at=timezone.now(),
                 distro_summary={
+                    "evaluator_version": distro_results.VERSION,
                     "state": "error",
                     "message": "Evaluation deferred ("
                     + type(exc).__name__

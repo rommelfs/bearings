@@ -50,6 +50,7 @@ def vulnerability_summary(payload):
         and distro.get("severity") in {"critical", "high", "medium", "low", "none"}
     ):
         result["severity"] = distro["severity"].title()
+        result["vendor_priority"] = True
     metrics = cna.get("metrics")
     if not isinstance(metrics, list):
         return result
@@ -74,7 +75,9 @@ def vulnerability_summary(payload):
                 if score > 0
                 else "None"
             )
-            result.update(score=score, severity=severity, cvss_version=version)
+            result.update(score=score, cvss_version=version)
+            if not result.get("vendor_priority"):
+                result["severity"] = severity
             return result
     return result
 

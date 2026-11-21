@@ -1,10 +1,11 @@
 """Bounded package-check receipts, separate from findings and human assessments."""
 
 from collections import defaultdict
+from itertools import islice
 from . import distro_oval, distro_sources
 from .intelligence import digest
 
-VERSION = 1
+VERSION = 2
 SAMPLE_LIMIT = 10
 MAX_OUTCOMES = 100000
 PRIORITY = {"potential": 0, "unknown": 1, "not_matched": 2, "fixed": 3}
@@ -21,6 +22,50 @@ def inputs(component, device):
             "os": device.os,
         }
     )
+
+
+def has_version_conditions(node):
+    return any(state.get("field") == "evr" for group in node.get("states", []) for state in group) or any(
+        has_version_conditions(child) for child in node.get("children", [])
+    )
+
+
+def unsupported_conditions(node, os):
+    if "unknown" in node:
+        yield str(node["unknown"])[:160]
+    for group in node.get("host_states", []):
+        for state in group:
+            if state.get("field") != "machine_class":
+                yield "Unsupported host condition: " + str(state.get("field"))[:80]
+            elif not os.get("architecture"):
+                yield "Host architecture is not reported"
+            elif distro_oval.condition(os["architecture"], state, "rpm") is None:
+                yield "Unsupported host architecture constraint: " + str(state.get("text", ""))[:100]
+    if "package" in node:
+        if node.get("check") not in {"all", "at least one"}:
+            yield "Unsupported package check: " + str(node.get("check"))[:80]
+        if node.get("existence") not in {"at_least_one_exists", "any_exist", "none_exist"}:
+            yield "Unsupported package existence condition: " + str(node.get("existence"))[:80]
+        for group in node.get("states", []):
+            for state in group:
+                if state.get("field") not in {"evr", "arch"}:
+                    yield "Unsupported package condition: " + str(state.get("field"))[:80]
+                elif state.get("var_ref"):
+                    yield "Version/architecture variable is not supported: " + str(state["var_ref"])[:80]
+                elif (
+                    state.get("field") == "arch"
+                    and distro_oval.condition("_", state, node["manager"]) is None
+                ):
+                    yield "Unsupported package architecture constraint: " + str(state.get("text", ""))[:100]
+    for child in node.get("children", []):
+        yield from unsupported_conditions(child, os)
+
+
+def rule_leaves(node):
+    if "package" in node:
+        yield node
+    for child in node.get("children", []):
+        yield from rule_leaves(child)
 
 
 def package_leaves(node, facts):
@@ -65,7 +110,10 @@ def fixed_threshold(leaf, fact):
                 if distro_oval.condition(fact["version"], state, leaf["manager"]) is not False:
                     return None
                 thresholds.append(state["text"])
-            elif distro_oval.condition(fact["architecture"], state, leaf["manager"]) is not True:
+            elif (
+                state.get("field") != "arch"
+                or distro_oval.condition(fact["architecture"], state, leaf["manager"]) is not True
+            ):
                 return None
     return thresholds[0] if len(thresholds) == 1 else None
 
@@ -75,11 +123,42 @@ class Collector:
         self.results = defaultdict(dict)
         self.rules = defaultdict(set)
         self.total = 0
+        self.details = {}
 
-    def add(self, advisory, facts, result, contributors, os):
+    def add(self, advisory, facts, result, contributors, os, complete=None):
         leaves = defaultdict(list)
         for cid, leaf, fact in package_leaves(advisory.criteria, facts):
             leaves[cid].append((leaf, fact))
+        # Retain a hash of every fact used by the definition, not merely the
+        # component being displayed: another package may be a required guard.
+        dependencies = sorted(
+            {
+                (node["manager"], bool(node["source"]), name)
+                for node in rule_leaves(advisory.criteria)
+                for name in node["package"]
+            }
+        )
+        context_hash = digest(
+            {
+                "facts": [
+                    [
+                        manager,
+                        source,
+                        name,
+                        [
+                            {"id": str(f["id"]), "version": f["version"], "architecture": f["architecture"]}
+                            for f in sorted(
+                                facts.get((manager, source, name), []), key=lambda row: str(row["id"])
+                            )
+                        ],
+                    ]
+                    for manager, source, name in dependencies
+                ],
+                "complete": complete,
+                "os": os,
+            }
+        )
+        missing_conditions = list(islice(unsupported_conditions(advisory.criteria, os), 16))
         safe = (
             safe_tree(advisory.criteria)
             and distro_oval.evaluate(guard_tree(advisory.criteria), {}, True, os)[0] is True
@@ -87,12 +166,68 @@ class Collector:
         for cid, tests in leaves.items():
             self.rules[cid].add(advisory.pk)
             thresholds = [fixed_threshold(leaf, fact) for leaf, fact in tests] if safe else []
-            fixed = result is False and thresholds and all(thresholds)
+            component_result = contributors.get(cid)
+            fixed = component_result is False and thresholds and all(thresholds)
             outcome = (
-                ("potential" if result is True else "unknown")
-                if cid in contributors
-                else ("fixed" if fixed else "not_matched" if result is False else "unknown")
+                "potential"
+                if component_result is True
+                else "fixed"
+                if fixed
+                else "not_matched"
+                if component_result is False
+                else "unknown"
             )
+            comparisons = []
+            for leaf, fact in tests:
+                for group in leaf.get("states", []):
+                    for state in group:
+                        if state.get("field") == "evr":
+                            comparisons.append(
+                                {
+                                    "package": ", ".join(leaf["package"])[:200],
+                                    "installed_version": fact["version"],
+                                    "operation": state.get("operation", "equals"),
+                                    "vendor_version": state.get("text", ""),
+                                    "matches": distro_oval.condition(fact["version"], state, leaf["manager"]),
+                                    "basis": "source package" if leaf["source"] else "binary package",
+                                }
+                            )
+            reason = (
+                "The reported version satisfies the vendor's affected-package version rule."
+                if component_result is True
+                else "The reported version is at or above the vendor's fixed version."
+                if fixed
+                else "This package does not satisfy the vendor's affected-package rule."
+                if component_result is False
+                else "The vendor rule checks package presence only and supplies no affected/fixed version condition. Package-version affectedness is unresolved."
+                if not comparisons
+                else "The vendor rule cannot be fully evaluated with the supported reported facts."
+            )
+            proof = {
+                "schema": "bearings.package-check.v2",
+                "context_hash": context_hash,
+                "verdict": "affected"
+                if component_result is True
+                else "fixed"
+                if fixed
+                else "not_matched"
+                if component_result is False
+                else "unresolved",
+                "reason": reason,
+                "version_checked": bool(comparisons),
+                "unresolved_conditions": missing_conditions if component_result is None else [],
+                "comparisons": comparisons[:16],
+                "vendor_comments": list(
+                    dict.fromkeys(
+                        leaf.get("vendor_comment", "") for leaf, _ in tests if leaf.get("vendor_comment")
+                    )
+                )[:4],
+            }
+            if (cid, advisory.pk) not in self.details and len(self.details) >= MAX_OUTCOMES:
+                from .connectors.http import ConnectorError
+
+                raise ConnectorError("Package proof budget exceeded; no partial checks published")
+            self.details[cid, advisory.pk] = proof
             for cve in advisory.metadata["cves"]:
                 previous = self.results[cid].get(cve)
                 if previous is not None and PRIORITY[previous["result"]] <= PRIORITY[outcome]:
@@ -110,6 +245,7 @@ class Collector:
                     "rule_sha256": advisory.content_hash,
                     "fixed_version": thresholds[0] if fixed else "",
                     "compared_version": tests[0][1]["version"] if fixed else "",
+                    "package_check": proof,
                     "comparison_basis": "source package"
                     if fixed and tests[0][0]["source"]
                     else "binary package",

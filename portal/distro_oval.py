@@ -1,6 +1,7 @@
 """Bounded OVAL subset. Unknown conditions stay unknown, never guessed true."""
 
 import re
+import math
 import time
 from functools import lru_cache
 from defusedxml.ElementTree import iterparse
@@ -9,7 +10,7 @@ from univers.rpm import compare_rpm_versions
 from .connectors.http import ConnectorError
 
 CVE = re.compile(r"CVE-[0-9]{4}-[0-9]{4,}")
-COMPILER_VERSION = 2
+COMPILER_VERSION = 3
 
 
 def local(tag):
@@ -180,6 +181,8 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
             }
         else:
             result = node
+        if "package" in result and node.get("comment"):
+            result = {**result, "vendor_comment": node["comment"][:600]}
         if node.get("negate"):
             result = {"operator": "NOT", "children": [result]}
         return result
@@ -208,6 +211,19 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
             ((x.text or "").strip().lower() for x in meta.iter() if local(x.tag) == "severity"), "unknown"
         )
         severity = {"moderate": "medium", "important": "high"}.get(severity, severity)
+        scores = {}
+        for item in meta.iter():
+            cve_id = (item.text or "").strip()
+            vector = item.get("cvss_vector", "")
+            if local(item.tag) != "cve" or cve_id not in cves:
+                continue
+            version = next((v for v in ("4.0", "3.1", "3.0") if vector.startswith("CVSS:" + v + "/")), None)
+            try:
+                score = float(item.get("cvss_score", ""))
+            except ValueError:
+                continue
+            if version and math.isfinite(score) and 0 <= score <= 10:
+                scores[cve_id] = {"version": version, "baseScore": score}
         criteria = expand(
             next((tree(x) for x in e if local(x.tag) == "criteria"), {"unknown": "no criteria"})
         )
@@ -226,7 +242,13 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
         stats["definitions"] += 1
         yield {
             "id": e.get("id"),
-            "metadata": {"title": title, "description": description, "severity": severity, "cves": cves},
+            "metadata": {
+                "title": title,
+                "description": description,
+                "severity": severity,
+                "cves": cves,
+                "cvss": scores,
+            },
             "criteria": criteria,
             "packages": sorted(packages),
         }
@@ -244,6 +266,8 @@ def tree(e, depth=0):
         n = {"extend": e.get("definition_ref")}
     else:
         n = {"unknown": "unsupported criteria"}
+    if tag == "criterion" and e.get("comment"):
+        n["comment"] = e.get("comment")[:600]
     if e.get("negate", "false") not in {"false", "0", "true", "1"}:
         return {"unknown": "invalid negation"}
     if e.get("negate") in {"true", "1"}:
@@ -276,14 +300,34 @@ def condition(value, rule, manager):
             "greater than": c > 0,
             "greater than or equal": c >= 0,
         }.get(op)
+    if not isinstance(value, str) or not value:
+        return None
     if op == "equals":
         return value == wanted
     if op == "not equal":
         return value != wanted
-    # Finite architecture alternatives only; never execute vendor regex/commands.
-    if op == "pattern match" and re.fullmatch(r"[A-Za-z0-9_.|^$-]{1,256}", wanted):
-        return value in wanted.strip("^$").split("|")
+    # Only fully anchored literal architecture alternatives have exact semantics
+    # here. Unsupported patterns must not turn into a false/unaffected result.
+    if op == "pattern match" and len(wanted) <= 256 and wanted.startswith("^") and wanted.endswith("$"):
+        literal = wanted[1:-1]
+        if literal.startswith("(?:") and literal.endswith(")"):
+            literal = literal[3:-1]
+        elif literal.startswith("(") and literal.endswith(")"):
+            literal = literal[1:-1]
+        elif "|" in literal:
+            return None
+        tokens = literal.split("|")
+        if all(re.fullmatch(r"[A-Za-z0-9_-]+", token) for token in tokens):
+            return value in tokens
+
     return None
+
+
+def package_condition(fact, state, manager):
+    field_name = state.get("field")
+    if field_name not in {"evr", "arch"}:
+        return None
+    return condition(fact["version"] if field_name == "evr" else fact["architecture"], state, manager)
 
 
 def combine(op, values):
@@ -350,18 +394,7 @@ def evaluate(node, facts, complete, os):
             groups.append(
                 combine(
                     "AND",
-                    [
-                        condition(
-                            f["version"]
-                            if s["field"] == "evr"
-                            else f["architecture"]
-                            if s["field"] == "arch"
-                            else "",
-                            s,
-                            node["manager"],
-                        )
-                        for s in group
-                    ],
+                    [package_condition(f, s, node["manager"]) for s in group],
                 )
             )
         result = combine(node["state_operator"], groups) if groups else True
@@ -374,3 +407,62 @@ def evaluate(node, facts, complete, os):
     )
     result = combine(op, results)
     return result, ids if result is not False else set()
+
+
+def version_proof(leaf, fact):
+    """A true package-presence/architecture test is not an affected-version proof."""
+    groups = []
+    for group in leaf.get("states", []):
+        values = [package_condition(fact, state, leaf["manager"]) for state in group]
+        groups.append(combine("AND", values) is True and any(s.get("field") == "evr" for s in group))
+    return any(groups)
+
+
+def evaluate_matches(node, facts, complete, os):
+    """Keep OVAL truth separate from each positively named component's version proof.
+
+    An OR witness for package A cannot prove package B vulnerable. Existence-only
+    matches stay unresolved even when OVAL's Boolean definition evaluates true.
+    """
+    if "children" in node:
+        parts = [evaluate_matches(child, facts, complete, os) for child in node["children"]]
+        truth = combine(node["operator"], [p[0] for p in parts])
+        if node["operator"] == "NOT":
+            return truth, {}
+        ids = set().union(*(set(p[1]) for p in parts))
+        outcomes = {}
+        for cid in ids:
+            values = [p[1][cid] for p in parts if cid in p[1]]
+            if node["operator"] == "AND":
+                outcomes[cid] = (
+                    False
+                    if truth is False or all(value is False for value in values)
+                    else True
+                    if truth is True and True in values
+                    else None
+                )
+            elif node["operator"] == "OR":
+                # Use only branches naming this component, including their guards.
+                unknown_branch = any(value is None and not matches for value, matches in parts)
+                outcomes[cid] = (
+                    True if True in values else None if None in values or unknown_branch else False
+                )
+            else:
+                outcomes[cid] = None
+        return truth, outcomes
+    truth, _ = evaluate(node, facts, complete, os)
+    if "package" not in node:
+        return truth, {}
+    outcomes = {}
+    for name in node["package"]:
+        key = (node["manager"], bool(node["source"]), name)
+        for fact in facts.get(key, []):
+            own_truth, _ = evaluate(node, {key: [fact]}, complete, os)
+            outcomes[fact["id"]] = (
+                False
+                if truth is False or own_truth is False
+                else True
+                if truth is True and own_truth is True and version_proof(node, fact)
+                else None
+            )
+    return truth, outcomes

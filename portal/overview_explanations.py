@@ -13,7 +13,21 @@ def review_explanation(finding):
         "vendor-product-review/v1": "Configured vendor/product mapping and supported version rules",
     }.get(rule, "Saved review evidence; inspect the original review")
     reason = "Affected version or required configuration facts have not been established."
-    action = "Review the installed version, matching evidence and vendor fixes"
+    payload = finding.record.payload
+    distro = payload.get("bearings_distro", {}) if isinstance(payload, dict) else {}
+    if rule == "distro-oval-review/v1" and isinstance(distro, dict):
+        from .distro_results import has_version_conditions
+
+        if distro.get("schema") == "bearings.distro-oval.v1" and not has_version_conditions(
+            distro.get("criteria", {})
+        ):
+            basis = "Vendor package presence rule; no affected/fixed version condition"
+            reason = "The vendor lists this package for investigation but supplies no version condition. Package affectedness is unresolved."
+    action = (
+        "Monitor vendor clarification or verify the bundled dependency evidence"
+        if basis == "Vendor package presence rule; no affected/fixed version condition"
+        else "Review the installed version, matching evidence and vendor fixes"
+    )
     if analyst == "affected":
         reason = "An analyst has recorded this installation as affected."
         action = "Plan and verify remediation, or record an appropriate mitigation"
@@ -21,7 +35,10 @@ def review_explanation(finding):
         reason = "An analyst has recorded possible affectedness; confirmation is still required."
     elif analyst == "unknown":
         reason = "An analyst has recorded affectedness as uncertain; more evidence is needed."
-    elif automatic == "potential":
+    elif (
+        automatic == "potential"
+        and basis != "Vendor package presence rule; no affected/fixed version condition"
+    ):
         reason = "The saved automatic check indicates a potential match for this installation."
     if automatic == "not_affected":
         reason = "The saved automatic check says not affected, but the review is still open. Reconcile the saved assessment."

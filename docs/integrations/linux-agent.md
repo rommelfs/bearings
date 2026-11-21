@@ -190,3 +190,21 @@ Anonymous downloads remain public; organization rollout permissions are unchange
 This navigation change requires only source update and `bearings-web` restart.
 No migration, static rebuild, client rebuild or client restart is needed for the
 integrated website. Standalone static sites need a normal website rebuild.
+
+### Deterministic package-version CVE results
+
+Supported distribution version rules now yield an explicit affected/fixed package
+verdict with the actual compared versions, operator and result. Presence-only
+entries and unsupported required predicates stay unresolved with a precise cause.
+A CVE can describe a library embedded in another distributor package; compare the
+distributor package version with the distributor rule, not an unrelated upstream
+library version. Package verdicts and human/local risk assessments are separate.
+
+Receipts use evaluator version 2 and vendor compilation version 3. Fresh devices
+are automatically requeued on upgrade; old/stale proofs are not presented as
+current. Source/binary version facts, OS context and rule fingerprints participate
+in invalidation. See the [case audit](../audits/2026-11-21-package-cve-correctness.md).
+
+After source update, restart `bearings-web bearings-worker bearings-national`.
+No schema migration or Linux client rebuild/restart is needed. Allow the background
+worker to recompile the cached vendor feed once and reevaluate current reports.

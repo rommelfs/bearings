@@ -138,6 +138,10 @@
       {
         "title": "Explain CVE attention previews and distinguish saved review evidence",
         "body": "Implemented explicit server inclusion reason and per-CVE product/version, analyst assessment, saved automatic result/time, matching basis, advisory host, source severity and concrete next action. Missing-version and saved-not-affected/open-review conflicts are explained. Four-record previews use assessment/match/severity ordering rather than arbitrary identifiers alone; legacy-only records fill remaining slots. Generic risk scenarios are collapsed optional hypotheses; no assessment/workflow mutation, no severity-to-affectedness inference. Preserve role/source visibility and query budgets."
+      },
+      {
+        "title": "Prove package-version CVE outcomes instead of promoting package presence",
+        "body": "Implemented per-component OVAL attribution separating Boolean definition truth from supported version proof. Pure existence/architecture and unsupported predicates remain unresolved with causes; OR witnesses cannot promote fixed/unknown siblings. Persist bounded native-version operands, source/binary identity, vendor comments and classification in receipts/revisions. Explicit affected/fixed/unresolved UI, cache/OS/rule/evaluator freshness gates, upgrade requeue and preserved human assessments. Canonical CVE-2026-97688/python3-pip-whl case verified against live OVAL and Ubuntu tracker: Noble python-pip needs-triage; no version bound supplied. See docs/audits/2026-11-21-package-cve-correctness.md. Compiler 3/evaluator 2; no schema/client changes."
       }
     ]
   },

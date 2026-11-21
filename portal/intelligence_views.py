@@ -31,7 +31,7 @@ def finding_page(request, org):
         .select_related(
             "installation__asset__source__instance",
             "distro_match__component__device",
-            "distro_match__advisory",
+            "distro_match__advisory__feed",
         )
         .prefetch_related(Prefetch("risk_links", queryset=links), "history__actor")
         .order_by("-evaluated_at", "pk")
@@ -83,6 +83,9 @@ def finding_page(request, org):
     page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
+        from .distro_verdicts import decorate_package_verdict
+
+        decorate_package_verdict(finding)
         from .flowintel_views import decorate
 
         decorate(finding, request.user)

@@ -1368,3 +1368,26 @@ version/next-step facts, collapsed draft scenarios with keyboard operation,
 retained network links and no horizontal overflow. Only synthetic local data was
 used. Django check, no migration drift, Ruff formatting/lint and whitespace checks
 pass. No assessment, notification, connector or production data was changed.
+
+
+### Package/CVE version-proof audit (2026-11-21)
+
+See [primary-source case, correction and validation](audits/2026-11-21-package-cve-correctness.md).
+159 PostgreSQL tests pass across package matching/proofs, receipts, inventory,
+intelligence, review scenarios, source visibility, concurrency/rollback and
+overview query budgets. New regressions cover actual Canonical CVE-2026-97688
+presence-only semantics, independent OR siblings, unsupported predicates and
+missing architecture, native dpkg differential comparisons, concrete positive
+and fixed proofs, per-CVE CVSS without replacing vendor priority, input invalidation
+and automatic evaluator-upgrade queuing. A new report invalidates an old context;
+identical reevaluated proof updates freshness without resetting human review or
+duplicating immutable evidence. The full actual Canonical feed reproduces the
+reported case as unresolved, consistent with Ubuntu's needs-triage status.
+
+Chromium checks for three verdicts at 390/1440 px use Django-rendered isolated test
+responses, retain local CSS/fonts and show concrete conditions, vendor notes and
+no overflow. Bundled NetBox/FlowIntel/RT/RTIR smoke passes, including scoped writes,
+lost-ack recovery and local-only mail. Django check, no migration drift, Ruff and
+whitespace validation pass. Vendor downloads are public and send no company
+inventory. No production data, device credentials, review decisions or services
+were changed.

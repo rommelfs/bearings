@@ -168,8 +168,10 @@ def decorate(user, products, installation_ids=None, finding_scope=None):
                 c.matching_status = "Configured automatically; package result pending reevaluation"
         else:
             counts = receipt["counts"]
-            if counts["potential"] or counts["unknown"]:
-                c.result_heading = "Review required"
+            if counts["potential"]:
+                c.result_heading = "Affected package version. Review required for local exposure."
+            elif counts["unknown"]:
+                c.result_heading = "Unresolved vendor conditions. Review required."
             elif not receipt["rules_checked"]:
                 c.result_heading = "No vendor rules indexed for this package yet"
             else:

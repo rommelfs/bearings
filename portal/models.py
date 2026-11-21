@@ -2370,10 +2370,25 @@ class DistroMatch(models.Model):
 
     @property
     def inputs_changed(self):
+        from . import distro_cves, distro_results, distro_sources
+
         return (
-            self.snapshot.get("version") != self.component.version
-            or self.snapshot.get("source_package", {}) != self.component.package_source
+            self.component.device.organization_id != self.finding.organization_id
+            or self.component.device.asset_id != self.finding.installation.asset_id
+            or self.component.device.source_id != self.finding.installation.asset.source_id
             or self.component.installation_id != self.finding.installation_id
+            or not isinstance(self.snapshot, dict)
+            or self.snapshot.get("evaluator_version") != distro_results.VERSION
+            or self.snapshot.get("package_check", {}).get("schema") != "bearings.package-check.v2"
+            or self.snapshot.get("version") != self.component.version
+            or self.snapshot.get("package", {}) != self.component.package_identity
+            or self.snapshot.get("os", {}) != self.component.device.os
+            or self.snapshot.get("inventory_sequence") != self.component.device.applied_sequence
+            or self.snapshot.get("source_package", {}) != self.component.package_source
+            or self.snapshot.get("feed") != distro_sources.key_for(self.component.device.os)
+            or self.advisory.feed.key != self.snapshot.get("feed")
+            or self.snapshot.get("rule_sha256") != self.advisory.content_hash
+            or distro_cves.feed_state(self.advisory.feed) != "ready"
             or self.component.stale
             or self.component.missing_since is not None
             or not self.component.device.enabled
