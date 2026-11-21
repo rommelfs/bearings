@@ -1,6 +1,6 @@
 <section class="linux-install-instructions" aria-label="Linux installation commands">
 <h3>1. Download and install on your Linux server</h3>
-<p>Run this complete block in a terminal on the machine you want to monitor. Python 3.9+, curl, systemd and sudo are required. Paste your rollout key at the hidden prompt.</p>
+<p>Run this complete block in a terminal on the machine you want to monitor. Python 3.8+, curl, systemd and sudo are required. Paste your rollout key at the hidden prompt.</p>
 <pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
 sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt</pre>
 <p><a href="{% url 'linux-client-artifact' 'install.py' %}">Download installer (install.py)</a> · <a href="{% url 'linux-client-artifact' 'SHA256SUMS' %}">Checksums</a></p>

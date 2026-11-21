@@ -74,7 +74,7 @@ Each stable configured ID is distinct from its display product name and any dpkg
 
 Company management now defaults to a private/no-store one-use registration code instead of moving a grant file across SSH/browser boundaries. The code is an encoded transport for the same thirty-minute, public-key-bound grant, not a new credential model or an encrypted/signed release ticket. The legacy JSON response remains available to existing direct integrations. The installer hides pasted terminal input or reads bounded stdin for approved automation, then performs native signed HTTPS enrollment as the dedicated account. Its internal private grant file is removed after success/failure; no device private key leaves the target.
 
-Reviewed build output is public only through fixed `/downloads/linux/` artifact names, matching manifest hashes and bounded regular files. Production explicitly configures an operator-approved artifact directory; development uses the local generated build. Verified HTTPS and checksums establish distribution consistency, not independent code-signing. The installer requires Python 3.9+/systemd/root for account/files/service setup, runs the candidate/client as the dedicated non-root account, keeps keys/outbox/configuration/drop-ins and does not restart a deliberately stopped service on upgrade. Input reads use the invoking sudo user's privileges; CA publication accepts certificates only. Local CLI issuance uses current actor/company/source rules in a transaction. A bounded customer-facing company fleet bootstrap API is now implemented; arbitrary delegated existing-asset issuance remains separate. See [roll-out integration](linux-rollout.md) and the [client guide](../../clients/linux/README.md).
+Reviewed build output is public only through fixed `/downloads/linux/` artifact names, matching manifest hashes and bounded regular files. Production explicitly configures an operator-approved artifact directory; development uses the local generated build. Verified HTTPS and checksums establish distribution consistency, not independent code-signing. The installer requires Python 3.8+/systemd/root for account/files/service setup, runs the candidate/client as the dedicated non-root account, keeps keys/outbox/configuration/drop-ins and does not restart a deliberately stopped service on upgrade. Input reads use the invoking sudo user's privileges; CA publication accepts certificates only. Local CLI issuance uses current actor/company/source rules in a transaction. A bounded customer-facing company fleet bootstrap API is now implemented; arbitrary delegated existing-asset issuance remains separate. See [roll-out integration](linux-rollout.md) and the [client guide](../../clients/linux/README.md).
 
 
 Managed NetBox registration is optional server-side policy, separate from signed inventory reporting. New managed rollout codes register the host in the configured tenant and may declare a VM technology tag. Existing observed-only codes remain observed-only, and switching policy does not change device keys or software bindings. Bearings retains package/CVE processing; the separate exporter below copies reported software into a NetBox JSON field and can create scoped interface/IP records. IP declarations alone do not silently allocate addresses. See [managed NetBox operations](../operations/managed-netbox.md). The public website now explains the optional Linux client in all four languages: recurring version inventory, signed HTTPS reports, central rollout and distribution-aware CVE checks.
@@ -134,3 +134,27 @@ or rollout creation. Existing rollout modes/tags and enrolled devices are unchan
 
 Deploy with `collectstatic --noinput` and restart `bearings-web`; no migration or
 client rebuild/restart is needed.
+
+### Python 3.8 installer compatibility
+
+The monitored host requires Python 3.8+ (including the Ubuntu 20.04 system
+interpreter). The installer drops UID, GID and supplementary groups in an isolated
+Python child before exec instead of passing Python-3.9-only `subprocess` options.
+It uses no shell or threaded `preexec_fn`; bounded source reads still run as the
+invoking sudo user and client commands still run as the dedicated account. Older
+interpreters stop with a clear message before system commands. This compatibility
+does not change the server’s Python requirement or operating-system support policy.
+
+For an existing server, update its reviewed checkout and run
+`python3 deploy/ubuntu24/ecosystem.py prepare-linux-client`. This rebuilds the
+checksummed immutable download bundle and restarts only `bearings-web`; editing
+the source or restarting web alone cannot replace previously published artifacts.
+Then download `install.py` again on the monitored host and retry the same installation
+command. Retain existing client state and keys; do not remove or re-enroll them.
+The reported Python 3.8 `TypeError` occurs before account/client installation; the
+root-owned installer lock file can already exist and is reused safely.
+
+Validation: `python3 scripts/linux_installer_smoke.py --python38` adds a digest-pinned
+legacy interpreter to a disposable test-only image; it never changes the application
+runtime. Both manual and automatic registration use real verified loopback HTTPS
+and signatures, with simulated systemd, no external network and disposable accounts.

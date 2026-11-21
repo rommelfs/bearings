@@ -43,6 +43,31 @@ sys.stdout.buffer.write(data)
 """
 
 
+# Isolated child performs the drop before exec, including on Python 3.8. Avoid
+# preexec_fn (unsafe with threads) and subprocess's Python-3.9-only user/group API.
+DROP_PRIVILEGES = """import os,sys
+os.setgroups([])
+os.setgid(int(sys.argv[2]))
+os.setuid(int(sys.argv[1]))
+os.execve(sys.argv[3],sys.argv[3:],os.environ)
+"""
+
+
+def account_command(args, account):
+    command = [str(arg) for arg in args]
+    if account is not None:
+        command = [
+            sys.executable,
+            "-I",
+            "-c",
+            DROP_PRIVILEGES,
+            str(account.pw_uid),
+            str(account.pw_gid),
+            *command,
+        ]
+    return command
+
+
 def reviewed_unit(data):
     return hashlib.sha256(data).hexdigest() in PREVIOUS_UNIT_SHA256 | {UNIT_SHA256}
 
@@ -52,19 +77,15 @@ class InstallError(Exception):
 
 
 def run(args, *, account=None, capture=False, input=None):
-    options = {}
-    if account is not None:
-        options = {"user": account.pw_uid, "group": account.pw_gid, "extra_groups": []}
     try:
         result = subprocess.run(
-            [str(a) for a in args],
+            account_command(args, account),
             env=ENV,
             **({"stdin": subprocess.DEVNULL} if input is None else {"input": input}),
             stdout=subprocess.PIPE if capture else None,
             stderr=subprocess.PIPE,
             timeout=45,
             check=False,
-            **options,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise InstallError("Local command failed or timed out; no secret output is printed") from exc
@@ -78,10 +99,10 @@ def source(path, limit):
     try:
         caller = pwd.getpwuid(int(os.environ.get("SUDO_UID", os.getuid())))
         result = subprocess.run(
-            [sys.executable, "-I", "-c", READ, str(Path(path).absolute()), str(limit)],
-            user=caller.pw_uid if os.geteuid() == 0 else None,
-            group=caller.pw_gid if os.geteuid() == 0 else None,
-            extra_groups=[] if os.geteuid() == 0 else None,
+            account_command(
+                [sys.executable, "-I", "-c", READ, str(Path(path).absolute()), str(limit)],
+                caller if os.geteuid() == 0 else None,
+            ),
             env=ENV,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
@@ -519,6 +540,8 @@ def bootstrap(server, ca_path, prompt):
 
 
 def main():
+    if sys.version_info < (3, 8):
+        raise InstallError("Python 3.8 or newer is required; no installation attempted")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "action", nargs="?", choices=["install", "enroll", "identity", "start", "status"], default="install"
@@ -557,7 +580,7 @@ def main():
     args = parser.parse_args()
     if platform.system() != "Linux" or os.geteuid() != 0:
         raise InstallError(
-            "Run on the target Linux host with sudo python3 install.py (Python 3.9+ and systemd required)"
+            "Run on the target Linux host with sudo python3 install.py (Python 3.8+ and systemd required)"
         )
     if args.action != "enroll" and (args.grant_file or args.code or args.code_stdin or args.register_host):
         parser.error("Registration options belong to enroll")

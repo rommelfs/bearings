@@ -126,6 +126,10 @@
       {
         "title": "Expose scoped rollout controls on Linux downloads",
         "body": "Implemented organization selection and shared fleet creation/revocation on /downloads/linux/. Only company administrators and platform superusers can manage rollouts. Newly created secret shown once, never persisted reversibly; GET reload retains metadata only. Public artifacts remain available; authorization, cross-company refusal and CSRF covered in PostgreSQL tests. Follow-up: anchor form submission to the result below the form, with visible success/key and validation-failure output; preserve hash-only retention. Installation instructions now share complete download-and-install blocks, hidden prompt, LXC alternative and stdin automation with an explicitly documented secret-file prerequisite. Commands use the configured public origin and include no keys. Host-dependent virtualization selector now shows only for managed VMs, limits choices to the source instance configuration, clears stale physical-host selection and omits unavailable controls. Server validation and mobile/desktop browser checks preserve capability boundaries."
+      },
+      {
+        "title": "Support Linux client installation with Python 3.8",
+        "body": "Implemented Python-3.8-compatible isolated credential-drop child before exec, removing subprocess user/group/extra_groups options. Preserve invoking-user bounded file reads, dedicated-account execution, device state and privilege restrictions. Actual Python 3.8 unit and disposable manual/automatic HTTPS installer smoke tests pass; pinned legacy interpreter is test-only. Server must republish immutable client artifacts with prepare-linux-client, then target hosts download installer again. No database migration or server runtime downgrade."
       }
     ]
   },

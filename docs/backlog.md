@@ -531,3 +531,11 @@ block, plus LXC, service status and secret-file automation instructions.
 
 Rollout virtualization now depends on host kind and the authoritative NetBox
 instance configuration, with matching server validation and no changes to existing keys.
+
+
+## Python 3.8 Linux installer — 2026-11-21
+
+Implemented compatible subprocess credential drops with unchanged user/file
+boundaries, real Python 3.8 checks and disposable HTTPS installation tests.
+Republish the immutable client bundle and redownload the installer on the target.
+See [Linux agent](integrations/linux-agent.md).

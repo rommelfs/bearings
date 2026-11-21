@@ -6,7 +6,7 @@ The receiver, permissions, threat model, limits and validation are documented in
 
 ## Recommended: central download and installer
 
-Open **Linux inventory reports → Install Linux client** in Bearings, or visit `/downloads/linux/`. The operator prepares the artifacts once; monitored hosts need **Python 3.9+, systemd and sudo**, not Go. The local lab download page is `https://localhost:9441/downloads/linux/`; localhost works only on the machine running that lab. Before remote roll-outs the operator must configure a reachable `BEARINGS_PUBLIC_URL`, allowed hosts and valid HTTPS trust. No public deployment is performed by this feature.
+Open **Linux inventory reports → Install Linux client** in Bearings, or visit `/downloads/linux/`. The operator prepares the artifacts once; monitored hosts need **Python 3.8+, systemd and sudo**, not Go. The local lab download page is `https://localhost:9441/downloads/linux/`; localhost works only on the machine running that lab. Before remote roll-outs the operator must configure a reachable `BEARINGS_PUBLIC_URL`, allowed hosts and valid HTTPS trust. No public deployment is performed by this feature.
 
 For automatic registration, create one expiring, quota-limited rollout key in the company's **Linux inventory reports → Automatic registration / fleet rollout**. Download the installer as below, then use:
 

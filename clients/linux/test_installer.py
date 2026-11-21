@@ -4,6 +4,9 @@
 import hashlib
 import importlib.util
 import os
+import json
+import pwd
+import sys
 from pathlib import Path
 import tempfile
 import unittest
@@ -86,6 +89,36 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(
             set(families.split("=", 1)[1].split()), {"AF_UNIX", "AF_INET", "AF_INET6", "AF_NETLINK"}
         )
+
+    @unittest.skipUnless(os.geteuid() == 0, "credential drop needs disposable/root test runner")
+    def test_child_credentials_drop_uid_gid_and_supplementary_groups(self):
+        account = pwd.getpwnam("nobody")
+        identity = installer.run(
+            [
+                sys.executable,
+                "-I",
+                "-c",
+                "import os,json; print(json.dumps([os.geteuid(),os.getegid(),os.getgroups()]))",
+            ],
+            account=account,
+            capture=True,
+        )
+        self.assertEqual(json.loads(identity), [account.pw_uid, account.pw_gid, []])
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory).chmod(0o711)
+            protected = Path(directory) / "root-only"
+            protected.write_bytes(b"synthetic root-only data")
+            protected.chmod(0o600)
+            with patch.dict(os.environ, {"SUDO_UID": str(account.pw_uid)}):
+                with self.assertRaises(installer.InstallError):
+                    installer.source(protected, 100)
+
+    def test_old_python_stops_before_any_system_command(self):
+        with patch.object(installer.sys, "version_info", (3, 7, 17)):
+            with patch.object(installer, "systemctl") as command:
+                with self.assertRaisesRegex(installer.InstallError, "Python 3.8"):
+                    installer.main()
+            command.assert_not_called()
 
     def test_cli_requires_root_before_touching_system(self):
         with patch("sys.argv", ["install.py"]), patch.object(installer.os, "geteuid", return_value=1000):

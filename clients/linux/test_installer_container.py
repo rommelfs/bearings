@@ -57,7 +57,12 @@ p.write_text(json.dumps(s));sys.exit(code)
     installer = source / "install.py"
 
     def call(*args, ok=True, stdin=None):
-        r = subprocess.run([sys.executable, installer, *args], input=stdin, capture_output=True, timeout=60)
+        r = subprocess.run(
+            [os.environ.get("BEARINGS_INSTALLER_PYTHON", sys.executable), installer, *args],
+            input=stdin,
+            capture_output=True,
+            timeout=60,
+        )
         assert (r.returncode == 0) == ok, (
             "Installer result differs: " + r.stderr.decode(errors="replace")[-1500:]
         )

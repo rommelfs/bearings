@@ -1296,3 +1296,22 @@ returning to Server clears/disables it, and switching to VM permits successful
 creation with the key visible. Both synthetic rollouts were revoked. No external
 NetBox API write, production operation or enrolled-client change was performed.
 Checks, Ruff, migration drift and static collection pass.
+
+
+### Python 3.8 monitored-host installer (2026-11-21)
+
+Ten installer unit tests pass in actual digest-pinned Python 3.8.20, including
+root-to-nobody UID/GID/supplementary-group drop and refusal to read root-only
+source files as the invoking user. The host interpreter passes nine tests with
+the privileged case skipped outside a root runner. Disposable manual and fleet
+installer acceptance passes under Python 3.8 and the current interpreter: actual
+accounts/file modes, verified loopback HTTPS, message signatures, successful
+registration, failed registration retaining keys, existing update/state/drop-in
+preservation, and restricted source reads. systemd is a controlled fixture; no
+production accounts, clients, relay delivery or external inventory are changed.
+Twenty PostgreSQL fleet/download tests, Django check, no migration drift, static
+collection, Ruff and whitespace checks pass. Python 3.8 remains confined to target
+compatibility and an isolated test image, never the application server runtime.
+
+The real bundled stack smoke also passes: scoped NetBox imports/writes and
+recovery, FlowIntel private cases, RT/RTIR permissions/lifecycles and local mail.

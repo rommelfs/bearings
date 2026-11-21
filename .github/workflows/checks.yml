@@ -39,6 +39,14 @@ jobs:
         working-directory: clients/linux
       - run: python3 scripts/build_linux_client.py
       - run: python3 -m unittest discover -s clients/linux -p test_installer.py
+      - name: Check installer on actual Python 3.8 with real credential drops
+        if: matrix.database == 'postgres'
+        run: >-
+          docker run --rm --network none --user 0:0 --cap-drop ALL
+          --cap-add SETUID --cap-add SETGID --cap-add DAC_OVERRIDE
+          -v "${{ github.workspace }}/clients/linux:/test-source:ro"
+          python:3.8-slim@sha256:1d52838af602b4b5a831beb13a0e4d073280665ea7be7f69ce2382f29c5a613f
+          python3 -m unittest discover -s /test-source -p test_installer.py
       - run: python3 scripts/linux_network_sandbox_smoke.py
       - run: python3 scripts/test_native_ecosystem.py
       - run: uv sync --frozen
