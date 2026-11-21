@@ -1142,3 +1142,48 @@ Frozen sync, Django checks, no migration drift, full Ruff lint/format and whites
 checks pass. Production acceptance, signing/renewal, operator egress/MFA, language
 continuity and sustained national fleet workload acceptance remain open as listed
 in the [audit](audits/2026-11-21-ui-security.md).
+
+
+## One machine with its explicitly assigned IPv4/IPv6 records — 2026-11-21
+
+Migration 0065 adds a nullable self-reference from imported IP records to their
+NetBox device/VM. Only the nested interface parent type/ID in the same complete
+source/organization snapshot establishes the relation. Unknown/unassigned/FHRP or
+out-of-snapshot parents remain independent; foreign nested interface metadata is
+not retained. There is no hostname, DNS or textual-IP reconciliation. Import remains
+GET-only, locked per source, atomic on schema/scope errors and deletion-free.
+The next complete import backfills existing records without changing their UUID,
+local criticality/team, software or findings. The schema migration has no network I/O.
+
+The company **01 / Inventory & software** paginates top-level assets, groups assigned
+IP records inside the host card, and keeps a 16-address preview with a paginated
+100-address host detail. Address links preserve access to independent notes/software
+and reviews. Missing addresses/hosts show last-known labels. The raw API remains
+an object inventory. Query-count regression with 100 assigned addresses verifies
+bounded rendering without per-address fetches or full upstream blobs. Cross-org
+corrupt links cannot group/hide records or expose a foreign host in the UI.
+
+**121 PostgreSQL cases pass** across import/concurrency, bounded company inventory,
+status, native export, signed agents, company invitations and exact-domain membership.
+Tests cover dual stack, physical/VM type collisions, identical IDs on independent
+instances, pre-existing local assessments/software/reviews, unsupported/missing/foreign
+parents, unassignment and failed snapshots. The guarded complete real stack smoke
+additionally creates invocation-owned physical/VM interfaces and dual-stack IPs in
+actual NetBox, imports them, verifies both groupings, then cleans up only those remote
+probes while retaining local missing records. Existing NetBox RO/RW, FlowIntel and
+RT/RTIR checks pass as well.
+
+Chromium at 390/1440 pixels shows exactly one machine card and two address links,
+no horizontal page overflow/JavaScript errors, and working links to the retained IP
+detail/parent. These use synthetic local fixtures, not production data. See the
+[browser record](audits/2026-11-21-address-grouping-browser.json) and
+[mobile grouped card](audits/2026-11-21-grouped-inventory-390.png).
+The temporary reader is disabled afterward. Frozen sync, Django checks/migration
+drift, Ruff and static collection are checked. Production activation still requires
+the normal frozen upgrade, migration, service restart and a successful scoped import.
+
+A direct organization-page **Company email domain codes** link and stable section
+anchor expose the existing company-admin/platform-superuser action. No new rights
+or secret redisplay is added; editors/readers cannot see the management link. Codes
+remain one-time displayed and digest-stored. The members guide documents how to find
+settings, revoke/replace a lost code and confirm an invited mailbox.

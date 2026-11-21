@@ -23,6 +23,43 @@ def text(value, maximum=180, *, required=False):
     return value
 
 
+def interface_assignment(row):
+    """Read an explicit source-local NetBox interface -> host identity, never names/DNS."""
+    interface_type = row.get("assigned_object_type")
+    if interface_type is not None and not isinstance(interface_type, str):
+        raise ConnectorError("Invalid interface type; complete import discarded")
+    targets = {
+        "dcim.interface": ("device", "dcim.device"),
+        "virtualization.vminterface": ("virtual_machine", "virtualization.virtualmachine"),
+    }
+    if interface_type not in targets:
+        return None  # Unassigned IP/FHRP/unsupported association remains a standalone record.
+    interface = row.get("assigned_object")
+    if interface is None:
+        return None  # Restricted or older serializers may omit the nested parent.
+    field, host_type = targets[interface_type]
+    if not isinstance(interface, dict):
+        raise ConnectorError("Invalid address interface; complete import discarded")
+    interface_id = row.get("assigned_object_id")
+    parent = interface.get(field)
+    if (
+        type(interface_id) is not int
+        or interface_id < 1
+        or type(interface.get("id")) is not int
+        or interface["id"] != interface_id
+        or not isinstance(parent, dict)
+        or type(parent.get("id")) is not int
+        or parent["id"] < 1
+    ):
+        raise ConnectorError("Invalid address parent identity; complete import discarded")
+    return {
+        "object_type": host_type,
+        "external_id": str(parent["id"]),
+        "interface_id": interface_id,
+        "interface": text(interface.get("name", "")),
+    }
+
+
 def project(kind, wrapper):
     row = wrapper["record"]
     if kind in {"ip-addresses", "prefixes"}:
@@ -40,6 +77,10 @@ def project(kind, wrapper):
     else:
         name = text(row.get("name"), required=True)
         data = {"name": name}
+    if kind == "ip-addresses":
+        assignment = interface_assignment(row)
+        if assignment:
+            data["assignment"] = assignment
     status = row.get("status", {})
     if isinstance(status, dict):
         status = status.get("value", "")
@@ -141,6 +182,19 @@ def refresh_locked(source, now):
     result = {kind: query_objects(source, kind) for kind in OBJECT_TYPES}
     # Validate the entire snapshot before any local projection changes.
     prepared = [(kind, row, *project(kind, row)) for kind, rows in result.items() for row in rows]
+    local_hosts = {
+        (row["object_type"], row["external_id"])
+        for kind, row, name, data, marker in prepared
+        if kind in {"devices", "virtual-machines"}
+    }
+    for kind, row, name, data, marker in prepared:
+        assignment = data.get("assignment", {})
+        if (
+            kind == "ip-addresses"
+            and (assignment.get("object_type"), assignment.get("external_id")) not in local_hosts
+        ):
+            # Do not retain a foreign/restricted parent or interface's denormalized metadata.
+            data.pop("assignment", None)
     # Resolve DNS only by the primary IP's source-local ID within this complete scoped IP snapshot.
     ips = {row["external_id"]: data for kind, row, name, data, marker in prepared if kind == "ip-addresses"}
     for kind, row, name, data, marker in prepared:
@@ -156,9 +210,15 @@ def refresh_locked(source, now):
         created=0, updated=0, unchanged=0, missing=0, reappeared=0, reconciled=0, total=len(prepared)
     )
     seen = []
+    hosts, addresses = {}, []
     for kind, row, name, data, marker in prepared:
         identity = dict(source=source, object_type=row["object_type"], external_id=row["external_id"])
-        asset = Asset.objects.filter(**identity).first()
+        asset = (
+            Asset.objects.select_related("network_host")
+            .defer("network_host__upstream_data")
+            .filter(**identity)
+            .first()
+        )
         pending = (
             Asset.objects.filter(pk=marker, source=source, organization_id=source.organization_id).first()
             if marker
@@ -203,9 +263,27 @@ def refresh_locked(source, now):
         asset.missing_since = asset.missing_reviewed_at = None
         asset.missing_review_reason = ""
         # Keep local kind refinements, lifecycle, criticality, team, software and findings.
+        asset.source = source  # Cache the already locked binding for validation.
         asset.full_clean()
         asset.save()
         seen.append(asset.pk)
+        if kind in {"devices", "virtual-machines"}:
+            hosts[(row["object_type"], row["external_id"])] = asset
+        elif kind == "ip-addresses":
+            addresses.append(asset)
+    # Resolve only after the complete snapshot is projected. Missing/foreign parents
+    # stay independent; prior IP records/assessments are retained and never merged.
+    changed = []
+    for address in addresses:
+        assignment = address.upstream_data.get("assignment", {})
+        parent = hosts.get((assignment.get("object_type"), assignment.get("external_id")))
+        if address.network_host_id != (parent.pk if parent else None):
+            address.network_host = parent
+            # Scalar fields were validated above; the only new value is this relation.
+            # Model.clean checks scope/type and the DB enforces the actual foreign key.
+            address.clean()
+            changed.append(address)
+    Asset.objects.bulk_update(changed, ["network_host"], batch_size=250)
     missing = (
         source.asset_set.filter(object_type__in=[v[1] for v in OBJECT_TYPES.values()], state="synced")
         .exclude(external_id="")

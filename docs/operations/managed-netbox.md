@@ -123,3 +123,30 @@ The latter applies real seccomp socket-domain filters to the compiled client:
 without AF_NETLINK it retains software and logs the omitted network observation;
 with AF_NETLINK it includes the host field. It does not emulate the entire systemd
 sandbox and does not contact NetBox.
+
+## One machine card with assigned addresses (migration 0065)
+
+The company page's **01 / Inventory & software** groups IP-address records under
+their actual device/VM. NetBox still has separate native IP objects; these are not
+additional machines. Import retains each address record, local assessment, software,
+review history and external identity. The card links to those address records and
+shows a bounded preview (16 per host); the host detail paginates all addresses at 100.
+Standalone/unassigned IPs, unsupported assignment types and prefixes remain independent.
+The raw inventory API continues to represent individual imported objects.
+
+Grouping uses only NetBox's explicit `assigned_object_type` + interface identity +
+nested device/VM ID within the same complete, authorized source snapshot. It never
+joins by hostname, DNS, textual IP or matching IDs on another instance. A parent
+outside the snapshot/tenant scope does not cause grouping. Reassignment/unassignment
+updates the relation on a successful import. Missing objects retain last-known data
+and visible missing labels; neither deletion nor current ownership is inferred.
+Failures roll back the full source snapshot. This remains GET-only and requests no
+new API permissions, interface lookups or upstream changes.
+
+Upgrade using the normal backed-up frozen deployment procedure, apply migration
+0065 and restart web/worker/national services. Run `sync_netbox --source SOURCE_UUID`
+through the protected management wrapper for the intended authoritative source, or
+use the existing company inventory refresh action/wait for its enabled import.
+The next complete import relates already-imported IP records; the migration itself
+does no network I/O or automatic deletion/merge. No client rebuild, re-enrollment,
+new export permission, primary-IP selection or source/tenant change is needed.

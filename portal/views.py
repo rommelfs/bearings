@@ -38,6 +38,7 @@ from .forms import (
 )
 from .presentation import ACTIVE_REVIEWS, decorate_finding, severity_first
 from .asset_context import asset_context
+from .inventory_presentation import top_level_assets, assigned_addresses, decorate_addresses
 from .pagination import object_page
 from .models import (
     AgentDevice,
@@ -211,7 +212,8 @@ def detail(request, slug):
         )
     )
     inventory_page = Paginator(
-        org.assets.select_related("source__instance")
+        top_level_assets(org.assets.all())
+        .select_related("source__instance")
         .annotate(upstream_status=F("upstream_data__status"))
         .defer("upstream_data")
         .prefetch_related(
@@ -227,6 +229,7 @@ def detail(request, slug):
         50,
     ).get_page(request.GET.get("inventory_page"))
     inventory_page.object_list = list(inventory_page.object_list)
+    decorate_addresses(inventory_page.object_list, org)
     counts = dict(
         Installation.objects.filter(asset_id__in=[a.pk for a in inventory_page], product__organization=org)
         .values("asset_id")
@@ -650,7 +653,7 @@ def api_evidence(request, slug, pk):
 def asset_detail(request, slug, pk):
     org = organization(request, slug)
     asset = get_object_or_404(
-        org.assets.select_related("source__instance"),
+        org.assets.select_related("source__instance", "network_host"),
         pk=pk,
     )
     findings = (
@@ -688,7 +691,19 @@ def asset_detail(request, slug, pk):
         {
             "org": org,
             "asset": asset,
+            "missing_review_form": MissingReviewForm(),
             "facts": asset_context(asset, workspace=True),
+            "network_host": asset.network_host
+            if (
+                asset.network_host_id
+                and asset.network_host.organization_id == org.pk
+                and asset.network_host.source_id == asset.source_id
+            )
+            else None,
+            "assigned_address_page": Paginator(
+                assigned_addresses(org).filter(network_host=asset),
+                100,
+            ).get_page(request.GET.get("address_page")),
             "software_page": software_page,
             "software_query": software_query,
             "agent_device": agent_device,

@@ -167,3 +167,84 @@ class CompanyInventoryTests(Fixture):
         response = self.client.get(self.url("asset", pk=self.asset.pk))
         self.assertNotContains(response, foreign.name)
         self.assertEqual(response.context["software_page"].paginator.count, 0)
+
+    def test_machine_card_groups_dual_stack_addresses_and_preserves_address_detail_links(self):
+        addresses = [
+            Asset.objects.create(
+                organization=self.a,
+                source=self.sa,
+                kind="ip_address",
+                object_type="ipam.ipaddress",
+                external_id=str(i),
+                name=name,
+                network_host=self.asset,
+                upstream_data={
+                    "assignment": {"interface": "eth0"},
+                    "dns_name": "synthetic-host.example.invalid",
+                },
+            )
+            for i, name in enumerate(("192.0.2.10/24", "2001:db8::10/64"), 1)
+        ]
+        self.login()
+        response = self.client.get(self.url("organization"))
+        self.assertEqual(response.context["inventory_page"].paginator.count, 1)
+        self.assertEqual(response.context["inventory_page"][0].assigned_address_count, 2)
+        for address in addresses:
+            self.assertContains(response, address.name)
+            self.assertContains(response, reverse("asset", args=[self.a.slug, address.pk]))
+        self.assertContains(response, "eth0")
+        detail = self.client.get(self.url("asset", pk=addresses[0].pk))
+        self.assertContains(detail, "Assigned to")
+        self.assertEqual(detail.context["network_host"], self.asset)
+        addresses[0].missing_since = timezone.now()
+        addresses[0].save(update_fields=["missing_since"])
+        self.assertContains(self.client.get(self.url("organization")), "last-known assignment")
+        detail = self.client.get(self.url("asset", pk=addresses[0].pk))
+        self.assertContains(detail, "Record missing-object review")
+        self.assertEqual(self.client.get(self.url("asset", self.b, pk=addresses[0].pk)).status_code, 404)
+
+    def test_many_addresses_have_bounded_preview_and_corrupt_cross_org_links_do_not_group(self):
+        self.login()
+        with CaptureQueriesContext(connection) as baseline:
+            self.client.get(self.url("organization"))
+        Asset.objects.bulk_create(
+            [
+                Asset(
+                    organization=self.a,
+                    source=self.sa,
+                    name=f"192.0.2.{i}/24",
+                    kind="ip_address",
+                    object_type="ipam.ipaddress",
+                    external_id=str(i),
+                    network_host=self.asset,
+                )
+                for i in range(1, 101)
+            ]
+        )
+        corrupt = Asset.objects.create(
+            organization=self.a,
+            source=self.sa,
+            name="Independent address",
+            kind="ip_address",
+            object_type="ipam.ipaddress",
+            network_host=self.other,
+        )
+        self.login()
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(self.url("organization"))
+        self.assertLessEqual(len(queries), len(baseline) + 3)
+        self.assertEqual(response.context["inventory_page"].paginator.count, 2)
+        host = next(a for a in response.context["inventory_page"] if a.pk == self.asset.pk)
+        self.assertEqual(host.assigned_address_count, 100)
+        self.assertEqual(len(host.address_preview), 16)
+        self.assertContains(response, corrupt.name)
+        self.assertNotContains(response, self.other.name)
+        response = self.client.get(self.url("asset", pk=corrupt.pk))
+        self.assertIsNone(response.context["network_host"])
+
+    def test_domain_code_link_matches_existing_company_admin_and_platform_permissions(self):
+        target = reverse("company-members", args=[self.a.slug]) + "#domain-codes"
+        self.login(self.reader)
+        self.assertNotContains(self.client.get(self.url("organization")), target)
+        self.login(self.platform)
+        self.assertContains(self.client.get(self.url("organization")), target)

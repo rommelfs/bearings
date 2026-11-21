@@ -191,3 +191,20 @@ The reviewed security/UI update changes frozen Python dependencies and the socia
 Native NetBox/FlowIntel have separate environments. With their applications/workers stopped, sync `/opt/bearings-services/netbox/.venv/bin/python` from `deploy/ubuntu24/ecosystem/netbox-requirements.txt` and `/opt/bearings-services/flowintel/.venv/bin/python` from `docker/flowintel/requirements.txt` using `uv pip sync --python PATH --require-hashes FILE`. The source-controlled native configuration must load `SOCIAL_AUTH_OLD_ID_KEYS = {"oidc": None}` before NetBox's social-auth data migration. Use `python3 deploy/ubuntu24/ecosystem.py manage netbox migrate --noinput`, then the corresponding `collectstatic --noinput` and `check` commands; restart `bearings-netbox`, `bearings-netbox-worker` and `bearings-flowintel`. Do not rerun first install, connector provisioning, SSO identity linking, realm import or mail setup. This upgrade adds no NetBox API rights and changes no retained credentials.
 
 Rebuild reviewed container images when using Docker; updating host files/venvs does not patch existing image packages. See [audit scope, evidence and remaining work](../audits/2026-11-21-ui-security.md).
+
+
+### Group NetBox addresses with their machine
+
+Migration 0065 adds a nullable imported address-to-host relation. Use the normal
+backup/stop/frozen-sync/migrate/collectstatic/check/restart procedure above. Then
+run `./deploy/ubuntu24/manage.py sync_netbox --source SOURCE_UUID` for the reviewed
+source (GET-only), or request the existing company inventory refresh. This backfills
+relations from NetBox's actual interface assignments. **01 / Inventory & software**
+shows one host card with its assigned IPv4/IPv6 records; previous address identities,
+software and assessments remain accessible. No client reinstall or new enrollment is
+needed. See [grouping and uncertainty](managed-netbox.md#one-machine-card-with-assigned-addresses-migration-0065).
+
+Organization administrators and platform superusers can open **Company members &
+invitations → Company email domain codes** directly from the company page. The
+reusable domain code itself is shown once when created; retained records show its
+domain, role, expiry/quota and revocation controls, not the original secret.

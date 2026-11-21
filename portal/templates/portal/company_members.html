@@ -3,7 +3,7 @@
 <p>Invite people to this existing company. Company administrators can assign administrator, inventory editor or reader access. This does not grant platform, CIRCL, MISP or native application permissions. Membership changes apply to Bearings; manage existing native application permissions and sessions separately.</p>
 <h2>Invite a member</h2><p>Invitations expire after 72 hours. Existing users sign in to their own account; new users choose their own password. Re-inviting revokes the previous code.</p>
 <form method="post">{% csrf_token %}<input type="hidden" name="action" value="invite">{{ form.as_p }}<button class="primary">Send invitation</button></form>
-<h2>Company email domain codes</h2>
+<h2 id="domain-codes">Company email domain codes</h2>
 <p>A reusable code lets colleagues request an individual confirmation email. Only the exact domain qualifies; confirming the mailbox is required before access. Codes grant reader or inventory-editor access, never organization-administrator access. Expiry, revocation, quota and the creator's current administrator role are checked again on acceptance.</p>
 {% if created_code %}<aside class="message"><strong>Copy this code now; it is shown only once.</strong><p><code>{{ created_code }}</code></p><a href="{% url 'company-domain-join' %}#token={{ created_code }}">Company domain join link</a><p>Share internally. It does not bypass email confirmation.</p></aside>{% endif %}
 <form method="post">{% csrf_token %}<input type="hidden" name="action" value="domain-create">{{ domain_form.as_p }}<button class="primary">Create domain code</button></form>

@@ -483,3 +483,13 @@ production egress, MFA, language continuity and full accessibility/sustained fle
 load acceptance remain open; source publication does not complete those controls.
 
 Actual rebuilt Bearings/FlowIntel environments are also audited (32/76 packages, zero advisory records). Bundled gateways re-resolve fixed backend names after container replacement; verified HTTPS logins recover after a further FlowIntel recreation. Its unused administrative Gunicorn control socket is disabled.
+
+
+## Group assigned IP records under their machine — 2026-11-21
+
+Migration 0065 retains address identities and assessments while grouping same-source
+explicit NetBox interface assignments under device/VM cards in company inventory.
+No hostname/IP guessing or record merge occurs. Address previews and host details
+are bounded; independent/missing records remain reviewable. Direct organization
+email-domain-code navigation now matches the existing company-admin/platform-admin
+permissions. See [NetBox operations](operations/managed-netbox.md).

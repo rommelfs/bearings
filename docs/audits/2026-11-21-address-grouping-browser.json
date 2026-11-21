@@ -1,0 +1,21 @@
+{
+  "synthetic_local": true,
+  "results": [
+    {
+      "width": 390,
+      "machine_cards": 1,
+      "assigned_addresses": 2,
+      "address_record_links_retained": true,
+      "horizontal_overflow": false,
+      "javascript_errors": []
+    },
+    {
+      "width": 1440,
+      "machine_cards": 1,
+      "assigned_addresses": 2,
+      "address_record_links_retained": true,
+      "horizontal_overflow": false,
+      "javascript_errors": []
+    }
+  ]
+}

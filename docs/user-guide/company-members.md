@@ -1,5 +1,17 @@
 # Company members and reviewed organization merges
 
+## Find company email-domain codes
+
+Open the organization's **Company members & invitations**, then **Company email
+domain codes**. The organization page also has a direct link to that section for
+organization administrators and platform superusers. Its address is
+`/organizations/COMPANY_SLUG/members/#domain-codes`.
+
+Existing code records show the exact domain, role, expiry, usage limit and revocation
+control. The secret itself is shown only on creation and stored as a digest; it
+cannot be displayed again. Revoke and replace a lost code. Colleagues use
+`/join/domain/` and must confirm their matching company mailbox before joining.
+
 ## Join an existing company
 
 The first email-confirmed registrant remains the new company's administrator. Registration creates a new company; it now points existing-company participants to `/join/` instead. There is no public company directory, fuzzy membership assignment or automatic joining based on an email domain.

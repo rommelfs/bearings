@@ -335,6 +335,14 @@ VIRTUALIZATION_TYPES = [
 
 
 class Asset(models.Model):
+    network_host = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_addresses",
+        editable=False,
+    )
     virtualization_type = models.CharField(
         max_length=20, choices=VIRTUALIZATION_TYPES, blank=True, default=""
     )
@@ -405,6 +413,18 @@ class Asset(models.Model):
         ]
 
     def clean(self):
+        if self.network_host_id:
+            parent = self.network_host
+            if (
+                self.object_type != "ipam.ipaddress"
+                or parent.object_type not in {"dcim.device", "virtualization.virtualmachine"}
+                or parent.pk == self.pk
+                or parent.organization_id != self.organization_id
+                or parent.source_id != self.source_id
+            ):
+                raise ValidationError(
+                    "Address assignment must reference a host in the same source and organization"
+                )
         if self.virtualization_type and self.kind != "vm":
             raise ValidationError("Virtualization type is only supported for virtual machines")
         if self.source_id and self.organization_id != self.source.organization_id:
