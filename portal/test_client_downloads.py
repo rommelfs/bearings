@@ -142,6 +142,11 @@ class DownloadRolloutTests(Fixture):
         token = response.context["fleet_token"]
         self.assertTrue(token)
         self.assertContains(response, token)
+        self.assertContains(response, 'action="#rollout-result"')
+        self.assertContains(response, 'id="rollout-key" readonly')
+        html = response.content.decode()
+        self.assertLess(html.index("Create limited rollout key"), html.index('id="rollout-result"'))
+        self.assertLess(html.index('id="rollout-result"'), html.index(token))
         self.assertIn("no-store", response["Cache-Control"])
         fleet = AgentFleet.objects.get()
         self.assertEqual(fleet.organization_id, self.a.pk)
@@ -175,3 +180,22 @@ class DownloadRolloutTests(Fixture):
         strict = Client(enforce_csrf_checks=True)
         strict.force_login(self.admin)
         self.assertEqual(self.create(client=strict).status_code, 403)
+
+    def test_invalid_creation_has_visible_result_and_no_fleet(self):
+        from .models import AgentFleet
+
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            self.path,
+            {
+                "organization": "alpha",
+                "action": "create",
+                "name": "",
+                "new_asset_kind": "server",
+                "max_devices": 2,
+                "hours": 24,
+            },
+        )
+        self.assertContains(response, "No rollout key created")
+        self.assertContains(response, 'role="alert"')
+        self.assertFalse(AgentFleet.objects.exists())

@@ -522,3 +522,6 @@ Implemented organization selection, one-time rollout key display after creation 
 revocation on the download page using the existing fleet authorization and service.
 Existing secrets remain hash-only; no implicit replacement or credential changes.
 See [Linux client](integrations/linux-agent.md).
+
+Rollout display follow-up: creation now jumps directly to the result below the
+form; errors receive an explicit failure notice. Secrets remain one-time only.

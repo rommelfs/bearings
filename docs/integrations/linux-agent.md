@@ -101,3 +101,9 @@ The existing company fleet page uses the same authorization, validation and serv
 Deploy this server UI change with the usual frozen production dependency sync,
 Django checks and restart `bearings-web`. No migration, client rebuild or restart
 of `bearings-linux`, workers, NetBox or Keycloak is required.
+
+The creation form targets `#rollout-result`: after submission the browser jumps
+to the result immediately below the form. A successful response contains the
+read-only key field; validation failures show an explicit failure notice. A reload
+still cannot recover the secret. This presentation update requires restarting only
+`bearings-web`; no migration, static rebuild or client restart is needed.

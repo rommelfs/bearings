@@ -1273,3 +1273,14 @@ Frozen sync, Django checks/no migration drift, static collection, full Ruff and
 whitespace checks pass. No migration is added after 0065. Native NetBox/client
 updates are not needed for this UI/merge-policy correction. Actual production
 consolidation remains an explicit operator preview/confirmation for each source.
+
+
+### Rollout result visibility (2026-11-21)
+
+16 PostgreSQL download/fleet tests pass, including key-in-creation-response,
+hash-only persistence, no recovery after reload, tenant/role/CSRF refusal and
+visible validation failures. Local Chromium at 390 and 1440 px confirms form POST
+lands at `#rollout-result`, the new key field lies inside the viewport, and there
+is no horizontal overflow. All synthetic browser rollouts were revoked; no
+production credentials, registrations or services were changed. Django check,
+Ruff and diff whitespace check pass.
