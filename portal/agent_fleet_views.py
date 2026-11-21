@@ -30,6 +30,34 @@ class FleetForm(forms.Form):
         label="Authorize new self-reported hosts for this company, including hostname, configured interface IPs and software observations. Existing devices are not matched by hostname. No NetBox writes or verified ownership claims."
     )
 
+    def __init__(self, *args, source=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        managed = bool(
+            source and source.mode in {"central", "external"} and source.agent_managed and source.can_write
+        )
+        field = self.fields["virtualization_type"]
+        configured = source.instance.virtualization_tags if managed else {}
+        field.choices = [(key, label) for key, label in VIRTUALIZATION_TYPES if not key or key in configured]
+        self.virtualization_available = managed and len(field.choices) > 1
+        field.help_text = "For LXC, Incus, Proxmox or VMware, select Virtual machine as the host type. Only types configured for this NetBox connection are offered."
+        self.fields[
+            "new_asset_kind"
+        ].help_text = "Choose Virtual machine for virtual machines and LXC/Incus containers. Server, desktop and laptop represent physical hosts."
+        if managed:
+            self.fields[
+                "acknowledged"
+            ].label = "Authorize new self-reported hosts and tenant-scoped managed NetBox registration. IP declarations do not establish network ownership. Existing rollout codes retain their original mode."
+        if not self.virtualization_available:
+            field.disabled = True
+            field.widget = forms.HiddenInput()
+
+    def clean(self):
+        data = super().clean()
+        if data.get("new_asset_kind") != "vm":
+            # A host-type change must not carry a stale virtualization selection.
+            data["virtualization_type"] = ""
+        return data
+
 
 @login_required
 @never_cache
@@ -38,17 +66,8 @@ class FleetForm(forms.Form):
 def center(request, slug, *, downloads_page=False):
     org = get_object_or_404(organizations_for(request.user), slug=slug)
     require(agents.administrator(request.user, org))
-    form = FleetForm(request.POST if request.POST.get("action") == "create" else None)
     source = InventorySource.objects.select_related("instance").filter(organization=org).first()
-    if source and source.agent_managed and source.can_write:
-        form.fields[
-            "acknowledged"
-        ].label = "Authorize new self-reported hosts and tenant-scoped managed NetBox registration. IP declarations do not establish network ownership. Existing rollout codes retain their original mode."
-    else:
-        form.fields["virtualization_type"].disabled = True
-        form.fields[
-            "virtualization_type"
-        ].help_text = "Available when the operator enables managed NetBox VM registration."
+    form = FleetForm(request.POST if request.POST.get("action") == "create" else None, source=source)
     token = None
     if request.method == "POST":
         if request.POST.get("action") == "revoke":

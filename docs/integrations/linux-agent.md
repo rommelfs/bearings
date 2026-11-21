@@ -117,3 +117,20 @@ use the configured public origin and never interpolate the key.
 
 This instruction/CSS update requires `collectstatic --noinput` and a restart of
 `bearings-web` after updating the checkout. No migration or client restart is needed.
+
+### Host and virtualization choices
+
+For an LXC/Incus container or other VM, choose **Virtual machine**. With managed
+NetBox registration, the virtualization field then offers only the types configured
+on that source’s NetBox instance. Physical server/desktop/laptop choices hide and
+clear the virtualization selection. Sources without managed write access or
+configured virtualization types omit that selector. A VM may remain unspecified.
+
+JavaScript updates the field immediately; without JavaScript, the visible field’s
+help explains its VM-only purpose. Server-side source-scoped choices reject
+unconfigured VM types and clear stale physical-host selections. The service still
+enforces write capability and source policy; no NetBox request runs on form display
+or rollout creation. Existing rollout modes/tags and enrolled devices are unchanged.
+
+Deploy with `collectstatic --noinput` and restart `bearings-web`; no migration or
+client rebuild/restart is needed.

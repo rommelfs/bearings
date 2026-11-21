@@ -1284,3 +1284,15 @@ lands at `#rollout-result`, the new key field lies inside the viewport, and ther
 is no horizontal overflow. All synthetic browser rollouts were revoked; no
 production credentials, registrations or services were changed. Django check,
 Ruff and diff whitespace check pass.
+
+
+### Dependent rollout choices (2026-11-21)
+
+20 PostgreSQL fleet/download tests pass: configured managed VM choices on both
+routes, physical-host stale selection cleanup, rejection of unconfigured VM types,
+read-only/unconfigured control omission, role isolation and CSRF. Local Chromium
+at 390/1440 px confirms Server hides the selector, VM reveals only configured LXC,
+returning to Server clears/disables it, and switching to VM permits successful
+creation with the key visible. Both synthetic rollouts were revoked. No external
+NetBox API write, production operation or enrolled-client change was performed.
+Checks, Ruff, migration drift and static collection pass.

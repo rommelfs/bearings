@@ -203,3 +203,69 @@ class FleetTests(Fixture):
             agent_fleets.create(self.admin, self.a, "Disabled source", "server")
         self.assertEqual(self.bootstrap().status_code, 403)
         self.assertEqual(AgentEnrollment.objects.count(), 0)
+
+
+@override_settings(PUBLIC_BASE_URL="https://testserver")
+class FleetDependencyTests(Fixture):
+    def setUp(self):
+        self.sa.mode = "central"
+        self.sa.tenant_id = 1
+        self.sa.agent_managed = True
+        self.sa.instance = NetBoxInstance.objects.create(
+            name="Scoped virtualization choices",
+            base_url="https://netbox.example.invalid",
+            access_mode="read_write",
+            virtualization_tags={"lxc": 7, "vmware": 8},
+        )
+        self.sa.save()
+        self.client.force_login(self.admin)
+
+    def data(self, kind="vm", virtualization="lxc"):
+        return {
+            "action": "create",
+            "organization": "alpha",
+            "name": "Dependent rollout",
+            "new_asset_kind": kind,
+            "virtualization_type": virtualization,
+            "max_devices": 3,
+            "hours": 24,
+            "acknowledged": "on",
+        }
+
+    def test_managed_vm_only_offers_configured_types_on_both_pages(self):
+        for path in ("/organizations/alpha/agents/fleet/", "/downloads/linux/?organization=alpha"):
+            response = self.client.get(path)
+            choices = dict(response.context["form"].fields["virtualization_type"].choices)
+            self.assertEqual(set(choices), {"", "lxc", "vmware"})
+            self.assertContains(response, "data-rollout-virtualization")
+            self.assertContains(response, "portal/rollout-form.js")
+            response = self.client.post(path, self.data())
+            self.assertTrue(response.context["fleet_token"])
+        self.assertEqual(
+            AgentFleet.objects.filter(virtualization_type="lxc", inventory_mode="managed").count(), 2
+        )
+
+    def test_host_type_change_drops_stale_virtualization(self):
+        for kind in ("server", "desktop", "laptop"):
+            response = self.client.post("/downloads/linux/", self.data(kind))
+            self.assertTrue(response.context["fleet_token"])
+        self.assertEqual(AgentFleet.objects.filter(virtualization_type="").count(), 3)
+
+    def test_unconfigured_virtualization_is_a_field_error_and_does_not_create(self):
+        response = self.client.post("/downloads/linux/", self.data(virtualization="incus"))
+        self.assertIn("virtualization_type", response.context["form"].errors)
+        self.assertIsNone(response.context["fleet_token"])
+        self.assertFalse(AgentFleet.objects.exists())
+
+    def test_read_only_and_unconfigured_sources_hide_and_ignore_virtualization(self):
+        for changes in (
+            {"access_mode": "read_only"},
+            {"access_mode": "read_write", "virtualization_tags": {}},
+        ):
+            for field, value in changes.items():
+                setattr(self.sa.instance, field, value)
+            self.sa.instance.save()
+            response = self.client.post("/downloads/linux/", self.data())
+            self.assertTrue(response.context["fleet_token"])
+            self.assertNotContains(response, "data-rollout-virtualization")
+        self.assertFalse(AgentFleet.objects.exclude(virtualization_type="").exists())
