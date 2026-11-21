@@ -514,3 +514,11 @@ registrations to a canonical target with earlier archives, retaining target nati
 bindings and old archive destinations. Source archive chains remain blocked; every
 incoming/resulting membership role is shown, and policy changes invalidate previews.
 See [members and consolidation](user-guide/company-members.md).
+
+
+## Linux downloads rollout controls — 2026-11-21
+
+Implemented organization selection, one-time rollout key display after creation and
+revocation on the download page using the existing fleet authorization and service.
+Existing secrets remain hash-only; no implicit replacement or credential changes.
+See [Linux client](integrations/linux-agent.md).

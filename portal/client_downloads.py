@@ -1,4 +1,4 @@
-"""Public, fixed-name distribution of operator-built client artifacts; no customer inventory or secrets."""
+"""Public, fixed-name distribution of operator-built client artifacts; public artifacts and private, organization-scoped rollout controls."""
 
 import hashlib
 import os
@@ -7,7 +7,10 @@ import stat
 from django.conf import settings
 from django.http import FileResponse, Http404
 from django.shortcuts import render
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.cache import never_cache
+from .access import organizations_for, require
+from . import agent_fleet_views
 
 ARTIFACTS = {
     "install.py": 128 * 1024,
@@ -39,8 +42,7 @@ def open_artifact(name):
     return file
 
 
-@require_GET
-def index(request):
+def page_context(request):
     ready = True
     try:
         for name in ARTIFACTS:
@@ -48,16 +50,32 @@ def index(request):
                 pass
     except Http404:
         ready = False
-    response = render(
-        request,
-        "portal/client_downloads.html",
-        {
-            "ready": ready,
-            "origin": settings.PUBLIC_BASE_URL or request.build_absolute_uri("/").rstrip("/"),
-        },
-    )
-    response["Cache-Control"] = "no-store"
-    return response
+    organizations = organizations_for(request.user)
+    if not request.user.is_authenticated or not request.user.is_active:
+        organizations = organizations.none()
+    elif not request.user.is_superuser:
+        organizations = organizations.filter(membership__user=request.user, membership__role="admin")
+    return {
+        "ready": ready,
+        "origin": settings.PUBLIC_BASE_URL or request.build_absolute_uri("/").rstrip("/"),
+        "rollout_organizations": organizations.order_by("name", "pk"),
+        "downloads_page": True,
+    }
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def index(request):
+    context = page_context(request)
+    slug = request.POST.get("organization") if request.method == "POST" else request.GET.get("organization")
+    if request.method == "POST":
+        require(request.user.is_authenticated and bool(slug))
+    if not slug and context["rollout_organizations"].count() == 1:
+        slug = context["rollout_organizations"].first().slug
+    if slug:
+        require(context["rollout_organizations"].filter(slug=slug).exists())
+        return agent_fleet_views.center(request, slug, downloads_page=True)
+    return render(request, "portal/client_downloads.html", context)
 
 
 @require_GET

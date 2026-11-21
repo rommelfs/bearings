@@ -122,6 +122,10 @@
       {
         "title": "Prepare native Linux client downloads and constrained LXC installation",
         "body": "Implement root-operated clean-source prepare-linux-client using checksum-pinned official Go, immutable public build directories, protected environment handoff and retained previous release. Add explicit installer --lxc-compatible drop-in that retains identity/state and non-root/capability/resource restrictions without changing the base unit or outer host policy. Container acceptance checks override preservation/refusal, real signed enrollment and HTTPS; actual target inner-systemd acceptance remains. Existing read-only NetBox sources still require an existing imported asset; no implicit tenant write grant."
+      },
+      {
+        "title": "Expose scoped rollout controls on Linux downloads",
+        "body": "Implemented organization selection and shared fleet creation/revocation on /downloads/linux/. Only company administrators and platform superusers can manage rollouts. Newly created secret shown once, never persisted reversibly; GET reload retains metadata only. Public artifacts remain available; authorization, cross-company refusal and CSRF covered in PostgreSQL tests."
       }
     ]
   },

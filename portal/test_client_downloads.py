@@ -108,3 +108,70 @@ class EnrollmentCodeTests(Fixture):
                 stdout=StringIO(),
             )
         self.assertEqual(AgentEnrollment.objects.count(), count)
+
+
+@override_settings(PUBLIC_BASE_URL="https://testserver")
+class DownloadRolloutTests(Fixture):
+    path = "/downloads/linux/"
+
+    def create(self, organization="alpha", client=None):
+        return (client or self.client).post(
+            self.path,
+            {
+                "organization": organization,
+                "action": "create",
+                "name": "Download rollout",
+                "new_asset_kind": "server",
+                "max_devices": 2,
+                "hours": 24,
+                "acknowledged": "on",
+            },
+        )
+
+    def test_public_page_contains_login_but_no_private_rollouts(self):
+        self.assertContains(self.client.get(self.path), "Sign in to create a rollout key")
+        self.assertEqual(self.create().status_code, 403)
+
+    def test_admin_creates_once_and_reload_does_not_recover_secret(self):
+        from .models import AgentFleet
+
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(self.path), "Create limited rollout key")
+        response = self.create()
+        self.assertEqual(response.status_code, 200)
+        token = response.context["fleet_token"]
+        self.assertTrue(token)
+        self.assertContains(response, token)
+        self.assertIn("no-store", response["Cache-Control"])
+        fleet = AgentFleet.objects.get()
+        self.assertEqual(fleet.organization_id, self.a.pk)
+        self.assertNotEqual(fleet.token_hash, token.split(".", 1)[1])
+        self.assertNotContains(self.client.get(self.path), token)
+        response = self.client.post(
+            self.path, {"action": "revoke", "organization": "alpha", "fleet": fleet.pk}
+        )
+        self.assertRedirects(response, self.path + "?organization=alpha")
+        fleet.refresh_from_db()
+        self.assertFalse(fleet.enabled)
+
+    def test_foreign_company_reader_editor_and_analyst_cannot_create(self):
+        from .models import AgentFleet
+
+        for user in (self.admin, self.reader, self.editor, self.analyst):
+            self.client.force_login(user)
+            self.assertEqual(self.create("beta").status_code, 403)
+            if user != self.admin:
+                self.assertNotContains(self.client.get(self.path), "Create limited rollout key")
+                self.assertEqual(self.create().status_code, 403)
+        self.assertFalse(AgentFleet.objects.exists())
+
+    def test_platform_must_select_and_csrf_is_required(self):
+        from django.test import Client
+
+        self.client.force_login(self.platform)
+        self.assertContains(self.client.get(self.path), "Show rollout controls")
+        self.assertNotContains(self.client.get(self.path), "Create limited rollout key")
+        self.assertContains(self.client.get(self.path + "?organization=beta"), "Create limited rollout key")
+        strict = Client(enforce_csrf_checks=True)
+        strict.force_login(self.admin)
+        self.assertEqual(self.create(client=strict).status_code, 403)

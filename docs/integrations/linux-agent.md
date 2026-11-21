@@ -83,3 +83,21 @@ Managed NetBox registration is optional server-side policy, separate from signed
 ### Recurring NetBox export
 
 Migration 0064 and the optional signed report `host` field support operator-enabled export to central or customer-owned NetBox. Supported addressed interfaces/IPs become native objects in an explicitly selected tenant VRF; OS/software/version/provenance become a host JSON inventory field. Old clients still report software but do not refresh enrollment-time addresses; deploy server support before updating clients for fresh network observations. No deletion, prefix allocation, primary-IP selection or guessed topology occurs. See [managed export and customer RW preparation](../operations/managed-netbox.md#reported-inventory-export-migration-0064).
+
+### Rollout keys on the download page
+
+Open `/downloads/linux/`, sign in and select the organization. An organization
+administrator (or platform superuser) can create a limited rollout key directly
+there and copy it into the installer's hidden bootstrap prompt. A single eligible
+organization is selected automatically. Readers, editors, analysts without company
+admin membership and anonymous visitors cannot create or inspect rollouts.
+
+The secret appears only in the successful creation response, with no-store caching.
+Existing keys cannot be recovered because only their hashes are retained. Reloading
+shows rollout metadata and revocation controls, not the key. Creating a replacement
+does not silently revoke existing rollouts or change enrolled device credentials.
+The existing company fleet page uses the same authorization, validation and service.
+
+Deploy this server UI change with the usual frozen production dependency sync,
+Django checks and restart `bearings-web`. No migration, client rebuild or restart
+of `bearings-linux`, workers, NetBox or Keycloak is required.
