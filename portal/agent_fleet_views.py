@@ -1,6 +1,7 @@
 """Company administrators approve a bounded rollout once, not once per server."""
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import Http404
@@ -86,6 +87,7 @@ def center(request, slug, *, downloads_page=False):
             "portal/client_downloads.html" if downloads_page else "portal/agent_fleets.html",
             {
                 **extra,
+                "origin": settings.PUBLIC_BASE_URL,
                 "org": org,
                 "form": form,
                 "fleet_token": token,

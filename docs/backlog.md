@@ -525,3 +525,6 @@ See [Linux client](integrations/linux-agent.md).
 
 Rollout display follow-up: creation now jumps directly to the result below the
 form; errors receive an explicit failure notice. Secrets remain one-time only.
+
+Linux rollout instructions now include the installer download in each installation
+block, plus LXC, service status and secret-file automation instructions.

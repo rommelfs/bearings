@@ -107,3 +107,13 @@ to the result immediately below the form. A successful response contains the
 read-only key field; validation failures show an explicit failure notice. A reload
 still cannot recover the secret. This presentation update requires restarting only
 `bearings-web`; no migration, static rebuild or client restart is needed.
+
+The download page and one-time rollout-key result share complete installation
+blocks: verified HTTPS download followed by installation with `&&`, interactive
+hidden prompt, a complete LXC alternative, reporting service status, and root-only
+automation using a pre-provisioned secret-manager file through stdin. The automation
+path `/run/secrets/bearings-rollout-key` is an explicitly labelled example. Commands
+use the configured public origin and never interpolate the key.
+
+This instruction/CSS update requires `collectstatic --noinput` and a restart of
+`bearings-web` after updating the checkout. No migration or client restart is needed.

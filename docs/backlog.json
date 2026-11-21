@@ -125,7 +125,7 @@
       },
       {
         "title": "Expose scoped rollout controls on Linux downloads",
-        "body": "Implemented organization selection and shared fleet creation/revocation on /downloads/linux/. Only company administrators and platform superusers can manage rollouts. Newly created secret shown once, never persisted reversibly; GET reload retains metadata only. Public artifacts remain available; authorization, cross-company refusal and CSRF covered in PostgreSQL tests. Follow-up: anchor form submission to the result below the form, with visible success/key and validation-failure output; preserve hash-only retention."
+        "body": "Implemented organization selection and shared fleet creation/revocation on /downloads/linux/. Only company administrators and platform superusers can manage rollouts. Newly created secret shown once, never persisted reversibly; GET reload retains metadata only. Public artifacts remain available; authorization, cross-company refusal and CSRF covered in PostgreSQL tests. Follow-up: anchor form submission to the result below the form, with visible success/key and validation-failure output; preserve hash-only retention. Installation instructions now share complete download-and-install blocks, hidden prompt, LXC alternative and stdin automation with an explicitly documented secret-file prerequisite. Commands use the configured public origin and include no keys."
       }
     ]
   },
