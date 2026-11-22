@@ -1,5 +1,8 @@
 """Inventory rendering must not hydrate or render the company's complete CVE history."""
 
+import base64
+import uuid
+from datetime import timedelta
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -7,6 +10,9 @@ from django.utils import timezone
 from .tests import Fixture
 from .models import (
     Asset,
+    AgentDevice,
+    AgentReport,
+    AgentComponent,
     Product,
     Installation,
     SourceRecord,
@@ -82,7 +88,7 @@ class CompanyInventoryTests(Fixture):
             response = self.client.get(url)
         self.assertEqual(response.context["finding_summary"]["total"], 300)
         self.assertEqual(response.context["finding_summary"]["pending"], 300)
-        self.assertEqual(len(response.context["inventory_page"][0].software_preview), 10)
+        self.assertEqual(len(response.context["inventory_page"][0].software_preview), 1)
         self.assertEqual(response.context["inventory_page"][0].software_count, 1001)
         self.assertLessEqual(len(grown), len(baseline) + 3)
         self.assertLess(len(response.content), len(initial.content) + 30000)
@@ -248,3 +254,151 @@ class CompanyInventoryTests(Fixture):
         self.assertNotContains(self.client.get(self.url("organization")), target)
         self.login(self.platform)
         self.assertContains(self.client.get(self.url("organization")), target)
+
+    def test_compact_two_hundred_host_inventory_keeps_packages_and_queries_bounded(self):
+        self.asset.name = "host-000"
+        self.asset.save()
+        hosts = [
+            self.asset,
+            *Asset.objects.bulk_create(
+                [
+                    Asset(organization=self.a, source=self.sa, name=f"host-{i:03}", kind="server")
+                    for i in range(1, 200)
+                ]
+            ),
+        ]
+        packages = Product.objects.bulk_create(
+            [
+                Product(
+                    organization=self.a,
+                    name=f"base-package-{i:03}",
+                    identifier=f"pkg:deb/ubuntu/base-{i}?arch=amd64",
+                )
+                for i in range(20)
+            ]
+        )
+        misp = Product.objects.create(
+            organization=self.a, name="MISP", identifier="cpe:2.3:a:misp:misp:*:*:*:*:*:*:*:*"
+        )
+        extras = Product.objects.bulk_create(
+            [Product(organization=self.a, name=n) for n in ("Vault", "Zabbix")]
+        )
+        Installation.objects.bulk_create(
+            [
+                Installation(asset=host, product=product, version="2.5.51" if product == misp else "1.0")
+                for host in hosts
+                for product in [*packages, misp, *extras]
+            ]
+        )
+        AgentDevice.objects.bulk_create(
+            [
+                AgentDevice(
+                    organization=self.a,
+                    source=self.sa,
+                    asset=host,
+                    public_key=base64.b64encode(i.to_bytes(32, "big")).decode(),
+                    expires_at=timezone.now() + timedelta(days=1),
+                    last_observed_at=timezone.now(),
+                    os={"id": "ubuntu", "version": "24.04"},
+                )
+                for i, host in enumerate(hosts)
+            ]
+        )
+        self.login()
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(self.url("organization"))
+        self.assertEqual(response.context["inventory_page"].paginator.count, 200)
+        self.assertEqual(len(response.context["inventory_page"]), 50)
+        self.assertLess(len(queries), 40)
+        self.assertLess(len(response.content), 160000)
+        self.assertContains(response, "Ubuntu 24.04", count=50)
+        self.assertNotContains(response, "base-package-")
+        self.assertNotContains(response, "Investigate a known CVE")
+        for host in response.context["inventory_page"]:
+            self.assertLessEqual(len(host.software_preview), 3)
+            self.assertGreaterEqual(host.software_count, 23)
+            self.assertEqual(host.additional_software_count, 4 if host.pk == self.asset.pk else 3)
+        self.assertContains(response, "+1 more")
+        self.assertContains(self.client.get(self.url("asset", pk=self.asset.pk)), "base-package-000")
+        searched = self.client.get(self.url("organization"), {"inventory_q": "host-19"})
+        self.assertEqual(searched.context["inventory_page"].paginator.count, 10)
+        self.assertEqual(Installation.objects.filter(asset__organization=self.a).count(), 4601)
+
+    def test_os_requires_scoped_metadata_or_recorded_os_and_marks_stale_reports(self):
+        self.login()
+        self.product.identifier = "pkg:deb/ubuntu/adduser?arch=all"
+        self.product.save()
+        response = self.client.get(self.url("organization"))
+        self.assertEqual(response.context["inventory_page"][0].overview_os, "")
+        self.assertEqual(response.context["inventory_page"][0].software_preview, [])
+        device = AgentDevice.objects.create(
+            organization=self.b,
+            source=self.sb,
+            asset=self.asset,
+            public_key="synthetic-os-key",
+            expires_at=timezone.now() + timedelta(days=1),
+            last_observed_at=timezone.now(),
+            os={"id": "ubuntu", "version": "24.04"},
+        )
+        self.assertEqual(
+            self.client.get(self.url("organization")).context["inventory_page"][0].overview_os, ""
+        )
+        device.organization = self.a
+        device.save()
+        self.assertEqual(
+            self.client.get(self.url("organization")).context["inventory_page"][0].overview_os, ""
+        )
+        device.source = self.sa
+        device.last_observed_at = timezone.now() - timedelta(days=1)
+        device.save()
+        response = self.client.get(self.url("organization"))
+        self.assertContains(response, "Ubuntu 24.04")
+        self.assertContains(response, "Last-known OS")
+        device.enabled = False
+        device.save()
+        self.installation.is_operating_system = True
+        self.installation.version = "22.04"
+        self.installation.save()
+        self.product.name = "Ubuntu"
+        self.product.save()
+        response = self.client.get(self.url("organization"))
+        self.assertEqual(response.context["inventory_page"][0].overview_os, "Ubuntu 22.04")
+
+    def test_manifest_applications_take_priority_and_stale_versions_stay_labelled(self):
+        self.login()
+        for name in ("Application A", "Application B", "Application C"):
+            p = Product.objects.create(organization=self.a, name=name)
+            Installation.objects.create(asset=self.asset, product=p, version="1")
+        product = Product.objects.create(organization=self.a, name="MISP")
+        installed = Installation.objects.create(asset=self.asset, product=product, version="2.5.51")
+        device = AgentDevice.objects.create(
+            organization=self.a,
+            source=self.sa,
+            asset=self.asset,
+            public_key="synthetic-key",
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+        report = AgentReport.objects.create(
+            id=uuid.uuid4(),
+            device=device,
+            sequence=1,
+            observed_at=timezone.now(),
+            body=b"{}",
+            body_hash="0" * 64,
+            component_count=1,
+        )
+        AgentComponent.objects.create(
+            device=device,
+            installation=installed,
+            key="manifest:misp:all",
+            name="MISP",
+            manager="manifest",
+            version="2.5.51",
+            observed_at=timezone.now() - timedelta(days=1),
+            last_report=report,
+        )
+        response = self.client.get(self.url("organization"))
+        previews = response.context["inventory_page"][0].software_preview
+        self.assertEqual(previews[0].product.name, "MISP")
+        self.assertEqual(len(previews), 3)
+        self.assertContains(response, "Last-known version")

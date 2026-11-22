@@ -240,7 +240,7 @@ class AutomaticPackageTests(Fixture):
         self.assertContains(response, "package-0149")
         company = self.client.get(reverse("organization", args=[self.a.slug]))
         asset = next(a for a in company.context["inventory_page"] if a.pk == self.asset.pk)
-        self.assertEqual(len(asset.software_preview), 10)
+        self.assertEqual(len(asset.software_preview), 1)
         self.assertEqual(asset.software_count, 151)
 
     def test_source_identity_changes_do_not_retarget_bound_packages(self):

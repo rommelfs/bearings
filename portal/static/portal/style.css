@@ -1948,3 +1948,20 @@ main article p { overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .severity-ratings { justify-content: flex-start; max-width: 100%; }
 }
+
+/* Installed software keeps optional variant/build metadata with its version. */
+.table-scroll .installed-software-table { table-layout: fixed; min-width: 48rem; }
+.installed-software-table .software-product-column { width: 26%; }
+.installed-software-table .software-version-column { width: 34%; }
+.installed-software-table .software-review-column { width: 40%; }
+.installed-software-table th { overflow-wrap: normal; word-break: normal; }
+
+.company-hosts { table-layout: fixed; }
+.company-hosts th:first-child { width: 28%; }
+.company-hosts th:nth-child(2) { width: 18%; }
+.company-hosts th:nth-child(3) { width: 30%; }
+.company-hosts th { overflow-wrap: normal; }
+.company-hosts td { padding-top: 12px; padding-bottom: 12px; }
+.inventory-search { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; margin: 1rem 0; }
+.inventory-search input { flex: 1; min-width: 10rem; }
+.inventory-source-details, .company-metadata { margin: 1rem 0; }

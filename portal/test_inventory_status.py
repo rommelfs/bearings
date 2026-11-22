@@ -105,14 +105,14 @@ class InventoryStatusTests(Fixture):
         inventory = next(g for g in groups if g["label"] == "Inventory")
         clients = next(item for item in inventory["items"] if item["key"] == "clients")
         self.assertTrue(clients["active"])
-        self.assertEqual(clients["url"], reverse("linux-client-downloads"))
+        self.assertEqual(clients["url"], reverse("linux-client-downloads") + "?organization=" + self.a.slug)
         self.assertNotIn("Administration", [g["label"] for g in groups])
         self.assertEqual(
             [g["label"] for g in groups if not g["collapsible"]],
             ["Overview", "Inventory", "Security", "Response"],
         )
         self.assertNotContains(response, 'href="' + reverse("demo-explore") + '"')
-        response = self.client.get(reverse("applications"))
-        group = next(g for g in response.context["navigation_groups"] if g["label"] == "Integrations")
+        response = self.client.get(reverse("misp-connections"))
+        group = next(g for g in response.context["navigation_groups"] if g["label"] == "My integrations")
         self.assertTrue(group["active"])
         self.assertContains(response, 'class="nav-group nav-disclosure" open')

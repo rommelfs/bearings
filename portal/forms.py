@@ -89,6 +89,10 @@ class InstallationForm(forms.ModelForm):
     def __init__(self, *args, organization=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.organization = organization
+        self.fields["edition"].label = "Product variant (edition)"
+        self.fields[
+            "edition"
+        ].help_text = "Optional: for example Community, Enterprise or Professional. Leave empty when the product has no known variant."
         self.fields["component_type"].required = False
         if organization:
             self.fields["existing_product"].queryset = Product.objects.filter(

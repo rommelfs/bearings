@@ -202,3 +202,36 @@ controls the displayed fields. Validate/preview and download configuration for
 local deployment, or select **Export PR proposal** for a ZIP with the recipe,
 example configuration and software description/explanation. This neither deploys
 profiles nor sends anything to GitHub. See [application profiles](../integrations/linux-application-probes.md).
+
+
+## Compact company inventory
+
+The organization workspace's **01 / Inventory & software** section lists one row
+per top-level asset, retaining explicit NetBox address grouping. Pages contain
+50 assets and a server-name search. Each row shows the reported OS/release, up to
+three additional software entries (manifest applications first), and links to the
+full asset/software/NetBox details. At most two assigned addresses are displayed
+alongside a link to all addresses. Missing and stale facts remain labelled.
+Company metadata and inventory synchronization diagnostics are collapsed by
+default, with source-error/disabled/stale warnings retained on the summary; setup
+and review controls remain available through their scoped links.
+
+The compact preview excludes entries identified as Debian/RPM packages by their
+package URL or agent manager. It does not assert which packages belong to a
+vendor's default installation: custom `.deb`/RPM applications are also retained
+in the full inventory, and can be highlighted through application profiles or
+explicit application records. Package storage, exact versions and automated CVE
+matching are unchanged. OS identity comes from a same-organization/source agent
+or an explicitly recorded OS; a package name does not infer the host's release.
+Unknown OS remains unknown. A retained stale observation is not presented as a
+fresh report. All software counts/links include the packages omitted from preview.
+
+On the full asset software page, **Edition** means an optional product variant,
+for example Community or Enterprise. It appears beside the version only when
+recorded, with Build below when present. Empty editions have no dedicated column
+or repeated "Not recorded" placeholder. The creation form explains the field;
+version, variant and build remain separate stored values.
+
+Deploy by collecting static assets and restarting `bearings-web`; the stylesheet
+URL is versioned for the new layout. No migration, client update or worker restart
+is required for this display change.

@@ -1619,3 +1619,31 @@ no operational keys, host data or private server errors are included in source.
 Frozen sync, relevant Ruff/format, Django checks/migration drift and diff checks
 pass. Publishing the updated installer and re-downloading it enables diagnostics;
 no service restart or database migration is required for this change.
+
+
+### Compact organization inventory and software variant layout (2026-11-22)
+
+75 PostgreSQL regressions pass across company/package inventory, scope/grouped
+addresses, source status, software creation and workspaces. A synthetic 200-host,
+4,601-installation case keeps each page at 50 rows, previews at three additional
+entries, queries below 40 and HTML below 160 kB. Distribution package rows are
+omitted only from the overview; full asset inventory/counts and CVE workflows are
+retained. Search, manifest priority, stale application/OS labels, explicit OS
+fallback, foreign source/organization rejection and corrupt product isolation are
+covered. Prior inventory-status navigation expectations were aligned with the
+already implemented scoped client link/personal integration menu; no endpoint
+rights are broadened.
+
+Actual Django-rendered Chromium fixtures at 390/1024/1440/2048 px cover 50 compact
+rows, OS/MISP display, collapsed metadata, pagination and name search without
+document overflow. Synthetic fresh one-application rows measured approximately
+72 px high on desktop and 93 px at the narrow viewport; this is a fixture layout
+measurement, not a fleet throughput/production latency claim. Twelve full-software
+layout scenarios cover blank/known/long variant values, bounded long identifiers,
+three columns and optional form help; mobile tables scroll within their wrapper.
+
+The edition field retains its stored meaning; its label/help and presentation
+change only. No standalone empty edition column remains. Frozen sync, applicable
+Ruff/format, Django check/migration drift and diff checks pass. No migration,
+client update or connector/deployment-runtime change is introduced. Collect
+static files and restart web to deploy; the base stylesheet version is bumped.

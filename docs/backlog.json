@@ -178,6 +178,10 @@
       {
         "title": "Explain failed Linux rollout enrollment without exposing credentials",
         "body": "Implemented bootstrap/enroll phase labels and bounded exact allowlist of public native diagnostics for HTTP refusals, key format, conflicting retry context, HTTPS, selected host capture and expiry. Unknown stderr/tainted server bodies remain hidden; endpoints retain generic403 and current authorization/signature policy. Real signed fixture refusal/retry verifies status visibility, no bearer/body leakage and retained key/state across current/Python3.8 manual/fleet acceptance. Document operator-only revoked-context archival after verifying no server reservation/local enrollment; no automatic reset or key deletion. Installer republish/re-download only; no migration or restart. See client update operations/validation."
+      },
+      {
+        "title": "Keep organization inventory compact and clarify optional software variants",
+        "body": "Implemented bounded 50-row host/asset overview with name search, reported OS/release and at most3 additional software entries (manifest apps first); omit Debian/RPM identities/managers from preview only, preserve full inventory counts/details and CVE matching. OS comes from scoped same-source agent metadata or explicit OS record, never inferred from package names; stale/missing states remain labelled. Bound addresses to2 displayed with complete detail links, retain grouping, collapse company/source diagnostics. Full software view moves optional edition/variant beside version, hides empty placeholders and bounds long identifiers with three fixed columns; form label/help explains Community/Enterprise variants.75PG regressions include200hosts/4601installations with bounded queries/HTML, scope, search and freshness; responsive browser coverage documented. No migration/client/worker change; collectstatic and web restart with stylesheet version bump. See infrastructure-overview and validation docs."
       }
     ]
   },

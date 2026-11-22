@@ -1,3 +1,4 @@
+from datetime import timedelta
 from .overview_queries import bounded_list
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -50,7 +51,12 @@ from .forms import (
 )
 from .presentation import ACTIVE_REVIEWS, decorate_finding, severity_first
 from .asset_context import asset_context
-from .inventory_presentation import top_level_assets, assigned_addresses, decorate_addresses
+from .inventory_presentation import (
+    top_level_assets,
+    assigned_addresses,
+    decorate_addresses,
+    additional_software_filter,
+)
 from .pagination import object_page
 from .models import (
     AgentDevice,
@@ -289,36 +295,92 @@ def detail(request, slug):
             closed=Count("pk", filter=Q(status__in=["resolved", "false_positive"])),
         )
     )
+    inventory_query = request.GET.get("inventory_q", "").strip()[:128]
+    inventory_assets = top_level_assets(org.assets.all())
+    if inventory_query:
+        inventory_assets = inventory_assets.filter(name__icontains=inventory_query)
+    extra_software = additional_software_filter()
     inventory_page = Paginator(
-        top_level_assets(org.assets.all())
-        .select_related("source__instance")
+        inventory_assets.select_related("source__instance")
         .annotate(upstream_status=F("upstream_data__status"))
         .defer("upstream_data")
         .prefetch_related(
             Prefetch(
                 "installations",
-                queryset=Installation.objects.filter(product__organization=org)
+                queryset=Installation.objects.filter(extra_software, product__organization=org)
                 .select_related("product")
-                .order_by("product__name", "pk")[:10],
+                .annotate(
+                    application_priority=Case(
+                        When(agent_component__manager="manifest", then=Value(0)),
+                        default=Value(1),
+                        output_field=IntegerField(),
+                    ),
+                    overview_version_stale=Case(
+                        When(
+                            Q(agent_component__observed_at__lt=timezone.now() - timedelta(hours=12))
+                            | Q(agent_component__missing_since__isnull=False)
+                            | Q(agent_component__device__enabled=False)
+                            | Q(agent_component__device__expires_at__lte=timezone.now()),
+                            then=Value(1),
+                        ),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    ),
+                )
+                .order_by("application_priority", "product__name", "pk")[:3],
                 to_attr="software_preview",
-            )
+            ),
+            Prefetch(
+                "installations",
+                queryset=Installation.objects.filter(product__organization=org, is_operating_system=True)
+                .select_related("product")
+                .order_by("pk")[:1],
+                to_attr="os_preview",
+            ),
+            Prefetch(
+                "agent_devices",
+                queryset=AgentDevice.objects.filter(
+                    organization=org, source_id=F("asset__source_id"), enabled=True
+                ).only("asset_id", "os", "last_observed_at", "expires_at"),
+                to_attr="os_devices",
+            ),
         )
         .order_by("name", "pk"),
         50,
     ).get_page(request.GET.get("inventory_page"))
     inventory_page.object_list = list(inventory_page.object_list)
     decorate_addresses(inventory_page.object_list, org)
-    counts = dict(
-        Installation.objects.filter(asset_id__in=[a.pk for a in inventory_page], product__organization=org)
+    counts = {
+        row["asset_id"]: row
+        for row in Installation.objects.filter(
+            asset_id__in=[a.pk for a in inventory_page], product__organization=org
+        )
         .values("asset_id")
-        .annotate(total=Count("pk"))
-        .values_list("asset_id", "total")
-    )
-    from .distro_display import decorate_installations
-
-    decorate_installations(request.user, [i for a in inventory_page for i in a.software_preview])
-    for a in inventory_page:
-        a.software_count = counts.get(a.pk, 0)
+        .annotate(total=Count("pk"), additional=Count("pk", filter=extra_software))
+    }
+    os_names = {
+        "ubuntu": "Ubuntu",
+        "debian": "Debian",
+        "rhel": "Red Hat Enterprise Linux",
+        "centos": "CentOS",
+        "rocky": "Rocky Linux",
+        "almalinux": "AlmaLinux",
+    }
+    for asset in inventory_page:
+        asset.software_count = counts.get(asset.pk, {}).get("total", 0)
+        asset.additional_software_count = counts.get(asset.pk, {}).get("additional", 0)
+        asset.additional_software_more = max(0, asset.additional_software_count - len(asset.software_preview))
+        asset.overview_os = ""
+        asset.overview_os_stale = False
+        if asset.os_devices and asset.os_devices[0].os.get("id"):
+            device = asset.os_devices[0]
+            asset.overview_os = " ".join(
+                filter(None, (os_names.get(device.os["id"], device.os["id"]), device.os.get("version", "")))
+            )
+            asset.overview_os_stale = device.stale or device.expires_at <= timezone.now()
+        elif asset.os_preview:
+            installed_os = asset.os_preview[0]
+            asset.overview_os = " ".join(filter(None, (installed_os.product.name, installed_os.version)))
     return render(
         request,
         "portal/detail.html",
@@ -344,6 +406,7 @@ def detail(request, slug):
             "claim_review_form": ClaimReviewForm(),
             "missing_review_form": MissingReviewForm(),
             "inventory_page": inventory_page,
+            "inventory_query": inventory_query,
         },
     )
 

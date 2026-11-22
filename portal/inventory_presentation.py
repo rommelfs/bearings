@@ -90,3 +90,12 @@ def host_network_summary(asset):
     context["assigned_address_count"] = getattr(asset, "assigned_address_count", 0)
     context["addresses_truncated"] = context["assigned_address_count"] > 16
     return context
+
+
+def additional_software_filter():
+    """Overview classification only; package monitoring/inventory remain complete."""
+    return Q(is_operating_system=False) & ~(
+        Q(product__identifier__startswith="pkg:deb/")
+        | Q(product__identifier__startswith="pkg:rpm/")
+        | Q(agent_component__manager__in=("dpkg", "rpm"))
+    )

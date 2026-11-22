@@ -617,3 +617,8 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
 - Implemented safe bootstrap/enroll diagnostics: phase and allowlisted HTTP/local
   causes, preserved credentials/state and unchanged backend policy. Document
   operator recovery from a revoked rollout after confirming no reserved enrollment.
+
+- Implemented compact organization inventory: paged/searchable host rows, scoped
+  reported OS and bounded additional-software preview; packages remain fully
+  available and monitored. Optional edition/variant metadata appears beside its
+  version, with form help and no empty column. See [overview guide](user-guide/infrastructure-overview.md).
