@@ -91,7 +91,7 @@ p.write_text(json.dumps(s));sys.exit(code)
     systemctl.chmod(0o755)
     installer = source / "install.py"
 
-    def call(*args, ok=True, stdin=None):
+    def call(*args, ok=True, stdin=None, error_contains=None):
         r = subprocess.run(
             [os.environ.get("BEARINGS_INSTALLER_PYTHON", sys.executable), installer, *args],
             input=stdin,
@@ -101,6 +101,10 @@ p.write_text(json.dumps(s));sys.exit(code)
         assert (r.returncode == 0) == ok, (
             "Installer result differs: " + r.stderr.decode(errors="replace")[-1500:]
         )
+        if error_contains:
+            assert error_contains in r.stderr.decode(errors="replace")
+            assert fleet_token.encode() not in r.stderr
+            assert b"untrusted response body" not in r.stderr
         return r.stdout
 
     first = call("--binary", "/test-client")
@@ -183,7 +187,7 @@ p.write_text(json.dumps(s));sys.exit(code)
             assert key_id in ("enroll:" + grant_id, "fleet:" + fleet_id)
             return ed25519.Ed25519PublicKey.from_public_bytes(base64.b64decode(public["public_key"]))
 
-    publication = {"suffix": b"", "corrupt": False, "response": 200}
+    publication = {"suffix": b"", "corrupt": False, "response": 200, "bootstrap_denied": False}
     fetched_artifacts = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -228,6 +232,13 @@ p.write_text(json.dumps(s));sys.exit(code)
                 expect_tag="bearings.agent.v1",
                 expect_label="bearings",
             )
+            if is_bootstrap and publication["bootstrap_denied"]:
+                response = ("untrusted response body " + fleet_token).encode()
+                self.send_response(403)
+                self.send_header("Content-Length", str(len(response)))
+                self.end_headers()
+                self.wfile.write(response)
+                return
             if is_bootstrap:
                 request = json.loads(body)
                 assert request["public_key"] == public["public_key"]
@@ -304,6 +315,20 @@ p.write_text(json.dumps(s));sys.exit(code)
         assert (private / "key").read_bytes() == key_before
         code = b"bearings-enroll-v1." + base64.urlsafe_b64encode(original).rstrip(b"=")
         if automatic:
+            publication["bootstrap_denied"] = True
+            call(
+                "--server",
+                origin,
+                "--ca-file",
+                str(ca),
+                "--bootstrap-stdin",
+                stdin=fleet_token.encode(),
+                ok=False,
+                error_contains="bootstrap failed (exit 1); existing device state is retained. Server refused registration (HTTP 403)",
+            )
+            assert (private / "key").read_bytes() == key_before
+            assert not bootstraps and not received
+            publication["bootstrap_denied"] = False
             call(
                 "--server",
                 origin,

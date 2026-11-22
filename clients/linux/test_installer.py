@@ -142,6 +142,39 @@ class InstallerTests(unittest.TestCase):
                 installer.systemctl("enable", "--now", "bearings-linux-update-recover-boot.service")
         self.assertNotIn("private", str(error.exception))
 
+    def test_registration_failure_is_actionable_without_forwarding_untrusted_stderr(self):
+        for raw, expected in [
+            (b"server refused request (HTTP 403); input remains local\n", "HTTP 403"),
+            (b"invalid rollout credential on stdin\n", "Invalid rollout-key format"),
+            (
+                b"another rollout is pending; inspect state without resetting the device key\n",
+                "Another rollout is pending",
+            ),
+            (
+                b"HTTPS delivery failed; check connectivity, trusted CA and configured proxy\n",
+                "Verified HTTPS",
+            ),
+        ]:
+            with patch.object(
+                installer.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=1, stdout=b"private", stderr=raw),
+            ):
+                with self.assertRaises(installer.InstallError) as error:
+                    installer.run(
+                        ["/usr/local/bin/bearings-linux", "bootstrap"], input=b"private rollout credential"
+                    )
+            self.assertIn("bootstrap failed", str(error.exception))
+            self.assertIn(expected, str(error.exception))
+            self.assertNotIn("private", str(error.exception))
+        for raw in (
+            b"secret",
+            b"server refused request (HTTP 403); input remains local\nsecret",
+            b"x" * 1025,
+            b"\xff",
+        ):
+            self.assertEqual(installer.enrollment_failure(raw), "")
+
     def test_old_python_stops_before_any_system_command(self):
         with patch.object(installer.sys, "version_info", (3, 7, 17)):
             with patch.object(installer, "systemctl") as command:

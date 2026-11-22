@@ -1597,3 +1597,25 @@ flags, so its successful result did not cover this failure. A diagnostic test
 checks operation/unit names are reported without captured secret output. Current
 Python and Python 3.8 manual/fleet acceptance retain the complete updater failure
 matrix. No server service restart or database change is needed for publication.
+
+
+### Safe enrollment diagnostics and revoked rollout recovery (2026-11-22)
+
+The installer reports the failed bootstrap/enroll phase and forwards only exact
+allowlisted bounded ASCII native errors or a strict HTTP-status expression.
+Fixtures reject appended secret lines, arbitrary bytes/oversized output and
+unknown messages. A real signed fixture bootstrap gets HTTP 403 with a tainted
+response body, confirms the installer displays status without body/token leakage,
+retains its key and retry state, then succeeds with the same identity when the
+fixture permits it. Both current Python and actual Python 3.8 manual/fleet
+installer acceptance retain update/rollback/lock/sudo coverage. Fifteen local
+installer tests run, with one root-only skip in the unprivileged runner.
+
+A synthetic local recovery fixture confirms non-overwriting archival of a revoked
+public retry context under the state lock, preservation of the identity bytes,
+and refusal when device/enrollment state exists. No automatic reset feature or
+backend authorization change is introduced. Public endpoint 403s remain generic;
+no operational keys, host data or private server errors are included in source.
+Frozen sync, relevant Ruff/format, Django checks/migration drift and diff checks
+pass. Publishing the updated installer and re-downloading it enables diagnostics;
+no service restart or database migration is required for this change.

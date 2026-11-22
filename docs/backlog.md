@@ -613,3 +613,7 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   installer lock. Acceptance now executes the real nested recovery child; systemctl
   errors name the operation/unit. Existing configured hosts can finish activation
   by starting recovery and enabling the timer after the configuring process exits.
+
+- Implemented safe bootstrap/enroll diagnostics: phase and allowlisted HTTP/local
+  causes, preserved credentials/state and unchanged backend policy. Document
+  operator recovery from a revoked rollout after confirming no reserved enrollment.

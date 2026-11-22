@@ -83,6 +83,36 @@ class InstallError(Exception):
     pass
 
 
+def enrollment_failure(stderr):
+    """Recognize only fixed public client errors, never forward arbitrary stderr."""
+    if not isinstance(stderr, bytes) or len(stderr) > 1024:
+        return ""
+    try:
+        message = stderr.decode("ascii").strip()
+    except UnicodeError:
+        return ""
+    status = re.fullmatch(r"server refused request \(HTTP ([1-5][0-9]{2})\); input remains local", message)
+    if status:
+        return (
+            "Server refused registration (HTTP "
+            + status[1]
+            + "); keep the existing key/state and check rollout validity, quota, scope and clock synchronization"
+        )
+    known = {
+        "invalid rollout credential on stdin": "Invalid rollout-key format; paste the complete existing rollout key at the hidden prompt",
+        "another rollout is pending; inspect state without resetting the device key": "Another rollout is pending for this device; retry its original rollout key or ask the administrator to reconcile it; do not delete state",
+        "HTTPS delivery failed; check connectivity, trusted CA and configured proxy": "Verified HTTPS registration failed; check connectivity, CA trust and configured proxy",
+        "local hostname unavailable or too long": "Local hostname unavailable or too long for registration",
+        "local interface enumeration failed": "Local interface enumeration failed during registration",
+        "local interface addresses could not be read completely": "Local interface addresses could not be read completely during registration",
+        "more than 64 configured addresses; narrow enrollment through explicit existing-asset binding": "Host exceeds the registration address limit; use explicit existing-asset enrollment",
+        "enrollment grant expired": "Pending enrollment grant expired; ask the administrator to reconcile it without deleting the device identity",
+        "manual enrollment already pending": "Manual enrollment is already pending; complete or reconcile it before using a rollout",
+        "invalid structured data": "Server returned an unsupported registration response",
+    }
+    return known.get(message, "")
+
+
 def run(args, *, account=None, capture=False, input=None):
     try:
         result = subprocess.run(
@@ -97,7 +127,18 @@ def run(args, *, account=None, capture=False, input=None):
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise InstallError("Local command failed or timed out; no secret output is printed") from exc
     if result.returncode:
-        phase = " " + str(args[1]) if len(args) > 1 and args[1] in {"version", "init"} else ""
+        phase = (
+            " " + str(args[1])
+            if len(args) > 1 and args[1] in {"version", "init", "bootstrap", "enroll"}
+            else ""
+        )
+        detail = ""
+        if (
+            Path(str(args[0])).name == "bearings-linux"
+            and len(args) > 1
+            and args[1] in {"bootstrap", "enroll"}
+        ):
+            detail = enrollment_failure(result.stderr)
         if Path(str(args[0])).name == "systemctl" and len(args) > 1:
             verb = (
                 str(args[1])
@@ -113,6 +154,7 @@ def run(args, *, account=None, capture=False, input=None):
             phase = " " + " ".join([verb, *units])
         raise InstallError(
             f"{Path(str(args[0])).name}{phase} failed (exit {result.returncode}); existing device state is retained"
+            + (". " + detail if detail else "")
         )
     return result.stdout if capture else b""
 

@@ -172,3 +172,36 @@ The fixed installer makes these recovery steps unnecessary for new activations.
 The acceptance systemctl double now executes the actual nested recovery child
 rather than merely returning success for its startup; it therefore detects lock
 recursion. This still is not a complete real-systemd boot/power-cut test.
+
+
+## Registration failure is separate from installation
+
+Successful installation/public-key output does not establish enrollment. The
+installer now identifies the `bootstrap` or `enroll` phase and shows only a fixed,
+bounded allowlist of public native-client diagnostics: HTTP refusal status,
+malformed rollout credential, conflicting pending rollout, HTTPS trust/connectivity,
+selected local host-capture errors, or expired enrollment. Arbitrary stderr,
+server response bodies and credentials remain suppressed. Public registration
+endpoints retain their generic 403 response and all current policy checks.
+
+HTTP 403 during rollout bootstrap can mean invalid/revoked/expired authorization,
+quota/current source-policy failure or rejected request signatures. Inspect the
+current scoped rollout and the client's public retry-context fleet UUID; never
+infer success from installation or disable signature/TLS policy. Keep the same
+device key. A different rollout cannot silently replace a pending retry context.
+
+When an operator has confirmed the old rollout is revoked and **no enrollment or
+reservation exists server-side** for that public key, the public retry context
+can be archived locally under the client state lock before retrying a valid,
+appropriately scoped rollout. Check there is no local device/enrollment identity,
+cached bootstrap grant or enrollment request first. Archive only `bootstrap.json`
+with a non-overwriting same-directory link/rename, retain its mode/owner and fsync
+the directory. Do not delete keys, queues, grant files or whole state directories.
+If a grant/reservation exists or the response may have been lost, reconcile the
+original enrollment instead. This is an operator recovery procedure, not an
+implemented automatic reset or CLI archival command.
+
+Publish the updated installer from a clean reviewed checkout with
+`prepare-linux-client`, then re-download it outside the repository. This
+diagnostic-only change needs no migration, server restart or manual client-service
+restart. Existing registration policy and state remain unchanged.
