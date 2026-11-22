@@ -15,6 +15,18 @@ class BrowserPolicy:
         response = self.get_response(request)
         if response.get("Content-Type", "").split(";", 1)[0].strip().lower() == "text/html":
             # A selected native application's policy includes its approved frame origin.
-            response.setdefault("Content-Security-Policy", POLICY)
+            policy = POLICY
+            if getattr(getattr(request, "resolver_match", None), "url_name", None) in {
+                "circl-overview",
+                "circl-map-location",
+            }:
+                from .map_configuration import map_options
+
+                origin = map_options()["map_tile_origin"]
+                if origin:
+                    policy = policy.replace(
+                        "img-src 'self' data: blob:;", "img-src 'self' data: blob: " + origin + ";"
+                    )
+            response.setdefault("Content-Security-Policy", policy)
             response.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         return response

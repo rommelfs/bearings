@@ -17,6 +17,7 @@ from .inventory_review import can_configure_review
 from .models import Organization, OrganizationLocation
 from .overview_queries import overview_queries, read_snapshot
 from .views import organization
+from .map_configuration import map_options
 
 SALT = "company-map-address/v1"
 
@@ -105,5 +106,9 @@ def location(request, slug):
                 )
                 return redirect("circl-map-location", slug=slug)
     return private_response(
-        render(request, "portal/circl_map_location.html", {"org": org, "form": form, "current": current})
+        render(
+            request,
+            "portal/circl_map_location.html",
+            {"org": org, "form": form, "current": current, **map_options()},
+        )
     )

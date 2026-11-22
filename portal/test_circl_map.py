@@ -1,4 +1,4 @@
-"""Local-only map placement and derived severity retain current evidence/organization policy."""
+"""Locally resolved map placement and derived severity retain current evidence/organization policy."""
 
 from decimal import Decimal
 from unittest.mock import patch
@@ -208,3 +208,15 @@ class CIRCLMapTests(Fixture):
         self.assertEqual(payload["summary"]["missing_address"], 6)
         self.assertLessEqual(len(many), len(first) + 1)
         self.assertLessEqual(len(many), 28)  # Bounded timeout and prepared-summary availability probes.
+
+    def test_vitrine_map_keeps_scoped_table_and_pick_form(self):
+        response = self.client.get(reverse("circl-overview"))
+        self.assertContains(response, "<vt-map")
+        self.assertContains(response, "<vt-stats")
+        self.assertContains(response, "https://geo.circl.lu/hot/{z}/{x}/{y}.png")
+        self.assertNotContains(response, "leaflet.js")
+        self.assertContains(response, "Companies and direct problem links")
+        self.login(self.platform)
+        response = self.client.get(reverse("circl-map-location", args=[self.a.slug]))
+        self.assertContains(response, 'pick="true"')
+        self.assertContains(response, 'name="token"')

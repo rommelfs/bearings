@@ -1647,3 +1647,38 @@ change only. No standalone empty edition column remains. Frozen sync, applicable
 Ruff/format, Django check/migration drift and diff checks pass. No migration,
 client update or connector/deployment-runtime change is introduced. Collect
 static files and restart web to deploy; the base stylesheet version is bumped.
+
+## Vitrine presentation integration — 2026-11-22
+
+Implemented pinned Vitrine 0.14.0 map/stats/code components from upstream revision
+`07ab87825dfbe100b5a3357e4d42b8789f76ffad`, locally bundled with dependency notices,
+provenance and checksums. A Bearings adapter supplies regional Mercator zoom, XYZ
+raster layers, weighted heat and marker selection under SVG pointer capture.
+CIRCL tiles default to `https://geo.circl.lu/hot/{z}/{x}/{y}.png`; the mmdb-server
+PR #12 was reference context, not an upstream Vitrine tile implementation.
+Previous unused Leaflet and separate world-outline artifacts were removed.
+
+Validation: frozen dependency sync, Ruff, Django system check and no migration
+drift. PostgreSQL map/security-header/download/profile-editor suite: 29 tests,
+28 passed and one opt-in native profile-parser check skipped. Existing map scope,
+source visibility, manual-point address fingerprint and CSRF tests remain active.
+New assertions cover the Vitrine shell, retained accessible table, editor token,
+map-route-only tile image CSP, disabled tiles and invalid/injectable templates.
+Node module syntax checks and generated artifact SHA-256 verification pass;
+rebuilding from the clean pinned upstream checkout reproduced the bundle hashes.
+
+Chromium with real local modules and actual response CSP, synthetic scoped data
+(62 permitted located companies, paired locations) and intercepted CIRCL image
+fixtures verified 1440px and 390px views, ordinary marker clicks, regional keyboard
+zoom, heat toggle, 50-row paging/search, point editor, copyable command rendering,
+no script errors or horizontal overflow. Resize preserved geographic view and the
+SVG stage filled its container. A fully failed tile service retained the local
+geometry and reported unavailable background. Separate renderer-failure,
+permission-denied refresh and tiles-disabled cases exercised table fallback,
+cleared stale markers/selection, and absence of external image requests.
+
+The public CIRCL tile endpoint returned HTTP 200/image/png in a separate read-only
+availability check. Browser requests above were intercepted fixtures, not a live
+production session, a production load test or proof of future tile availability.
+Company addresses were never submitted to an external geocoder. Deployment needs
+static collection and `bearings-web` restart only; no migration/client update.

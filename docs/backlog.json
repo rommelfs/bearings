@@ -182,6 +182,10 @@
       {
         "title": "Keep organization inventory compact and clarify optional software variants",
         "body": "Implemented bounded 50-row host/asset overview with name search, reported OS/release and at most3 additional software entries (manifest apps first); omit Debian/RPM identities/managers from preview only, preserve full inventory counts/details and CVE matching. OS comes from scoped same-source agent metadata or explicit OS record, never inferred from package names; stale/missing states remain labelled. Bound addresses to2 displayed with complete detail links, retain grouping, collapse company/source diagnostics. Full software view moves optional edition/variant beside version, hides empty placeholders and bounds long identifiers with three fixed columns; form label/help explains Community/Enterprise variants.75PG regressions include200hosts/4601installations with bounded queries/HTML, scope, search and freshness; responsive browser coverage documented. No migration/client/worker change; collectstatic and web restart with stylesheet version bump. See infrastructure-overview and validation docs."
+      },
+      {
+        "title": "Use Vitrine for geographic and inventory presentation",
+        "body": "Implemented pinned local Vitrine map, coverage statistics and copyable Linux commands/profile JSON. Bearings regional zoom/XYZ/heat adapter uses CIRCL tiles with local geometry fallback, scoped image CSP and local address lookup. Existing operator authorization, manual-point CSRF and bounded accessible company table retained. Browser validation uses synthetic scoped company data and intercepted tile fixtures; production is not deployed by this change."
       }
     ]
   },

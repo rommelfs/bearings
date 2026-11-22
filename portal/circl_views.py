@@ -35,7 +35,9 @@ def private_response(response):
 def overview(request):
     authorize(request, "operator.national_overview")
     started = perf_counter()
-    response = render(request, "portal/circl_overview.html")
+    from .map_configuration import map_options
+
+    response = render(request, "portal/circl_overview.html", map_options())
     response["Server-Timing"] = (
         f"national;dur={(perf_counter() - started) * 1000:.1f}, nationalshell;dur={(perf_counter() - started) * 1000:.1f}"
     )

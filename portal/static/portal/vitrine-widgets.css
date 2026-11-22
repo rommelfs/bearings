@@ -1,0 +1,19 @@
+vt-map,
+vt-code,
+vt-stats {
+  display: block;
+  min-width: 0;
+  --vt-accent: #315e73;
+  --vt-font-ui: Raleway, Arial, sans-serif;
+  --vt-font-mono: ui-monospace, monospace;
+}
+vt-code {
+  margin: 1rem 0;
+}
+vt-stats {
+  margin: 1rem 0;
+}
+vt-map::part(stage) {
+  border-radius: 10px;
+  width: 100%;
+}

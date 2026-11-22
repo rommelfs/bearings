@@ -1,3 +1,4 @@
+{% load static %}
 <section class="linux-install-instructions" aria-label="Linux installation commands">
 <h3>1. Download and install on your Linux server</h3>
 <p>Run this complete block in a terminal on the machine you want to monitor. Python 3.8+, curl, systemd and sudo are required. Paste your rollout key at the hidden prompt.</p>
@@ -24,4 +25,4 @@ sudo systemctl start bearings-linux-update.service
 sudo journalctl -u bearings-linux-update.service --no-pager -n 40
 sudo python3 /usr/local/lib/bearings-linux/update.py auto-update-disable</pre>
 <p>Disabling updates keeps ordinary inventory reporting running. A startup check confirms service activity, not successful report delivery or complete application health.</p></details>
-</section>
+<link rel="stylesheet" href="{% static 'portal/vitrine-widgets.css' %}"><script type="module" src="{% static 'portal/vitrine-widgets.js' %}"></script></section>

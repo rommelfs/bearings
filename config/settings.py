@@ -241,3 +241,6 @@ LINUX_CLIENT_DOWNLOAD_DIR = os.getenv(
 )
 
 DISTRO_CVE_ENABLED = os.getenv("BEARINGS_DISTRO_CVE_ENABLED", "1") == "1"
+
+# Empty disables external raster tiles; vector geometry remains local.
+MAP_TILE_URL = os.environ.get("BEARINGS_MAP_TILE_URL", "https://geo.circl.lu/hot/{z}/{x}/{y}.png")

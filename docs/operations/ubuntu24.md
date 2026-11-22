@@ -349,3 +349,24 @@ The timer checks daily with jitter; unchanged releases avoid binary download and
 restart. Recovery, quarantine, status/disable commands, trust boundaries and
 refreshing the local updater are documented in [Linux client updates](linux-client-updates.md).
 Existing clients are not silently enrolled in automatic updates.
+
+### Vitrine map and presentation components
+
+The national map and manual company-position editor use pinned, locally served
+Vitrine components. CIRCL XYZ background tiles default to
+`https://geo.circl.lu/hot/{z}/{x}/{y}.png`. Set `BEARINGS_MAP_TILE_URL=` for a
+local-geometry-only map. Only the viewed map area reaches the tile service;
+company data and local GeoNames address lookup remain within Bearings.
+See [map behavior and attribution](../user-guide/circl-map.md).
+
+After checking out the reviewed release on `/opt/bearings`:
+
+```sh
+./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null
+systemctl restart bearings-web
+```
+
+No migration, worker restart, client rebuild or client restart is needed for this
+presentation change. Existing Linux inventory collection is unaffected. Refresh
+the browser for the new module. npm is a maintainer-only vendoring dependency;
+production uses committed artifacts and their retained third-party notices.
