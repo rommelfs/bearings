@@ -130,12 +130,38 @@ class InstallerTests(unittest.TestCase):
                 installer.run(["/example/bearings-linux", "version"], capture=True)
             self.assertNotIn("sensitive", str(error.exception))
 
+    def test_systemctl_failure_names_the_fixed_operation_without_raw_output(self):
+        with patch.object(
+            installer.subprocess,
+            "run",
+            return_value=SimpleNamespace(returncode=1, stdout=b"private", stderr=b"private"),
+        ):
+            with self.assertRaisesRegex(
+                installer.InstallError, r"systemctl enable bearings-linux-update-recover-boot.service failed"
+            ) as error:
+                installer.systemctl("enable", "--now", "bearings-linux-update-recover-boot.service")
+        self.assertNotIn("private", str(error.exception))
+
     def test_old_python_stops_before_any_system_command(self):
         with patch.object(installer.sys, "version_info", (3, 7, 17)):
             with patch.object(installer, "systemctl") as command:
                 with self.assertRaisesRegex(installer.InstallError, "Python 3.8"):
                     installer.main()
             command.assert_not_called()
+
+    def test_updater_self_copy_uses_only_the_executing_script_not_sudo_input_reads(self):
+        with (
+            patch.object(installer, "source") as source,
+            patch.object(installer, "run", return_value=b"script") as run,
+        ):
+            self.assertEqual(installer.running_installer_source(), b"script")
+        source.assert_not_called()
+        self.assertEqual(
+            run.call_args.args[0][-2:], [str(Path(installer.__file__).absolute()), str(128 * 1024)]
+        )
+        with patch.object(installer, "run", side_effect=installer.InstallError("child failed")):
+            with self.assertRaisesRegex(installer.InstallError, "running installer"):
+                installer.running_installer_source()
 
     def test_update_origin_rejected_before_account_or_system_changes(self):
         for origin in (

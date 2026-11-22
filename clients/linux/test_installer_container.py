@@ -54,6 +54,7 @@ def main():
     fixture.mkdir(mode=0o700)
     state = Path("/run/synthetic-systemd.json")
     state.write_text(json.dumps({"active": False, "enabled": False}))
+    Path("/run/installer-python").write_text(os.environ.get("BEARINGS_INSTALLER_PYTHON", sys.executable))
     systemctl = Path("/usr/bin/systemctl")
     systemctl.write_text("""#!/usr/local/bin/python3
 import json,sys
@@ -62,6 +63,14 @@ p=Path('/run/synthetic-systemd.json');s=json.loads(p.read_text());a=sys.argv[1:]
 unit=next((x for x in a if x.endswith(('.service','.timer'))),'bearings-linux.service')
 u=s if unit=='bearings-linux.service' else s.setdefault('units',{}).setdefault(unit,{'active':False,'enabled':False})
 s.setdefault('calls',[]).append(a)
+if unit=='bearings-linux-update-recover-boot.service' and (a[0] in ('start','restart') or (a[0]=='enable' and '--now' in a)):
+ import subprocess
+ p.write_text(json.dumps(s))
+ result=subprocess.run([Path('/run/installer-python').read_text(),'-I','/usr/local/lib/bearings-linux/update.py','auto-update-recover-boot'],capture_output=True,timeout=20)
+ s=json.loads(p.read_text());u=s.setdefault('units',{}).setdefault(unit,{'active':False,'enabled':False})
+ s['nested_boot_recoveries']=s.get('nested_boot_recoveries',0)+1
+ if result.returncode:
+  sys.stderr.buffer.write(result.stderr);p.write_text(json.dumps(s));sys.exit(result.returncode)
 if a[0]=='daemon-reload' and s.pop('pause_reload',False):
  import time
  p.write_text(json.dumps(s));Path('/run/updater-paused').touch();time.sleep(90)
@@ -314,6 +323,21 @@ p.write_text(json.dumps(s));sys.exit(code)
         else:
             call("enroll", "--code-stdin", "--ca-file", str(ca), stdin=code + b"\n")
 
+        # Root login shells may retain SUDO_UID while the executed installer is
+        # readable only by root. Copying itself is distinct from untrusted inputs.
+        root_installer = Path("/root/bearings-install.py")
+        root_installer.write_bytes(installer.read_bytes())
+        root_installer.chmod(0o600)
+        original_installer = installer
+        os.environ["SUDO_UID"] = str(account.pw_uid)
+        try:
+            installer = root_installer
+            call("auto-update-enable", "--server", origin)
+            assert Path("/usr/local/lib/bearings-linux/update.py").read_bytes() == root_installer.read_bytes()
+        finally:
+            installer = original_installer
+            os.environ.pop("SUDO_UID", None)
+
         # Real updater files/downloads; only systemd control is doubled.
         call("auto-update-enable", "--server", origin, "--ca-file", str(ca))
         installed_updater = Path("/usr/local/lib/bearings-linux/update.py")
@@ -324,6 +348,7 @@ p.write_text(json.dumps(s));sys.exit(code)
         assert update_config.stat().st_mode & 0o777 == 0o600
         enabled_status = json.loads(call("auto-update-status"))
         assert enabled_status["timer_active"] and enabled_status["timer_enabled"]
+        assert json.loads(state.read_text())["nested_boot_recoveries"] >= 2
         config_before_update = (private / "config.json").read_bytes()
         before_calls = len(json.loads(state.read_text())["calls"])
         fetched_artifacts.clear()

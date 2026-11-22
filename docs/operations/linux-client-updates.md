@@ -115,3 +115,60 @@ static files/templates via the ordinary deployment and restart `bearings-web`
 when deploying the changed instructions. Publish from a clean reviewed checkout
 with `prepare-linux-client`. Enable the updater once per enrolled host as above;
 no manual client-service restart is needed. Key/state/drop-ins are preserved.
+
+
+## Activation from a root shell retaining sudo identity
+
+An older installer could fail with `Input must be a readable regular file within
+its size limit, without a symlink` when copying its own `/root/bearings-install.py`
+while the root shell retained `SUDO_UID` from an earlier sudo session. Its generic
+input reader correctly drops to that user, who cannot traverse `/root`; using
+that reader for the already-running installer was incorrect. The fixed self-copy
+reads only the script already executing as administrator, with bounded regular
+file/no-symlink checks. Binary, grant and CA inputs retain their invoking-user
+read restrictions. Existing installed recovery drop-ins use the root-owned
+installed-file reader too. Self-copy failures now identify that activation step.
+
+For a direct root shell using the older downloaded file, this narrowly scoped
+retry removes the inherited sudo identity for that invocation only:
+
+```sh
+env -u SUDO_UID -u SUDO_GID python3 /root/bearings-install.py \
+  auto-update-enable --server https://bearings.circl.lu
+```
+
+For the permanent correction, deploy the fixed source and republish using
+`python3 deploy/ubuntu24/ecosystem.py prepare-linux-client`. Re-download the
+installer on the client and repeat `auto-update-enable`. No database migration,
+server service restart or manual reporting-service restart is required for this
+installer-only correction. Repeating enablement refreshes the local updater and
+reloads/enables its units while retaining enrollment and reporting state.
+
+
+### Activation lock and boot recovery
+
+The initial activation also held the installer lock while synchronously starting
+the boot recovery unit, whose installed CLI requires the same lock. The server
+journal identifies this as `Another installer is running`. Configuration writes
+and daemon reload remain under the exclusive lock; the configuring process now
+closes its lock descriptor before asking systemd to start recovery and enable the
+timer. The success message is printed only after both commands succeed. Failures
+name the fixed systemctl operation/unit without exposing captured diagnostics.
+
+If an older activation has already written configuration and failed in this
+step, after its process exits complete activation with:
+
+```sh
+systemctl reset-failed bearings-linux-update-recover-boot.service
+systemctl start bearings-linux-update-recover-boot.service &&
+systemctl enable --now bearings-linux-update.timer
+python3 /usr/local/lib/bearings-linux/update.py auto-update-status
+```
+
+`timer_active: true`, `timer_enabled: true` and no pending transaction establish
+activation. `result: configured` does not establish a successful update check;
+`systemctl start bearings-linux-update.service` performs one, then inspect status.
+The fixed installer makes these recovery steps unnecessary for new activations.
+The acceptance systemctl double now executes the actual nested recovery child
+rather than merely returning success for its startup; it therefore detects lock
+recursion. This still is not a complete real-systemd boot/power-cut test.

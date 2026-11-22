@@ -603,3 +603,13 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   rollback/boot recovery, failed-release quarantine and 24-hour probation recovery.
   Explicit local updater refresh; deployment/status/disable/recovery instructions
   in [Linux client updates](operations/linux-client-updates.md).
+
+- Fixed updater activation from `/root` with inherited `SUDO_UID`: self-copy uses
+  its own execution trust while user-provided input restrictions remain intact.
+  Regression acceptance and a scoped older-installer retry are documented in
+  [client update operations](operations/linux-client-updates.md).
+
+- Fixed activation lock recursion: start boot recovery after releasing the parent
+  installer lock. Acceptance now executes the real nested recovery child; systemctl
+  errors name the operation/unit. Existing configured hosts can finish activation
+  by starting recovery and enabling the timer after the configuring process exits.

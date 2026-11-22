@@ -1565,3 +1565,35 @@ be republished from the clean reviewed checkout. Existing CI installer acceptanc
 jobs cover the expanded scenarios in current and Python 3.8 modes. The guarded
 real bundled NetBox/FlowIntel/RT/RTIR smoke also passes; no production destinations
 or external notification delivery are used.
+
+
+### Root-private installer self-copy regression (2026-11-22)
+
+Reproduced the reported generic input error with the old installer copied into
+`/root` and a retained non-root `SUDO_UID`. Activation now copies only the script
+already executing with administrator privileges using bounded regular-file reads;
+user-supplied input files still use the credential drop. The error identifies
+self-copy if that step fails. Root-owned installed recovery drop-ins use the
+installed-file trust boundary.
+
+The disposable privileged acceptance now executes a mode-0600 installer inside
+`/root` with the dedicated account's inherited SUDO_UID and confirms activation
+and exact installed updater bytes. Both manual/fleet enrollment modes are
+exercised under current Python and Python 3.8, retaining the existing full update,
+rollback, SIGKILL, quarantine, sudo controls and untrusted-file denial scenarios.
+Fourteen local installer tests run: thirteen pass and one root-only case skips
+in the unprivileged runner. Frozen sync, Ruff/format, Django check/migration drift and diff checks
+pass; no Go/runtime/dependency/database change is introduced. Privileged runtime
+uses the existing explicit systemd control double; no production access occurs.
+
+
+The production journal additionally exposed recursive lock acquisition: the
+configuring CLI held the installer lock while starting a boot recovery CLI that
+also needed it. Activation now happens after the parent lock descriptor closes.
+The systemctl acceptance double executes an actual isolated installed recovery
+child at enable/start, including the root-private/inherited-SUDO_UID activation,
+and asserts nested invocations occurred. Earlier acceptance only modeled unit
+flags, so its successful result did not cover this failure. A diagnostic test
+checks operation/unit names are reported without captured secret output. Current
+Python and Python 3.8 manual/fleet acceptance retain the complete updater failure
+matrix. No server service restart or database change is needed for publication.

@@ -98,6 +98,19 @@ def run(args, *, account=None, capture=False, input=None):
         raise InstallError("Local command failed or timed out; no secret output is printed") from exc
     if result.returncode:
         phase = " " + str(args[1]) if len(args) > 1 and args[1] in {"version", "init"} else ""
+        if Path(str(args[0])).name == "systemctl" and len(args) > 1:
+            verb = (
+                str(args[1])
+                if args[1]
+                in {"show", "enable", "disable", "start", "stop", "restart", "status", "daemon-reload"}
+                else "operation"
+            )
+            units = [
+                str(arg)
+                for arg in args[2:]
+                if re.fullmatch(r"bearings-linux(?:-[a-z-]+)?\.(?:service|timer)", str(arg))
+            ]
+            phase = " " + " ".join([verb, *units])
         raise InstallError(
             f"{Path(str(args[0])).name}{phase} failed (exit {result.returncode}); existing device state is retained"
         )
@@ -145,6 +158,23 @@ def regular(path, owner=0, private=False):
     if not stat.S_ISREG(info.st_mode) or info.st_uid != owner or info.st_mode & (0o077 if private else 0o022):
         raise InstallError(f"Unsafe existing file: {path}; left unchanged")
     return True
+
+
+def running_installer_source():
+    """Copy only the script already explicitly executing with administrator privileges.
+
+    An inherited SUDO_UID must not prevent reading that script from /root.
+    User-supplied binary/grant/CA paths still go through source()'s UID drop.
+    """
+    try:
+        return run(
+            [sys.executable, "-I", "-c", READ, str(Path(__file__).absolute()), str(128 * 1024)],
+            capture=True,
+        )
+    except InstallError as exc:
+        raise InstallError(
+            "Cannot copy the running installer for automatic updates: keep it as a regular, non-symlink file smaller than 128 KiB"
+        ) from exc
 
 
 def installed_source(path, limit):
@@ -661,7 +691,7 @@ def configure_updates(server, ca_file=None):
         config["ca_file"] = str(CONFIG / "update-ca.pem")
         atomic(Path(config["ca_file"]), raw, 0o600)
     recover_update()
-    atomic(UPDATER, source(Path(__file__), 128 * 1024), 0o644)
+    atomic(UPDATER, running_installer_source(), 0o644)
     atomic(UPDATE_CONFIG, json.dumps(config).encode(), 0o600)
     atomic(
         UPDATE_UNIT,
@@ -747,11 +777,16 @@ WantedBy=multi-user.target
     )
     recovery_dropin = UNIT.with_name(UNIT.name + ".d") / "auto-update-recovery.conf"
     recovery_dependency = b"[Unit]\nOnFailure=bearings-linux-update-recover.service\nRequires=bearings-linux-update-recover-boot.service\nAfter=bearings-linux-update-recover-boot.service\n"
-    if regular(recovery_dropin) and source(recovery_dropin, 16384) != recovery_dependency:
+    if regular(recovery_dropin) and installed_source(recovery_dropin, 16384) != recovery_dependency:
         raise InstallError("Existing updater recovery dependency differs; reconcile explicitly")
     atomic(recovery_dropin, recovery_dependency)
     update_status(result="configured", configured_at=update_time())
     systemctl("daemon-reload")
+
+
+def activate_updates():
+    # Boot recovery takes the installer lock itself. Never wait for it while
+    # holding that same lock in the configuring parent process.
     systemctl("enable", "--now", "bearings-linux-update-recover-boot.service")
     systemctl("enable", "--now", "bearings-linux-update.timer")
     print(
@@ -1066,6 +1101,8 @@ def main():
             systemctl("status", "--no-pager", "bearings-linux.service")
     finally:
         os.close(fd)
+    if args.action == "auto-update-enable":
+        activate_updates()
 
 
 if __name__ == "__main__":
