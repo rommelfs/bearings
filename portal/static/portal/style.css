@@ -2009,3 +2009,5 @@ h2.icon-heading > .ui-icon { width: 24px; height: 24px; flex-basis: 24px; color:
 .national-metrics a .metric-action { text-decoration: underline; text-underline-offset: .18em; font-weight: 600; }
 .ubuntu-lookup-progress progress { display: block; width: 100%; max-width: 36rem; height: 1rem; accent-color: var(--brand); }
 .ubuntu-lookup-progress [hidden] { display: none !important; }
+.review-state-counts { display: flex; flex-wrap: wrap; gap: .7rem 1.3rem; margin: 1rem 0; }
+.evaluation-metrics { border-left: 3px solid var(--brand); padding-left: 1rem; margin: 1rem 0; }

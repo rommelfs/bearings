@@ -223,9 +223,9 @@ An upstream response that remains unavailable stays unknown and retries normally
 ## Automatic in-place lookup progress
 
 Ubuntu lookup widgets on client detail and infrastructure overview now poll the
-stored cache counters every ten seconds. Only widget counters, progress value,
-timestamps and safe error-list entries update: the page, form inputs, scrolling
-context and open disclosure elements are retained. The native progress element
+stored cache counters every ten seconds. Counter polls update widget values, timestamps and safe error entries. Changed
+completed assessment revisions also refresh the read-only assessment panel while
+the page, form inputs, scrolling context and open disclosures are retained. The native progress element
 means **current lookup data / requested unique CVEs**, never percentage secure,
 patched or fully evaluated. A zero-request client waits for its first evaluation;
 failed/pending responses do not contribute to the bar. Counts can decrease when
@@ -237,8 +237,8 @@ retrieved counters with a visible warning and retry backoff up to sixty seconds.
 Requests time out after eight seconds and never overlap. JavaScript-disabled
 browsers keep the server-rendered values and an explicit reload instruction.
 The overview's refresh switch controls lookup polling while these widgets are
-present; full-page auto reload is suppressed. Other dated overview and package
-evaluation totals require a page reload after reevaluation.
+present; full-page auto reload is suppressed. Other dated overview totals require a page reload; client assessment panels
+refresh after their evaluation revision changes.
 
 The authenticated GET endpoint accepts at most 36 device IDs per batch. Every
 poll rechecks current visible organizations and matching asset/source ownership,
@@ -250,3 +250,67 @@ or scope does not reveal another company's counters.
 
 Deploy collectstatic and restart bearings-web. No migration, worker restart,
 client update or client artifact publication is required for this UI change.
+
+## Evaluation freshness, current cohorts and display units
+
+Lookup availability is separate from completed evaluation. Stored dependency
+hashes identify new usable Ubuntu status even during the batching interval before
+a worker requests reevaluation. The UI distinguishes missing data, requested or
+pending reevaluation, stale inventory, unsupported/disabled checks and completed
+current inputs. Identical status content verified again does not invalidate an
+unchanged result merely because its refresh timestamp advanced. An actual failed
+evaluation remains an error rather than a successful zero-package result.
+
+The polling response includes an evaluation revision and a scoped read-only
+panel URL. A changed revision reloads only that read-only assessment panel;
+unchanged revisions cause no panel request. Completed results replace previous
+counts/reasons without F5. Historical counts are explicitly labelled and
+collapsed while new inputs await evaluation. Coherent PostgreSQL read snapshots
+keep per-request dependency and device state aligned. No polling GET requests
+upstream evidence, queues work or changes workflow. Panel access independently
+rechecks current organization/source scope and is private/no-store/query-budgeted.
+
+Panel failures retain the dated previous assessment with a visible warning.
+Replacement preserves named disclosure state and the page position. It defers
+while a control inside the panel has focus, and never replaces report-management
+forms or the lookup controls. Server-rendered template escaping, fixed local
+routes and DOM guards keep external evidence as data.
+
+Summary presentation version 1 stores distinct CVE IDs, reported package instances
+and package/CVE records from the most conservative selected outcome per component
+and CVE. Extra definitions do not multiply these primary counts. Raw
+package/definition/CVE associations remain available in technical details. One
+CVE may legitimately occur in different packages/status groups, so distinct-CVE
+counts across groups are not additive. Existing fresh successful evaluations are
+queued once to populate these summaries; proof and analyst workflow versions do
+not change, and failures keep normal backoff.
+
+Vendor `needed`, `pending`, `needs-triage`, `deferred` and `ignored` statuses receive
+separate headings and next steps. In particular a pending fix is distinct from
+unassessed affectedness; ignored/deferred status cannot establish a patched
+version. Guidance follows the original vendor rationale and evidence without
+inventing per-association manual tasks. Shared container kernels remain outside
+the guest assessment: find the hosting system in company inventory and inspect
+its authoritative asset context/report. No parent is inferred from an address
+or kernel string.
+
+Infrastructure review counts reuse the review queue's current-proof/manual
+classification. Fixed/not-affected/assessed open workflow records appear in a
+separate retained cohort and do not inflate actionable/current-clarification
+counts or source-severity totals. Automatically projected issues for cleared
+reviews are removed only from attention presentation when no explicit action,
+deadline, consequence or human issue revision exists; records are never deleted
+or resolved by this change. Manual affected assessments retain authority even
+when a package fix is recorded. Automatic package evidence and saved human
+assessments have separate labels and may overlap. Classification bins keep the
+correlated proof check out of every aggregate COUNT filter.
+
+Related overview, client, package-evidence and kernel timestamps use one explicit
+IANA display timezone (`BEARINGS_DISPLAY_TIME_ZONE`, default `Europe/Berlin`),
+including DST-aware CET/CEST labels in server and browser rendering. Database UTC,
+evidence instants, reminder scheduling and chart UTC day boundaries are unchanged.
+
+Deployment: collectstatic and restart bearings-web and bearings-worker. No new
+migration, client update or client artifact publication is required. Reload an
+already open page once to load the updated UI; later assessment refreshes occur
+in place. Other overview counters remain labelled page snapshots.

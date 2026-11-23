@@ -76,6 +76,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 LANGUAGE_CODE = "en"
 TIME_ZONE = "UTC"
+DISPLAY_TIME_ZONE = os.getenv("BEARINGS_DISPLAY_TIME_ZONE", "Europe/Berlin")
 USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = Path(os.getenv("DJANGO_STATIC_ROOT", str(BASE_DIR / "staticfiles")))

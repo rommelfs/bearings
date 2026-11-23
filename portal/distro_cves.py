@@ -370,7 +370,18 @@ def evaluate_device(pk):
     for component in by_id.values():
         component.distro_check = checks.receipt(component, device, feed, checked_at)
     AgentComponent.objects.bulk_update(list(by_id.values()), ["distro_check"], batch_size=200)
+    from .distro_evaluation import SUMMARY_VERSION, metrics
+
+    package_partial = bool(
+        source_missing
+        or any(v[2] == "unknown" for v in found.values())
+        or unknown
+        or feed.summary.get("unindexed_definitions", 0)
+    )
     summary = {
+        "presentation_version": SUMMARY_VERSION,
+        "decision_counts": metrics(checks),
+        "package_state": "partial" if package_partial else "ready",
         "evaluator_version": distro_results.VERSION,
         "publication_version": PUBLICATION_VERSION,
         "state": "partial"
@@ -511,6 +522,12 @@ def run(limit=5):
     old_evaluator = Q(distro_summary__evaluator_version__isnull=True) | ~Q(
         distro_summary__evaluator_version=distro_results.VERSION
     )
+    from .distro_evaluation import SUMMARY_VERSION
+
+    old_evaluator |= Q(distro_summary__state__in=["ready", "partial"]) & (
+        Q(distro_summary__presentation_version__isnull=True)
+        | ~Q(distro_summary__presentation_version=SUMMARY_VERSION)
+    )
     # Retry pre-upgrade publication timeouts once; new failures keep the backoff.
     old_evaluator |= Q(distro_summary__state="error", distro_summary__error_code="publication_timeout") & (
         Q(distro_summary__publication_version__isnull=True)
@@ -631,6 +648,17 @@ def coverage(device):
             and kernel.get("generation") == str(feed.generation)
             and kernel.get("input_hash")
             == digest({"os": device.os, "virtualization": device.asset.virtualization_type})
+        )
+    from .distro_evaluation import state as evaluation_state, decorate_metrics
+
+    summary["evaluation"] = evaluation_state(device, summary.get("ubuntu_lookup_progress"), feed)
+    summary["decisions"] = decorate_metrics(summary)
+    if summary.get("ubuntu_lookup_progress"):
+        from django.urls import reverse
+
+        summary["ubuntu_lookup_progress"]["evaluation"] = summary["evaluation"]
+        summary["ubuntu_lookup_progress"]["evaluation_url"] = reverse(
+            "agent-evaluation", args=[device.organization.slug, device.pk]
         )
     if summary["state"] == "partial":
         from .distro_coverage_notes import explain, examples

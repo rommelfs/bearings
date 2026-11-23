@@ -45,6 +45,11 @@ urlpatterns = [
     path("api/v1/agent/bootstrap/", agent_views.fleet_bootstrap, name="agent-fleet-bootstrap"),
     path("api/v1/agent/reports/", agent_views.reports, name="agent-reports"),
     path("api/v1/agent/status/", agent_views.status, name="agent-status"),
+    path(
+        "organizations/<slug:slug>/agents/<uuid:pk>/evaluation/",
+        agent_views.evaluation_panel,
+        name="agent-evaluation",
+    ),
     path("clients/lookup-progress/", agent_views.lookup_progress, name="agent-lookup-progress"),
     path("organizations/<slug:slug>/agents/", agent_views.center, name="agent-center"),
     path(

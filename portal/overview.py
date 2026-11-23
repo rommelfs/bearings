@@ -13,18 +13,27 @@ from .issues import FACT_FIELDS, visible_issues, active_filter
 from django.conf import settings
 from .inventory_presentation import grouped_address_filter, decorate_addresses, host_network_summary
 from .overview_monitoring import package_reporters
-from .models import Asset, BusinessRiskRevision, Contact, Installation, ProductWatch
+from .models import (
+    Asset,
+    BusinessRiskRevision,
+    Contact,
+    Installation,
+    ProductWatch,
+    IssueRevision,
+    IssueHistory,
+)
 from .notifications import contact_policy
 from .presentation import ACTIVE_REVIEWS, SEVERITY_ORDER
 from .overview_explanations import review_explanation
 
 
-def reviews_for(user):
-    return (
-        visible_findings_for(user)
-        .filter(status__in=ACTIVE_REVIEWS, installation__asset__lifecycle="active")
-        .exclude(analyst_applicability="not_affected")
+def reviews_for(user, *, include_cleared=False):
+    from .review_queue import classified
+
+    reviews = classified(
+        visible_findings_for(user).filter(status__in=ACTIVE_REVIEWS, installation__asset__lifecycle="active")
     )
+    return reviews if include_cleared else reviews.exclude(queue_bucket="cleared")
 
 
 @dataclass(frozen=True)
@@ -33,13 +42,16 @@ class OverviewEvidence:
 
     reviews: QuerySet
     issues: QuerySet
+    all_reviews: QuerySet | None = None
 
     @classmethod
     def for_page(cls, user, orgs):
         ids = [org.pk for org in orgs]
+        all_reviews = reviews_for(user, include_cleared=True).filter(organization_id__in=ids)
         return cls(
-            reviews_for(user).filter(organization_id__in=ids),
+            all_reviews.exclude(queue_bucket="cleared"),
             visible_issues(user).filter(organization_id__in=ids),
+            all_reviews,
         )
 
 
@@ -59,6 +71,16 @@ def company_states(user, orgs, *, evidence=None):
         visible.filter(asset__in=assets)
         .filter(active_filter())
         .exclude(finding__analyst_applicability="not_affected")
+        .filter(
+            Q(finding__isnull=True)
+            | Exists(reviews.filter(pk=OuterRef("finding_id")))
+            | Q(action_due__isnull=False)
+            | ~Q(next_action="")
+            | ~Q(consequence="")
+            | ~Q(priority="review")
+            | Exists(IssueRevision.objects.filter(issue_id=OuterRef("pk"), actor__isnull=False))
+            | Exists(IssueHistory.objects.filter(issue_id=OuterRef("pk")))
+        )
     )
     latest = (
         BusinessRiskRevision.objects.filter(issue_id=OuterRef("issue_id")).order_by("-pk").values("pk")[:1]
@@ -93,14 +115,55 @@ def company_states(user, orgs, *, evidence=None):
         # Define this alias last: it shares the reverse relation name used above.
         installations=Count("installations", filter=owned_product),
     )
-    review_counts = grouped(
-        reviews,
-        reviews=Count("pk"),
-        affected=Count("pk", filter=Q(analyst_applicability="affected")),
-        critical=Count("pk", filter=Q(record__source_severity="critical")),
-        high=Count("pk", filter=Q(record__source_severity="high")),
-        unknown_severity=Count("pk", filter=Q(record__source_severity="unknown")),
+    # Group the classification once per row, then derive display counters from
+    # these small bins. Repeating correlated proof EXISTS in every COUNT filter
+    # takes seconds for a five-digit review queue.
+    review_counts = {}
+    review_scope = evidence.all_reviews if evidence.all_reviews is not None else reviews
+    bins = (
+        review_scope.order_by()
+        .values(
+            "organization_id",
+            "queue_bucket",
+            "package_current",
+            "analyst_applicability",
+            "record__source_severity",
+            "distro_match__snapshot__package_check__verdict",
+        )
+        .annotate(total=Count("pk"))
     )
+    for row in bins:
+        counts = review_counts.setdefault(
+            row["organization_id"],
+            dict.fromkeys(
+                [
+                    "reviews",
+                    "review_cleared",
+                    "affected",
+                    "review_action",
+                    "review_pending",
+                    "review_unresolved",
+                    "automatic_affected",
+                    "critical",
+                    "high",
+                    "unknown_severity",
+                ],
+                0,
+            ),
+        )
+        total = row["total"]
+        if row["package_current"] and row["distro_match__snapshot__package_check__verdict"] == "affected":
+            counts["automatic_affected"] += total
+        if row["queue_bucket"] == "cleared":
+            counts["review_cleared"] += total
+            continue
+        counts["reviews"] += total
+        counts["review_" + row["queue_bucket"]] += total
+        if row["analyst_applicability"] == "affected":
+            counts["affected"] += total
+        severity = row["record__source_severity"]
+        if severity in {"critical", "high", "unknown"}:
+            counts["unknown_severity" if severity == "unknown" else severity] += total
     issue_counts = grouped(
         issues, issues=Count("pk"), overdue=Count("pk", filter=Q(action_due__lt=timezone.localdate()))
     )
@@ -199,6 +262,11 @@ def _company_state(org, watches, counts):
             "package_uncertain",
             "reviews",
             "affected",
+            "review_action",
+            "review_pending",
+            "review_unresolved",
+            "automatic_affected",
+            "review_cleared",
             "critical",
             "high",
             "unknown_severity",
@@ -242,8 +310,12 @@ def _company_state(org, watches, counts):
     )
     if state["affected"] or state["overdue"] or state["expired_acceptance"]:
         state.update(status="Action required", tone="action")
-    elif state["reviews"] or state["issues"]:
+    elif state["review_action"] or state["issues"]:
         state.update(status="Review required", tone="review")
+    elif state["review_pending"]:
+        state.update(status="Current evaluation pending", tone="incomplete")
+    elif state["review_unresolved"]:
+        state.update(status="Vendor clarification pending", tone="incomplete")
     elif not state["assets"]:
         state.update(status="No active inventory", tone="incomplete")
     elif state["coverage_gaps"]:
@@ -281,6 +353,16 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
         evidence.issues.filter(asset__lifecycle="active")
         .filter(active_filter())
         .exclude(finding__analyst_applicability="not_affected")
+        .filter(
+            Q(finding__isnull=True)
+            | Exists(reviews.filter(pk=OuterRef("finding_id")))
+            | Q(action_due__isnull=False)
+            | ~Q(next_action="")
+            | ~Q(consequence="")
+            | ~Q(priority="review")
+            | Exists(IssueRevision.objects.filter(issue_id=OuterRef("pk"), actor__isnull=False))
+            | Exists(IssueHistory.objects.filter(issue_id=OuterRef("pk")))
+        )
     )
     for row in (
         issues.filter(action_due__lt=timezone.localdate())

@@ -1,7 +1,7 @@
-{% extends 'portal/base.html' %}{% block title %}Running-kernel evidence · {{ device.asset.name }}{% endblock %}{% block content %}
+{% extends 'portal/base.html' %}{% load ui_time %}{% block title %}Running-kernel evidence · {{ device.asset.name }}{% endblock %}{% block content %}
 <p><a href="{% url 'agent-center' org.slug %}?device={{ device.pk }}#automatic-cves">Back to this server's check →</a></p>
 <h1>Running-kernel evidence · {{ device.asset.name }}</h1>
-<p>Reported kernel: <code>{{ kernel.kernel|default:'Unknown' }}</code> · scope: {{ kernel.scope|default:'unknown' }} · evaluated {{ kernel.checked_at|default:'Not yet evaluated' }}</p>
+<p>Reported kernel: <code>{{ kernel.kernel|default:'Unknown' }}</code> · scope: {{ kernel.scope|default:'unknown' }} · evaluated {{ kernel.checked_at|display_time|default:'Not yet evaluated' }}</p>
 {% if not coverage.kernel_current %}<p class="warning">Awaiting a current kernel evaluation. Retained results are historical until current inventory, source binding and vendor data agree.</p>{% else %}
 <p>State: {{ kernel.state }} · {{ kernel.counts.matched }} matching definitions · {{ kernel.counts.not_matched }} definitions not matched · {{ kernel.counts.unresolved }} unresolved definitions.</p>
 <p>These are technical vendor-rule matches for reported running-kernel facts. They do not attest repository provenance, exploitability, a completed reboot or a saved analyst decision. They are recorded separately from package CVE reviews.</p>

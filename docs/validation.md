@@ -2151,3 +2151,43 @@ polling tests. Deploy collectstatic and restart bearings-web; no worker restart,
 client update or artifact publication is needed. The progress bar measures
 current data availability only. Other dated evaluation totals remain snapshots
 until page reload, as stated in the UI.
+
+## Consistent assessment stages, cohorts and times — 2026-11-23
+
+162 focused PostgreSQL tests pass across review cohorts, Ubuntu status, package
+proof/results, kernel scope, overview/query budgets, failure retention and the
+new presentation. New regressions verify fresh data plus pending old evaluation,
+scoped private panel reads, completed fixed-result replacement, unchanged human
+workflow, manual-affected overrides and preserved explicit deadlines. Distinct
+CVE/package/record metrics avoid multiplying definitions. Pending vendor fixes
+remain separate from untriaged status without becoming affected-version proof.
+Timezone tests cover winter CET and summer CEST while backend TIME_ZONE stays UTC.
+
+A standalone isolated PostgreSQL test populated 10,000 synthetic native review
+records. Grouping classification into bins reduced this run's company-state
+read from 5.621s (slowest query 4.719s) to 1.943s (slowest query 1.130s), within the
+same five-second statement budget. These are local synthetic observations, not a
+production latency/fleet-throughput guarantee. Existing 12-preview and
+multi-company query-count limits remain passing; current scoped querysets are
+reused within the request only.
+
+Chromium at 390px and 1440px verifies 100% lookup availability remains distinct
+from pending reevaluation, old failed-association details stay historical, a
+failed panel fetch retains the previous dated result and recovery replaces it
+without F5. User drafts/focus and named open disclosures survive. Unchanged
+revisions issue no panel fetch; no navigation, overflow or script errors occur.
+Separate overview checks show cleared records outside current action counts and
+explicit CET times. Responses and browser traffic are synthetic/local only.
+
+The complete retained bundled NetBox/FlowIntel/RT/RTIR smoke passes, including
+scoped RO/RW denial, GET-only imports, preserved assessments, dual-stack bindings
+and lost-ack recovery. No production inventory, notification or remediation was
+changed. Deployment needs collectstatic and web/worker restarts; existing fresh
+successful evaluations refresh once for summary presentation version 1. No new
+migration, client update or client artifact publication is required. Parent-host
+identity still requires actual inventory evidence and is never guessed.
+
+Final focused follow-up: 57 presentation/overview/query tests pass after preserving
+human issue history and non-default priority in attention views. Backend UTC
+checks, migration drift, Ruff, formatting and whitespace checks pass. Static CSS
+and lookup-script URLs carry a new version to avoid stale browser assets.

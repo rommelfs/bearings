@@ -282,12 +282,12 @@ def decorate(states):
                 "review",
                 priority=0,
             )
-        elif state["reviews"]:
+        elif state["review_action"]:
             add(
                 "Triage version evidence before scheduling updates",
                 "Open review items and source severity are not confirmed vulnerable installations. Inspect installed versions and current vendor proof; reconcile retained reviews when the fix is already installed.",
                 "Inspect Critical-source reviews" if state["critical"] else "Inspect open reviews",
-                reviews + ("?attention=critical" if state["critical"] else "?attention=reviews"),
+                reviews + "?state=action" + ("&attention=critical" if state["critical"] else ""),
                 "Review owner",
                 "review",
                 priority=4,

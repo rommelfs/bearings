@@ -235,7 +235,7 @@ class Resolver:
         labels = {
             "needs-triage": "vendor_needs_triage",
             "needed": "vendor_unfixed",
-            "pending": "vendor_unfixed",
+            "pending": "vendor_fix_pending",
             "deferred": "vendor_deferred",
             "ignored": "vendor_ignored",
         }
@@ -354,6 +354,11 @@ def progress(device_ids):
         .annotate(
             total=Count("status_id"),
             fresh=Count("status_id", filter=current),
+            changed=Count(
+                "status_id",
+                filter=(current & ~Q(content_hash=F("status__content_hash")))
+                | (~current & ~Q(content_hash="")),
+            ),
             pending=Count("status_id", filter=~current & Q(status__error="")),
             failed=Count("status_id", filter=~current & ~Q(status__error="")),
             refresh_errors=Count("status_id", filter=current & ~Q(status__error="")),
@@ -365,9 +370,17 @@ def progress(device_ids):
     for row in rows:
         item = result.setdefault(
             row["device_id"],
-            {"total": 0, "fresh": 0, "pending": 0, "failed": 0, "refresh_errors": 0, "errors": []},
+            {
+                "total": 0,
+                "fresh": 0,
+                "pending": 0,
+                "failed": 0,
+                "refresh_errors": 0,
+                "changed": 0,
+                "errors": [],
+            },
         )
-        for key in ("total", "fresh", "pending", "failed", "refresh_errors"):
+        for key in ("total", "fresh", "pending", "failed", "refresh_errors", "changed"):
             item[key] += row[key]
         if row["failed"] or row["refresh_errors"]:
             item["errors"].append(

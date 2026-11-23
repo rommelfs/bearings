@@ -675,3 +675,10 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   values/backoff on failure. Batch reads recheck current organization/source
   access, never fetch upstream data or start evaluation, and preserve forms and
   disclosure state. See [package checks](integrations/distro-cves.md).
+
+- Implemented consistent current review cohorts, retained cleared records, separate
+  automatic/manual assessment counts and preserved explicit human tasks. Lookup
+  and evaluation phases stay distinct; changed evaluation panels refresh in place.
+  Distinct CVE/package counts lead, raw associations are technical detail, vendor
+  states have separate guidance and relevant UI times use explicit CET/CEST.
+  Host-kernel attribution remains an explicit inventory task, never a guess.

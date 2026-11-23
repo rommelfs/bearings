@@ -10,6 +10,7 @@ from django.db import IntegrityError, OperationalError
 from django.http import JsonResponse, Http404
 from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.debug import sensitive_variables
@@ -18,7 +19,7 @@ from http_message_signatures.exceptions import HTTPMessageSignaturesException
 from . import agents, agent_enrollment_codes, distro_cves
 from .agent_protocol import MAX_BYTES, verify, decode, public_key, identifier
 from .access import organizations_for, require, can_operator_review, audit_operator_access
-from .overview_queries import bounded_list
+from .overview_queries import bounded_list, read_snapshot
 from .models import AgentDevice, AgentEnrollment, AgentComponent, AgentReport, Asset, Installation, AgentFleet
 
 
@@ -450,11 +451,15 @@ def kernel_evidence(request, slug, pk):
 @login_required
 @never_cache
 @require_http_methods(["GET"])
+@read_snapshot()
 @bounded_list
 def lookup_progress(request):
     """Read stored scoped counters only; polling never starts upstream work."""
     from django.db.models import F
     from .ubuntu_status import progress
+    from .distro_evaluation import state as evaluation_state
+    from .distro_sources import key_for
+    from .models import DistroFeed
 
     raw = request.GET.getlist("device")
     if not raw or len(raw) > 36:
@@ -474,21 +479,32 @@ def lookup_progress(request):
                 source__organization_id=F("organization_id"),
                 asset__source_id=F("source_id"),
             )
-            .select_related("organization")
-            .only("id", "organization__id")
+            .select_related("organization", "source", "asset")
+            .defer("reported_network", "asset__upstream_data")
         )
         if len(devices) != len(ids):
             return private(JsonResponse({"error": "Device selection unavailable"}, status=404))
         for org in {d.organization_id: d.organization for d in devices}.values():
             audit_operator_access(request.user, org)
         rows = progress(ids)
+        feeds = {
+            f.key: f
+            for f in DistroFeed.objects.filter(key__in=[key_for(d.os) for d in devices if key_for(d.os)])
+        }
         empty = {"total": 0, "fresh": 0, "pending": 0, "failed": 0, "refresh_errors": 0, "errors": []}
         return private(
             JsonResponse(
                 {
                     "schema": "bearings.lookup-progress.v1",
                     "observed_at": timezone.now(),
-                    "devices": {str(d.pk): rows.get(d.pk, empty) for d in devices},
+                    "devices": {
+                        str(d.pk): {
+                            **rows.get(d.pk, empty),
+                            "evaluation": evaluation_state(d, rows.get(d.pk), feeds.get(key_for(d.os))),
+                            "evaluation_url": reverse("agent-evaluation", args=[d.organization.slug, d.pk]),
+                        }
+                        for d in devices
+                    },
                 }
             )
         )
@@ -496,3 +512,38 @@ def lookup_progress(request):
         response = private(JsonResponse({"error": "Progress temporarily unavailable"}, status=503))
         response["Retry-After"] = "30"
         return response
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET"])
+@read_snapshot()
+@bounded_list
+def evaluation_panel(request, slug, pk):
+    from django.db.models import F
+    from django.template.loader import render_to_string
+
+    org = get_object_or_404(organizations_for(request.user), slug=slug)
+    audit_operator_access(request.user, org)
+    device = get_object_or_404(
+        AgentDevice.objects.select_related("organization", "asset", "source"),
+        pk=pk,
+        organization=org,
+        asset__organization=org,
+        source__organization=org,
+        asset__source_id=F("source_id"),
+    )
+    context = distro_cves.coverage(device)
+    html = render_to_string(
+        "portal/_distro_evaluation.html", {"org": org, "selected": device, "distro_coverage": context}
+    )
+    return private(
+        JsonResponse(
+            {
+                "schema": "bearings.evaluation-panel.v1",
+                "revision": context["evaluation"]["revision"],
+                "evaluation": context["evaluation"],
+                "html": html,
+            }
+        )
+    )

@@ -13,7 +13,39 @@
     text(target, value);
   };
   const automatic = node => node.querySelector("[data-lookup-auto]").checked && (!globalRefresh || globalRefresh.checked);
-  const date = value => value ? new Date(value).toLocaleString() : null;
+  const date = (value, node) => value ? new Intl.DateTimeFormat("en-GB", {year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: node.dataset.timezone || "Europe/Berlin", timeZoneName: "short"}).format(new Date(value)) : null;
+  const panelRequests = new Map();
+  async function refreshPanel(node, evaluation, target) {
+    const panel = [...document.querySelectorAll("[data-evaluation-panel]")].find(el => el.dataset.device === node.dataset.device);
+    if (!panel || panel.dataset.revision === evaluation.revision || panelRequests.has(node.dataset.device)) return;
+    const message = node.querySelector("[data-evaluation-render-status]");
+    if (panel.contains(document.activeElement)) { text(message, "New assessment available; leave this assessment's current control to display it."); return; }
+    const url = new URL(target, location.href);
+    if (url.origin !== location.origin) return;
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 8000);
+    panelRequests.set(node.dataset.device, controller);
+    try {
+      const response = await fetch(url, {credentials: "same-origin", cache: "no-store", redirect: "error", signal: controller.signal, headers: {Accept: "application/json"}});
+      if (!response.ok || !response.headers.get("Content-Type")?.includes("application/json")) throw new Error("response");
+      const data = await response.json();
+      if (data.schema !== "bearings.evaluation-panel.v1" || typeof data.revision !== "string" || !/^[a-f0-9]{64}$/.test(data.revision) || typeof data.html !== "string" || data.html.length > 250000) throw new Error("shape");
+      if (panel.contains(document.activeElement)) { text(message, "New assessment available; leave this assessment's current control to display it."); return; }
+      const doc = new DOMParser().parseFromString(data.html, "text/html"), next = doc.querySelector("[data-evaluation-panel]");
+      if (!next || next.dataset.device !== node.dataset.device || next.dataset.revision !== data.revision) throw new Error("panel");
+      next.querySelectorAll("script,iframe,object,embed,style,link").forEach(el => el.remove());
+      [next, ...next.querySelectorAll("*")].forEach(el => [...el.attributes].forEach(attr => { if (/^on/i.test(attr.name) || attr.name === "srcdoc") el.removeAttribute(attr.name); }));
+      const opened = new Set([...panel.querySelectorAll("details[open][data-eval-disclosure]")].map(el => el.dataset.evalDisclosure));
+      next.querySelectorAll("details[data-eval-disclosure]").forEach(el => { el.open = opened.has(el.dataset.evalDisclosure); });
+      const top = scrollY, left = scrollX;
+      panel.replaceWith(next); window.scrollTo(left, top);
+      if (data.evaluation && typeof data.evaluation.message === "string" && data.evaluation.message.length <= 500) {
+        text(node.querySelector("[data-evaluation-phase]"), data.evaluation.message);
+        node.querySelector("[data-evaluation-phase]")?.classList.toggle("warning", Boolean(data.evaluation.historical));
+      }
+      text(message, "Package assessment refreshed from the latest evaluation snapshot.");
+    } catch (_) { text(message, "Assessment refresh unavailable; the dated previous assessment is retained."); }
+    finally { clearTimeout(timeout); panelRequests.delete(node.dataset.device); }
+  }
   function valid(row) {
     return row && counts.every(key => Number.isSafeInteger(row[key]) && row[key] >= 0 && row[key] <= 1000000)
       && row.fresh + row.pending + row.failed === row.total && row.refresh_errors <= row.fresh
@@ -28,9 +60,9 @@
     text(node.querySelector("[data-lookup-percent]"), row.total ? Math.round(100 * row.fresh / row.total) : 0);
     node.querySelector("[data-lookup-empty]").hidden = row.total > 0;
     node.querySelector("[data-refresh-warning]").hidden = !row.refresh_errors;
-    text(node.querySelector("[data-lookup-attempt]"), date(row.last_attempt) || "Not yet attempted");
-    text(node.querySelector("[data-lookup-success]"), date(row.last_success) || "None yet");
-    text(node.querySelector("[data-lookup-updated]"), date(observed));
+    text(node.querySelector("[data-lookup-attempt]"), date(row.last_attempt, node) || "Not yet attempted");
+    text(node.querySelector("[data-lookup-success]"), date(row.last_success, node) || "None yet");
+    text(node.querySelector("[data-lookup-updated]"), date(observed, node));
     const details = node.querySelector("[data-lookup-errors]");
     details.hidden = !row.errors.length;
     const signature = JSON.stringify(row.errors);
@@ -39,6 +71,11 @@
         const li = document.createElement("li"); li.textContent = `${error.count} · ${error.reason}`; return li;
       }));
       details.dataset.signature = signature;
+    }
+    if (row.evaluation && typeof row.evaluation.message === "string" && row.evaluation.message.length <= 500 && /^[a-f0-9]{64}$/.test(row.evaluation.revision)) {
+      text(node.querySelector("[data-evaluation-phase]"), row.evaluation.message);
+      node.querySelector("[data-evaluation-phase]")?.classList.toggle("warning", Boolean(row.evaluation.historical));
+      if (typeof row.evaluation_url === "string") refreshPanel(node, row.evaluation, row.evaluation_url);
     }
     status(node, automatic(node) ? "Counters update automatically; the page stays in place." : "Automatic updates paused; last retrieved counters shown.");
   }
