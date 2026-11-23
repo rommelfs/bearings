@@ -186,7 +186,9 @@ def evaluate_device(pk):
             "evaluator_version": distro_results.VERSION,
             "state": state,
             "feed": key or "",
-            "message": "Vendor cache not ready/stale or distribution release unsupported; coverage is unknown.",
+            "message": distro_sources.unsupported_reason(device.os)
+            if not key
+            else "Vendor cache not ready/stale; coverage is unknown.",
         }
         device.distro_requested = False
         device.distro_checked_at = timezone.now()
@@ -533,6 +535,8 @@ def run(limit=5):
         Q(distro_summary__publication_version__isnull=True)
         | ~Q(distro_summary__publication_version=PUBLICATION_VERSION)
     )
+    # Correct the obsolete RHEL 10 OVAL claim on existing pending receipts once.
+    old_evaluator |= Q(distro_summary__feed="rhel:10", distro_summary__state__in=["pending", "stale"])
     AgentDevice.objects.filter(
         enabled=True,
         distro_requested=False,
@@ -557,7 +561,7 @@ def run(limit=5):
         summary__compiler_version=distro_oval.COMPILER_VERSION
     )
     for f in (
-        DistroFeed.objects.filter(enabled=True)
+        DistroFeed.objects.filter(enabled=True, key__in=distro_sources.supported_keys())
         .filter(
             Q(last_attempt__isnull=True)
             | Q(last_attempt__lt=timezone.now() - timedelta(minutes=15))

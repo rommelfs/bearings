@@ -682,3 +682,26 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   Distinct CVE/package counts lead, raw associations are technical detail, vendor
   states have separate guidance and relevant UI times use explicit CET/CEST.
   Host-kernel attribution remains an explicit inventory task, never a guess.
+
+
+## Dense infrastructure overview and large NetBox software pages
+
+Implemented request-local aggregate reuse for native review cohorts and windowed
+issue counts/preview identities. A complete 10,000-row synthetic PostgreSQL page
+falls from 8.17 s to 2.21 s locally, with no cross-request data/authorization cache.
+Current input/policy checks, full counters, bounded previews and explicit human
+follow-ups remain intact. User-server latency requires post-update verification.
+
+Typed oversized NetBox responses now trigger smaller GET pages at the same
+offset, within the unchanged 2 MB/100-request/10,000-object bounds and tenant/
+continuation checks. Errors never publish partial inventory or deletions. Asset
+provenance distinguishes applied Linux observations from complete source imports.
+
+## Red Hat CSAF/VEX evaluation for RHEL 10 — planned
+
+Corrected an unsupported assumption: Red Hat supplies no RHEL 10 OVAL feed.
+Inventory is supported; automatic package coverage is explicitly unavailable,
+not an indefinitely queued refresh or a safe result. The worker no longer polls
+the nonexistent feed and corrects old pending receipts. A complete CSAF/VEX
+adapter with exact RPM platform/version/status evidence remains necessary;
+this correction does not implement it. See [distribution CVE coverage](integrations/distro-cves.md).

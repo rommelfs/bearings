@@ -4,6 +4,7 @@ import json
 import os
 import time
 import uuid
+from unittest.mock import patch
 from pathlib import Path
 import httpx
 from django.conf import settings
@@ -115,6 +116,60 @@ def verify_address_grouping(netbox, headers, source, physical):
     )
 
 
+def verify_large_inventory_pages(netbox, headers, source):
+    """Real >2 MB aggregate JSON response, on invocation-owned lab objects only."""
+    from portal.connectors import netbox as connector
+
+    base = "https://netbox.bearings.test/api/"
+    field = "smoke_large_" + uuid.uuid4().hex[:12]
+    owned = []
+    try:
+        response = netbox.post(
+            base + "extras/custom-fields/",
+            headers=headers,
+            json={"name": field, "type": "json", "object_types": ["virtualization.virtualmachine"]},
+        )
+        assert response.status_code == 201, "Large-page synthetic custom field creation failed"
+        owned.append(base + "extras/custom-fields/" + str(response.json()["id"]) + "/")
+        ids = set()
+        for number in range(4):
+            response = netbox.post(
+                base + "virtualization/virtual-machines/",
+                headers=headers,
+                json={
+                    "name": field + "-" + str(number),
+                    "status": "active",
+                    "tenant": source.tenant_id,
+                    "site": source.instance.site_id,
+                    "custom_fields": {field: {"synthetic_padding": "x" * 600000}},
+                },
+            )
+            assert response.status_code == 201, "Large-page synthetic VM creation failed"
+            identity = str(response.json()["id"])
+            ids.add(identity)
+            owned.append(base + "virtualization/virtual-machines/" + identity + "/")
+        with patch.object(connector, "request_json", wraps=connector.request_json) as request:
+            rows = connector.query_objects(source, "virtual-machines")
+        assert ids <= {row["external_id"] for row in rows}
+        assert any(call.kwargs["params"]["limit"] < 100 for call in request.call_args_list)
+        assert all(call.args[0] == "GET" for call in request.call_args_list)
+        assert all(call.kwargs["params"]["tenant_id"] == source.tenant_id for call in request.call_args_list)
+        refresh_inventory(source.pk)
+        assert (
+            Asset.objects.filter(
+                source=source, object_type="virtualization.virtualmachine", external_id__in=ids
+            ).count()
+            == 4
+        )
+    finally:
+        for endpoint in reversed(owned):
+            assert netbox.delete(endpoint, headers=headers).status_code == 204, "Large-page cleanup failed"
+        refresh_inventory(source.pk)
+    print(
+        "Verified actual >2 MB VM pages shrink within the unchanged response limit; complete scoped import passed."
+    )
+
+
 def main():
     root = Path("/run/bearings")
     config = json.loads((root / "secrets/connections.json").read_text())
@@ -157,6 +212,7 @@ def main():
             "X-CSRFToken": netbox.cookies.get("netboxcsrftoken"),
             "Referer": "https://netbox.bearings.test/",
         }
+        verify_large_inventory_pages(netbox, api_headers, rw)
         name = "smoke-import-" + uuid.uuid4().hex[:8]
         response = netbox.post(
             "https://netbox.bearings.test/api/dcim/devices/",

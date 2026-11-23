@@ -1,14 +1,17 @@
 """Current review cohorts, data/evaluation phases, distinct units and explicit UI timezone."""
 
 from types import SimpleNamespace
+import copy
 from datetime import datetime, timezone as utc, timedelta
 from django.conf import settings
 from django.test import SimpleTestCase, override_settings
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from .tests import Fixture
 from .test_ubuntu_status import UbuntuStatusTests as Base, CVE
-from .models import Finding, AssetIssue
+from .models import Finding, AssetIssue, AgentComponent, DistroMatch, Installation
 from . import distro_cves, distro_evaluation
 from .overview import company_states
 from .templatetags.ui_time import display_time
@@ -119,3 +122,55 @@ class EvaluationTests(Fixture):
         self.assertEqual(groups[0]["code"], "vendor_fix_pending")
         self.assertEqual(groups[0]["cves"], 1)
         self.assertEqual(summary["potential"], 0)
+
+    def test_shared_rollups_keep_complete_counts_when_previews_are_limited(self):
+        self.cached()
+        self.prepare()
+        finding = Finding.objects.get()
+        match = finding.distro_match
+        issue = AssetIssue.objects.get(finding=finding)
+        component = self.device.components.get()
+        initial_installations = Installation.objects.filter(asset=self.asset).count()
+        for number in range(29):
+            installation = copy.copy(finding.installation)
+            installation.pk = None
+            installation.save()
+            another_component = copy.copy(component)
+            another_component.pk = None
+            another_component.key = f"dpkg:nginx:synthetic-{number}"
+            another_component.installation = installation
+            another_component.save()
+            another = copy.copy(finding)
+            another.pk, another.installation = None, installation
+            another.save()
+            proof = copy.copy(match)
+            proof.pk, proof.component, proof.finding = None, another_component, another
+            proof.snapshot = copy.deepcopy(match.snapshot)
+            proof.snapshot["package_check"]["verdict"] = (
+                "fixed" if number < 9 else "unresolved" if number < 19 else "affected"
+            )
+            proof.save()
+            another_issue = copy.copy(issue)
+            another_issue.pk, another_issue.finding, another_issue.installation = None, another, installation
+            another_issue.save()
+        self.login(self.platform)
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get("/infrastructure/?organization=alpha")
+        self.assertEqual(response.status_code, 200)
+        state = response.context["companies"][0]
+        self.assertEqual((state["reviews"], state["review_cleared"], state["issues"]), (21, 9, 21))
+        self.assertEqual((state["review_action"], state["review_unresolved"]), (11, 10))
+        preview = response.context["priority_assets"][0]
+        self.assertEqual(preview["reviews"], state["reviews"])
+        self.assertEqual(len(preview["problems"]), 4)
+        # Fixed per-request work, including PostgreSQL local planning guards;
+        # aggregating 30 rows must not hydrate each proof or preview separately.
+        self.assertLessEqual(len(queries), 33)
+        self.assertEqual(Installation.objects.filter(asset=self.asset).count(), initial_installations + 29)
+        self.assertEqual(AgentComponent.objects.filter(device=self.device).count(), 30)
+        self.assertEqual(DistroMatch.objects.count(), 30)
+        # The rollups are request-local: a new input invalidates the next page.
+        self.device.distro_requested = True
+        self.device.save(update_fields=["distro_requested"])
+        state = self.client.get("/infrastructure/?organization=alpha").context["companies"][0]
+        self.assertEqual((state["review_pending"], state["review_cleared"]), (30, 0))

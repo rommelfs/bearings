@@ -12,6 +12,20 @@ from .connectors.http import ConnectorError, approved_base
 
 UBUNTU = {"20.04": "focal", "22.04": "jammy", "24.04": "noble", "26.04": "resolute"}
 DEBIAN = {"11": "bullseye", "12": "bookworm", "13": "trixie"}
+RHEL = {"8", "9"}
+
+
+def unsupported_reason(os):
+    if os.get("id") == "rhel" and os.get("version", "").split(".")[0] == "10":
+        return (
+            "RHEL 10 requires Red Hat CSAF/VEX data, which Bearings does not yet evaluate. "
+            "Red Hat publishes no RHEL 10 OVAL feed. Inventory is recorded; automatic CVE coverage is unavailable."
+        )
+    return "Unsupported distribution/release"
+
+
+def supported_keys():
+    return [*("ubuntu:" + v for v in UBUNTU), *("debian:" + v for v in DEBIAN), *("rhel:" + v for v in RHEL)]
 
 
 def key_for(os):
@@ -21,7 +35,7 @@ def key_for(os):
         return "ubuntu:" + version
     if distro == "debian" and version.split(".")[0] in DEBIAN:
         return "debian:" + version.split(".")[0]
-    if distro == "rhel" and version.split(".")[0] in {"8", "9", "10"}:
+    if distro == "rhel" and version.split(".")[0] in RHEL:
         return "rhel:" + version.split(".")[0]
     return None
 
@@ -32,7 +46,7 @@ def url_for(key):
         return f"https://security-metadata.canonical.com/oval/com.ubuntu.{UBUNTU[release]}.cve.oval.xml.bz2"
     if distro == "debian" and release in DEBIAN:
         return f"https://www.debian.org/security/oval/oval-definitions-{DEBIAN[release]}.xml.bz2"
-    if distro == "rhel" and release in {"8", "9", "10"}:
+    if distro == "rhel" and release in RHEL:
         return f"https://security.access.redhat.com/data/oval/v2/RHEL{release}/rhel-{release}.oval.xml.bz2"
     raise ConnectorError("Unsupported distribution release")
 

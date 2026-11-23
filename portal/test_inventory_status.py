@@ -66,6 +66,17 @@ class InventoryStatusTests(Fixture):
         self.device.enabled = False
         self.assertEqual(self.status()["client"]["label"], "Client inactive")
 
+    def test_applied_client_observation_is_distinct_from_an_unimported_asset(self):
+        self.login(self.reader)
+        response = self.client.get(self.url("asset", pk=self.asset.pk))
+        self.assertContains(response, "Not yet included in a complete import")
+        self.assertContains(response, "Latest applied Linux-client observation")
+        self.assertContains(response, "Linux-client software observations are recorded separately")
+        self.assertNotContains(response, "Not yet imported")
+        AgentDevice.objects.filter(pk=self.device.pk).update(source=self.sb)
+        response = self.client.get(self.url("asset", pk=self.asset.pk))
+        self.assertNotContains(response, "Latest applied Linux-client observation")
+
     def test_current_historical_pending_failed_and_inventory_only_receipts_are_distinct(self):
         self.sa.agent_export_policy = {"inventory": True, "vrf": 7}
         self.sa.save()

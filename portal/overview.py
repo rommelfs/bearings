@@ -1,6 +1,7 @@
 """Current scoped infrastructure state; missing evidence is never a clean bill of health."""
 
 from dataclasses import dataclass
+from functools import cached_property
 from time import perf_counter
 from django.db.models import Case, Count, Exists, F, IntegerField, OuterRef, Q, Subquery, Value, When, Window
 from django.db.models import QuerySet
@@ -54,6 +55,158 @@ class OverviewEvidence:
             all_reviews,
         )
 
+    @cached_property
+    def review_totals(self):
+        """One current classification pass, reused by company and asset counters.
+
+        Retain aggregate bins only, never whole findings/proofs. This object lives
+        for one scoped request; changed policy/inputs are read again next time.
+        """
+        companies, assets = {}, {}
+        scope = self.all_reviews if self.all_reviews is not None else self.reviews
+        bins = (
+            scope.order_by()
+            .values(
+                "organization_id",
+                "installation__asset_id",
+                "queue_bucket",
+                "package_current",
+                "analyst_applicability",
+                "record__source_severity",
+                "distro_match__snapshot__package_check__verdict",
+            )
+            .annotate(total=Count("pk"))
+        )
+        for row in bins:
+            counts = companies.setdefault(row["organization_id"], _review_counts())
+            total = row["total"]
+            if row["package_current"] and row["distro_match__snapshot__package_check__verdict"] == "affected":
+                counts["automatic_affected"] += total
+            if row["queue_bucket"] == "cleared":
+                counts["review_cleared"] += total
+                continue
+            asset_counts = assets.setdefault(
+                row["installation__asset_id"], {"reviews": 0, "affected": 0, "critical": 0}
+            )
+            counts["reviews"] += total
+            asset_counts["reviews"] += total
+            counts["review_" + row["queue_bucket"]] += total
+            if row["analyst_applicability"] == "affected":
+                counts["affected"] += total
+                asset_counts["affected"] += total
+            severity = row["record__source_severity"]
+            if severity in {"critical", "high", "unknown"}:
+                counts["unknown_severity" if severity == "unknown" else severity] += total
+            if severity == "critical":
+                asset_counts["critical"] += total
+        return companies, assets
+
+    @cached_property
+    def active_issues(self):
+        return (
+            self.issues.filter(asset__lifecycle="active")
+            .filter(active_filter())
+            .exclude(finding__analyst_applicability="not_affected")
+            .filter(
+                Q(finding__isnull=True)
+                | Exists(self.reviews.filter(pk=OuterRef("finding_id")))
+                | Q(action_due__isnull=False)
+                | ~Q(next_action="")
+                | ~Q(consequence="")
+                | ~Q(priority="review")
+                | Exists(IssueRevision.objects.filter(issue_id=OuterRef("pk"), actor__isnull=False))
+                | Exists(IssueHistory.objects.filter(issue_id=OuterRef("pk")))
+            )
+        )
+
+    @cached_property
+    def issue_totals(self):
+        # Window counters and the four preview identities share one policy/proof
+        # pass. Only four small rows per asset leave the database, not issue facts.
+        companies, assets, previews = {}, {}, {}
+        partition = [F("asset_id")]
+        rows = (
+            _ranked_issues(self.active_issues)
+            .annotate(
+                issues=Window(Count("pk"), partition_by=partition),
+                overdue=Window(
+                    Count("pk", filter=Q(action_due__lt=timezone.localdate())), partition_by=partition
+                ),
+                lifecycle=Window(
+                    Count("pk", filter=Q(finding__isnull=True, priority__in=["critical", "high"])),
+                    partition_by=partition,
+                ),
+            )
+            .filter(position__lte=4)
+            .order_by("asset_id", "position")
+            .values("pk", "organization_id", "asset_id", "issues", "overdue", "lifecycle")
+        )
+        for row in rows:
+            if row["asset_id"] not in assets:
+                counts = companies.setdefault(row["organization_id"], {"issues": 0, "overdue": 0})
+                for name in counts:
+                    counts[name] += row[name]
+                assets[row["asset_id"]] = {name: row[name] for name in ("overdue", "lifecycle")}
+            previews.setdefault(row["asset_id"], []).append(row["pk"])
+        return companies, assets, previews
+
+
+def _severity_cases(prefix):
+    return Case(
+        *[When(**{prefix: value}, then=Value(index)) for index, value in enumerate(SEVERITY_ORDER)],
+        default=Value(len(SEVERITY_ORDER)),
+        output_field=IntegerField(),
+    )
+
+
+def _ranked_issues(issues):
+    return issues.annotate(
+        assessment_order=Case(
+            When(finding__analyst_applicability="affected", then=Value(0)),
+            When(finding__isnull=True, priority__in=["critical", "high"], then=Value(1)),
+            When(finding__applicability="potential", then=Value(2)),
+            When(finding__applicability="not_affected", then=Value(4)),
+            default=Value(3),
+            output_field=IntegerField(),
+        ),
+        severity_order=_severity_cases("finding__record__source_severity"),
+        urgent_order=Case(
+            When(action_due__lt=timezone.localdate(), then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
+    ).annotate(
+        position=Window(
+            expression=RowNumber(),
+            partition_by=[F("asset_id")],
+            order_by=[
+                F("urgent_order").asc(),
+                F("assessment_order").asc(),
+                F("severity_order").asc(),
+                F("action_due").asc(nulls_last=True),
+                F("pk").asc(),
+            ],
+        )
+    )
+
+
+def _review_counts():
+    return dict.fromkeys(
+        [
+            "reviews",
+            "review_cleared",
+            "affected",
+            "review_action",
+            "review_pending",
+            "review_unresolved",
+            "automatic_affected",
+            "critical",
+            "high",
+            "unknown_severity",
+        ],
+        0,
+    )
+
 
 def company_states(user, orgs, *, evidence=None):
     """Aggregate once per visible page, without joining independent count dimensions."""
@@ -65,23 +218,7 @@ def company_states(user, orgs, *, evidence=None):
         asset__in=assets, product__organization_id=F("asset__organization_id")
     )
     evidence = evidence or OverviewEvidence.for_page(user, orgs)
-    reviews = evidence.reviews
     visible = evidence.issues
-    issues = (
-        visible.filter(asset__in=assets)
-        .filter(active_filter())
-        .exclude(finding__analyst_applicability="not_affected")
-        .filter(
-            Q(finding__isnull=True)
-            | Exists(reviews.filter(pk=OuterRef("finding_id")))
-            | Q(action_due__isnull=False)
-            | ~Q(next_action="")
-            | ~Q(consequence="")
-            | ~Q(priority="review")
-            | Exists(IssueRevision.objects.filter(issue_id=OuterRef("pk"), actor__isnull=False))
-            | Exists(IssueHistory.objects.filter(issue_id=OuterRef("pk")))
-        )
-    )
     latest = (
         BusinessRiskRevision.objects.filter(issue_id=OuterRef("issue_id")).order_by("-pk").values("pk")[:1]
     )
@@ -115,58 +252,8 @@ def company_states(user, orgs, *, evidence=None):
         # Define this alias last: it shares the reverse relation name used above.
         installations=Count("installations", filter=owned_product),
     )
-    # Group the classification once per row, then derive display counters from
-    # these small bins. Repeating correlated proof EXISTS in every COUNT filter
-    # takes seconds for a five-digit review queue.
-    review_counts = {}
-    review_scope = evidence.all_reviews if evidence.all_reviews is not None else reviews
-    bins = (
-        review_scope.order_by()
-        .values(
-            "organization_id",
-            "queue_bucket",
-            "package_current",
-            "analyst_applicability",
-            "record__source_severity",
-            "distro_match__snapshot__package_check__verdict",
-        )
-        .annotate(total=Count("pk"))
-    )
-    for row in bins:
-        counts = review_counts.setdefault(
-            row["organization_id"],
-            dict.fromkeys(
-                [
-                    "reviews",
-                    "review_cleared",
-                    "affected",
-                    "review_action",
-                    "review_pending",
-                    "review_unresolved",
-                    "automatic_affected",
-                    "critical",
-                    "high",
-                    "unknown_severity",
-                ],
-                0,
-            ),
-        )
-        total = row["total"]
-        if row["package_current"] and row["distro_match__snapshot__package_check__verdict"] == "affected":
-            counts["automatic_affected"] += total
-        if row["queue_bucket"] == "cleared":
-            counts["review_cleared"] += total
-            continue
-        counts["reviews"] += total
-        counts["review_" + row["queue_bucket"]] += total
-        if row["analyst_applicability"] == "affected":
-            counts["affected"] += total
-        severity = row["record__source_severity"]
-        if severity in {"critical", "high", "unknown"}:
-            counts["unknown_severity" if severity == "unknown" else severity] += total
-    issue_counts = grouped(
-        issues, issues=Count("pk"), overdue=Count("pk", filter=Q(action_due__lt=timezone.localdate()))
-    )
+    review_counts = evidence.review_totals[0]
+    issue_counts = evidence.issue_totals[0]
     risk_counts = grouped(
         risks,
         "issue__organization_id",
@@ -330,80 +417,41 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
     started = perf_counter()
     evidence = evidence or OverviewEvidence.for_page(user, orgs)
     reviews = evidence.reviews
-    rows = list(
-        reviews.values("installation__asset_id")
-        .annotate(
-            affected=Count("pk", filter=Q(analyst_applicability="affected")),
-            critical=Count("pk", filter=Q(record__source_severity="critical")),
-            reviews=Count("pk"),
-        )
-        .order_by("-affected", "-critical", "-reviews", "installation__asset_id")[:12]
+    review_totals = evidence.review_totals[1]
+    issue_totals = evidence.issue_totals[1]
+    # Select the same bounded candidate sets from the already computed bins,
+    # instead of running the correlated proof/policy predicates four more times.
+    candidates = set(
+        sorted(
+            review_totals,
+            key=lambda pk: (
+                -review_totals[pk]["affected"],
+                -review_totals[pk]["critical"],
+                -review_totals[pk]["reviews"],
+                pk,
+            ),
+        )[:12]
     )
+    for name in ("overdue", "lifecycle"):
+        candidates.update(
+            sorted(
+                (pk for pk, counts in issue_totals.items() if counts[name]),
+                key=lambda pk: (-issue_totals[pk][name], pk),
+            )[:12]
+        )
     by_asset = {
-        row["installation__asset_id"]: {
-            "affected": row["affected"],
-            "critical": row["critical"],
-            "reviews": row["reviews"],
+        pk: {
+            "affected": 0,
+            "critical": 0,
+            "reviews": 0,
             "overdue": 0,
             "lifecycle": 0,
+            **review_totals.get(pk, {}),
+            **issue_totals.get(pk, {}),
         }
-        for row in rows
+        for pk in candidates
     }
-    issues = (
-        evidence.issues.filter(asset__lifecycle="active")
-        .filter(active_filter())
-        .exclude(finding__analyst_applicability="not_affected")
-        .filter(
-            Q(finding__isnull=True)
-            | Exists(reviews.filter(pk=OuterRef("finding_id")))
-            | Q(action_due__isnull=False)
-            | ~Q(next_action="")
-            | ~Q(consequence="")
-            | ~Q(priority="review")
-            | Exists(IssueRevision.objects.filter(issue_id=OuterRef("pk"), actor__isnull=False))
-            | Exists(IssueHistory.objects.filter(issue_id=OuterRef("pk")))
-        )
-    )
-    for row in (
-        issues.filter(action_due__lt=timezone.localdate())
-        .values("asset_id")
-        .annotate(overdue=Count("pk"))
-        .order_by("-overdue", "asset_id")[:12]
-    ):
-        values = by_asset.setdefault(
-            row["asset_id"], {"affected": 0, "critical": 0, "reviews": 0, "overdue": 0, "lifecycle": 0}
-        )
-        values["overdue"] = row["overdue"]
-    for row in (
-        issues.filter(finding__isnull=True, priority__in=["critical", "high"])
-        .values("asset_id")
-        .annotate(total=Count("pk"))
-        .order_by("-total", "asset_id")[:12]
-    ):
-        values = by_asset.setdefault(
-            row["asset_id"], {"affected": 0, "critical": 0, "reviews": 0, "overdue": 0, "lifecycle": 0}
-        )
-        values["lifecycle"] = row["total"]
-    # Candidate selection is bounded, but every displayed badge uses the full scoped asset set.
-    for counts in (
-        reviews.filter(installation__asset_id__in=by_asset)
-        .values("installation__asset_id")
-        .annotate(
-            reviews=Count("pk"),
-            affected=Count("pk", filter=Q(analyst_applicability="affected")),
-            critical=Count("pk", filter=Q(record__source_severity="critical")),
-        )
-    ):
-        by_asset[counts.pop("installation__asset_id")].update(counts)
-    for counts in (
-        issues.filter(asset_id__in=by_asset)
-        .values("asset_id")
-        .annotate(
-            overdue=Count("pk", filter=Q(action_due__lt=timezone.localdate())),
-            lifecycle=Count("pk", filter=Q(finding__isnull=True, priority__in=["critical", "high"])),
-        )
-    ):
-        by_asset[counts.pop("asset_id")].update(counts)
+    issues = evidence.active_issues
     assets = Asset.objects.filter(
         pk__in=by_asset, organization__in=orgs, source__organization_id=F("organization_id")
     ).select_related("organization", "responsible_contact", "source__instance")
@@ -422,51 +470,11 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
     ranked = perf_counter()
     timings["ranking"] = (ranked - started) * 1000
 
-    def severity_cases(prefix):
-        return Case(
-            *[When(**{prefix: value}, then=Value(index)) for index, value in enumerate(SEVERITY_ORDER)],
-            default=Value(len(SEVERITY_ORDER)),
-            output_field=IntegerField(),
-        )
-
-    ranked_issues = (
-        issues.filter(asset_id__in=ids)
-        .annotate(
-            assessment_order=Case(
-                When(finding__analyst_applicability="affected", then=Value(0)),
-                When(finding__isnull=True, priority__in=["critical", "high"], then=Value(1)),
-                When(finding__applicability="potential", then=Value(2)),
-                When(finding__applicability="not_affected", then=Value(4)),
-                default=Value(3),
-                output_field=IntegerField(),
-            ),
-            severity_order=severity_cases("finding__record__source_severity"),
-            urgent_order=Case(
-                When(action_due__lt=timezone.localdate(), then=Value(0)),
-                default=Value(1),
-                output_field=IntegerField(),
-            ),
-        )
-        .annotate(
-            position=Window(
-                expression=RowNumber(),
-                partition_by=[F("asset_id")],
-                order_by=[
-                    F("urgent_order").asc(),
-                    F("assessment_order").asc(),
-                    F("severity_order").asc(),
-                    F("action_due").asc(nulls_last=True),
-                    F("pk").asc(),
-                ],
-            )
-        )
-        .filter(position__lte=4)
-        .order_by("asset_id", "position")
-        .values("pk", "asset_id")
-    )
-    # Rank identifiers, then hydrate only the displayed rows. Joining all preview
-    # relations into the window makes PostgreSQL plan/sort a much wider query.
-    ranked_rows = list(ranked_issues)
+    ranked_rows = [
+        {"pk": pk, "asset_id": asset_id}
+        for asset_id in ids
+        for pk in evidence.issue_totals[2].get(asset_id, [])
+    ]
     # Scenario drafts require issue facts and the linked evidence, not the
     # organization's/source's entire inventory configuration and duplicate products.
     previews = (
@@ -516,7 +524,7 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
                 default=Value(2),
                 output_field=IntegerField(),
             ),
-            severity_order=severity_cases("record__source_severity"),
+            severity_order=_severity_cases("record__source_severity"),
             position=Window(
                 expression=RowNumber(),
                 partition_by=[F("installation__asset_id")],

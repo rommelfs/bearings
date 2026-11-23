@@ -100,7 +100,7 @@ def decorate(user, products, installation_ids=None, finding_scope=None):
             "Vendor rules linked" if c.rule_count else "No indexed vendor rules for this package"
         )
         if not c.feed_key:
-            c.package_status = "Unsupported distribution/release"
+            c.package_status = distro_sources.unsupported_reason(c.device.os)
         elif not c.lookup_name:
             c.package_status = "Source-package metadata missing; update the Linux client"
         elif c.feed_status != "ready":

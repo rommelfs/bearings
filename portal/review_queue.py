@@ -25,7 +25,7 @@ def classified(reviews):
     for distro, versions in (
         ("ubuntu", distro_sources.UBUNTU),
         ("debian", distro_sources.DEBIAN),
-        ("rhel", ("8", "9", "10")),
+        ("rhel", distro_sources.RHEL),
     ):
         for version in versions:
             version_q = Q(component__device__os__version=version)

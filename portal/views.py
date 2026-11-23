@@ -844,7 +844,9 @@ def asset_detail(request, slug, pk):
     from .inventory_status import synchronization_status
 
     agent_device = (
-        AgentDevice.objects.filter(asset=asset, organization=org).order_by("-enabled", "-created_at").first()
+        AgentDevice.objects.filter(asset=asset, organization=org, source_id=asset.source_id)
+        .order_by("-enabled", "-created_at")
+        .first()
     )
     return render(
         request,

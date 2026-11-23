@@ -2191,3 +2191,47 @@ Final focused follow-up: 57 presentation/overview/query tests pass after preserv
 human issue history and non-default priority in attention views. Backend UTC
 checks, migration drift, Ruff, formatting and whitespace checks pass. Static CSS
 and lookup-script URLs carry a new version to avoid stale browser assets.
+
+
+## Dense overview, large NetBox pages and truthful RHEL 10 coverage (2026-11-23)
+
+A synthetic PostgreSQL request with 10,000 current native package-CVE matches and
+linked common issues reproduced the reported eight-second infrastructure page:
+8.1715 s total, 7.8096 s database, 34 executes. Reusing request-local review bins,
+windowed complete issue counters and four preview identities per asset reduces
+the same full superuser page to 2.2069 s, 1.9427 s database, 31 executes. Ranking
+falls from 4.1791 s to 0.0120 s; previews from 1.3071 s to 0.0533 s. These are local
+synthetic measurements, not measured production latency. No cross-request policy
+cache or changed applicability/analyst workflow is introduced.
+
+170 PostgreSQL regressions passed across overview query guards, full counters,
+preview bounds, changed input freshness, manual follow-up preservation, policy,
+networks, vendor/version queue behavior, transport, NetBox queries/imports and
+RHEL unsupported-coverage presentation. The dense cohort regression keeps 21
+active reviews/issues and 9 cleared records while showing only four previews;
+the next request recognizes newly queued input. Existing read-only software
+permission coverage now follows the asset-detail route used by the compact
+organization inventory.
+
+The real bundled stack smoke passed, including four invocation-owned VMs with
+600,000-byte JSON custom-field values each. Their combined response exceeds the
+unchanged 2 MB bound; the connector shrinks only rejected GET pages, completes
+the scoped import, and removes its own native probes. Other tests cover a single
+oversized object, no size retries on HTTP 403, complete-import rollback, strict
+continuations and retained last-success data. Native physical/VM address grouping,
+RO/RW tenant isolation, lost-ack, FlowIntel, RT and RTIR acceptance also passed.
+No production connector writes, notifications or scans were performed.
+
+Verified the formerly assumed RHEL 10 OVAL URL returns HTTP 404 and checked Red
+Hat's OVAL v2 deprecation announcement: RHEL 10 needs CSAF/VEX. The application
+now reports this unsupported automatic coverage explicitly, keeps its inventory,
+corrects old pending receipts and excludes obsolete feeds from automatic refresh.
+This is a truthful coverage correction, not CSAF/VEX implementation. The missing
+adapter is tracked separately in the backlog. Asset source-import membership
+and latest applied Linux-client observations are displayed as distinct facts.
+
+Frozen dependency sync, migrations (none pending), Django system/migration-drift,
+Ruff and whitespace checks passed. No new migration, dependency, client artifact
+or static asset change is required. Deploy the reviewed commit and restart the
+web and worker processes; then request a complete inventory refresh. Production
+latency and import recovery still require verification after that update.

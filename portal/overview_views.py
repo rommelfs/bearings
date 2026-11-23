@@ -15,7 +15,7 @@ from .overview_queries import overview_queries
 @never_cache
 def overview(request):
     started = perf_counter()
-    with overview_queries() as database:
+    with overview_queries(planning_limit=4) as database:
         response = _overview_response(request)
     response["Referrer-Policy"] = "same-origin"
     response["Server-Timing"] = (

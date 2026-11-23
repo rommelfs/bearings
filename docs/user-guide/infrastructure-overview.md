@@ -353,3 +353,30 @@ version comparison and source. A shared container kernel requires assessment on
 the hosting system; its guest package feed cannot clear it. Unknown scope or an
 unsupported kernel build remains explicitly unresolved. Kernel review actions
 are recommendations, separate from saved package review/analyst workflow.
+
+
+### Large current package queues
+
+Company counters, server ranking and issue previews now reuse request-local
+aggregate bins. Native package currentness is classified once for review totals;
+issue counts and the four preview identities per asset share a window query.
+Only the final twelve assets load preview facts. Counts remain complete even
+when only four previews are shown, and cleared reviews or explicit human tasks
+retain their existing meaning. Each new request rechecks visibility and input
+freshness. There is no shared response/authorization cache.
+
+In an isolated PostgreSQL fixture with 10,000 package-CVE rows and linked issues,
+the complete superuser overview fell from **8.17 s to 2.21 s** (database execution
+7.81 s to 1.94 s; 34 to 31 executes). This is a synthetic local comparison,
+not a measurement of the production URL or client-side page load. Request-local
+PostgreSQL join-planning limits are restored after the view, as is JIT policy.
+
+Asset provenance now names the last complete source import for that asset and
+the latest applied Linux-client observation separately. An export-confirmed new
+host can have software observations before its first successful complete NetBox
+import; a prior source-wide import does not prove this new host was included.
+
+For this update, deploy the reviewed commit and restart `bearings-web` and
+`bearings-worker`. No schema migration, collectstatic or client update is needed.
+A successful complete import clears the source's retained import error; RHEL 10
+continues to display missing automatic coverage until CSAF/VEX support exists.

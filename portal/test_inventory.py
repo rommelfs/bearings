@@ -14,7 +14,7 @@ from django.core.management import CommandError, call_command
 from django.test import Client
 from django.utils import timezone
 from .tests import Fixture
-from .connectors.http import ConnectorError
+from .connectors.http import ConnectorError, ResponseTooLarge
 from .connectors.netbox import write_asset
 from .inventory import refresh_inventory
 from .models import Asset, InventoryWrite, NetBoxInstance, Installation
@@ -166,6 +166,27 @@ class InventoryImportTests(Fixture):
                     refresh_inventory(self.sa.pk)
                 self.assertFalse(self.sa.asset_set.exclude(external_id="").exists())
                 self.records = before
+
+    def test_exhausted_size_retries_preserve_every_prior_projection_and_receipt(self):
+        refresh_inventory(self.sa.pk)
+        self.sa.refresh_from_db()
+        success, summary = self.sa.last_import_success, self.sa.import_summary
+        original = self.response
+
+        def response(method, url, **kwargs):
+            if "/virtualization/virtual-machines/" in url:
+                raise ResponseTooLarge("untrusted response must not be stored")
+            return original(method, url, **kwargs)
+
+        self.records["devices"][0]["name"] = "discard this partial change"
+        self.http.side_effect = response
+        with self.assertRaises(ConnectorError):
+            refresh_inventory(self.sa.pk)
+        self.sa.refresh_from_db()
+        self.assertEqual((self.sa.last_import_success, self.sa.import_summary), (success, summary))
+        self.assertEqual(self.imported().name, "imported server")
+        self.assertFalse(self.sa.asset_set.filter(missing_since__isnull=False).exists())
+        self.assertNotIn("untrusted", self.sa.import_error)
 
     def test_pagination_is_complete_before_import_and_partial_pages_do_not_mark_missing(self):
         def pages(method, url, **kwargs):

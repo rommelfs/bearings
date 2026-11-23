@@ -1,7 +1,7 @@
 import os
 import re
 from urllib.parse import parse_qs, urlsplit
-from .http import ConnectorError, approved_base, request_json
+from .http import ConnectorError, ResponseTooLarge, approved_base, request_json
 from ..models import NetBoxInstance
 
 
@@ -57,9 +57,22 @@ def query_objects(source, object_type="devices"):
     url = base + path
     scope = {"tenant_id": source.tenant_id} if source.tenant_id else {}
     records, identities, expected_count = [], set(), None
+    page_size = 100
     for _ in range(100):
         offset = len(records)
-        page = request_json("GET", url, headers=headers, params={**scope, "limit": 100, "offset": offset})
+        try:
+            page = request_json(
+                "GET", url, headers=headers, params={**scope, "limit": page_size, "offset": offset}
+            )
+        except ResponseTooLarge:
+            # Software custom fields can make a VM page exceed the normal HTTP
+            # bound. Retry the same offset with fewer objects, never a larger
+            # response budget or an incomplete import. Retries consume the same
+            # total request budget as successful pages.
+            if page_size == 1:
+                raise ResponseTooLarge("Single NetBox object exceeds 2 MB limit; query discarded") from None
+            page_size = max(1, page_size // 2)
+            continue
         count, rows = page.get("count"), page.get("results")
         if (
             type(count) is not int
@@ -115,7 +128,7 @@ def query_objects(source, object_type="devices"):
             raise ConnectorError("NetBox pagination changed destination; query discarded")
         params = parse_qs(next_parts.query)
         expected = {
-            "limit": ["100"],
+            "limit": [str(page_size)],
             "offset": [str(len(records))],
             **{k: [str(v)] for k, v in scope.items()},
         }

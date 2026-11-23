@@ -2,6 +2,7 @@
 
 import io
 import uuid
+import httpx
 from unittest.mock import patch
 from datetime import timedelta
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -9,7 +10,7 @@ from django.core.management import call_command, CommandError
 from django.contrib.auth.models import Permission
 from django.utils import timezone
 from .tests import Fixture
-from .connectors.http import ConnectorError
+from .connectors.http import ConnectorError, ResponseTooLarge, UpstreamHTTPError
 from .connectors.netbox import query_objects, write_asset
 from .forms import AssetForm
 from .models import Asset, AuditEvent, InventorySource, InventoryWrite, Membership, NetBoxInstance
@@ -86,6 +87,52 @@ class MultiInstanceTests(Fixture):
         self.assertEqual(len(rows), 2)
         self.assertEqual(request.call_args.kwargs["params"], {"tenant_id": 7, "limit": 100, "offset": 1})
         self.assertEqual(request.call_args.args[1], "https://alpha.example.invalid/api/dcim/devices/")
+
+    def test_large_inventory_pages_shrink_with_real_bounded_json_transport(self):
+        rows = [dict(self.row(pk=i), custom_fields={"bearings_inventory": "x" * 600000}) for i in range(1, 5)]
+        calls = []
+
+        def serve(request):
+            size, offset = int(request.url.params["limit"]), int(request.url.params["offset"])
+            self.assertEqual(request.url.params["tenant_id"], "7")
+            self.assertEqual(request.headers["Authorization"], "Bearer synthetic-alpha")
+            calls.append((size, offset))
+            page_rows = rows[offset : offset + size]
+            next_offset = offset + len(page_rows)
+            next_url = (
+                f"https://alpha.example.invalid/api/virtualization/virtual-machines/?tenant_id=7&limit={size}&offset={next_offset}"
+                if next_offset < len(rows)
+                else None
+            )
+            return httpx.Response(200, json=self.page(page_rows, len(rows), next_url))
+
+        client = httpx.Client
+        with patch(
+            "portal.connectors.http.httpx.Client",
+            side_effect=lambda **kwargs: client(transport=httpx.MockTransport(serve), **kwargs),
+        ):
+            result = query_objects(self.sa, "virtual-machines")
+        self.assertEqual([r["external_id"] for r in result], ["1", "2", "3", "4"])
+        self.assertEqual(calls[0], (100, 0))
+        self.assertLess(calls[-1][0], 100)
+        self.assertGreater(calls[-1][1], 0)
+        self.assertTrue(
+            all(r["record"]["custom_fields"]["bearings_inventory"] == "x" * 600000 for r in result)
+        )
+
+    @patch("portal.connectors.netbox.request_json", side_effect=ResponseTooLarge("bounded response"))
+    def test_one_oversized_object_fails_without_partial_success_or_unbounded_retries(self, request):
+        with self.assertRaisesMessage(ResponseTooLarge, "Single NetBox object exceeds 2 MB"):
+            query_objects(self.sa)
+        self.assertLess(request.call_count, 10)
+        self.assertEqual(request.call_args.kwargs["params"]["limit"], 1)
+        self.assertTrue(all(call.kwargs["params"]["offset"] == 0 for call in request.call_args_list))
+
+    @patch("portal.connectors.netbox.request_json", side_effect=UpstreamHTTPError(403))
+    def test_authorization_failure_does_not_trigger_size_retries(self, request):
+        with self.assertRaises(UpstreamHTTPError):
+            query_objects(self.sa)
+        self.assertEqual(request.call_count, 1)
 
     @patch("portal.connectors.netbox.request_json")
     def test_untrusted_continuations_never_receive_credentials(self, request):
@@ -164,7 +211,8 @@ class MultiInstanceTests(Fixture):
         self.assertEqual(self.client.post(self.url("create-asset"), form.data).status_code, 403)
         self.assertNotContains(self.client.get(self.url("organization")), self.url("create-asset"))
         self.assertContains(
-            self.client.get(self.url("organization")), self.url("create-installation", pk=self.asset.pk)
+            self.client.get(self.url("asset", pk=self.asset.pk)),
+            self.url("create-installation", pk=self.asset.pk),
         )
         self.assertFalse(Asset.objects.filter(name="blocked").exists())
         self.assertEqual(InventoryWrite.objects.count(), 0)

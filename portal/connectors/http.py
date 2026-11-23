@@ -15,6 +15,10 @@ class ConnectorError(Exception):
     pass
 
 
+class ResponseTooLarge(ConnectorError):
+    """A bounded response was rejected, without exposing its body or destination."""
+
+
 class UpstreamHTTPError(ConnectorError):
     def __init__(self, status_code):
         self.status_code = status_code
@@ -81,7 +85,7 @@ def request_json(method, url, *, allow_list=False, deadline=None, **kwargs):
                         raise ConnectorError("Connector response time budget exceeded")
                     size += len(chunk)
                     if size > 2_000_000:
-                        raise ConnectorError("Upstream response exceeds 2 MB limit")
+                        raise ResponseTooLarge("Upstream response exceeds 2 MB limit")
                     chunks.append(chunk)
                 data = json.loads(b"".join(chunks))
                 if not isinstance(data, dict) and not (allow_list and isinstance(data, list)):
