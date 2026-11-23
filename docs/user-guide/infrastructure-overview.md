@@ -235,3 +235,53 @@ version, variant and build remain separate stored values.
 Deploy by collecting static assets and restarting `bearings-web`; the stylesheet
 URL is versioned for the new layout. No migration, client update or worker restart
 is required for this display change.
+
+## Concrete next steps on company cards
+
+Company cards now lead with **Next steps**, rather than monitoring totals and a
+large menu. Up to five recommendations are visible; additional steps are disclosed
+separately. Each gives a reason, a role to involve and a direct scoped link. Roles
+are suggestions, not newly assigned users/tasks. Recorded overdue actions, expired
+risk acceptances and saved affected cases rank first, followed by broken checks,
+reporting/contact/inventory gaps and unassessed review triage.
+
+At most three problematic package-reporting client examples are loaded per company
+in one bounded query. Their hostname, last receipt, last applied observation and
+last evaluation attempt identify where to investigate. Counts may overlap: one
+client can have both a reporting gap and an evaluation error. Device/source/asset
+ownership must agree; unrelated or reassigned-source examples are excluded.
+
+- Expired credentials request re-enrollment, not a service restart.
+- Old observations with recent server receipts request inspection of processing
+  and host/report timestamps. Without recent receipts, inspect client service and
+  outbound HTTPS. Neither case asserts that the whole server is down.
+- Evaluation failures show a recognized safe exception class only when recorded;
+  otherwise the cause is explicitly unclassified and the platform operator must
+  inspect diagnostics. Arbitrary saved error text is not copied into the card.
+- Pending/stale vendor feeds, unsupported releases, incomplete source metadata and
+  unresolved vendor conditions have distinct guidance. Repeating an unsupported
+  rule alone does not establish coverage. Queued checks do not prove completion.
+- Missing response contacts direct company administrators to contact reachability,
+  notification opt-in and current role review. DPO-only records do not satisfy
+  response-contact coverage. Source problems distinguish missing configuration,
+  disabled/unbound NetBox, missing import and overdue owner review.
+
+Current-version proof and retained reviews remain separate. **Active reviews
+assessed as affected** is a count of saved analyst decisions in the active queue;
+zero is not an automated clean result. **Overdue recorded actions** counts only
+recorded due dates, not these recommendations. Source severity and active review
+counts are not counts of confirmed vulnerable installations. Fixes may already
+be installed; inspect version evidence and reconcile retained workflow accordingly.
+The active queue excludes resolved, false-positive, accepted-risk and analyst-
+not-affected records; accepting risk is not patching.
+
+**Monitoring details** retains package identities, client/check totals, watch
+freshness, coverage reasons, risk counts and advanced setup links. Configuration
+links are shown only to company administrators/platform superusers. Ordinary read
+routes still apply their existing authorization; no recommendation triggers a
+write, retry, scan or notification. Company responses explicitly prohibit caching.
+
+After updating the reviewed checkout, run
+`./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null` and
+`systemctl restart bearings-web`, then reload the browser. No migration,
+national/ordinary-worker restart or Linux client update is needed for this change.

@@ -1,5 +1,6 @@
 from time import perf_counter
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, render
@@ -11,10 +12,12 @@ from .overview_queries import overview_queries
 
 
 @login_required
+@never_cache
 def overview(request):
     started = perf_counter()
     with overview_queries() as database:
         response = _overview_response(request)
+    response["Referrer-Policy"] = "same-origin"
     response["Server-Timing"] = (
         f"overview;dur={(perf_counter() - started) * 1000:.1f}, "
         f"database;dur={database.seconds * 1000:.1f}, "
@@ -74,6 +77,9 @@ def _overview_response(request):
             and source is not None
             and source.mode == "manual"
         )
+    from .overview_next_steps import decorate
+
+    decorate(companies)
     aggregated = perf_counter()
     priority_timings = {}
     assets = priority_assets(

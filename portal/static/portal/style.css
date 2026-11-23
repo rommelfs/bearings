@@ -1987,3 +1987,19 @@ h2.icon-heading > .ui-icon { width: 24px; height: 24px; flex-basis: 24px; color:
   .mobile-menu > summary > .ui-icon { margin-right: 6px; }
 }
 @media (prefers-reduced-motion: reduce) { .history-disclosure-action .ui-icon { transition: none; } }
+
+/* Company summaries lead with decisions and precise routes, not diagnostic totals. */
+.overview-metrics small { display: block; margin-top: 7px; color: #52636d; font-size: 11px; line-height: 1.5; }
+.overview-next-steps { margin: 1.2rem 0; }
+.next-step-list { padding-left: 1.6rem; margin: 0; }
+.next-step-list > li { padding: 14px 0 16px 5px; border-top: 1px solid var(--line); }
+.next-step-list > li::marker { color: #315e73; font-weight: 700; }
+.next-step-list p { margin: 8px 0; overflow-wrap: anywhere; }
+.next-step-heading { display: flex; align-items: baseline; gap: 8px; }
+.next-step-heading .ui-icon { align-self: flex-start; margin-top: 2px; color: #315e73; }
+.next-step-route { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+.next-step-route a { font-weight: 600; }
+.overview-diagnostics { margin: 1rem 0; padding: 12px 15px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafb; }
+.overview-diagnostics > summary { font-weight: 600; }
+.overview-diagnostics .overview-coverage { margin-top: 1rem; background: white; }
+.more-next-steps > summary { font-weight: 600; margin: 10px 0; }

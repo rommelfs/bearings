@@ -632,3 +632,5 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
 - Implemented forward-only daily national indicator stocks and Vitrine history with measured zeros, missing-day gaps, current audience/cohort checks and policy-generation guards. Migration0067 and national-worker restart are required; see [indicator history](user-guide/national-indicator-history.md).
 
 - Implemented labelled first-party workspace pictograms and prominent keyboard-accessible chart disclosure tiles. Long sidebar content stays grouped; mobile text remains readable. See [interface orientation](user-guide/interface-navigation.md).
+
+- Implemented company-card Next steps with bounded concrete server examples, explicit reasons/roles/routes and clear review/task counter semantics. Monitoring details are collapsed; no workflow or retry is created. See [infrastructure overview](user-guide/infrastructure-overview.md).

@@ -1,12 +1,13 @@
 """Recorded distro-check summaries, kept separate from product-watch freshness."""
 
 from datetime import timedelta
-from django.db.models import Count, Exists, F, Max, OuterRef, Q
+from django.db.models import Case, Count, Exists, F, IntegerField, Max, OuterRef, Q, Value, When, Window
 from django.utils import timezone
+from django.db.models.functions import RowNumber
 from .models import AgentComponent, AgentDevice, AgentReport
 
 
-def package_reporters(org_ids):
+def reporter_query(org_ids):
     now = timezone.now()
     components = AgentComponent.objects.filter(
         device_id=OuterRef("pk"),
@@ -40,6 +41,11 @@ def package_reporters(org_ids):
         | Q(distro_summary__state__isnull=True)
         | ~Q(distro_summary__state="ready")
     )
+    return devices, queued, unavailable, uncertain
+
+
+def package_reporters(org_ids):
+    devices, queued, unavailable, uncertain = reporter_query(org_ids)
     return {
         row.pop("organization_id"): row
         for row in devices.order_by()
@@ -53,3 +59,39 @@ def package_reporters(org_ids):
             package_last_attempt=Max("distro_checked_at"),
         )
     }
+
+
+def attention_devices(org_ids):
+    """Three concrete problematic package reporters per company, in one scoped query."""
+    devices, _, unavailable, uncertain = reporter_query(org_ids)
+    priority = Case(
+        When(distro_summary__state="error", then=Value(0)),
+        When(unavailable, then=Value(1)),
+        default=Value(2),
+        output_field=IntegerField(),
+    )
+    devices = (
+        devices.filter(Q(distro_summary__state="error") | unavailable | uncertain)
+        .annotate(
+            attention_position=Window(
+                RowNumber(), partition_by=[F("organization_id")], order_by=[priority.asc(), F("pk").asc()]
+            )
+        )
+        .filter(attention_position__lte=3)
+        .select_related("asset")
+        .only(
+            "organization_id",
+            "asset__name",
+            "source_id",
+            "expires_at",
+            "last_observed_at",
+            "last_received_at",
+            "distro_summary",
+            "distro_checked_at",
+        )
+        .order_by("organization_id", "attention_position")
+    )
+    grouped = {}
+    for device in devices:
+        grouped.setdefault(device.organization_id, []).append(device)
+    return grouped

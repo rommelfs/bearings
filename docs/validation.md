@@ -1842,3 +1842,45 @@ assistive-technology audit. Documentation/backlog updated; no production deploye
 Deploy reviewed checkout + collectstatic + restart bearings-web, then refresh the
 browser. The web restart loads the new template-tag library. No migration,
 national/ordinary-worker restart or Linux client rebuild/restart for this change.
+
+## Concrete company-card next steps — 2026-11-23
+
+Reworked company summaries around a prioritized Next steps list. At most five
+recommendations are initially visible, with additional steps disclosed separately;
+monitoring/package/watch/risk diagnostics remain in a collapsed details section.
+Each recommendation gives a reason, a role to involve and an authorized read route.
+No task/assignment, due date, assessment, retry, enrollment or notification is
+created by the overview. Main counters explicitly distinguish active analyst-
+affected decisions from automated proof, and recorded overdue dates from suggested
+work. Source severity/review counts never become confirmed vulnerable installations.
+Active workflow exclusions, including accepted risk, are documented in diagnostics.
+
+Added one windowed, page-scoped query for at most three problematic package clients
+per company, reusing the existing reporter eligibility/ownership rules. Error,
+expiry, report age/receipt, feed state, source metadata and unsupported conditions
+have distinct guidance. Fresh receipts with old observations ask for processing/
+timestamp inspection; expired credentials ask for re-enrollment. Only allowlisted
+recorded exception classes are reflected; arbitrary error text is not copied.
+Unknown causes remain explicit. Source gaps distinguish missing/disabled/unbound
+connectors, absent imports and owner-review gaps. Explicit pauses/configuration
+choices are reviewed deliberately. Examples cannot escape organization, active
+asset or device/source/product lineage. Counts can overlap and clipping is stated.
+Configuration/setup links are administrator-gated; response-contact links go to
+readable company contacts. Responses now explicitly prohibit caching and external
+referrers. The existing lower per-server/CVE evidence preview is preserved.
+
+Validation: frozen sync, Ruff, Django checks and no migration drift pass. Relevant
+PostgreSQL suite: 47 tests passed; focused next-step/cleanup follow-up: 11 passed.
+Five new regressions cover exact host/device route and role, classified errors,
+expired credentials versus recent receipt/old observation, secret-like error text
+and escaped names, cross-source exclusion, saved-affected priority, no-store/reader
+configuration boundaries, and bounded examples/query growth with thirteen clients.
+Existing twelve-company query budget and evidence/role filtering tests pass.
+Chromium synthetic fixture with two failed evaluations and one stale reporter at
+1440px/390px, under actual response CSP, verified five priorities, three exact
+server-check routes, contact/triage guidance, keyboard-operated diagnostics and
+no horizontal overflow or script errors. No production data/service/load used.
+
+Documentation/backlog updated. Deploy reviewed checkout, collectstatic and restart
+bearings-web, then reload browser. No migration, ordinary/national worker restart,
+Linux client rebuild/update or upstream operation is needed for this presentation.
