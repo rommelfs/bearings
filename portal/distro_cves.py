@@ -30,6 +30,7 @@ from .models import (
 
 RULE = "distro-oval-review/v1"
 MAX_MATCHES = 10000
+PUBLICATION_VERSION = 1
 
 
 def compile_cache(path, key):
@@ -219,6 +220,7 @@ def evaluate_device(pk):
             "release"
         ) != device.os.get("version"):
             continue
+        c.device = device
         by_id[c.pk] = c
         value = {"id": c.pk, "version": c.version, "architecture": c.architecture}
         facts[(c.manager, False, c.name)].append(value)
@@ -279,15 +281,19 @@ def evaluate_device(pk):
                 )
         if len(found) > MAX_MATCHES:
             raise ConnectorError("Device CVE result budget exceeded; no partial evaluation published")
-    for (cid, aid, cve), (component, advisory, result) in found.items():
-        if time.monotonic() > deadline:
-            raise ConnectorError("Device publication time budget exceeded")
-        publish(device, feed, component, advisory, cve, result, checks.details.get((cid, aid)))
+    from .distro_publish import publish_many
+
+    rows = [
+        (component, advisory, cve, result, checks.details.get((cid, aid)))
+        for (cid, aid, cve), (component, advisory, result) in found.items()
+    ]
     # A changed package can update automated evidence; never close a human workflow.
     old = DistroMatch.objects.filter(component__device=device).select_related(
         "finding__record", "advisory", "component__installation"
     )
     for match in old:
+        if time.monotonic() > deadline:
+            raise ConnectorError("Device publication time budget exceeded")
         ident = (match.component_id, match.advisory_id, match.finding.record.external_id)
         if ident in found and match.component.installation_id == match.finding.installation_id:
             continue
@@ -309,23 +315,25 @@ def evaluate_device(pk):
             and match.advisory.feed_id == feed.pk
             and match.advisory.generation == feed.generation
         ):
-            publish(
-                device,
-                feed,
-                component,
-                match.advisory,
-                match.finding.record.external_id,
-                result,
-                checks.details.get((component.pk, match.advisory_id)),
+            rows.append(
+                (
+                    component,
+                    match.advisory,
+                    match.finding.record.external_id,
+                    result,
+                    checks.details.get((component.pk, match.advisory_id)),
+                )
             )
         else:
             update_match(match, component, feed, result)
+    publish_many(device, feed, rows, deadline)
     checked_at = timezone.now()
     for component in by_id.values():
         component.distro_check = checks.receipt(component, device, feed, checked_at)
     AgentComponent.objects.bulk_update(list(by_id.values()), ["distro_check"], batch_size=200)
     summary = {
         "evaluator_version": distro_results.VERSION,
+        "publication_version": PUBLICATION_VERSION,
         "state": "partial"
         if source_missing or unknown or feed.summary.get("unindexed_definitions", 0)
         else "ready",
@@ -421,23 +429,7 @@ def update_match(match, component, feed, result, package_check=None):
     match = DistroMatch.objects.select_for_update().get(pk=match.pk)
     match.finding = finding
     match.evidence_revision = revision
-    snapshot = {
-        "feed": feed.key,
-        "evaluator_version": distro_results.VERSION,
-        "package_check": package_check or {},
-        "generation": str(feed.generation),
-        "result": result,
-        "version": component.version if component else "",
-        "package": component.package_identity if component else {},
-        "os": component.device.os if component else {},
-        "inventory_sequence": component.device.applied_sequence if component else None,
-        "report_id": str(component.last_report_id) if component else None,
-        "source_package": component.package_source if component else {},
-        "rule_sha256": match.advisory.content_hash,
-    }
-    fingerprint = digest(
-        {k: v for k, v in snapshot.items() if k not in {"generation", "inventory_sequence", "report_id"}}
-    )
+    snapshot, fingerprint = match_proof(component, feed, match.advisory, result, package_check)
     if fingerprint == match.input_hash:
         # Revalidate unchanged proof against the latest report without reopening
         # human review or manufacturing another immutable evidence revision.
@@ -471,6 +463,11 @@ def run(limit=5):
     # new report, including receipts whose old checks were reported as complete.
     old_evaluator = Q(distro_summary__evaluator_version__isnull=True) | ~Q(
         distro_summary__evaluator_version=distro_results.VERSION
+    )
+    # Retry pre-upgrade publication timeouts once; new failures keep the backoff.
+    old_evaluator |= Q(distro_summary__state="error", distro_summary__error_code="publication_timeout") & (
+        Q(distro_summary__publication_version__isnull=True)
+        | ~Q(distro_summary__publication_version=PUBLICATION_VERSION)
     )
     AgentDevice.objects.filter(
         enabled=True,
@@ -524,6 +521,7 @@ def run(limit=5):
                 distro_checked_at=timezone.now(),
                 distro_summary={
                     "evaluator_version": distro_results.VERSION,
+                    "publication_version": PUBLICATION_VERSION,
                     "state": "error",
                     **distro_errors.failure(exc),
                 },
@@ -559,3 +557,24 @@ def coverage(device):
     if device.stale or not agents.current(device):
         summary["state"] = "stale"
     return summary
+
+
+def match_proof(component, feed, advisory, result, package_check=None):
+    snapshot = {
+        "feed": feed.key,
+        "evaluator_version": distro_results.VERSION,
+        "package_check": package_check or {},
+        "generation": str(feed.generation),
+        "result": result,
+        "version": component.version if component else "",
+        "package": component.package_identity if component else {},
+        "os": component.device.os if component else {},
+        "inventory_sequence": component.device.applied_sequence if component else None,
+        "report_id": str(component.last_report_id) if component else None,
+        "source_package": component.package_source if component else {},
+        "rule_sha256": advisory.content_hash,
+    }
+    fingerprint = digest(
+        {k: v for k, v in snapshot.items() if k not in {"generation", "inventory_sequence", "report_id"}}
+    )
+    return snapshot, fingerprint

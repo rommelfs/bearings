@@ -86,3 +86,42 @@ Deploy the reviewed checkout and restart **bearings-web** and **bearings-worker*
 No migration or Linux binary rebuild is needed for the evaluator change. The
 separate installer recovery fix requires republishing the installer and refreshing
 the root-owned updater as described in [client updates](../operations/linux-client-updates.md).
+
+
+## Batched evidence publication
+
+A successful rule evaluation could still exceed the existing 120-second budget
+while writing thousands of associations one at a time. Increasing the result
+count bound alone did not address that publication bottleneck. The evaluator
+now writes source revisions, findings, immutable match history and vulnerability
+issue projections in batches of at most 200 associations. Current and retained
+fixed-rule associations use the same batch path. Removed/rebound inputs retain
+their conservative detached-match path. Eligible component/device relationships
+are reused instead of lazily reloading the same host per component.
+
+The entire device evaluation remains one transaction. A deadline failure after a
+completed batch rolls back all batches, including issues/revisions; previous
+package receipts, analyst assessments, workflow, sharing policy and existing
+issue fields are retained. SourceRecord bulk updates explicitly recompute source
+severity using the ordinary model-save rule and capture both previous and current
+payloads. New issue projections use the same model validation and snapshot
+format as ordinary issue creation, validating the scoped object chain before
+assigning a new UUID; no existing issue is repointed.
+
+Before taking evidence-record locks, publication locks the host's existing
+findings in PK order. Human review/risk linking takes Finding before SourceRecord;
+the whole host set is locked before batching because later batches can share an
+evidence record. Within each batch, finding locks precede match locks. This avoids
+introducing the opposite order and preserves concurrently saved human fields.
+
+The 120-second deadline, 10,000-association bound and all rule/proof limits remain.
+A publication-version marker retries old `publication_timeout` failures on the
+first eligible worker pass after this upgrade. A failure under the current
+publication version keeps the normal fifteen-minute retry backoff. Successful
+package proofs retain evaluator version 2; this performance change does not
+invalidate every current package proof or reopen unchanged analyst reviews.
+
+Update the reviewed checkout and restart **bearings-web** and **bearings-worker**.
+No migration, static rebuild, Linux client update or artifact republishing is
+needed. Check the new evaluation timestamp/state/code on the affected host; local
+synthetic query budgets are not proof of production latency or fleet throughput.

@@ -640,3 +640,8 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   evidence and deliberate service stops remain preserved. See
   [package checks](integrations/distro-cves.md) and
   [update recovery](operations/linux-client-updates.md).
+
+- Implemented bounded batch publication for distribution findings, source and match
+  revisions and issue projections, preserving atomic rollback, human assessments
+  and evidence-lock ordering. Old publication timeouts retry once after upgrade;
+  current failures keep their backoff. See [package checks](integrations/distro-cves.md).

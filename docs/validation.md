@@ -1933,3 +1933,40 @@ real credential drops/permissions, verified local HTTPS/signatures, unchanged
 checksums, failed startup/disk/process-interruption rollback, quarantine and
 retained deliberate stops. `/run` remains noexec. systemd is explicitly a
 controlled dependency-aware double, not a real boot acceptance claim.
+
+## Batch distribution evidence publication — 2026-11-23
+
+The higher result-count bound did not address the separate publication deadline:
+a valid inventory could still exceed the unchanged 120-second evaluation/write
+budget. The evaluator now batches up to 200 associations per write stage, sharing
+source/revision lookups and eagerly reusing the validated component/device chain.
+It explicitly reproduces SourceRecord severity derivation and previous-payload
+snapshots when using bulk updates. New issue projections retain model validation,
+ordinary snapshots and scoped bindings without querying an old UUID for every
+new issue. Existing issues and human assessment/workflow fields are not rewritten.
+
+Eighty-eight PostgreSQL evaluator, receipt/verdict, inventory and company-step
+tests pass (20.274 seconds for that local run). The 2,001-association real
+publication test now enforces fewer than 700 SQL executions instead of allowing
+per-association reads/writes/validation. Reference-publisher comparison matches
+source severity/sharing, payloads, proof fingerprints, evidence revisions, issue
+projection and history counts across multiple batches. A deadline after a
+completed batch rolls the entire evaluation back; later success/repetition keeps
+saved analyst decisions and does not duplicate histories/issues. Changed vendor
+payloads retain previous revisions and never regrant restricted sharing.
+
+A separate-connection PostgreSQL test locks a human Finding first and then its
+SourceRecord while the evaluator waits; publication must prelock all host findings
+before evidence records (including later batches sharing those records). Both
+complete and the human's resolved/not-affected assessment remains saved. Source,
+feed, device and current-input guards remain in place. The publication-version
+marker retries historical publication-timeout failures once after upgrade; a
+current-version failure retains the normal backoff. Semantic evaluator version
+and unchanged review fingerprints are retained.
+
+Frozen dependency sync, Ruff, Django system checks, migration drift and whitespace
+checks pass. No dependency/model/client/deployment-adapter change. Update the
+reviewed checkout and restart bearings-web and bearings-worker. No migration,
+collectstatic, client update, artifact republishing, notification or upstream write
+is needed. The observed production workload must still confirm latency; these
+synthetic tests establish query/transaction/locking behavior, not a fleet SLA.
