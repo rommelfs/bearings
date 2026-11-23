@@ -395,3 +395,7 @@ begin after update; no historical totals are invented. See [history semantics an
 permission changes](../user-guide/national-indicator-history.md). Existing
 observations survive failures/rebuilds; retain them in backups. Production capture
 requires PostgreSQL; SQLite deliberately does not record unguarded history.
+
+### Machine-based indicators and attention overview (23 November 2026)
+
+This increment changes server-side presentation/queries and forward daily history capture. It needs no new migration, dependency sync, client rebuild or static asset collection; existing migration 0072 is required. Deploy the reviewed pinned commit using the existing protected environment and management helper, check migration consistency, then restart **bearings-web, bearings-worker and bearings-national**. Do not rerun first installation or alter client enrollment. Hourly national history capture automatically adds the new machine-metric contract, replacing today's older observation when needed. Older dates are not backfilled from raw reviews. Current machine indicators read scoped live evidence; no wait for historical data is needed for the current dashboard.

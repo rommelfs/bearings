@@ -246,6 +246,10 @@
       {
         "title": "Explain vendor fixes and ESM channels directly in outstanding reviews",
         "body": "Implemented current package verdicts, explicit vendor fix thresholds and Ubuntu ESM Apps/Infra channel labels in national outstanding-review rows, detail and coordination views. Keep analyst decisions separate, suppress stale fix advice, distinguish installation-review counts from unique CVEs and omit empty optional builds. Provide read-only APT/Pro checks; never infer entitlement or available candidates from installed inventory or an esm suffix. Tests cover channel/version binding, stale proof and existing organization visibility. Automatic repository candidate/entitlement collection remains a separate future capability. Default to the shared action/manual classification; retain explicit unresolved, pending, cleared and all-record filters with scoped counts and distinct identifiers. No evidence deletion or automatic human-workflow closure."
+      },
+      {
+        "title": "Replace association-count dashboards with machine proportions and scoped follow-up cases",
+        "body": "Implemented mutually exclusive highest-priority machine cohorts and explicit version-match/evaluation-coverage denominators, partial/unknown coverage and exact cohort drill-down. Company cards fold raw review totals; national indicators emphasize percentages. What needs attention defaults to one machine with bounded product teasers, preserving grouped actions as an alternate view. Group software-family cases by organization, explicit source/product identity, platform, manager and evidence category; retain exact scoped record drill-down and human decisions. Add forward-only machine percentage history with gaps for legacy/missing observations and zero denominators. No opaque risk score, inferred MISP affectedness, duplicate cleanup or automatic workflow closure. Source trust/runtime/applicability and national population completeness remain explicit limits."
       }
     ]
   },

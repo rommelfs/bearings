@@ -37,6 +37,7 @@ def capture_daily(*, limit=500):
         day=day,
         timezone=zone,
         captured_at__gt=now - timedelta(hours=1),
+        operator_counts__machine_metric_version=1,
         policy_generation=F("organization__history_policy__generation"),
     )
     with transaction.atomic():
@@ -69,6 +70,21 @@ def capture_daily(*, limit=500):
             .exclude(function="dpo")
             .values_list("organization_id", flat=True)
         )
+        from .review_focus import posture
+        from .national_snapshots import InternalReader
+
+        machine_all = posture(InternalReader(), ids)["organizations"]
+        machine_shared = posture(InternalReader(), ids, shared_only=True)["organizations"]
+
+        def machine_values(mapping, org_id):
+            value = mapping.get(org_id, {})
+            return {
+                "machine_metric_version": 1,
+                "machine_total": value.get("total", 0),
+                "machine_evaluated": value.get("evaluated_count", 0),
+                "machine_matched": value.get("matched", 0),
+            }
+
         rows = []
         for state in states:
             source = sources.get(state.organization_id)
@@ -101,8 +117,14 @@ def capture_daily(*, limit=500):
                     timezone=zone,
                     captured_at=now,
                     policy_generation=policies[state.organization_id],
-                    operator_counts=state.operator_counts,
-                    shared_counts=state.shared_counts,
+                    operator_counts={
+                        **state.operator_counts,
+                        **machine_values(machine_all, state.organization_id),
+                    },
+                    shared_counts={
+                        **state.shared_counts,
+                        **machine_values(machine_shared, state.organization_id),
+                    },
                     coverage_counts=coverage,
                 )
             )
@@ -153,6 +175,9 @@ def stock_history(user):
         }
     )
     sums["companies"] = Count("pk", filter=Q(selected_counts__reviews__gt=0))
+    for key in ("machine_total", "machine_evaluated", "machine_matched"):
+        sums[key] = Sum(Cast(KeyTextTransform(key, "selected_counts"), IntegerField()))
+    sums["machine_samples"] = Count("pk", filter=Q(selected_counts__machine_metric_version=1))
     aggregated = list(
         rows.order_by()
         .values("day")
@@ -209,7 +234,37 @@ def stock_history(user):
                 if observation
                 else "Not captured / withheld"
             )
+    machine_daily = {}
+    for day, row in daily.items():
+        if row["machine_samples"] != expected:
+            continue
+        total, evaluated = row["machine_total"], row["machine_evaluated"]
+        machine_daily[day] = {
+            "coverage_percent": round(100 * evaluated / total, 1) if total else None,
+            "matched_percent": round(100 * row["machine_matched"] / evaluated, 1) if evaluated else None,
+        }
+    machine_chart = series(
+        "Machine proportions · last 30 days",
+        "Measured daily proportions in the currently permitted inventory. Version matches use evaluated machines as denominator; evaluation coverage uses all active machines. Partial evaluations are included. Historical review totals cannot reconstruct these proportions; missing observations and zero denominators are gaps. Inventory, access and vendor changes can change either proportion; a decrease alone is not proof of remediation.",
+        {
+            "matched_percent": "Evaluated machines with version matches (%)",
+            "coverage_percent": "Machines with current evaluation (%)",
+        },
+        machine_daily,
+        missing=None,
+    )
+    machine_chart["unit"] = "percent"
+    for point in machine_chart["rows"]:
+        observation = daily.get(date.fromisoformat(point["date"]))
+        point["capture_window"] = (
+            timezone.localtime(observation["captured_earliest"]).strftime("%Y-%m-%d %H:%M")
+            + " – "
+            + timezone.localtime(observation["captured_latest"]).strftime("%H:%M")
+            if observation and observation["machine_samples"] == expected
+            else "Not captured / withheld"
+        )
     return {
+        "machine_chart": machine_chart,
         "charts": charts,
         "complete_days": len(daily),
         "companies": expected,

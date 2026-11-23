@@ -154,7 +154,7 @@ class UbuntuUpdateTests(DistroTests):
         save_browser_evidence("queue-pip-esm", response)
         self.assertEqual((finding.analyst_applicability, finding.status), ("unassessed", "new"))
         self.login(self.analyst)
-        national = self.client.get("/circl/findings/")
+        national = self.client.get("/circl/findings/?view=records")
         self.assertEqual(national.status_code, 200)
         save_browser_evidence("national-esm-fix", national)
         self.assertContains(national, "Vendor-listed fix")
@@ -167,8 +167,8 @@ class UbuntuUpdateTests(DistroTests):
         old_version = component.version
         component.version = "99"
         component.save(update_fields=["version"])
-        stale = self.client.get("/circl/findings/?assessment=pending")
-        self.assertEqual(self.client.get("/circl/findings/").context["page"].paginator.count, 0)
+        stale = self.client.get("/circl/findings/?view=records&assessment=pending")
+        self.assertEqual(self.client.get("/circl/findings/?view=records").context["page"].paginator.count, 0)
         self.assertContains(stale, "Awaiting current package evaluation")
         self.assertNotContains(stale, "Vendor-listed fix")
         component.version = old_version
@@ -185,8 +185,8 @@ class UbuntuUpdateTests(DistroTests):
         self.assertEqual(self.client.get("/reviews/").context["review_total"], 0)
         fixed = self.client.get("/reviews/?state=cleared")
         self.login(self.analyst)
-        self.assertEqual(self.client.get("/circl/findings/").context["page"].paginator.count, 0)
-        national_fixed = self.client.get("/circl/findings/?assessment=cleared")
+        self.assertEqual(self.client.get("/circl/findings/?view=records").context["page"].paginator.count, 0)
+        national_fixed = self.client.get("/circl/findings/?view=records&assessment=cleared")
         self.assertContains(national_fixed, "includes the vendor fix")
         self.assertNotContains(national_fixed, "Vendor-listed fix")
         self.login()

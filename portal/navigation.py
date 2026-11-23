@@ -48,6 +48,7 @@ ROUTES = {
         "circl-overview",
         "circl-research",
         "circl-findings",
+        "national-machines",
         "circl-coverage-records",
         "circl-map-location",
     },
@@ -59,6 +60,7 @@ ROUTES = {
     "clients": {"linux-client-downloads", "agent-fleets", "agent-center", "application-profiles"},
     "inventory": {
         "inventory",
+        "organization-machines",
         "company-members",
         "company-join",
         "organization",
@@ -83,6 +85,7 @@ ROUTES = {
     },
     "review": {
         "home",
+        "organization-cases",
         "case-guide",
         "intelligence",
         "risk-catalog",

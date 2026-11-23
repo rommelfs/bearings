@@ -4,18 +4,19 @@ from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.db import OperationalError
 from django.db.models import Count
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_http_methods
-from .access import audit, is_analyst, require
+from .access import audit, is_analyst, require, organizations_for
 from .circl import dashboard, findings_for, outstanding, research
 from .circl_forms import ResearchForm
 from .overview_queries import overview_queries, bounded_list, read_snapshot
 from .national_snapshots import PendingSnapshot
 from .presentation import severity_first
 from .pagination import object_page
+from django.urls import reverse
 
 
 def authorize(request, action):
@@ -86,8 +87,22 @@ def panel(request, section):
 @bounded_list
 def findings(request):
     authorize(request, "operator.national_findings")
+    return _finding_response(request)
+
+
+@login_required
+@never_cache
+@require_GET
+@bounded_list
+def organization_cases(request, slug):
+    org = get_object_or_404(organizations_for(request.user), slug=slug)
+    audit(request.user, org, "review.cases")
+    return _finding_response(request, org=org)
+
+
+def _finding_response(request, org=None):
     qs = outstanding(findings_for(request.user))
-    organization_filter = request.GET.get("organization", "")[:100]
+    organization_filter = org.slug if org else request.GET.get("organization", "")[:100]
     if organization_filter:
         qs = qs.filter(organization__slug=organization_filter)
     record = request.GET.get("record", "")[:120]
@@ -103,6 +118,55 @@ def findings(request):
     elif bucket != "all":
         return private_response(
             render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+        )
+    from . import review_focus
+    from django.core import signing
+
+    view = request.GET.get("view", "cases")
+    token = request.GET.get("case", "")
+    if len(token) > 3000 or view not in {"cases", "records"}:
+        return private_response(
+            render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+        )
+    if token:
+        try:
+            qs = review_focus.select_case(qs, token)
+        except (signing.BadSignature, ValueError, TypeError):
+            return private_response(
+                render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+            )
+    if view == "cases":
+        category = request.GET.get("category", "version")
+        if category not in {*review_focus.CASE_LABELS, "all"}:
+            return private_response(
+                render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+            )
+        scoped = review_focus.case_scope(qs)
+        if category != "all":
+            scoped = scoped.filter(case_kind=category)
+        filters = {
+            "bucket": bucket,
+            "record": record,
+            "organization": organization_filter,
+            "assessment": "all",
+        }
+        page = review_focus.cases(scoped, request.GET.get("page"), filters=filters, base_url=request.path)
+        return private_response(
+            render(
+                request,
+                "portal/review_cases.html",
+                {
+                    "page": page,
+                    "category": category,
+                    "bucket": bucket,
+                    "record": record,
+                    "organization_filter": organization_filter,
+                    "categories": [(key, label[0]) for key, label in review_focus.CASE_LABELS.items()],
+                    "back_url": reverse("organization", args=[org.slug])
+                    if org
+                    else reverse("circl-overview"),
+                },
+            )
         )
     from .review_queue import classified, BUCKETS
 
@@ -152,6 +216,8 @@ def findings(request):
                 "bucket": bucket,
                 "organization_filter": organization_filter,
                 "assessment": assessment,
+                "case_token": token,
+                "back_url": reverse("organization", args=[org.slug]) if org else reverse("circl-overview"),
                 "assessment_options": [(key, label, counts[key]) for key, label in BUCKETS],
                 "retained_total": counts["all"],
                 "distinct_vulnerabilities": bins.get(assessment, {}).get("vulnerabilities")
@@ -262,4 +328,43 @@ def coverage_records(request):
                 "companies": bucket in {"no_contact", "companies"},
             },
         )
+    )
+
+
+@login_required
+@never_cache
+@require_GET
+@bounded_list
+def machine_records(request, slug=None):
+    from .review_focus import posture
+    from django.core.paginator import Paginator
+
+    org = get_object_or_404(organizations_for(request.user), slug=slug) if slug else None
+    if org is None:
+        authorize(request, "operator.machine_indicators")
+    else:
+        audit(request.user, org, "inventory.machine_indicators")
+    scope = posture(request.user, [org.pk] if org else None)["machines"]
+    focus = request.GET.get("focus", "all")
+    filters = {
+        "all": {},
+        "evaluated": {"evaluated": True},
+        "matched": {"evaluated": True, "version_match": True},
+        "missing": {"evaluated": False},
+        "manual": {"manual": True},
+        "partial": {"evaluated": True, "partial": True},
+    }
+    if focus not in filters:
+        return private_response(
+            render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+        )
+    page = Paginator(
+        scope.filter(**filters[focus])
+        .select_related("organization")
+        .defer("upstream_data")
+        .order_by("organization__name", "name", "pk"),
+        25,
+    ).get_page(request.GET.get("page"))
+    return private_response(
+        render(request, "portal/machine_indicators.html", {"page": page, "focus": focus, "org": org})
     )

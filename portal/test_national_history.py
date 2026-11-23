@@ -31,6 +31,16 @@ class NationalHistoryTests(Fixture):
         self.assertEqual(chart["rows"][-1]["counts"], [0, 0, 0, 0, 0])
         self.assertEqual(chart["rows"][0]["counts"], [None, None, None, None, None])
         self.assertEqual(snap.coverage_counts["inventory_assets"], 1)
+        self.assertEqual(result["machine_chart"]["rows"][-1]["counts"], [None, 0.0])
+        self.assertEqual(result["machine_chart"]["rows"][0]["counts"], [None, None])
+        self.assertEqual(snap.operator_counts["machine_total"], 1)
+        # Old raw review counts do not imply old machine measurements.
+        old = dict(snap.operator_counts)
+        old.pop("machine_metric_version")
+        NationalDailySnapshot.objects.filter(pk=snap.pk).update(operator_counts=old)
+        self.assertEqual(stock_history(self.analyst)["machine_chart"]["rows"][-1]["counts"], [None, None])
+        NationalDailySnapshot.objects.filter(pk=snap.pk).update(operator_counts=snap.operator_counts)
+
         self.assertEqual(snap.coverage_counts["installations"], 1)
         self.assertEqual(capture_daily(), 0)
 

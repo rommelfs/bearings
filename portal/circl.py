@@ -216,7 +216,9 @@ def dashboard(user, *, timings=None, section="all"):
         )
         counts["no_contact"] = orgs.filter(~Exists(contacts)).count()
         timings["nationalcounts"] = (perf_counter() - started) * 1000
-        result.update(counts=counts, sources=source_counts)
+        from .review_focus import posture
+
+        result.update(counts=counts, sources=source_counts, posture=posture(user)["national"])
     if section in {"all", "versions"} and not snapshot:
         started = perf_counter()
         installed = installations_for(user)

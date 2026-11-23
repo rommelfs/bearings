@@ -1,0 +1,13 @@
+{% if posture %}
+<section aria-label="Machine indicators">
+{% if machine_org %}{% url 'organization-machines' machine_org as machine_url %}{% else %}{% url 'national-machines' as machine_url %}{% endif %}
+<div class="national-metrics">
+<a href="{{ machine_url }}?focus=matched"><strong>{% if posture.affected.percent != None %}{{ posture.affected.percent }}%{% else %}—{% endif %}</strong><span>Machines with current distribution-version matches</span><p>{{ posture.affected.count }} / {{ posture.affected.total }} currently evaluated machines. A match is not proof of exploitation.</p></a>
+<a href="{{ machine_url }}?focus=evaluated"><strong>{% if posture.coverage.percent != None %}{{ posture.coverage.percent }}%{% else %}—{% endif %}</strong><span>Current distribution-package evaluation</span><p>{{ posture.coverage.count }} / {{ posture.coverage.total }} active machines · {{ posture.missing }} without a current evaluation.</p></a>
+<a href="{{ machine_url }}?focus=partial"><strong>{{ posture.partial_count }}</strong><span>Evaluated machines with partial package coverage</span><p>Included in the evaluation denominator; unresolved vendor conditions remain. No finding does not establish safety.</p></a>
+<a href="{{ machine_url }}?focus=manual"><strong>{{ posture.manual_count }}</strong><span>Machines with application/manual evidence to review</span><p>Separate from proven distribution-version matches. May overlap with evaluated machines.</p></a>
+</div>
+<p>Highest source priority among current version matches, once per evaluated machine: <strong>Critical {{ posture.critical_rate.count }} / {{ posture.critical_rate.total }}</strong> · High {{ posture.high_rate.count }} / {{ posture.high_rate.total }} · Other/unknown {{ posture.other_rate.count }} / {{ posture.other_rate.total }}. This measures advisory priority, not local exploitability.</p>
+<p><a href="{{ machine_url }}?focus=missing">Inspect machines without a current evaluation →</a></p><p class="muted">Denominator: active servers, VMs, workstations and appliances in permitted inventory; IP-address and prefix records are excluded. Evaluation covers supported distribution packages, not all application/runtime or shared-host kernel exposure. Unknown coverage is never counted as safe.</p>
+</section>
+{% else %}<p>No machine indicators available in this scope; no safety inference is possible.</p>{% endif %}

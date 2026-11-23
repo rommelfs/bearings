@@ -159,6 +159,30 @@ def actions(request):
     if request.user.is_superuser or is_analyst(request.user):
         audit(request.user, None, "operator.company_actions")
     orgs = organizations_for(request.user)
+    selected = request.GET.get("organization", "")
+    if selected:
+        orgs = orgs.filter(pk=get_object_or_404(orgs, slug=selected).pk)
+    mode = request.GET.get("view", "machines")
+    if mode not in {"machines", "groups"}:
+        return HttpResponse("Unsupported attention view", status=400)
+    if mode == "machines":
+        from .attention_machines import page_for
+
+        try:
+            with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
+                page = page_for(request.user, orgs.values_list("pk", flat=True), request.GET.get("page"))
+                return private_response(
+                    render(request, "portal/attention_machines.html", {"page": page, "selected": selected})
+                )
+        except OperationalError:
+            return private_response(
+                render(
+                    request,
+                    "portal/attention_machines.html",
+                    {"unavailable": True, "selected": selected},
+                    status=503,
+                )
+            )
     base = (
         issues.visible_issues(request.user)
         .filter(issues.active_filter(), asset__lifecycle="active")

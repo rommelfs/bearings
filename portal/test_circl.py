@@ -98,7 +98,8 @@ class CIRCLTests(Fixture):
         self.assertEqual(response.context["counts"]["organizations"], 1)
         self.assertNotContains(response, self.b.name)
         target = self.client.get(
-            reverse("circl-findings"), {"record": finding.record.external_id, "bucket": "accepted"}
+            reverse("circl-findings"),
+            {"view": "records", "record": finding.record.external_id, "bucket": "accepted"},
         )
         self.assertEqual(target.context["page"].paginator.count, 1)
         self.assertContains(target, f"?finding={finding.pk}#finding-{finding.pk}")

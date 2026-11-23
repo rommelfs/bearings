@@ -120,6 +120,15 @@ urlpatterns = [
     path("organizations/<slug:slug>/review/", inventory_review_views.review, name="inventory-review"),
     path("circl/", circl_views.overview, name="circl-overview"),
     path("circl/coverage/", circl_views.coverage_records, name="circl-coverage-records"),
+    path(
+        "organizations/<slug:slug>/review-cases/", circl_views.organization_cases, name="organization-cases"
+    ),
+    path("circl/machines/", circl_views.machine_records, name="national-machines"),
+    path(
+        "organizations/<slug:slug>/machine-indicators/",
+        circl_views.machine_records,
+        name="organization-machines",
+    ),
     path("circl/findings/", circl_views.findings, name="circl-findings"),
     path("circl/research/", circl_views.inventory_research, name="circl-research"),
     path(
