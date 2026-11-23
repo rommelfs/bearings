@@ -630,3 +630,5 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
 - Implemented lazy Vitrine event timelines for national activity, company review decisions and client-report receipts. Exact daily tables, source scope, current receipt-status semantics and missing-history caveats are documented in [national overview](user-guide/circl-overview.md).
 
 - Implemented forward-only daily national indicator stocks and Vitrine history with measured zeros, missing-day gaps, current audience/cohort checks and policy-generation guards. Migration0067 and national-worker restart are required; see [indicator history](user-guide/national-indicator-history.md).
+
+- Implemented labelled first-party workspace pictograms and prominent keyboard-accessible chart disclosure tiles. Long sidebar content stays grouped; mobile text remains readable. See [interface orientation](user-guide/interface-navigation.md).

@@ -119,3 +119,11 @@ and capture windows follow in accessible tables. See [indicator history](nationa
 for audience rules, sampling, migration 0067 and the required `bearings-national`
 restart. Unlike the earlier event-chart presentation change, this feature requires
 a database migration and an updated national worker.
+
+## Visual orientation
+
+Navigation, indicator cards and workflow steps now use consistent labelled
+pictograms. Historical charts have prominent icon tiles, a short description and
+**View chart / Hide chart** action rather than a small text-only disclosure. The
+controls retain native keyboard behavior and do not change indicator meanings.
+See [interface navigation](interface-navigation.md) for accessibility and updating.

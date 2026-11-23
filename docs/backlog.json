@@ -198,6 +198,10 @@
       {
         "title": "Record daily national indicator stocks and display honest Vitrine history",
         "body": "Implemented retained per-company daily observations sampled normally hourly by refresh_national, with separate operator/shared review totals and inventory/contact/source-health coverage. Vitrine history uses current permitted cohorts, capture windows, explicit missing/null dates, provisional today and no backfill/interpolation. Current audience checks plus UUID generation guards for bulk sharing/ownership changes and raw resets conservatively withhold old points without deleting observations. Independent history panel preserves shell latency. Migration0067 and web/national-worker restart required; no client or ordinary worker update."
+      },
+      {
+        "title": "Improve workspace wayfinding with labelled pictograms and discoverable chart controls",
+        "body": "Implemented first-party allowlisted SVG pictograms for desktop/mobile navigation, workspace switch, breadcrumbs, workflow, national indicator/coverage cards and Linux client headings/download. Historical graphs use prominent native disclosure tiles with descriptive labels and visible View/Hide chart actions. Text, current-state semantics, roles, keyboard access and reduced-motion preferences retained. Bounded sticky sidebar groups navigation and explanatory note; mobile tiles use full-width copy. No external icon/font dependency or new data/authorization behavior; collectstatic and web restart only."
       }
     ]
   },

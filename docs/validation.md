@@ -1807,3 +1807,38 @@ collection, an initial `refresh_national` pass, and restart of `bearings-web` an
 Production deployment/load and future availability are not established by these
 local checks. History capture requires PostgreSQL; SQLite intentionally does not
 record unguarded stock observations.
+
+## Labelled workspace pictograms and chart discoverability — 2026-11-23
+
+Added a small first-party allowlisted SVG template library for navigation,
+company/national switch, breadcrumbs, workflow, national metric/coverage cards
+and Linux client entry/download. Shapes are fixed; unknown names use a neutral
+fallback. No caller-provided SVG, external icon/font dependency, CDN, JavaScript
+requirement or new data/authorization behavior. Decorative SVG uses currentColor,
+aria-hidden and focusable=false; visible labels, selected states, links and route
+permissions remain. Iconography identifies topics, not new security decisions.
+Unused marker/dot CSS was removed; the main stylesheet URL is versioned.
+
+Replaced inconspicuous chart disclosure text with shared native summary tiles:
+icon badge, heading, short description, View/Hide chart text and rotating chevron.
+The pattern covers national stock graphs, company review decisions and report
+activity. Mobile layout gives copy its full column; reduced-motion preferences
+remove animation. Native Enter/Space expansion and focus outlines remain. A
+bounded sticky sidebar now keeps navigation and its note in one scrollable block,
+preventing long-page overlap without hiding permitted routes.
+
+Validation: frozen sync, Ruff and format/diff checks pass; Django checks and no
+migration drift pass. Relevant PostgreSQL suites passed in two runs: 46 workspace,
+CIRCL, client-download and company-inventory tests, plus 24 intelligence/event-
+timeline tests. A synthetic renderer also checked safe fallback for an injection-
+shaped unknown icon name. No new business rules or database queries were added.
+Chromium with actual self-only script/connect CSP at 1440px and 390px verified
+visible labels/decorative icon attributes, all eight metric symbols, Enter/Space
+chart expansion and action state, Vitrine rendering, mobile menu, workflow/client
+headings, sidebar-note separation and no horizontal overflow or script errors.
+Browser inputs were synthetic local fixtures, not a production session or full
+assistive-technology audit. Documentation/backlog updated; no production deployed.
+
+Deploy reviewed checkout + collectstatic + restart bearings-web, then refresh the
+browser. The web restart loads the new template-tag library. No migration,
+national/ordinary-worker restart or Linux client rebuild/restart for this change.
