@@ -214,6 +214,10 @@
       {
         "title": "Batch distribution evidence publication within the existing deadline",
         "body": "Implemented bounded 200-association source/revision/finding/match/issue writes within one device transaction, retained previous payloads/severity/sharing and human workflow, consistent Finding-before-evidence lock order, reused component-device bindings and one-time upgrade retry of historical publication timeouts. PostgreSQL validation covers >2,000 records under a bounded query budget, reference-publisher parity, late-batch rollback, concurrent human review and evidence/sharing retention. The 120-second deadline remains unchanged. Production latency and sustained fleet throughput remain to be measured; no client update or migration."
+      },
+      {
+        "title": "Separate package coverage information from actionable host repairs",
+        "body": "Implemented informational grouped coverage notes outside company Next steps, explicit relevant-rule/unresolved-association/feed-wide counts and bounded per-client timestamps. Missing source-package facts retain a concrete counted collection task and outrank informational examples. Client details show up to five current scoped package/version/condition examples with same-host reader routes and fixed condition labels; pending/stale/foreign/changed receipts cannot become current examples. Existing applicability, counters and workflow remain unchanged. Read-only presentation update; restart web only. See docs/user-guide/infrastructure-overview.md."
       }
     ]
   },

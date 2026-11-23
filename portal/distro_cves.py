@@ -538,6 +538,7 @@ def run(limit=5):
 
 def coverage(device):
     summary = dict(device.distro_summary)
+    feed = None
     summary.setdefault("state", "pending")
     key = distro_sources.key_for(device.os)
     if not key:
@@ -556,6 +557,11 @@ def coverage(device):
     summary["checked_at"] = device.distro_checked_at
     if device.stale or not agents.current(device):
         summary["state"] = "stale"
+    if summary["state"] == "partial":
+        from .distro_coverage_notes import explain, examples
+
+        summary["limits"] = explain(summary)
+        summary["examples"] = examples(device, summary, feed)
     return summary
 
 

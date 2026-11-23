@@ -295,3 +295,44 @@ prior evidence and cannot establish current affectedness. A stopped reporting
 service is a separate issue from a server-side package-evaluation failure.
 For this evaluator/diagnostic fix restart both **bearings-web** and
 **bearings-worker**; see [evaluator operations](../integrations/distro-cves.md).
+
+
+## Coverage information versus repair tasks
+
+A completed `partial` package evaluation is no longer automatically a
+“Resolve incomplete package coverage” task. **Coverage limitations · information**
+shows recorded relevant-definition and unresolved-association counts separately
+from definitions that cannot be indexed anywhere in the vendor feed. That last
+count is feed-wide: it cannot identify affected installed software on this host.
+Neither partial coverage nor an unresolved association establishes a missing
+package update or a confirmed vulnerable installation.
+
+Identical recorded limits for the same feed are grouped with bounded client
+examples and each example's evaluation timestamp; counts describe each client,
+not a sum across the grouped hosts. These notes do not increase the Next steps
+count or assign a repair role. Missing source-package facts remain a concrete
+Next step with the number of affected Debian package observations and guidance to
+check collection/obtain a new report, updating the client only if needed. Such
+clients rank ahead of informational partial results in the existing three-client
+example budget. Errors, expired credentials and stale reporting retain their
+existing actionable recommendations.
+
+Each client check explains its recorded limits and can show up to five package
+examples with reported version, known condition and a read-authorized link to
+that package on the same host. Conditions include unsupported package-signature
+identity, RPM module labels, inventory object sets, version/architecture variables,
+missing host architecture or missing vendor version boundaries where these were
+actually recorded. Fixed labels are used instead of echoing arbitrary vendor
+text or CVE IDs. When no specific explanation exists, the absence is explicit;
+no remedy is invented. The examples are bounded, not a complete scan ledger.
+
+Examples require fresh scoped bindings, current input hashes/evaluator/feed
+receipts and no queued or pending report. Changed inputs/generations, disabled
+matching and foreign installation bindings suppress examples. A feed-only gap
+performs no extra package scan and cannot fabricate an installed-package example.
+These are display reads only, without retries, source downloads or changed
+applicability/workflow. Existing coverage counters remain conservative.
+
+Deploy the reviewed checkout and run `systemctl restart bearings-web`. This
+presentation change needs no migration, collectstatic, worker restart, client
+update or artifact publication. Existing summary/receipt data is reused.

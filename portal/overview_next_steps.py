@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from .overview_monitoring import attention_devices
 from .distro_errors import diagnostic
+from .distro_coverage_notes import explain
 
 
 def decorate(states):
@@ -15,6 +16,7 @@ def decorate(states):
     for state in states:
         org = state["org"]
         steps = []
+        notes = []
         inventory = reverse("organization", args=[org.slug])
         checks = reverse("discovery") + "?" + urlencode({"organization": org.slug})
         clients = reverse("agent-center", args=[org.slug])
@@ -140,17 +142,23 @@ def decorate(states):
                     "Platform operator",
                 )
             elif status == "partial":
-                title, owner = (
-                    "Resolve incomplete package coverage",
-                    "Platform operator / server administrator",
+                limit = explain(summary)
+                if not limit["actionable"]:
+                    notes.append(
+                        {
+                            **limit,
+                            "host": device.asset.name,
+                            "url": clients + "?" + urlencode({"device": str(device.pk)}) + "#automatic-cves",
+                            "checked_at": device.distro_checked_at,
+                            "feed": summary.get("feed") if isinstance(summary.get("feed"), str) else "",
+                        }
+                    )
+                    continue
+                title, reason, owner = (
+                    limit["title"],
+                    limit["reason"],
+                    "Server administrator / platform operator",
                 )
-                if (
-                    isinstance(summary.get("missing_source_metadata"), int)
-                    and summary["missing_source_metadata"] > 0
-                ):
-                    reason = "Source-package metadata is missing. Update the Linux client and obtain a fresh report, then check remaining vendor-rule coverage."
-                else:
-                    reason = "Some vendor rules require missing or unsupported facts. Inspect unresolved conditions; repeating the same check alone may not resolve them."
             else:
                 title, reason, owner = (
                     "Obtain a current package evaluation",
@@ -271,6 +279,14 @@ def decorate(states):
                 priority=4,
             )
         steps.sort(key=lambda step: step.get("priority", 3))
+        grouped_notes = {}
+        for note in notes:
+            key = (note["feed"], note["reason"])
+            grouped = grouped_notes.setdefault(key, {**note, "devices": []})
+            grouped["devices"].append(
+                {"host": note["host"], "url": note["url"], "checked_at": note["checked_at"]}
+            )
+        state["coverage_notes"] = list(grouped_notes.values())
         state["next_steps"] = steps[:5]
         state["other_next_steps"] = steps[5:]
         state["next_step_count"] = len(steps)

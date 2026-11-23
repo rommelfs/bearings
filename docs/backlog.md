@@ -645,3 +645,8 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   revisions and issue projections, preserving atomic rollback, human assessments
   and evidence-lock ordering. Old publication timeouts retry once after upgrade;
   current failures keep their backoff. See [package checks](integrations/distro-cves.md).
+
+- Implemented informational coverage limits outside host repair tasks, grouped
+  feed-wide notes and counted source-metadata collection actions. Client details
+  show bounded current package/version/condition examples without inventing fixes.
+  See [overview guidance](user-guide/infrastructure-overview.md).

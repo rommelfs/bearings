@@ -1970,3 +1970,36 @@ reviewed checkout and restart bearings-web and bearings-worker. No migration,
 collectstatic, client update, artifact republishing, notification or upstream write
 is needed. The observed production workload must still confirm latency; these
 synthetic tests establish query/transaction/locking behavior, not a fleet SLA.
+
+
+## Actionable coverage guidance and current package examples — 2026-11-23
+
+Seventy-nine PostgreSQL overview/evaluator/package-result/verdict tests pass.
+Seven focused coverage cases distinguish feed-wide gaps from installed-package
+facts, unknown legacy reasons and actual missing source metadata; informational
+notes are grouped outside Next steps, and a fourth actionable reporter is not
+hidden by three informational partial reporters. Detail tests verify exact
+reported package/version, known signature-condition labels, a reader-authorized
+same-host package route, foreign-organization denial, queued/pending/changed
+input suppression, foreign installation exclusion, changed feed suppression and
+five examples from fourteen current matching packages. Prior per-company query
+budgets and bounded device examples remain passing.
+
+Chromium with actual response CSP at 1440px and 390px verifies two client feed
+notes group into one informational section, a separate source-metadata task stays
+visible, the generic Resolve task is absent, and the client detail renders five
+current package examples with the explicit signature-identity limitation. No
+horizontal page overflow or script errors. Browser data is synthetic and all
+requests are intercepted locally; no operational service is accessed.
+
+The display reuses existing server-owned summaries/receipts; it does not change
+source downloads, comparisons, evidence, workflow or retry policy. Feed-only
+coverage cannot generate a package association. Examples use fixed reason labels
+without arbitrary vendor strings or CVE identities, and require current scoped
+input/feed receipts. Only six candidate rows are read, at most five shown; this
+is intentionally not a complete enumeration of unsupported definitions.
+
+Frozen dependency sync, Ruff, whitespace checks, Django checks and migration
+drift pass. Deploy reviewed checkout and restart bearings-web only. No migration,
+static build, worker/client update or artifact republication is needed. Production
+presentation and actual recorded limitation types remain operator acceptance.

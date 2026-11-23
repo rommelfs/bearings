@@ -67,6 +67,8 @@ def attention_devices(org_ids):
     priority = Case(
         When(distro_summary__state="error", then=Value(0)),
         When(unavailable, then=Value(1)),
+        When(distro_summary__state="partial", distro_summary__missing_source_metadata__gt=0, then=Value(2)),
+        When(distro_summary__state="partial", then=Value(3)),
         default=Value(2),
         output_field=IntegerField(),
     )
