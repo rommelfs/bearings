@@ -64,9 +64,10 @@ def enqueue(cves):
     )
 
 
-def refresh_due(limit=4):
-    """At most four public requests, in parallel, outside device/source transactions."""
-    from concurrent.futures import ThreadPoolExecutor
+def refresh_due(limit=16):
+    """Sixteen leased items, four concurrent requests, shared 45-second batch budget."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import httpx
     import time
 
     if not settings.DISTRO_CVE_ENABLED or not settings.UBUNTU_STATUS_FETCH_ENABLED:
@@ -81,28 +82,56 @@ def refresh_due(limit=4):
             .filter(Q(lease_until__isnull=True) | Q(lease_until__lt=now))
             .select_for_update(skip_locked=True)
             .only("cve", "last_attempt", "lease_until")
-            .order_by(F("last_attempt").asc(nulls_first=True), "cve")[: min(limit, 4)]
+            .order_by(F("last_attempt").asc(nulls_first=True), "cve")[: min(max(limit, 1), 16)]
         )
         for row in rows:
+            row.previous_attempt = row.last_attempt
             row.last_attempt = now
             row.lease_until = now + timedelta(minutes=2)
         UbuntuCVEStatus.objects.bulk_update(rows, ["last_attempt", "lease_until"])
 
+    batch_deadline = time.monotonic() + 45
+
     def fetch(row):
+        remaining = batch_deadline - time.monotonic()
+        if remaining < 1:
+            return row, None, None  # Not attempted: restore its queue position, no false failure.
         try:
             target = url(row.cve)
             approved_base(target, proxy_dns=settings.CONNECTOR_PROXY_DNS)
-            payload = normalize(request_json("GET", target, deadline=time.monotonic() + 20), row.cve)
+            payload = normalize(
+                request_json(
+                    "GET",
+                    target,
+                    deadline=batch_deadline,
+                    timeout=httpx.Timeout(min(40, remaining), connect=min(10, remaining)),
+                ),
+                row.cve,
+            )
             return row, payload, ""
         except Exception as exc:
             known = {
                 "Connector hostname is not explicitly approved by the operator",
                 "Proxy DNS mode requires an approved HTTPS proxy",
                 "Connector DNS resolution failed",
+                "Private connector destinations require explicit operator approval",
+                "Connector response time budget exceeded",
+                "Upstream response exceeds 2 MB limit",
+                "Expected an upstream JSON object",
+                "Ubuntu status schema/identity invalid",
+                "Ubuntu source/release status invalid",
+            }
+            category = getattr(exc, "reason_code", "")
+            transport = {
+                "timeout": "HTTPS timeout",
+                "transport": "HTTPS transport failure",
+                "invalid_json": "Invalid JSON response",
             }
             reason = (
                 ("HTTP " + str(exc.status_code))
                 if isinstance(exc, UpstreamHTTPError)
+                else transport[category]
+                if isinstance(exc, ConnectorError) and category in transport
                 else str(exc)
                 if isinstance(exc, ConnectorError) and str(exc) in known
                 else type(exc).__name__
@@ -115,20 +144,25 @@ def refresh_due(limit=4):
 
     if rows:
         with ThreadPoolExecutor(max_workers=4) as pool:
-            for row, payload, error in pool.map(fetch, rows):
-                values = {"lease_until": None, "error": error}
+            for future in as_completed([pool.submit(fetch, row) for row in rows]):
+                row, payload, error = future.result()
+                values = {"lease_until": None}
+                if error is None:
+                    values["last_attempt"] = row.previous_attempt
+                else:
+                    values["error"] = error
                 if payload is not None:
                     values.update(payload=payload, content_hash=digest(payload), last_success=timezone.now())
                 UbuntuCVEStatus.objects.filter(pk=row.pk, lease_until=row.lease_until).update(**values)
     changed = UbuntuStatusUse.objects.filter(device_id=OuterRef("pk")).filter(
-        ~Q(content_hash=F("status__content_hash"))
+        (~Q(content_hash=F("status__content_hash")) & Q(status__last_success__gte=timezone.now() - TTL))
         | Q(status__last_success__lt=timezone.now() - TTL, content_hash__gt="")
     )
     AgentDevice.objects.filter(
         enabled=True,
         os__id="ubuntu",
         distro_requested=False,
-        distro_checked_at__lt=timezone.now() - timedelta(minutes=15),
+        distro_checked_at__lt=timezone.now() - timedelta(minutes=2),
         last_observed_at__gte=timezone.now() - timedelta(hours=12),
         expires_at__gt=timezone.now(),
     ).filter(Exists(changed)).update(distro_requested=True)
@@ -178,7 +212,11 @@ class Resolver:
         if not fresh(row):
             self.pending.add(cve)
             result["uncertainty_reason"] = (
-                "ubuntu_status_pending" if not row or not row.last_success else "ubuntu_status_stale"
+                "ubuntu_status_unavailable"
+                if row and row.error
+                else "ubuntu_status_pending"
+                if not row or not row.last_success
+                else "ubuntu_status_stale"
             )
             return result
         candidates = row.payload.get(self.release, {}).get(source["name"], [])
@@ -298,3 +336,45 @@ def bind(device, resolver):
         batch_size=500,
     )
     UbuntuStatusUse.objects.filter(device=device).exclude(status_id__in=resolver.seen).delete()
+
+
+def progress(device_ids):
+    """Live lookup progress for the caller's scoped devices, not a vulnerability count."""
+    from django.db.models import Count, Max
+
+    current = Q(status__last_success__gte=timezone.now() - TTL) & ~Q(status__content_hash="")
+    rows = (
+        UbuntuStatusUse.objects.filter(
+            device_id__in=device_ids,
+            device__organization_id=F("device__asset__organization_id"),
+            device__source_id=F("device__asset__source_id"),
+        )
+        .filter(device__organization_id=F("device__source__organization_id"))
+        .values("device_id", "status__error")
+        .annotate(
+            total=Count("status_id"),
+            fresh=Count("status_id", filter=current),
+            pending=Count("status_id", filter=~current & Q(status__error="")),
+            failed=Count("status_id", filter=~current & ~Q(status__error="")),
+            refresh_errors=Count("status_id", filter=current & ~Q(status__error="")),
+            last_attempt=Max("status__last_attempt"),
+            last_success=Max("status__last_success"),
+        )
+    )
+    result = {}
+    for row in rows:
+        item = result.setdefault(
+            row["device_id"],
+            {"total": 0, "fresh": 0, "pending": 0, "failed": 0, "refresh_errors": 0, "errors": []},
+        )
+        for key in ("total", "fresh", "pending", "failed", "refresh_errors"):
+            item[key] += row[key]
+        if row["failed"] or row["refresh_errors"]:
+            item["errors"].append(
+                {"count": row["failed"] + row["refresh_errors"], "reason": row["status__error"]}
+            )
+        for key in ("last_attempt", "last_success"):
+            value = row[key]
+            if value and (not item.get(key) or value > item[key]):
+                item[key] = value
+    return result

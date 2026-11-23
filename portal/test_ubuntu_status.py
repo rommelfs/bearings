@@ -199,7 +199,7 @@ class UbuntuStatusTests(Fixture):
             patch("portal.ubuntu_status.approved_base"),
             patch("portal.ubuntu_status.request_json", side_effect=fetch) as request,
         ):
-            ubuntu_status.refresh_due()
+            ubuntu_status.refresh_due(limit=4)
         self.assertEqual(request.call_count, 4)
         self.assertTrue(
             all(
@@ -221,6 +221,122 @@ class UbuntuStatusTests(Fixture):
         self.assertEqual(old.payload, before)
         self.assertEqual(old.last_success, stamp)
         self.assertNotIn("secret-sentinel", old.error)
+
+    @override_settings(UBUNTU_STATUS_FETCH_ENABLED=True)
+    def test_batch_continues_after_fast_results_without_more_than_four_requests_at_once(self):
+        import threading
+        import time
+
+        ubuntu_status.enqueue(["CVE-2099-" + str(n) for n in range(10010, 10030)])
+        lock = threading.Lock()
+        active, peak = 0, 0
+
+        def fetch(method, url, **kwargs):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            time.sleep(0.005)
+            with lock:
+                active -= 1
+            self.assertLessEqual(kwargs["timeout"].read, 40)
+            return response(cve=url.rsplit("/", 1)[1].removesuffix(".json"))
+
+        with (
+            patch("portal.ubuntu_status.approved_base"),
+            patch("portal.ubuntu_status.request_json", side_effect=fetch) as request,
+        ):
+            ubuntu_status.refresh_due()
+        self.assertEqual(request.call_count, 16)
+        self.assertLessEqual(peak, 4)
+        self.assertEqual(UbuntuCVEStatus.objects.filter(last_attempt__isnull=True).count(), 4)
+
+    @override_settings(UBUNTU_STATUS_FETCH_ENABLED=True)
+    def test_unstarted_batch_items_keep_queue_position_and_timeout_diagnostics_are_safe(self):
+        from .connectors.http import ConnectorError, request_json
+        import httpx
+
+        ubuntu_status.enqueue([CVE])
+        with (
+            patch("time.monotonic", side_effect=lambda: next(ticks, 1000)),
+            patch("portal.ubuntu_status.request_json") as request,
+        ):
+            ticks = iter([0])
+            ubuntu_status.refresh_due()
+        request.assert_not_called()
+        row = UbuntuCVEStatus.objects.get(pk=CVE)
+        self.assertIsNone(row.last_attempt)
+        self.assertIsNone(row.lease_until)
+        with patch("portal.connectors.http.httpx.Client", side_effect=httpx.ReadTimeout("secret-sentinel")):
+            try:
+                request_json("GET", "https://example.invalid")
+            except ConnectorError as exc:
+                self.assertEqual(exc.reason_code, "timeout")
+                failure = exc
+        with (
+            patch("portal.ubuntu_status.approved_base"),
+            patch("portal.ubuntu_status.request_json", side_effect=failure),
+        ):
+            ubuntu_status.refresh_due()
+        row.refresh_from_db()
+        self.assertIn("HTTPS timeout", row.error)
+        self.assertNotIn("secret-sentinel", row.error)
+
+    def test_live_progress_counts_unique_cves_not_associations_and_rejects_foreign_source(self):
+        self.cached()
+        self.prepare()
+        item = ubuntu_status.progress([self.device.pk])[self.device.pk]
+        self.assertEqual((item["total"], item["fresh"], item["failed"]), (1, 1, 0))
+        self.login(self.reader)
+        from django.urls import reverse
+
+        response = self.client.get(reverse("agent-center", args=[self.a.slug]), {"device": self.device.pk})
+        self.assertContains(response, "Ubuntu status lookup progress")
+        self.assertContains(response, "1 / 1 unique CVE lookups current")
+        cache = UbuntuCVEStatus.objects.get(pk=CVE)
+        cache.error = "Ubuntu status refresh failed (HTTPS timeout); previous evidence retained"
+        cache.save()
+        item = ubuntu_status.progress([self.device.pk])[self.device.pk]
+        self.assertEqual((item["fresh"], item["failed"], item["refresh_errors"]), (1, 0, 1))
+        cache.last_success = None
+        cache.save()
+        item = ubuntu_status.progress([self.device.pk])[self.device.pk]
+        self.assertEqual((item["total"], item["fresh"], item["pending"], item["failed"]), (1, 0, 0, 1))
+        cache.error = ""
+        cache.save()
+        item = ubuntu_status.progress([self.device.pk])[self.device.pk]
+        self.assertEqual((item["total"], item["fresh"], item["pending"], item["failed"]), (1, 0, 1, 0))
+        self.device.source = self.sb
+        self.device.save(update_fields=["source"])
+        self.assertFalse(ubuntu_status.progress([self.device.pk]))
+
+    @override_settings(UBUNTU_STATUS_FETCH_ENABLED=True)
+    def test_stale_status_invalidates_once_and_new_fresh_data_requeues_after_two_minutes(self):
+        row = self.cached()
+        self.prepare()
+        row.last_success = timezone.now() - timedelta(hours=13)
+        row.lease_until = timezone.now() + timedelta(hours=1)
+        row.save()
+
+        def eligible():
+            AgentDevice.objects.filter(pk=self.device.pk).update(
+                distro_requested=False, distro_checked_at=timezone.now() - timedelta(minutes=3)
+            )
+
+        eligible()
+        ubuntu_status.refresh_due()
+        self.device.refresh_from_db()
+        self.assertTrue(self.device.distro_requested)
+        distro_cves.evaluate_device(self.device.pk)
+        eligible()
+        ubuntu_status.refresh_due()
+        self.device.refresh_from_db()
+        self.assertFalse(self.device.distro_requested)
+        row.last_success = timezone.now()
+        row.save()
+        ubuntu_status.refresh_due()
+        self.device.refresh_from_db()
+        self.assertTrue(self.device.distro_requested)
 
     @override_settings(UBUNTU_STATUS_FETCH_ENABLED=True)
     def test_status_change_requeues_even_initial_fixed_package_without_finding(self):

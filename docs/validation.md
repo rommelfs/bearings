@@ -2093,3 +2093,34 @@ service, key or registration outside those containers is changed.
 The retained bundled NetBox/FlowIntel/RT/RTIR smoke also passes after this change,
 including scoped RO/RW access, GET-only imports, preserved assessments and lost-ack
 recovery. No production service or external notification was changed.
+
+## Slow Ubuntu status retrieval and live progress — 2026-11-23
+
+Public read-only endpoint probes reproduced variable upstream latency: one valid
+Canonical JSON response required 24.77 seconds, exceeding the connector's former
+15-second default. Another public CVE timed out even at 40–45 seconds; increased
+bounds cannot guarantee upstream availability. A separate current response parsed
+successfully in 0.77 seconds. No operational inventory or database was published.
+
+The Ubuntu caller now uses up to forty seconds per request within a shared
+45-second batch, sixteen leased items and at most four active requests. Tests
+verify the item/concurrency bounds, fixed URLs/timeouts, completion scheduling,
+unstarted-item queue restoration and safe timeout classification without secret
+exception text. Existing generic connector exception text remains unchanged;
+only fixed diagnostic attributes are added. Failed fetches retain prior payloads
+and freshness dates. No missing response becomes a not-affected verdict.
+
+The 113-test targeted package/Ubuntu/coverage/overview/review suite passes; a
+subsequent fourteen-test Ubuntu suite includes the additional stale-once and
+fresh-data-after-two-minutes regression. Scoped live progress tests distinguish
+unique CVEs from associations, partition fresh/pending/failed data, warn about
+failed refreshes of still-current evidence and exclude foreign source bindings.
+The whole retained bundled NetBox/FlowIntel/RT/RTIR smoke passes with synthetic
+services only. Frozen dependencies, Ruff, Django checks and migration drift pass.
+
+Chromium with actual response CSP at 390px and 1440px verifies live progress and
+expandable safe timeout diagnostics on both overview and client detail without
+page overflow or script errors. All browser requests are intercepted locally.
+Deployment requires web/worker restart; no new migration or client update is
+needed for this cache correction. Installer defaults and indicator links in the
+preceding commit also require republished client artifacts and collectstatic.

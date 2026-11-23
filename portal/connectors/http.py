@@ -87,7 +87,14 @@ def request_json(method, url, *, allow_list=False, deadline=None, **kwargs):
                 if not isinstance(data, dict) and not (allow_list and isinstance(data, list)):
                     raise ConnectorError("Expected an upstream JSON object")
                 return data
-    except (httpx.HTTPError, ValueError, RecursionError):
-        raise ConnectorError(
-            "Connector transport or JSON failure; retry after checking service health"
-        ) from None
+    except (httpx.HTTPError, ValueError, RecursionError) as exc:
+        error = ConnectorError("Connector transport or JSON failure; retry after checking service health")
+        # Fixed categories only: never expose a URL, token, body or exception message.
+        error.reason_code = (
+            "timeout"
+            if isinstance(exc, httpx.TimeoutException)
+            else "transport"
+            if isinstance(exc, httpx.HTTPError)
+            else "invalid_json"
+        )
+        raise error from None

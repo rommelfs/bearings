@@ -587,7 +587,10 @@ def run(limit=5):
 
 
 def coverage(device):
+    from .ubuntu_status import progress
+
     summary = dict(device.distro_summary)
+    summary["ubuntu_lookup_progress"] = progress([device.pk]).get(device.pk)
     feed = None
     summary.setdefault("state", "pending")
     key = distro_sources.key_for(device.os)

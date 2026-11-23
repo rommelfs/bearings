@@ -140,9 +140,12 @@ versions and `needed`, `needs-triage`, `pending`, `ignored`, `deferred` or unrec
 statuses remain unresolved. No fuzzy name or upstream version guess is used.
 
 The shared cache retains normalized public release/source status, content hash,
-verification time and safe error category. At most four fixed-URL HTTPS requests
-run concurrently per worker pass, outside device/source transactions, with TLS,
-no redirects, bounded JSON and twenty-second deadlines. Refresh starts after six
+verification time and safe error category. Each pass leases at most sixteen fixed-URL HTTPS lookups with at most four
+concurrent requests, outside device/source transactions, with TLS, no redirects,
+bounded JSON, a shared 45-second batch budget and read timeouts up to forty seconds.
+Unstarted work retains its previous queue position. Completed responses publish
+individually while other requests continue; slow first responses do not hold up
+the remaining queued items in the pool. Refresh starts after six
 hours; twelve-hour-old evidence is stale; failed fetches retain previous data and
 retry after fifteen minutes. Egress must allow **ubuntu.com** as well as the OVAL
 host. Explicit `CONNECTOR_ALLOWED_HOSTS`/proxy policies must include it; the default
@@ -201,3 +204,18 @@ compiler 4 indexed all 37,611 definitions in the retained noble vendor download
 and all 25,983 in the fetched focal download on 2026-11-23, with zero unindexed
 definitions. These are feed-specific observations, not a guarantee for future
 feeds or a declaration that any production host is unaffected.
+
+
+Live Ubuntu lookup progress is shown beside each displayed client's recorded
+limitations and in its check details. Counts are unique CVEs requested by that
+client's last evaluation, not package/definition/CVE associations. Current,
+pending/stale and failed-without-current-data counts partition the total; failed
+refreshes with still-current retained data are a separate warning. Only scoped,
+consistent device/source/organization bindings are aggregated. New usable status
+requeues affected devices after two-minute batching; an expired dependency is
+invalidated once, rather than repeatedly evaluating the same stale data during
+an outage. Recorded summary association counts change after reevaluation.
+Timeout, HTTPS transport, malformed JSON, schema/identity, response-size, DNS and
+egress failures use fixed categories; raw transport exception text stays private.
+These changes require web/worker restart, but no new migration or client update.
+An upstream response that remains unavailable stays unknown and retries normally.

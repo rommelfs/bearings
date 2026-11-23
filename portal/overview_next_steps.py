@@ -12,6 +12,9 @@ from .distro_coverage_notes import explain
 
 def decorate(states):
     examples = attention_devices([s["org"].pk for s in states]) if states else {}
+    from .ubuntu_status import progress
+
+    lookup_progress = progress([d.pk for devices in examples.values() for d in devices]) if examples else {}
     now = timezone.now()
     for state in states:
         org = state["org"]
@@ -158,6 +161,7 @@ def decorate(states):
                         {
                             **limit,
                             "host": device.asset.name,
+                            "lookup_progress": lookup_progress.get(device.pk),
                             "url": clients + "?" + urlencode({"device": str(device.pk)}) + "#automatic-cves",
                             "checked_at": device.distro_checked_at,
                             "feed": summary.get("feed") if isinstance(summary.get("feed"), str) else "",
@@ -294,7 +298,12 @@ def decorate(states):
             key = (note["feed"], note["reason"])
             grouped = grouped_notes.setdefault(key, {**note, "devices": []})
             grouped["devices"].append(
-                {"host": note["host"], "url": note["url"], "checked_at": note["checked_at"]}
+                {
+                    "host": note["host"],
+                    "url": note["url"],
+                    "checked_at": note["checked_at"],
+                    "lookup_progress": note.get("lookup_progress"),
+                }
             )
         state["coverage_notes"] = list(grouped_notes.values())
         state["next_steps"] = steps[:5]

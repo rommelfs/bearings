@@ -663,3 +663,9 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   unattended default yes, explicit opt-out and activation outside installer locks.
   Unregistered clients wait safely for enrollment. National indicators now offer
   eight visible, scoped whole-card drilldowns with paginated record lists.
+
+- Implemented bounded slow-response handling and sixteen-item/four-concurrent
+  Ubuntu status batches with completion-order publication. Live scoped per-client
+  counters separate current/pending/failed unique CVE lookups from recorded
+  associations. Safe failure categories and two-minute fresh-status reevaluation
+  replace opaque errors and delayed progress; unavailable data stays unknown.
