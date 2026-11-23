@@ -13,12 +13,14 @@ def window():
     return first, timezone.make_aware(datetime.combine(first, time.min)), now
 
 
-def series(title, description, labels, daily):
+def series(title, description, labels, daily, *, missing=0):
     first, _, _ = window()
     rows = []
     for i in range(30):
         day = first + timedelta(days=i)
-        rows.append({"date": day.isoformat(), "counts": [daily.get(day, {}).get(key, 0) for key in labels]})
+        rows.append(
+            {"date": day.isoformat(), "counts": [daily.get(day, {}).get(key, missing) for key in labels]}
+        )
     return {
         "title": title,
         "description": description,
@@ -27,7 +29,11 @@ def series(title, description, labels, daily):
         "start": rows[0]["date"],
         "end": rows[-1]["date"],
         "timezone": timezone.get_current_timezone_name(),
-        "total": sum(sum(row["counts"]) for row in rows),
+        "total": sum(sum(value or 0 for value in row["counts"]) for row in rows),
+        "is_stock": missing is None,
+        "show_chart": any(
+            value is not None and (missing is None or value > 0) for row in rows for value in row["counts"]
+        ),
         "chart": {
             "labels": [r["date"] for r in rows],
             "series": [

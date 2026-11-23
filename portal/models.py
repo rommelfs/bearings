@@ -2407,3 +2407,31 @@ class DistroMatchRevision(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["match", "fingerprint"], name="distro_match_revision_unique")
         ]
+
+
+# Like national projections, these references avoid raw-parent FK lock inversions.
+# Current organization joins and UUID policy generations guard reads after raw resets.
+class NationalHistoryPolicy(models.Model):
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="history_policy", db_constraint=False
+    )
+    generation = models.UUIDField(default=uuid.uuid4, editable=False)
+
+
+class NationalDailySnapshot(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, db_constraint=False)
+    day = models.DateField()
+    timezone = models.CharField(max_length=64)
+    captured_at = models.DateTimeField()
+    policy_generation = models.UUIDField()
+    operator_counts = models.JSONField(default=dict)
+    shared_counts = models.JSONField(default=dict)
+    coverage_counts = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "day", "timezone"], name="national_daily_org_zone"
+            )
+        ]
+        indexes = [models.Index(fields=["timezone", "day"], name="national_daily_window_idx")]

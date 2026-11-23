@@ -108,3 +108,14 @@ no runtime CDN or external analytics. Update the reviewed checkout, run
 `./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null`, restart
 `bearings-web`, and reload the browser. No migration, worker or client restart
 is needed. npm is used only to reproduce vendored artifacts during maintenance.
+
+## Historical indicator stocks
+
+The live indicator and coverage cards now have an independent **Indicator history**
+section with Vitrine stock charts. These use newly recorded daily company
+observations, separate from workflow-event charts. Previous totals are not
+reconstructed. Missing or restricted/incomplete dates remain gaps; exact values
+and capture windows follow in accessible tables. See [indicator history](national-indicator-history.md)
+for audience rules, sampling, migration 0067 and the required `bearings-national`
+restart. Unlike the earlier event-chart presentation change, this feature requires
+a database migration and an updated national worker.

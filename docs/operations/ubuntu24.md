@@ -370,3 +370,28 @@ No migration, worker restart, client rebuild or client restart is needed for thi
 presentation change. Existing Linux inventory collection is unaffected. Refresh
 the browser for the new module. npm is a maintainer-only vendoring dependency;
 production uses committed artifacts and their retained third-party notices.
+
+### Retained daily indicator history
+
+Migration `0067_national_daily_snapshots` adds forward-only daily per-company
+review/inventory/coverage observations and PostgreSQL policy-generation guards.
+The existing national worker samples clean summaries normally hourly, preserving
+the latest observation per day. This is separate from rebuildable national cache
+rows: do not include the history/policy tables in cache-reset procedures. No
+upstream reads, writes, notifications or client-side deployment are introduced.
+
+After checking out the reviewed release, run migration, static collection and a
+bounded first capture before restarting both web and national worker:
+
+```sh
+./deploy/ubuntu24/manage.py migrate --noinput </dev/null
+./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null
+./deploy/ubuntu24/manage.py refresh_national --limit 500 </dev/null
+systemctl restart bearings-web bearings-national
+```
+
+The ordinary worker and Linux clients need no restart for this feature. Captures
+begin after update; no historical totals are invented. See [history semantics and
+permission changes](../user-guide/national-indicator-history.md). Existing
+observations survive failures/rebuilds; retain them in backups. Production capture
+requires PostgreSQL; SQLite deliberately does not record unguarded history.

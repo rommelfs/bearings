@@ -1755,3 +1755,55 @@ Apache ECharts/ZRender engine; upstream sources are unchanged. Dependency licens
 source provenance and generated SHA-256 checksums are retained. Production needs
 no npm toolchain. Deploy reviewed checkout + collectstatic + restart bearings-web;
 no migration, worker/client restart or client rebuild is required.
+
+## Retained national indicator stocks — 2026-11-23
+
+Implemented migration 0067: per-company daily stock observations, separate
+operator/shared review totals and inventory/contact/source-health coverage, and
+UUID policy generations. Existing `refresh_national` captures clean version-2
+summaries normally hourly, sooner after day/policy changes, retaining the latest
+successful capture per local date. A bounded initial command starts history;
+watch mode continues it. Dirty summaries/failed captures never overwrite history
+with zero. The web's independent private history panel is read-only and aggregates
+30 dates under current organization/source audience, requiring a complete current
+cohort for every plotted date. Missing/incomplete/restricted dates are null gaps,
+not zeros, interpolated values or retrospective invented totals. Today is
+provisional and capture windows are exposed. All-zero captured stocks still render.
+
+Bulk sharing/lineage changes and raw resets rotate policy generations within the
+write transaction; old rows remain stored but are withheld conservatively. Current
+operator/shared audience is chosen on every read. Current organization joins and
+UUID generations also guard against orphan history/numeric-ID reuse after raw
+organization resets. Snapshot/policy references deliberately avoid raw-parent
+FK lock inversions, following existing national projection patterns; ORM cascades
+remain, while queries never expose orphan scope. History/policies are not added
+to disposable derived-model cache lists. No automatic history pruning, upstream
+API call, scan, notification, client change or human-review mutation was added.
+
+Validation: 49 PostgreSQL tests passed across history (10 new regressions),
+national scope/read models, event timelines and browser policy. These cover first
+capture/no backfill, real zero versus null, current-day upsert and preserved prior
+dates, dirty-skip, hourly throttling, raw bulk sharing/ownership invalidation,
+current cohort/role changes, timezone isolation, daily/live coverage parity,
+bounded read queries, raw organization reset/ID reuse and automatic command capture
+without GET writes. A real concurrent writer holds an organization parent lock
+and changes record sharing while capture holds national state; capture/write
+serialize without deadlock and no old-generation aggregate is subsequently shown.
+The truncate test explicitly drains deferred fixture FK events before raw reset.
+
+Migration apply/reverse/reapply validated on the local PostgreSQL lab before any
+retained history existed; migration drift and Django checks pass. A subsequent
+bounded real local command captured 25 company observations from clean summaries;
+these are the synthetic lab's stock values, not production data. Chromium at
+1440px/390px under self-only CSP verified all three Vitrine stock charts, real
+capture points, nulls for a missing day, disabled line interpolation, accessible
+table values and no overflow/script errors. ECharts internally encodes missing
+points as `-`; the Vitrine source remains null. Local browser fixture copied an
+earlier synthetic capture solely to exercise the gap; no production backfill.
+
+Frozen sync/Ruff/diff checks pass. Production requires migration 0067, static
+collection, an initial `refresh_national` pass, and restart of `bearings-web` and
+`bearings-national`. No ordinary worker or Linux client restart/rebuild is needed.
+Production deployment/load and future availability are not established by these
+local checks. History capture requires PostgreSQL; SQLite intentionally does not
+record unguarded stock observations.

@@ -51,17 +51,22 @@ def panel(request, section):
     authorize(
         request,
         "operator.national_" + section
-        if section in {"summary", "versions", "problems", "activity"}
+        if section in {"summary", "versions", "problems", "activity", "history"}
         else "operator.national_invalid",
     )
-    if section not in {"summary", "versions", "problems", "activity"}:
+    if section not in {"summary", "versions", "problems", "activity", "history"}:
         return private_response(render(request, "portal/circl_panel_error.html", status=404))
     started = perf_counter()
     timings = {}
     database = None
     try:
         with overview_queries(query_timeout_ms=3000, budget_ms=8000, planning_limit=4) as database:
-            context = dashboard(request.user, timings=timings, section=section)
+            if section == "history":
+                from .national_history import stock_history
+
+                context = stock_history(request.user)
+            else:
+                context = dashboard(request.user, timings=timings, section=section)
             response = render(request, "portal/circl_panel_" + section + ".html", context)
     except (OperationalError, PendingSnapshot):
         response = render(request, "portal/circl_panel_error.html", status=503)

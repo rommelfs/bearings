@@ -194,6 +194,10 @@
       {
         "title": "Show scoped retained-event timelines with Vitrine",
         "body": "Implemented local lazy Vitrine/ECharts time-series charts for national product-watch discoveries/resolution decisions, filtered company review transitions and company/selected-device report receipt cohorts by current processing status. Thirty local-date buckets with labelled timezone, exact accessible table, empty-history/retention caveats and renderer failure fallback. Current role/source/lineage policy retained, no historical open-CVE backlog/software adoption/health inferred. No migration or worker/client update required."
+      },
+      {
+        "title": "Record daily national indicator stocks and display honest Vitrine history",
+        "body": "Implemented retained per-company daily observations sampled normally hourly by refresh_national, with separate operator/shared review totals and inventory/contact/source-health coverage. Vitrine history uses current permitted cohorts, capture windows, explicit missing/null dates, provisional today and no backfill/interpolation. Current audience checks plus UUID generation guards for bulk sharing/ownership changes and raw resets conservatively withhold old points without deleting observations. Independent history panel preserves shell latency. Migration0067 and web/national-worker restart required; no client or ordinary worker update."
       }
     ]
   },
