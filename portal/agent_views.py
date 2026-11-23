@@ -375,12 +375,15 @@ def center(request, slug):
             .order_by("product__name")[:250]
         )
         last_report = selected.reports.order_by("-sequence").first()
+    from .timelines import report_receipts
+
     response = private(
         render(
             request,
             "portal/agents.html",
             {
                 "org": org,
+                "report_timeline": report_receipts(devices.filter(pk=selected.pk) if selected else devices),
                 "now": timezone.now(),
                 "form": form,
                 "asset_query": asset_query,

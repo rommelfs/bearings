@@ -190,6 +190,10 @@
       {
         "title": "Explain national vulnerability follow-up with concrete software and current proof",
         "body": "Implemented bounded advisory cards with software/version and installation examples, description, independent analyst assessment and current package proof, evidence links and evidence-based next steps. Multi-company + saved affected review candidates precede collapsed single-company/unconfirmed checks. Fixed retained reviews request reconciliation; stale input withholds the previous package verdict. Live/prepared rankings match; examples reread under current source/organization/evidence policy. No automatic outreach, affectedness inference, repository availability claim, workflow mutation or migration."
+      },
+      {
+        "title": "Show scoped retained-event timelines with Vitrine",
+        "body": "Implemented local lazy Vitrine/ECharts time-series charts for national product-watch discoveries/resolution decisions, filtered company review transitions and company/selected-device report receipt cohorts by current processing status. Thirty local-date buckets with labelled timezone, exact accessible table, empty-history/retention caveats and renderer failure fallback. Current role/source/lineage policy retained, no historical open-CVE backlog/software adoption/health inferred. No migration or worker/client update required."
       }
     ]
   },

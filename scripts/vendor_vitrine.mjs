@@ -29,7 +29,7 @@ await mkdir(output, { recursive: true });
 const entry = resolve(source, ".bearings-entry.js");
 await writeFile(
   entry,
-  `export {VtMap} from './src/components/map/vt-map.js';\nexport {VtStats} from './src/components/stats/vt-stats.js';\nexport {VtCode} from './src/components/code/vt-code.js';\nexport {configure} from './src/entries/api.js';\n`,
+  `export {VtMap} from './src/components/map/vt-map.js';\nexport {VtStats} from './src/components/stats/vt-stats.js';\nexport {VtCode} from './src/components/code/vt-code.js';\nexport {VtChart} from './src/components/chart/vt-chart.js';\nexport {configure} from './src/entries/api.js';\n`,
 );
 const raw = {
   name: "raw-css",
@@ -67,6 +67,11 @@ try {
     entryPoints: [resolve(source, "src/vendor/geo.js")],
     outfile: resolve(output, "geo.js"),
   });
+  await build({
+    ...options,
+    entryPoints: [resolve(source, "src/vendor/echarts.js")],
+    outfile: resolve(output, "echarts.js"),
+  });
 } finally {
   await rm(entry);
 }
@@ -76,7 +81,7 @@ const metadata = {
   repository: "https://github.com/ecrou-exact/vitrine",
   revision,
   version: "0.14.0",
-  components: ["map", "stats", "code"],
+  components: ["map", "stats", "code", "chart"],
   lock_sha256: createHash("sha256")
     .update(await readFile(resolve(source, "package-lock.json")))
     .digest("hex"),
@@ -88,6 +93,7 @@ await writeFile(
 const files = [
   "vitrine.js",
   "geo.js",
+  "echarts.js",
   "LICENSE",
   "THIRD_PARTY_NOTICES.md",
   "PROVENANCE.json",
@@ -108,5 +114,6 @@ await writeFile(
   ).join("\n") + "\n",
 );
 console.log(
-  "Built pinned map/stats/code and local geographic data in " + output,
+  "Built pinned map/stats/code/chart and local geographic/chart engines in " +
+    output,
 );

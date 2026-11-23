@@ -2,8 +2,9 @@
 
 Upstream: https://github.com/ecrou-exact/vitrine, MIT, version 0.14.0
 (prerelease), revision `07ab87825dfbe100b5a3357e4d42b8789f76ffad`.
-Only map, stats and code components are exported. `geo.js` includes the local
-geographic dependencies. LICENSE and THIRD_PARTY_NOTICES.md retain upstream
+Only map, stats, code and chart components are exported. `geo.js` includes the local
+geographic dependencies. `echarts.js` bundles the upstream Apache ECharts/ZRender
+engine, loaded only when a non-empty chart is opened. LICENSE and THIRD_PARTY_NOTICES.md retain upstream
 and transitive notices; SHA256SUMS covers generated artifacts.
 
 To reproduce outside the Bearings checkout (Node 24 / npm 11):

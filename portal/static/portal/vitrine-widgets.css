@@ -1,6 +1,7 @@
 vt-map,
 vt-code,
-vt-stats {
+vt-stats,
+vt-chart {
   display: block;
   min-width: 0;
   --vt-accent: #315e73;
@@ -16,4 +17,11 @@ vt-stats {
 vt-map::part(stage) {
   border-radius: 10px;
   width: 100%;
+}
+
+[data-event-timeline] {
+  min-width: 0;
+}
+[data-timeline-host] {
+  min-width: 0;
 }

@@ -1714,3 +1714,44 @@ expansion, concrete evidence links and no horizontal overflow or script errors.
 No production data, production load or external vulnerability service was used.
 Deploy by updating the reviewed checkout, collecting static files and restarting
 `bearings-web` only; workers/clients and existing assessments remain unchanged.
+
+## Scoped Vitrine event timelines — 2026-11-23
+
+Added locally served Vitrine line charts to national review activity, company
+vulnerability detail (collapsed) and company/selected-device Linux report activity
+(collapsed). Date axes cover thirty local calendar dates including today, show the
+timezone, use integral count scales and straight lines, expose named selectable
+series and a chart/table view. A server-rendered daily-value table remains usable
+without JavaScript or after engine failure; empty histories do not draw a health
+or backlog curve. The chart/ECharts engine loads only on chart visibility, and a
+mutation observer enhances refreshed national fragments while dropping removed
+pending hosts. No runtime CDN or remote telemetry is introduced.
+
+National discovery events retain their existing scope and are explicitly labelled
+first **product-watch** evidence; distribution-package and manual discoveries
+without that history are not falsely represented as covered. Company review
+charts use current filtered visible findings across all pages and record only
+confirmed/resolved/reopened transitions, excluding no-op status saves, old/future
+entries and inconsistent record/product/asset/source lineage. Current source
+visibility applies retrospectively. Receipt charts group by server receipt date
+and current processing status, not historical backlog, observation time or unique
+servers. Pending cohorts can change as processing completes; consistent current
+device/asset/source ownership is required. Private company evidence responses
+explicitly prohibit caching. No workflow, source data or inventory was mutated.
+
+Validation: frozen sync, Ruff, Django checks and no migration drift; 85 PostgreSQL
+tests passed (timeline, intelligence, national scope/read-model and agent suites).
+Six new timeline tests cover confidential evidence/filters, no-op/future/old
+transitions, non-UTC date boundaries, empty history, inconsistent lineage and
+real admitted pending-to-applied report cohorts. Chromium at 1440px/390px with
+synthetic data and self-only script/connect CSP verified lazy engine requests,
+thirty values, resize, asynchronous fragment rendering, table toggling, unavailable
+engine fallback, and no horizontal overflow or script errors. Browser fixtures
+are not production data or a production load test.
+
+Rebuilt pinned Vitrine 0.14.0 revision
+`07ab87825dfbe100b5a3357e4d42b8789f76ffad` with the chart export and separately lazy
+Apache ECharts/ZRender engine; upstream sources are unchanged. Dependency licenses,
+source provenance and generated SHA-256 checksums are retained. Production needs
+no npm toolchain. Deploy reviewed checkout + collectstatic + restart bearings-web;
+no migration, worker/client restart or client rebuild is required.

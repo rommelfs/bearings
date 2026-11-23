@@ -5,7 +5,8 @@
   "components": [
     "map",
     "stats",
-    "code"
+    "code",
+    "chart"
   ],
   "lock_sha256": "6b539cf21fd49240b400db1c9236947aa5cdad28cf24fc2d13fc0724eab440df"
 }

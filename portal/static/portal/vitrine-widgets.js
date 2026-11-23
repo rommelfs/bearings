@@ -1,5 +1,11 @@
 // Pinned Vitrine components, served locally. Content is assigned as text only.
-import { VtMap, VtStats, VtCode, configure } from "./vendor/vitrine/vitrine.js";
+import {
+  VtMap,
+  VtStats,
+  VtCode,
+  VtChart,
+  configure,
+} from "./vendor/vitrine/vitrine.js";
 configure({
   theme: "light",
   lang: "en",
@@ -264,3 +270,64 @@ for (const pre of document.querySelectorAll(
   code.content = pre.textContent;
   pre.replaceWith(code);
 }
+
+// Lazy charts also work in asynchronously refreshed national fragments.
+if (!customElements.get("vt-chart")) customElements.define("vt-chart", VtChart);
+const pendingCharts = new Set();
+function renderTimeline(host) {
+  if (!host.isConnected || host.dataset.rendered) return;
+  const source = host
+    .closest("[data-event-timeline]")
+    .querySelector('script[type="application/json"]');
+  if (!source) return;
+  const chart = document.createElement("vt-chart");
+  chart.setAttribute("type", "line");
+  chart.setAttribute("height", "280");
+  chart.setAttribute("min", "0");
+  chart.setAttribute("smooth", "false");
+  chart.setAttribute("points", "true");
+  chart.setAttribute("tabs", "true");
+  chart.setAttribute("label", host.getAttribute("aria-label"));
+  const values = JSON.parse(source.textContent);
+  const peak = Math.max(0, ...values.series.flatMap((s) => s.data));
+  // Retained event counts use integral axis steps, including sparse windows.
+  chart.setAttribute("max", String(Math.max(5, Math.ceil(peak / 5) * 5)));
+  chart.content = source.textContent;
+  host.dataset.rendered = "true";
+  host.replaceChildren(chart);
+}
+const chartObserver =
+  "IntersectionObserver" in window
+    ? new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries)
+            if (entry.isIntersecting) {
+              renderTimeline(entry.target);
+              chartObserver.unobserve(entry.target);
+              pendingCharts.delete(entry.target);
+            }
+        },
+        { rootMargin: "100px" },
+      )
+    : null;
+function enhanceTimelines() {
+  for (const host of pendingCharts)
+    if (!host.isConnected) {
+      chartObserver?.unobserve(host);
+      pendingCharts.delete(host);
+    }
+  for (const host of document.querySelectorAll(
+    "[data-timeline-host]:not([data-rendered])",
+  )) {
+    if (pendingCharts.has(host)) continue;
+    if (chartObserver) {
+      pendingCharts.add(host);
+      chartObserver.observe(host);
+    } else renderTimeline(host);
+  }
+}
+enhanceTimelines();
+new MutationObserver(enhanceTimelines).observe(document.body, {
+  childList: true,
+  subtree: true,
+});

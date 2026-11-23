@@ -37,9 +37,9 @@ Research has no auto-refresh or automatic notification. A reviewer must use the 
 
 ## Interpret trends
 
-The thirty-day chart shows **first automated evidence records** (the earliest immutable DiscoveryRevision for each review) and **recorded transitions to Resolved**. It does not count repeated source refreshes as new discoveries or repeated Resolved-to-Resolved history as another resolution. Seven-day totals compare the most recent week with its preceding week. Daily values are available in an accessible table; dates use the configured application timezone.
+The thirty-day Vitrine chart shows **first product-watch evidence records** (the earliest immutable DiscoveryRevision for each review) and **recorded transitions to Resolved**. It does not count repeated source refreshes as new discoveries or repeated Resolved-to-Resolved history as another resolution. Seven-day totals compare the most recent week with its preceding week. Daily values are available in an accessible table; dates use the configured application timezone.
 
-Current visibility and active-inventory constraints apply to the underlying findings. Manual/imported reviews without first automated evidence do not become invented historical discoveries. These are recorded workflow events, not exploitation, verified patch-installation or historical national backlog curves. Historical version-adoption trends require periodic inventory snapshots; they are not inferred from the current version table.
+Current visibility and active-inventory constraints apply to the underlying findings. Distribution-package discovery histories and manual/imported reviews without first product-watch evidence do not become invented historical discoveries. These are recorded workflow events, not exploitation, verified patch-installation or historical national backlog curves. Historical version-adoption trends require periodic inventory snapshots; they are not inferred from the current version table.
 
 [Desktop overview](../images/circl-overview-1440.png) · [Mobile overview](../images/circl-overview-390.png) · [Local research](../images/circl-research-1440.png)
 
@@ -72,3 +72,39 @@ and `systemctl restart bearings-web`, then refresh the browser. This change adds
 migration and needs no worker/client restart. Live and prepared national queries
 use the same priority ordering; concrete examples are reread under current policy
 in one bounded database query, never fetched from an upstream service.
+
+## Interactive time series
+
+Vitrine charts now have a date axis, integral daily event counts, named series,
+hover/keyboard values and a chart/table toggle. The server-rendered **Daily values**
+table remains usable without JavaScript or when the chart engine fails. National
+activity refreshes retain the same authorization and prepared-data coverage rules.
+No historical open-vulnerability backlog or software adoption curve is inferred.
+Zero means no matching event retained, not a healthy system or complete coverage.
+
+Two company-specific graphs are available in collapsed sections:
+
+- **Evidence / vulnerability detail → Review decisions over time**: confirmed,
+  resolved and reopened status transitions for the current visible review filter,
+  across all pages. Repeating the same status is not a new transition. A reopened
+  confirmation can appear in two series. Resolution does not attest installed fixes.
+- **Linux inventory reports → Report activity over time**: receipts by server
+  receipt date, split by their current applied/pending/rejected/superseded status.
+  Opening a device restricts the graph to that device; otherwise it covers company
+  devices with consistent current source/asset lineage. Statuses of past receipt
+  cohorts can change after processing. Reports are not unique servers and do not
+  establish inventory completeness, uptime or delivery success before admission.
+
+All graphs cover the last 30 local calendar dates including today; the timezone
+and endpoints are shown. Future events are excluded from the company graphs.
+Current source visibility applies retrospectively; deleted/missing histories
+cannot be reconstructed. First evidence histories do not include all manual or
+vendor-package discoveries, so the national discovery series is explicitly
+labelled **First product-watch evidence**.
+
+The pinned Vitrine chart and Apache ECharts/ZRender engine are served locally
+with retained licenses/provenance. Charts load lazily on opening/visibility, with
+no runtime CDN or external analytics. Update the reviewed checkout, run
+`./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null`, restart
+`bearings-web`, and reload the browser. No migration, worker or client restart
+is needed. npm is used only to reproduce vendored artifacts during maintenance.

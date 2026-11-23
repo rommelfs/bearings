@@ -1,0 +1,10 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'portal/vitrine-widgets.css' %}">
+<section class="national-panel" data-event-timeline>
+<h2>{{ timeline.title }}</h2>
+<p>{{ timeline.description }}</p>
+<p class="muted">{{ timeline.start }} – {{ timeline.end }} · {{ timeline.timezone }} · daily retained event counts.</p>
+{% if timeline.total %}<div data-timeline-host aria-label="{{ timeline.title }}"><p class="muted">Interactive Vitrine chart; exact daily values are available below.</p></div>{{ timeline.chart|json_script:timeline_id }}{% else %}<p>No retained events for this scope and window. This does not establish complete coverage or absence of vulnerabilities.</p>{% endif %}
+<details><summary>Daily values · accessible table</summary><div class="table-scroll"><table><thead><tr><th>Date</th>{% for label in timeline.labels %}<th>{{ label }}</th>{% endfor %}</tr></thead><tbody>{% for row in timeline.rows %}<tr><td>{{ row.date }}</td>{% for count in row.counts %}<td>{{ count }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></details>
+<p class="muted">Zero means no matching event retained for that day. Missing or deleted history cannot be reconstructed. Current access rules apply to the entire window.</p>
+</section><script type="module" src="{% static 'portal/vitrine-widgets.js' %}"></script>

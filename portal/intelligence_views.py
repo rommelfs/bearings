@@ -7,6 +7,7 @@ from django.db.models import Prefetch, Q
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 from .access import can_edit, can_operator_review, require, visible_findings
 from .connectors.http import ConnectorError, validate_base
 from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
@@ -98,16 +99,21 @@ def finding_page(request, org):
 
 
 @login_required
+@never_cache
 def intelligence(request, slug):
     org = organization(request, slug)
     filters = request.GET.copy()
     filters.pop("page", None)
+    page = finding_page(request, org)
+    from .timelines import review_decisions
+
     return render(
         request,
         "portal/intelligence.html",
         {
             "org": org,
-            "page": finding_page(request, org),
+            "page": page,
+            "review_timeline": review_decisions(page.paginator.object_list),
             "editable": can_edit(request.user, org) or can_operator_review(request.user, org),
             "sources": MOSPSource.objects.all(),
             "withdrawal_form": RiskWithdrawalForm(),

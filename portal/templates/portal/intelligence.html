@@ -2,6 +2,7 @@
 <a href="{% url 'organization' org.slug %}">← {{ org.name }}</a><p class="eyebrow">EVIDENCE & RISK SCENARIOS</p><h1>Asset → Vulnerability → Risk</h1>
 <p>Follow source evidence from inventory to a vulnerability review and an explicitly selected MONARC scenario. A catalog reference is a review hypothesis, not a confirmed risk, affectedness or compromise.</p>
 <p><a class="button" href="{% url 'risk-catalog' org.slug %}">Browse MONARC risk catalog</a></p>
+<details><summary>Review decisions over time</summary>{% include "portal/_timeline.html" with timeline=review_timeline timeline_id="review-decisions-data" %}</details>
 {% for source in sources %}<aside>{{ source.name }} · {% if not source.enabled %}Disabled · {% endif %}Last complete catalog refresh: {{ source.last_success|default:'Never' }} · {{ source.error }}<br>Catalog definitions are public CC0 objects. Organizational links remain subject to membership and evidence visibility.</aside>{% empty %}<aside>No MOSP source configured. A platform operator can run sync_mosp --all. CVE review remains available in the organization workspace.</aside>{% endfor %}
 {% for finding in page %}<article class="finding-detail severity-{{ finding.severity_key }}" id="finding-{{ finding.pk }}"><div class="review-heading"><div><p class="eyebrow"><a href="{% url 'asset' org.slug finding.installation.asset.pk %}">{{ finding.installation.asset.name }}</a></p><h2>{{ finding.record.external_id }}</h2><p>{{ finding.source_summary.title }}</p></div>{% include 'portal/severity.html' %}</div>
 <div class="evidence-chain">

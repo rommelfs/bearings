@@ -125,7 +125,15 @@ def trend_result(discovered, resolved):
     def points(key):
         return " ".join(f"{12 + i * 20},{148 - 128 * day[key] / peak:.1f}" for i, day in enumerate(days))
 
+    from .timelines import series
+
     return {
+        "timeline": series(
+            "National review activity · last 30 days",
+            "First product-watch evidence records and recorded resolution decisions for currently permitted active inventory. Distribution-package discoveries and manual/imported reviews without product-watch history are not included in the discovery series. This is workflow activity, not historical open CVEs, exploitation or verified patching.",
+            {"new": "First product-watch evidence", "closed": "Resolution decisions"},
+            {d["day"]: d for d in days},
+        ),
         "days": days,
         "new_points": points("new"),
         "closed_points": points("closed"),
