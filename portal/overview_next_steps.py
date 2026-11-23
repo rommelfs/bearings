@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from django.urls import reverse
 from django.utils import timezone
 from .overview_monitoring import attention_devices
+from .distro_errors import diagnostic
 
 
 def decorate(states):
@@ -118,6 +119,14 @@ def decorate(states):
                     if kind in known
                     else "Evaluation failed; no classified cause is recorded here. The platform operator must inspect evaluator diagnostics before retrying. Previous findings remain retained."
                 )
+                detail = diagnostic(summary.get("error_code"))
+                if detail:
+                    reason = (
+                        detail["message"]
+                        + " "
+                        + detail["next_action"]
+                        + " The failed attempt published no partial evaluation; current affectedness is unavailable."
+                    )
             elif status == "unsupported":
                 title, reason, owner = (
                     "Resolve unsupported distribution coverage",

@@ -634,3 +634,9 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
 - Implemented labelled first-party workspace pictograms and prominent keyboard-accessible chart disclosure tiles. Long sidebar content stays grouped; mobile text remains readable. See [interface orientation](user-guide/interface-navigation.md).
 
 - Implemented company-card Next steps with bounded concrete server examples, explicit reasons/roles/routes and clear review/task counter semantics. Monitoring details are collapsed; no workflow or retry is created. See [infrastructure overview](user-guide/infrastructure-overview.md).
+
+- Implemented larger bounded complete package evaluations, safe classified failure
+  reasons/actions and runtime updater recovery before installer locking. Previous
+  evidence and deliberate service stops remain preserved. See
+  [package checks](integrations/distro-cves.md) and
+  [update recovery](operations/linux-client-updates.md).

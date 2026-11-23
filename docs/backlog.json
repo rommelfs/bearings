@@ -206,6 +206,10 @@
       {
         "title": "Turn company overview diagnostics into concrete prioritized next steps",
         "body": "Implemented company-card Next steps with reasons, responsible roles and direct scoped device/contact/inventory/review routes. Bound primary steps to5 and problematic reporter examples to3/company in one windowed query. Distinguish expired credentials, missing/stale observations versus recent receipts, classified/unclassified evaluation errors, vendor/metadata gaps and explicit pauses. Deadlines/saved affected cases rank first; source severity and review totals never imply vulnerable installations. Technical monitoring details remain collapsed, config links role-gated, private responses no-store. No task assignment, mutation, retry, notification or migration."
+      },
+      {
+        "title": "Support larger complete package evaluations and safe runtime updater recovery",
+        "body": "Implemented bounded 10,000-match local publication with a >2,000-result PostgreSQL regression, atomic retained evidence on failure, allowlisted evaluator cause codes/actions and no misleading failed-check zero totals. Runtime installer actions satisfy the systemd boot-recovery dependency before acquiring their own lock; preserve explicit activation intent and refuse early startup with pending recovery. Exercise nested dependency CLI in disposable acceptance. Sustained fleet throughput and real-systemd boot/power-cut acceptance remain separate; see docs/integrations/distro-cves.md and docs/operations/linux-client-updates.md."
       }
     ]
   },

@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import transaction, connection, OperationalError
 from django.db.models import Q
 from django.utils import timezone
-from . import agents, distro_oval, distro_sources, distro_results
+from . import agents, distro_oval, distro_sources, distro_results, distro_errors
 from .connectors.http import ConnectorError
 from .intelligence import digest, snapshot_evidence
 from .issues import ensure_vulnerability_issue
@@ -29,6 +29,7 @@ from .models import (
 )
 
 RULE = "distro-oval-review/v1"
+MAX_MATCHES = 10000
 
 
 def compile_cache(path, key):
@@ -276,7 +277,7 @@ def evaluate_device(pk):
                     advisory,
                     "potential" if package_result is True else "unknown",
                 )
-        if len(found) > 2000:
+        if len(found) > MAX_MATCHES:
             raise ConnectorError("Device CVE result budget exceeded; no partial evaluation published")
     for (cid, aid, cve), (component, advisory, result) in found.items():
         if time.monotonic() > deadline:
@@ -524,9 +525,7 @@ def run(limit=5):
                 distro_summary={
                     "evaluator_version": distro_results.VERSION,
                     "state": "error",
-                    "message": "Evaluation deferred ("
-                    + type(exc).__name__
-                    + "); retained evidence needs review.",
+                    **distro_errors.failure(exc),
                 },
             )
     # Retry coverage failures independently of inventory cadence, without spinning on a failed source.

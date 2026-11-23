@@ -285,3 +285,13 @@ After updating the reviewed checkout, run
 `./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null` and
 `systemctl restart bearings-web`, then reload the browser. No migration,
 national/ordinary-worker restart or Linux client update is needed for this change.
+
+
+Package-evaluation failures now distinguish local match/proof/definition limits
+and evaluation/publication timeouts with a concrete next action. A
+`ConnectorError` from an older attempt alone does not prove a network outage.
+The next worker attempt records a safe classified cause; failed attempts retain
+prior evidence and cannot establish current affectedness. A stopped reporting
+service is a separate issue from a server-side package-evaluation failure.
+For this evaluator/diagnostic fix restart both **bearings-web** and
+**bearings-worker**; see [evaluator operations](../integrations/distro-cves.md).

@@ -19,6 +19,21 @@ SPEC.loader.exec_module(installer)
 
 
 class InstallerTests(unittest.TestCase):
+    def test_recovery_gate_resumes_only_after_pending_transaction_was_restored(self):
+        for remains in (False, True):
+            with (
+                self.subTest(pending_remains=remains),
+                patch.object(installer, "regular", side_effect=[True, True, remains]),
+                patch.object(installer, "read_update_json", return_value={"active": True}),
+                patch.object(installer, "systemctl") as systemctl,
+                patch.object(installer, "update_state", return_value=Path("/synthetic/pending.json")),
+            ):
+                installer.prepare_recovery_gate()
+                self.assertEqual(
+                    systemctl.call_args_list[0].args, ("start", "bearings-linux-update-recover-boot.service")
+                )
+                self.assertEqual(systemctl.call_count, 1 if remains else 2)
+
     def test_local_source_is_bounded_and_rejects_symlinks_and_directories(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "grant.json"

@@ -63,7 +63,7 @@ p=Path('/run/synthetic-systemd.json');s=json.loads(p.read_text());a=sys.argv[1:]
 unit=next((x for x in a if x.endswith(('.service','.timer'))),'bearings-linux.service')
 u=s if unit=='bearings-linux.service' else s.setdefault('units',{}).setdefault(unit,{'active':False,'enabled':False})
 s.setdefault('calls',[]).append(a)
-if unit=='bearings-linux-update-recover-boot.service' and (a[0] in ('start','restart') or (a[0]=='enable' and '--now' in a)):
+if unit=='bearings-linux-update-recover-boot.service' and not u['active'] and (a[0] in ('start','restart') or (a[0]=='enable' and '--now' in a)):
  import subprocess
  p.write_text(json.dumps(s))
  result=subprocess.run([Path('/run/installer-python').read_text(),'-I','/usr/local/lib/bearings-linux/update.py','auto-update-recover-boot'],capture_output=True,timeout=20)
@@ -71,6 +71,15 @@ if unit=='bearings-linux-update-recover-boot.service' and (a[0] in ('start','res
  s['nested_boot_recoveries']=s.get('nested_boot_recoveries',0)+1
  if result.returncode:
   sys.stderr.buffer.write(result.stderr);p.write_text(json.dumps(s));sys.exit(result.returncode)
+if unit=='bearings-linux.service' and a[0] in ('start','restart') and Path('/etc/systemd/system/bearings-linux.service.d/auto-update-recovery.conf').exists():
+ gate=s.setdefault('units',{}).setdefault('bearings-linux-update-recover-boot.service',{'active':False,'enabled':False})
+ if not gate['active']:
+  import subprocess
+  p.write_text(json.dumps(s))
+  result=subprocess.run(['/usr/bin/systemctl','start','bearings-linux-update-recover-boot.service'],capture_output=True,timeout=20)
+  s=json.loads(p.read_text());u=s
+  if result.returncode:
+   sys.stderr.buffer.write(result.stderr);p.write_text(json.dumps(s));sys.exit(result.returncode)
 if a[0]=='daemon-reload' and s.pop('pause_reload',False):
  import time
  p.write_text(json.dumps(s));Path('/run/updater-paused').touch();time.sleep(90)
@@ -373,7 +382,7 @@ p.write_text(json.dumps(s));sys.exit(code)
         assert update_config.stat().st_mode & 0o777 == 0o600
         enabled_status = json.loads(call("auto-update-status"))
         assert enabled_status["timer_active"] and enabled_status["timer_enabled"]
-        assert json.loads(state.read_text())["nested_boot_recoveries"] >= 2
+        assert json.loads(state.read_text())["nested_boot_recoveries"] >= 1
         config_before_update = (private / "config.json").read_bytes()
         before_calls = len(json.loads(state.read_text())["calls"])
         fetched_artifacts.clear()
@@ -383,6 +392,11 @@ p.write_text(json.dumps(s));sys.exit(code)
         assert not any("restart" in row for row in json.loads(state.read_text())["calls"][before_calls:])
         assert not (updater_state / "pending.json").exists()
 
+        # Reproduce a failed/inactive boot dependency before the runtime updater.
+        # Starting the client under the updater lock would make its child fail.
+        service = json.loads(state.read_text())
+        service["units"]["bearings-linux-update-recover-boot.service"]["active"] = False
+        state.write_text(json.dumps(service))
         publication["suffix"] = b"synthetic-new-publication"
         call("auto-update")
         installed = Path("/usr/local/bin/bearings-linux")
@@ -448,6 +462,10 @@ p.write_text(json.dumps(s));sys.exit(code)
         spec.loader.exec_module(updater)
         updater.checkpoint_update("f" * 64, updater.UNIT_SHA256)
         updater.atomic(installed, b"interrupted binary", 0o755)
+        service = json.loads(state.read_text())
+        service["units"]["bearings-linux-update-recover-boot.service"]["active"] = False
+        service["active"] = False
+        state.write_text(json.dumps(service))
         call("auto-update-recover")
         assert installed.read_bytes() == accepted_binary and json.loads(state.read_text())["active"]
         assert not (updater_state / "pending.json").exists()

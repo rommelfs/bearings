@@ -38,6 +38,16 @@ class OverviewNextStepsTests(Fixture):
         self.assertContains(response, "not counts of confirmed vulnerable installations")
         self.assertContains(response, '<details class="overview-diagnostics">')
 
+    def test_classified_limit_explains_cause_and_does_not_echo_arbitrary_message(self):
+        device, _ = self.reporter(state="error")
+        device.distro_summary = {"state": "error", "error_code": "match_limit", "message": "secret-sentinel"}
+        device.save()
+        response = self.view()
+        step = response.context["companies"][0]["next_steps"][0]
+        self.assertIn("10,000 package/definition/CVE matches", step["reason"])
+        self.assertIn("restarting the Linux client will not change this limit", step["reason"])
+        self.assertNotContains(response, "secret-sentinel")
+
     def test_expired_credential_and_recent_receipt_have_different_recovery_instructions(self):
         device, _ = self.reporter(state="ready")
         device.expires_at = timezone.now() - timedelta(seconds=1)

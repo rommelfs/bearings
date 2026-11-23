@@ -826,6 +826,27 @@ WantedBy=multi-user.target
     systemctl("daemon-reload")
 
 
+def prepare_recovery_gate():
+    """Satisfy the client's recovery dependency before taking the installer lock.
+
+    systemd may start the recovery CLI when starting the client. That child needs
+    the same lock, so doing this inside install/update/recover would recurse.
+    """
+    unit = UNIT.with_name("bearings-linux-update-recover-boot.service")
+    if not regular(unit):
+        return
+    pending_path = update_state("pending.json")
+    resume = False
+    if regular(pending_path, private=True):
+        pending = read_update_json(pending_path)
+        resume = pending.get("active") is True
+    systemctl("start", unit.name)
+    # Boot recovery deliberately does not start its dependent service. A runtime
+    # caller must restore the saved activation intent after that gate completes.
+    if resume and not regular(pending_path, private=True):
+        systemctl("start", "bearings-linux.service")
+
+
 def activate_updates():
     # Boot recovery takes the installer lock itself. Never wait for it while
     # holding that same lock in the configuring parent process.
@@ -1080,6 +1101,17 @@ def main():
     if args.action == "enroll" and sum((bool(args.grant_file), args.code, args.code_stdin)) != 1:
         parser.error("enroll requires exactly one of --code, --code-stdin or --grant-file")
     os.umask(0o077)
+    if args.action in {
+        "install",
+        "enroll",
+        "start",
+        "auto-update-enable",
+        "auto-update",
+        "auto-update-disable",
+        "auto-update-recover",
+        "auto-update-retry",
+    }:
+        prepare_recovery_gate()
     safe_parent(LOCK.parent)
     if LOCK.is_symlink():
         raise InstallError("Unsafe installer lock")

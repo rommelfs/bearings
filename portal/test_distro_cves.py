@@ -237,7 +237,6 @@ class DistroTests(Fixture):
         component = self.device.components.get(name="nginx")
         self.login()
         for url in [
-            reverse("organization", args=[self.a.slug]),
             reverse("asset", args=[self.a.slug, component.installation.asset_id]),
         ]:
             response = self.client.get(url)

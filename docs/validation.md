@@ -1884,3 +1884,52 @@ no horizontal overflow or script errors. No production data/service/load used.
 Documentation/backlog updated. Deploy reviewed checkout, collectstatic and restart
 bearings-web, then reload browser. No migration, ordinary/national worker restart,
 Linux client rebuild/update or upstream operation is needed for this presentation.
+
+## Local evaluator capacity and runtime update-lock recovery — 2026-11-23
+
+The 2,000 package/definition/CVE publication limit could reject a valid host
+inventory. It is raised to a still-bounded 10,000; the definition/proof/outcome
+limits, 120-second deadline and atomic publication remain. Twenty-seven targeted
+PostgreSQL evaluator/company-step tests pass. The 2,001-match regression first
+reproduces the old failure, verifies no partial findings/revisions, then executes
+real native-rule publication and verifies all 2,001 findings, immutable revisions
+and package receipt counts. A mid-publication failure test verifies rollback,
+retained analyst applicability/workflow/receipts, safe diagnostic storage and
+successful later recovery. A further focused run verifies the rendered scoped
+client error panel shows its classified cause/action without false zero totals.
+The old organization-software assertion now uses the machine-detail route, since
+the company page intentionally shows compact host inventory.
+
+New diagnostics map only known exact local errors to stable codes/actions;
+unknown exception values are withheld. The company recommendations read the
+allowlisted code, rather than arbitrary persisted exception text. A historical
+ConnectorError alone cannot establish its cause or a network outage; subsequent
+attempts classify errors. Failure retry policy and stored human decisions are
+unchanged. This is bounded local validation, not a fleet throughput SLA.
+
+The installer now prepares its installed systemd boot-recovery dependency before
+acquiring the parent installation lock, including runtime updates/recovery (the
+previous fix covered enablement only). Previously active interrupted transactions
+resume only after boot recovery clears their pending marker; still-pending
+transactions cannot trigger premature start. Fifteen applicable boundary tests
+pass, with one real non-root-only permission test skipped under the root runner
+and covered by disposable acceptance. The systemd double now enforces the
+client's actual boot-recovery dependency and executes the nested recovery CLI.
+The retained real bundled NetBox/FlowIntel/RT/RTIR smoke passes with scope, RO,
+identity, loss-of-ack and assessment-preservation checks.
+
+Frozen dependency sync, Ruff, Django system checks, migration drift and whitespace
+checks pass. No migration or dependency change. Update the reviewed checkout,
+republish Linux artifacts (prepare-linux-client restarts bearings-web), restart
+bearings-worker and refresh the root-owned updater with the newly downloaded
+auto-update-enable command on automatic-update hosts. Previously blocked reporting
+needs an explicit service start. No production host, registration, upstream write,
+notification, actual systemd boot or power-loss operation was performed locally.
+
+Disposable privileged acceptance passes in both one-use enrollment and automatic
+rollout modes under the current interpreter and real Python 3.8. Both modes
+exercise the inactive runtime recovery gate, restored interrupted active client,
+real credential drops/permissions, verified local HTTPS/signatures, unchanged
+checksums, failed startup/disk/process-interruption rollback, quarantine and
+retained deliberate stops. `/run` remains noexec. systemd is explicitly a
+controlled dependency-aware double, not a real boot acceptance claim.

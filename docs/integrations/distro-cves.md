@@ -18,7 +18,7 @@ The updated client adds optional dpkg source metadata to the existing report sch
 
 A ten-minute feed lease prevents duplicate refreshes; downloads and parsing happen outside database locks. Bounds: 32 MiB compressed, 384 MiB expanded/normalized, 120-second download and parse budgets, six million XML events, 100,000 definitions, 4,096 CVEs/definition. DTD/entities, duplicate identities and incomplete/trailing compressed data are rejected. Parse/normalization must finish before atomic cache publication. Errors retain the last complete generation and its evidence. PostgreSQL is required for concurrent workers; SQLite is a single-worker fallback.
 
-A device evaluation locks its current source/device and holds a shared feed-generation lock; contention uses NOWAIT and retries rather than blocking a refresh. It requires fresh authorized reports, current source binding, a live device and matching installation ownership. Evaluation is bounded to 30,000 relevant definitions, 2,000 package/definition/CVE results and 120 seconds. Exceeding a budget rolls back the whole evaluation, retains prior evidence and shows an error. These bounds protect processing; they are not a demonstrated national-fleet throughput SLA.
+A device evaluation locks its current source/device and holds a shared feed-generation lock; contention uses NOWAIT and retries rather than blocking a refresh. It requires fresh authorized reports, current source binding, a live device and matching installation ownership. Evaluation is bounded to 30,000 relevant definitions, 10,000 package/definition/CVE results and 120 seconds. Exceeding a budget rolls back the whole evaluation, retains prior evidence and shows an error. These bounds protect processing; they are not a demonstrated national-fleet throughput SLA.
 
 ## Results and review
 
@@ -58,4 +58,31 @@ The UI distinguishes **potentially affected**, **unresolved**, **fixed by instal
 
 A rule not matching or being absent is **not an explicit manufacturer declaration of non-applicability**. The current vulnerability OVAL sources do not provide a complete list of such declarations; the UI does not invent “not affected” outcomes for omitted CVEs. An initially fixed package generates no finding merely to record a negative check. Existing finding revisions, analyst assessments and workflow states remain unchanged by these receipts and are displayed separately; an update does not close human reviews.
 
-Each receipt retains complete outcome counts and up to ten recent CVE examples **per outcome**, with the definition identity/hash and fixed-version proof where available. It is a bounded latest-check summary, not an unlimited historical scan ledger. Evaluation additionally caps distinct package/CVE outcomes at 100,000 per device and rolls back on overflow. Existing 30,000-definition, 2,000 positive/unknown finding and 120-second budgets remain. Rendering reads stored receipts only. It requires current ownership, current report inputs, matching feed generation, live device/report/cache and enabled evaluation; a newer pending signed report also suppresses a current-success headline. Unsupported, queued, failed, stale and no-indexed-rule states are distinct. A usable retained cache after a failed vendor refresh displays a warning and its original verification time. Even an unalerted evaluated package is not proof of complete server coverage, trusted repositories or restarted running code.
+Each receipt retains complete outcome counts and up to ten recent CVE examples **per outcome**, with the definition identity/hash and fixed-version proof where available. It is a bounded latest-check summary, not an unlimited historical scan ledger. Evaluation additionally caps distinct package/CVE outcomes at 100,000 per device and rolls back on overflow. Existing 30,000-definition, 10,000 positive/unknown finding and 120-second budgets remain. Rendering reads stored receipts only. It requires current ownership, current report inputs, matching feed generation, live device/report/cache and enabled evaluation; a newer pending signed report also suppresses a current-success headline. Unsupported, queued, failed, stale and no-indexed-rule states are distinct. A usable retained cache after a failed vendor refresh displays a warning and its original verification time. Even an unalerted evaluated package is not proof of complete server coverage, trusted repositories or restarted running code.
+
+
+## Local evaluation failures and capacity
+
+The previous 2,000-match publication limit could reject an otherwise valid full
+host inventory. The bound is now 10,000 package/definition/CVE associations per
+host. A synthetic PostgreSQL regression publishes 2,001 associations, their
+immutable revisions and a complete package receipt through the real publication
+path; exceeding the bound still publishes nothing. This is a capacity bound,
+not a count of distinct CVEs or confirmed vulnerable packages, and not a fleet
+throughput guarantee. The 120-second transaction deadline and the separate
+30,000-definition / 100,000-proof / 100,000-outcome limits remain enforced.
+
+`ConnectorError` alone did not distinguish these local resource guards from
+connector problems. New failed attempts persist an allowlisted `error_code`,
+concrete reason and next action. Codes distinguish advisory/result/proof limits,
+evaluation/publication deadlines and overlong source identities. Arbitrary
+exception values, credentials and response bodies are not shown. Old errors
+cannot be retrospectively classified; the next worker attempt supplies the new
+diagnostic. The worker's existing fifteen-minute failure retry remains in place.
+Failures retain earlier evidence, package receipts and human workflow; the
+coverage panel does not display invented zero-match totals for a failed attempt.
+
+Deploy the reviewed checkout and restart **bearings-web** and **bearings-worker**.
+No migration or Linux binary rebuild is needed for the evaluator change. The
+separate installer recovery fix requires republishing the installer and refreshing
+the root-owned updater as described in [client updates](../operations/linux-client-updates.md).

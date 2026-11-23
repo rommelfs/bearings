@@ -205,3 +205,49 @@ Publish the updated installer from a clean reviewed checkout with
 `prepare-linux-client`, then re-download it outside the repository. This
 diagnostic-only change needs no migration, server restart or manual client-service
 restart. Existing registration policy and state remain unchanged.
+
+
+## Runtime recovery dependency and installer lock
+
+A runtime update/recovery could start the client while holding the installer
+lock. If the boot recovery unit was inactive or failed, systemd started that
+unit as a client dependency; its nested CLI needed the same lock and failed with
+`Another installer is running`. This left reporting stopped despite retained
+credentials and binaries. The earlier enablement-only lock fix did not cover
+runtime update/recovery starts.
+
+Mutating installer actions now satisfy an installed boot-recovery gate **before**
+taking their own lock. Recovery still validates backups and restores pending
+transactions before allowing client startup. If that gate restores an interrupted
+previously active client, the caller resumes it after the gate completes. A
+still-pending transaction must not cause an early start. Explicitly stopped
+clients stay stopped. The dependency and installer lock are retained; neither is
+bypassed on failure. The disposable acceptance double now models the actual
+client-to-boot-recovery dependency and executes its nested CLI, including inactive
+gates during runtime updates and recovery of interrupted active clients.
+
+To recover an already blocked host, run separately from an installer invocation:
+
+```sh
+sudo systemctl reset-failed bearings-linux-update-recover-boot.service bearings-linux-update-recover.service bearings-linux.service &&
+sudo systemctl start bearings-linux-update-recover-boot.service &&
+sudo systemctl start bearings-linux.service &&
+sudo systemctl --no-pager --full status bearings-linux.service
+```
+
+A failed recovery stops this sequence; inspect its journal and preserved marker
+rather than deleting the lock, backups, device key or recovery dependency.
+
+For the durable fix, publish from a clean reviewed server checkout using
+`python3 deploy/ubuntu24/ecosystem.py prepare-linux-client` (this restarts
+**bearings-web**). On each host with automatic updates enabled, re-download
+`install.py` outside the checkout and run `auto-update-enable --server` using the
+same trusted origin and CA options as before. This refreshes the installed local
+updater; ordinary automatic binary updates deliberately do not replace that
+root-owned updater. No rollout key, enrollment or database migration is needed.
+Then start the reporting service if it was already blocked, inspect status, and
+perform one `systemctl start bearings-linux-update.service` followed by
+`auto-update-status` and a reporting-service status check. Linux binary changes
+are unnecessary for this fix; the publishing helper rebuilds the artifact bundle
+for consistency. Existing deliberately stopped clients require an explicit
+administrator start to resume reporting.
