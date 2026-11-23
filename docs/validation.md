@@ -1682,3 +1682,35 @@ availability check. Browser requests above were intercepted fixtures, not a live
 production session, a production load test or proof of future tile availability.
 Company addresses were never submitted to an external geocoder. Deployment needs
 static collection and `bearings-web` restart only; no migration/client update.
+
+## Explanatory national vulnerability follow-up — 2026-11-23
+
+Replaced the six-column advisory counter table with bounded explanatory cases.
+Advisories with open reviews at multiple currently permitted companies and at
+least one saved analyst-affected review rank first, before source severity, in
+both live and prepared reads. Single-company/unconfirmed cases remain in a
+collapsed technical-check preview. At most twelve advisory priorities and two
+concrete installation examples per advisory are displayed. A single windowed
+query rereads examples under current organization/source/evidence policy; large
+asset/advisory JSON fields not used by the display are deferred. No upstream
+requests, shared result cache, new affectedness inference or workflow writes.
+
+Each example shows software/version, company/server, a bounded advisory summary,
+current package proof when available, independent saved analyst decision, and
+an evidence link with a result-dependent next step. Vendor-listed fixed versions
+are distinct from repository availability. Fixed retained reviews request
+reconciliation, changed inputs withhold prior verdicts, and accepted risk retains
+its own follow-up. Source severity alone does not assert installed affectedness.
+
+Validation: frozen dependency sync and Ruff pass; Django system checks and
+migration-drift check pass, no migration required. PostgreSQL suite: 32 tests
+passed (national scope/read-model tests and five new presentation regressions).
+New tests cover unconfirmed single-company presentation, multi-company eligibility,
+visibility withdrawal/resolution, escaped names, bounded examples and query growth,
+exclusion of pending-refresh companies from prepared examples, and real local vendor evaluation through affected, installed-fix and changed-OS
+states. Existing live/prepared result parity and confidentiality tests pass.
+Chromium synthetic fixture at 1440px/390px verified closed technical checks,
+expansion, concrete evidence links and no horizontal overflow or script errors.
+No production data, production load or external vulnerability service was used.
+Deploy by updating the reviewed checkout, collecting static files and restarting
+`bearings-web` only; workers/clients and existing assessments remain unchanged.

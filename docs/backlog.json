@@ -186,6 +186,10 @@
       {
         "title": "Use Vitrine for geographic and inventory presentation",
         "body": "Implemented pinned local Vitrine map, coverage statistics and copyable Linux commands/profile JSON. Bearings regional zoom/XYZ/heat adapter uses CIRCL tiles with local geometry fallback, scoped image CSP and local address lookup. Existing operator authorization, manual-point CSRF and bounded accessible company table retained. Browser validation uses synthetic scoped company data and intercepted tile fixtures; production is not deployed by this change."
+      },
+      {
+        "title": "Explain national vulnerability follow-up with concrete software and current proof",
+        "body": "Implemented bounded advisory cards with software/version and installation examples, description, independent analyst assessment and current package proof, evidence links and evidence-based next steps. Multi-company + saved affected review candidates precede collapsed single-company/unconfirmed checks. Fixed retained reviews request reconciliation; stale input withholds the previous package verdict. Live/prepared rankings match; examples reread under current source/organization/evidence policy. No automatic outreach, affectedness inference, repository availability claim, workflow mutation or migration."
       }
     ]
   },

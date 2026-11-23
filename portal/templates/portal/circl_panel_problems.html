@@ -1,5 +1,12 @@
-{% if coverage %}<p class="muted">Prepared data: {{ coverage.companies }} / {{ coverage.total }} companies · oldest refresh {{ coverage.refreshed_at }}.{% if coverage.pending %} <strong>{{ coverage.pending }} companies pending refresh; totals below are incomplete.</strong>{% endif %}</p>{% endif %}
-<section class="national-panel"><h2>Vulnerabilities needing coordination</h2><p>Critical source severity first, then confirmed affected reviews and company reach. Follow a record to the companies, installations and original evidence.</p>
-<div class="table-scroll"><table><thead><tr><th>Vulnerability / advisory</th><th>Source severity</th><th>Companies</th><th>Assets</th><th>Confirmed affected reviews</th><th>Outstanding reviews</th></tr></thead><tbody>
-{% for item in vulnerabilities %}<tr><td><a href="{% url 'circl-findings' %}?record={{ item.record__external_id|urlencode }}">{{ item.record__external_id }} →</a></td><td><span class="badge">{{ item.severity|title }}</span></td><td>{{ item.companies }}</td><td>{{ item.assets }}</td><td>{{ item.affected }}</td><td>{{ item.reviews }}{% if item.accepted %} · {{ item.accepted }} accepted{% endif %}</td></tr>{% empty %}<tr><td colspan="6">No outstanding reviews in permitted current inventory. Check coverage below before drawing a conclusion.</td></tr>{% endfor %}</tbody></table></div>
-<p><a href="{% url 'circl-findings' %}">All outstanding reviews →</a></p></section>
+{% if coverage %}<p class="muted">Prepared data: {{ coverage.companies }} / {{ coverage.total }} companies · oldest refresh {{ coverage.refreshed_at }}.{% if coverage.pending %} <strong>{{ coverage.pending }} companies pending refresh; this view is incomplete.</strong>{% endif %}</p>{% endif %}
+<section class="national-panel">
+<h2>Cross-company vulnerability follow-up</h2>
+<p>Priorities for CIRCL: the same advisory has open reviews at multiple companies and at least one analyst-confirmed affected review. This is a follow-up candidate; it does not establish that every listed server is affected.</p>
+{% for item in coordination_cases %}{% include 'portal/_coordination_case.html' %}{% empty %}<p><strong>No cross-company follow-up candidate in the displayed priorities.</strong> Single-company cases and unconfirmed matches remain available below. This is not a statement that all systems are patched.</p>{% endfor %}
+<details><summary>Technical checks · {{ technical_cases|length }} in this preview</summary>
+<p>These cases do not yet meet the cross-company criterion. A source severity such as Critical describes the advisory; it does not prove that the installed version is vulnerable. Zero analyst-confirmed reviews means no saved affected assessment, not a clean system.</p>
+{% for item in technical_cases %}{% include 'portal/_coordination_case.html' %}{% empty %}<p>No additional technical checks in this preview.</p>{% endfor %}
+</details>
+<p class="muted">Up to 12 advisory priorities are shown, cross-company follow-up first, then source severity. Installation examples are limited to two per advisory; follow the case for every company, server, version and evidence. Retained reviews may outlive a fix; they require reconciliation, not an automatic new alert.</p>
+<p><a href="{% url 'circl-findings' %}">Open all outstanding reviews →</a></p>
+</section>

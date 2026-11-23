@@ -9,7 +9,8 @@ The overview covers **companies the current user may access**, through explicit 
 - **Confirmed affected reviews, unresolved:** a review records affectedness and is not resolved/false-positive/not-affected. This describes missing recorded remediation, not verified absence of an installed patch.
 - **Companies with outstanding reviews** and **Critical source severity:** show company reach and technical source severity separately from company business risk. Critical is not an assertion of exploitation.
 - **Accepted-risk reviews:** remain outstanding; acceptance is not patching. The indicator reflects review workflow state, not a new risk approval or a guarantee that acceptance is still valid.
-- **Vulnerabilities needing coordination:** prioritize Critical/High source severity, affected review counts and company reach. Follow a record or indicator to the paginated cross-company list, then its exact original review, installation and company. Several evidence sources may create several reviews for an installation; the review count is not a deduplicated server count.
+- **Cross-company vulnerability follow-up:** prioritize advisories with outstanding reviews at more than one permitted company and at least one saved analyst-confirmed affected review. This flags a follow-up candidate, not universal affectedness or an automatic outreach decision. Single-company and unconfirmed cases stay in a collapsed **Technical checks** section. Up to twelve advisory priorities are shown, follow-up candidates first, then source severity; each has at most two concrete installation examples with software/version, company/server, advisory description, saved assessment and a direct evidence link. Several evidence sources may create several reviews for an installation; review counts are not deduplicated server counts.
+- **Automatic package checks and next steps:** examples reuse current vendor-version proof, with a vendor-listed fix only where explicitly supported. An installed fix produces a retained-review reconciliation step, not an update alert. Changed inputs or stale vendor data withhold a previous result and request reevaluation. Missing version proof stays unconfirmed. Saved analyst decisions and risk acceptance remain separate and are never overwritten. Repository availability/entitlement and local exploitability are not inferred. Missing examples or pending prepared data remain explicit.
 - **Most widespread software versions:** top twelve by distinct reporting companies, then installation count. Exact names/identifiers are grouped case-insensitively; aliases are not automatically equated. Unknown versions are explicit. **Find installations** sends criteria in a POST to the research form.
 - **Coverage:** active assets, installations, unknown versions, current verified response-contact gaps, stale/disabled/missing inventory sources and import errors. Empty review lists do not establish safety or complete software coverage. The company infrastructure page retains detailed monitoring/coverage actions.
 
@@ -63,3 +64,11 @@ After `git pull` and `python3 scripts/dev.py up --no-build`, `python3 scripts/de
 ### PostgreSQL planning overhead
 
 National panel and map requests locally set PostgreSQL `join_collapse_limit` and `from_collapse_limit` to 4 alongside the existing local JIT setting. This bounds join-order planning of the current authorization/evidence queries without changing their filters, results or the section timeouts. Settings restore after success, nested use and cancellation; other requests retain their original settings. There is no shared authorization or response cache. Use `python3 scripts/dev.py web-timing --national` after updating/restarting to measure the actual environment.
+
+## Deploying the follow-up presentation
+
+After updating the reviewed checkout, run `./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null`
+and `systemctl restart bearings-web`, then refresh the browser. This change adds no
+migration and needs no worker/client restart. Live and prepared national queries
+use the same priority ordering; concrete examples are reread under current policy
+in one bounded database query, never fetched from an upstream service.

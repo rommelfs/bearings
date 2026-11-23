@@ -1,0 +1,17 @@
+<article class="national-panel" aria-label="{{ item.record__external_id }}">
+<div class="row"><h3><a href="{% url 'circl-findings' %}?record={{ item.record__external_id|urlencode }}">{{ item.record__external_id }} →</a></h3><span class="badge">Source severity: {{ item.severity|title }}</span></div>
+<p>{{ item.companies }} compan{{ item.companies|pluralize:'y,ies' }} · {{ item.assets }} server{{ item.assets|pluralize }} / asset{{ item.assets|pluralize }} · {{ item.affected }} analyst-confirmed affected review{{ item.affected|pluralize }} · {{ item.reviews }} outstanding review{{ item.reviews|pluralize }}{% if item.accepted %} ({{ item.accepted }} accepted risk){% endif %}</p>
+{% for finding in item.examples %}
+<div class="finding-example">
+<p><strong>{{ finding.installation.product.name }}</strong> · installed {{ finding.installation.version|default:'version unknown' }}{% if finding.installation.build %} · build {{ finding.installation.build }}{% endif %}<br><a href="{% url 'asset' finding.organization.slug finding.installation.asset.pk %}">{{ finding.installation.asset.name }}</a> · <a href="{% url 'organization' finding.organization.slug %}">{{ finding.organization.name }}</a></p>
+{% if forloop.first and finding.coordination_description %}<p>{{ finding.coordination_description }}{% if finding.coordination_description|length == 240 %}…{% endif %}</p>{% endif %}
+{% if finding.package_verdict %}
+<p><strong>Automatic package check:</strong> {{ finding.package_verdict.heading }}<br>{{ finding.package_verdict.reason|truncatechars:220 }}</p>
+{% if finding.package_verdict.update.targets %}<p>Vendor-listed fix{% if finding.package_verdict.update.esm_apps %} (Ubuntu ESM Apps){% endif %}: {% for target in finding.package_verdict.update.targets|slice:':2' %}{{ target.version }}{% if not forloop.last %}, {% endif %}{% endfor %}. Repository availability has not been checked.</p>{% endif %}
+{% else %}<p><strong>Automatic version verdict:</strong> not established here. A linked CVE alone does not prove this version is affected.</p>{% endif %}
+<p>Saved analyst assessment: {{ finding.analyst_applicability }} · workflow: {{ finding.get_status_display }}.</p>
+<p><strong>Next step:</strong> {{ finding.next_step }} <a href="{% url 'intelligence' finding.organization.slug %}?finding={{ finding.pk }}#finding-{{ finding.pk }}">Inspect version evidence &amp; review →</a></p>
+</div>
+{% empty %}<p>Current installation examples unavailable. Reopen the case to check current access and refresh state.</p>{% endfor %}
+<p><a href="{% url 'circl-findings' %}?record={{ item.record__external_id|urlencode }}">All companies, installations &amp; evidence for this advisory →</a></p>
+</article>

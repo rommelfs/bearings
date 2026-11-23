@@ -301,7 +301,14 @@ def snapshot_panel(user, section):
                 companies=Count("organization_id"),
                 severity_rank=Min("severity_rank"),
             )
-            .order_by("severity_rank", "-affected", "-companies", "external_id")[:12]
+            .annotate(
+                coordination_rank=Case(
+                    When(companies__gt=1, affected__gt=0, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("coordination_rank", "severity_rank", "-affected", "-companies", "external_id")[:12]
         )
         for row in rows:
             row["record__external_id"] = row.pop("external_id")

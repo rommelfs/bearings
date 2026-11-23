@@ -245,7 +245,16 @@ def dashboard(user, *, timings=None, section="all"):
                     )
                 ),
             )
-            .order_by("severity_rank", "-affected", "-companies", "record__external_id")[:12]
+            .annotate(
+                coordination_rank=Case(
+                    When(companies__gt=1, affected__gt=0, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("coordination_rank", "severity_rank", "-affected", "-companies", "record__external_id")[
+                :12
+            ]
         )
         for row in vulnerabilities:
             row["severity"] = SEVERITIES[row["severity_rank"]]
@@ -255,6 +264,12 @@ def dashboard(user, *, timings=None, section="all"):
         started = perf_counter()
         result["trend"] = trend(findings)
         timings["nationaltrend"] = (perf_counter() - started) * 1000
+    if section in {"all", "problems"}:
+        from .coordination_display import decorate
+
+        decorate(user, result["vulnerabilities"], prepared=bool(snapshot))
+        result["coordination_cases"] = [r for r in result["vulnerabilities"] if r["coordination"]]
+        result["technical_cases"] = [r for r in result["vulnerabilities"] if not r["coordination"]]
     return result
 
 

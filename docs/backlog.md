@@ -624,3 +624,5 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   version, with form help and no empty column. See [overview guide](user-guide/infrastructure-overview.md).
 
 - Implemented Vitrine map, coverage cards and copyable commands/profile JSON. CIRCL tiles have local geometry fallback; map permissions and local address lookup remain enforced. See [map guide](user-guide/circl-map.md).
+
+- Implemented explanatory national follow-up cards: cross-company confirmed candidates first, technical checks collapsed, bounded software/version examples, current package proof and concrete next steps. Retained fixed reviews and stale evaluation states are distinct. See [national overview](user-guide/circl-overview.md).
