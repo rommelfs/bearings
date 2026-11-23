@@ -355,7 +355,21 @@ p.write_text(json.dumps(s));sys.exit(code)
             assert len(bootstraps) == 1 and len(received) == 1
             call("start")
         else:
+            # A new HTTPS install configures the timer before manual registration.
+            call("--server", origin, "--ca-file", str(ca))
+            status = json.loads(call("auto-update-status"))
+            assert status["timer_active"] and status["timer_enabled"]
+            fetched_artifacts.clear()
+            call("auto-update")
+            assert not fetched_artifacts
+            assert json.loads(call("auto-update-status"))["status"]["result"] == "awaiting_enrollment"
+            call("--server", origin, "--ca-file", str(ca), "--no-auto-update")
+            status = json.loads(call("auto-update-status"))
+            assert not status["timer_enabled"] and not status["configuration"]["enabled"]
             call("enroll", "--code-stdin", "--ca-file", str(ca), stdin=code + b"\n")
+        if automatic:
+            status = json.loads(call("auto-update-status"))
+            assert status["timer_active"] and status["timer_enabled"]
 
         # Root login shells may retain SUDO_UID while the executed installer is
         # readable only by root. Copying itself is distinct from untrusted inputs.

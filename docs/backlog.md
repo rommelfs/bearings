@@ -658,3 +658,8 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   evidence remains explicit; changed/stale status requeues even initially fixed
   packages without a Finding. Requires migrations0068–0071, web/worker restart
   and published client for scope detection. See [package and kernel checks](integrations/distro-cves.md).
+
+- Implemented default-on HTTPS client updates with interactive yes/no choice,
+  unattended default yes, explicit opt-out and activation outside installer locks.
+  Unregistered clients wait safely for enrollment. National indicators now offer
+  eight visible, scoped whole-card drilldowns with paginated record lists.

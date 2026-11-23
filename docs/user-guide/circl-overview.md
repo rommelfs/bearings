@@ -127,3 +127,18 @@ pictograms. Historical charts have prominent icon tiles, a short description and
 **View chart / Hide chart** action rather than a small text-only disclosure. The
 controls retain native keyboard behavior and do not change indicator meanings.
 See [interface navigation](interface-navigation.md) for accessibility and updating.
+
+## Follow an indicator to its records
+
+Every national summary tile is a full keyboard-accessible link with a visible
+“View records” action. Confirmed affected, critical-source-severity and accepted-risk
+review tiles preserve their exact outstanding-review filters. The company tile
+opens companies with outstanding reviews, then a company-filtered review list.
+Coverage tiles open active inventory assets, installations, unknown installed
+versions, or companies missing a currently verified response contact (excluding
+DPO-only contacts). Lists retain current organization, source and intelligence
+permissions; participants cannot access national drilldowns. Fifty rows per page
+keep larger inventories usable, including an explicit empty result for zero.
+Prepared summary totals can precede the live list; the detail page explains that
+it applies current inventory and access permissions rather than weakening scope
+to reproduce an old total. Contact rows link directly to People & scope.

@@ -1,10 +1,19 @@
 # Automatic Linux client updates
 
-Automatic updates are an explicit, per-host administrator choice. They update the
+HTTPS installation enables automatic updates by default. A terminal prompt uses
+`[Y/n]` (Enter means yes); unattended and `--bootstrap-stdin` installations default
+to yes without reading an extra stdin answer. Use `--auto-update` to accept without
+a prompt or `--no-auto-update` to opt out (also disables an existing updater).
+These options belong to `install`. Offline installation does not choose an update
+origin; configure it explicitly after enrollment. They update the
 installed Linux inventory binary from one trusted Bearings HTTPS origin; they do
 not upgrade the server, operating system, packages or configured applications.
-Publish only reviewed client artifacts after upgrading the server. Existing
-installations and newly enrolled hosts use the same enablement command.
+Publish only reviewed client artifacts after upgrading the server. Older
+installations can add the updater with the enablement command below. New HTTPS
+installations configure it even before enrollment; scheduled checks wait without
+downloading or registering until enrollment completes. Updater activation runs
+after the installer lock is released. The installer confirms activation or reports
+a failure; it does not claim success for a missing timer.
 
 ## Enable, inspect and disable
 

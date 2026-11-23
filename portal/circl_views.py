@@ -156,3 +156,69 @@ def inventory_research(request):
         )
         status = 503
     return private_response(render(request, "portal/circl_research.html", context, status=status))
+
+
+@login_required
+@never_cache
+@require_GET
+@bounded_list
+def coverage_records(request):
+    from django.db.models import Exists, OuterRef, F
+    from django.http import Http404
+    from .access import organizations_for
+    from .circl import installations_for
+    from .models import Asset, Contact
+    from .notifications import contact_policy
+    from .query_integrity import consistent
+
+    authorize(request, "operator.national_coverage_records")
+    bucket = request.GET.get("bucket", "assets")
+    titles = {
+        "assets": "Active inventory assets",
+        "installations": "Recorded installations",
+        "unknown": "Unknown installed versions",
+        "no_contact": "Companies without a current verified response contact",
+        "companies": "Companies with outstanding reviews",
+    }
+    if bucket not in titles:
+        raise Http404
+    orgs = organizations_for(request.user)
+    if bucket == "assets":
+        qs = (
+            Asset.objects.filter(organization__in=orgs, lifecycle="active")
+            .filter(consistent(source__organization_id=F("organization_id")))
+            .select_related("organization")
+            .order_by("organization__name", "name", "pk")
+        )
+    elif bucket in {"installations", "unknown"}:
+        qs = (
+            installations_for(request.user)
+            .select_related("asset__organization", "product")
+            .order_by("asset__organization__name", "asset__name", "product__name", "pk")
+        )
+        if bucket == "unknown":
+            qs = qs.filter(version="")
+    else:
+        if bucket == "no_contact":
+            contacts = Contact.objects.filter(organization_id=OuterRef("pk"), **contact_policy()).exclude(
+                function="dpo"
+            )
+            qs = orgs.filter(~Exists(contacts))
+        else:
+            reviews = outstanding(findings_for(request.user)).filter(organization_id=OuterRef("pk"))
+            qs = orgs.filter(Exists(reviews))
+        qs = qs.order_by("name", "pk")
+    page = object_page(qs, 50, request.GET.get("page"))
+    return private_response(
+        render(
+            request,
+            "portal/circl_coverage_records.html",
+            {
+                "bucket": bucket,
+                "title": titles[bucket],
+                "page": page,
+                "installations": bucket in {"installations", "unknown"},
+                "companies": bucket in {"no_contact", "companies"},
+            },
+        )
+    )

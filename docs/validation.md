@@ -2057,3 +2057,39 @@ GET-only import/update/missing-object retention, local assessment preservation,
 scoped RO/RW denial and lost-ack recovery, plus existing FlowIntel, RT, RTIR and
 human queue access checks. Only isolated synthetic lab services were written;
 no production delivery or external remediation occurred.
+
+## Default installer updates and national indicator drilldowns — 2026-11-23
+
+Nineteen unprivileged installer tests pass (one existing root-only boundary test
+is skipped in the unprivileged run). New cases cover terminal Enter/yes/no/German
+answers, invalid-answer retry and EOF, explicit flags bypassing prompts,
+unattended default yes without consuming secret-manager stdin and unregistered
+checks waiting without downloads. Disposable no-network root acceptance exercises
+real accounts, credentials, permissions, HTTPS verification, noexec /run storage,
+registration and updater rollback/quarantine/stopped-state recovery; systemctl
+remains a controlled test double. The current-Python manual/fleet scenarios pass.
+
+Twenty-one PostgreSQL national overview/download-page tests pass. All eight
+summary cards have concrete record/filter routes; matching counts, unknown
+versions, missing-contact semantics, foreign-source exclusion, participant denial,
+invalid-filter refusal and no-store responses are checked. Record lists use the
+same current scoped eligibility predicates as the summary, with a prepared-data
+refresh caveat rather than a policy exception.
+
+Chromium at 390px and 1440px clicks the numeric value on every one of the eight
+cards and reaches the corresponding list/filter. Keyboard focus, no horizontal
+page overflow and no script errors pass with the actual response CSP and local
+synthetic pages; no operational service is accessed. Frozen dependencies, Ruff,
+Django checks and migration drift pass. No new migration is required. Deployment
+needs collectstatic and a web restart for the metric links, plus republished clean
+client artifacts for new default-on installations. Existing hosts without an
+updater still need one explicit enablement using the new installer.
+
+The actual Python 3.8 disposable installer scenarios also pass in both manual and
+fleet modes, including explicit assertions for new default timer activation,
+unregistered no-download waiting and --no-auto-update disabling. No host account,
+service, key or registration outside those containers is changed.
+
+The retained bundled NetBox/FlowIntel/RT/RTIR smoke also passes after this change,
+including scoped RO/RW access, GET-only imports, preserved assessments and lost-ack
+recovery. No production service or external notification was changed.

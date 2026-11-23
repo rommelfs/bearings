@@ -705,7 +705,7 @@ def recover_update(*, start_client=True):
     return True
 
 
-def configure_updates(server, ca_file=None):
+def configure_updates(server, ca_file=None, require_enrolled=True):
     # Only a local privileged operator enables trust in this fixed origin.
     origin = urlsplit(server)
     if (
@@ -720,7 +720,12 @@ def configure_updates(server, ca_file=None):
         raise InstallError("Use the trusted Bearings HTTPS origin without a path or credentials")
     account = lookup_account()
     check_state(account)
-    if account is None or not enrolled(account) or not regular(CLIENT) or not regular(UNIT):
+    if (
+        account is None
+        or (require_enrolled and not enrolled(account))
+        or not regular(CLIENT)
+        or not regular(UNIT)
+    ):
         raise InstallError("Install and enroll this device before enabling automatic updates")
     if not reviewed_unit(installed_source(UNIT, 16384)):
         raise InstallError(
@@ -868,8 +873,12 @@ def automatic_update():
         return
     account = lookup_account()
     check_state(account)
-    if account is None or not enrolled(account):
-        raise InstallError("Automatic updates require an existing enrolled device; no registration attempted")
+    if account is None:
+        raise InstallError("Automatic updates require an installed device; no registration attempted")
+    if not enrolled(account):
+        update_status(result="awaiting_enrollment", checked_at=update_time(), error="")
+        print("Automatic updates await device enrollment; no download or registration attempted.")
+        return
     if recovered:
         # Do not immediately reinstall the same failed publication after recovery.
         raise InstallError("Recovered interrupted update; next scheduled attempt will recheck publication")
@@ -1021,6 +1030,24 @@ def bootstrap(server, ca_path, prompt):
     print("Automatic registration confirmed; periodic reporting started.")
 
 
+def installation_updates(option, automation=False):
+    """Never consume secret-manager stdin; an empty terminal answer means yes."""
+    if option is not None:
+        return option
+    if automation or not sys.stdin.isatty():
+        return True
+    while True:
+        try:
+            answer = input("Enable automatic client updates from this server? [Y/n]: ").strip().lower()
+        except EOFError as exc:
+            raise InstallError("Update selection interrupted; use --auto-update or --no-auto-update") from exc
+        if answer in {"", "y", "yes", "j", "ja"}:
+            return True
+        if answer in {"n", "no", "nein"}:
+            return False
+        print("Please answer yes or no (Enter means yes).")
+
+
 def main():
     if sys.version_info < (3, 8):
         raise InstallError("Python 3.8 or newer is required; no installation attempted")
@@ -1067,6 +1094,20 @@ def main():
         action="store_true",
         help="Automatic company registration using rollout key from secret-manager stdin",
     )
+    updates = parser.add_mutually_exclusive_group()
+    updates.add_argument(
+        "--auto-update",
+        dest="auto_update",
+        action="store_true",
+        default=None,
+        help="Enable automatic client updates without prompting (HTTPS install default)",
+    )
+    updates.add_argument(
+        "--no-auto-update",
+        dest="auto_update",
+        action="store_false",
+        help="Disable automatic client updates for this installation",
+    )
     parser.add_argument("--grant-file", type=Path)
     parser.add_argument("--ca-file", type=Path)
     parser.add_argument("--register-host", action="store_true")
@@ -1100,6 +1141,16 @@ def main():
         parser.error("auto-update-enable requires --server")
     if args.action == "enroll" and sum((bool(args.grant_file), args.code, args.code_stdin)) != 1:
         parser.error("enroll requires exactly one of --code, --code-stdin or --grant-file")
+    if args.auto_update is not None and args.action != "install":
+        parser.error("--auto-update/--no-auto-update belong to install")
+    if args.auto_update is True and not args.server:
+        parser.error("--auto-update requires install --server with a trusted HTTPS origin")
+    selected_updates = None
+    if args.action == "install":
+        selected_updates = (
+            installation_updates(args.auto_update, args.bootstrap_stdin) if args.server else args.auto_update
+        )
+    activate_install_updates = False
     os.umask(0o077)
     if args.action in {
         "install",
@@ -1173,9 +1224,17 @@ def main():
             start()
         else:
             systemctl("status", "--no-pager", "bearings-linux.service")
+        if args.action == "install":
+            if selected_updates:
+                configure_updates(args.server, args.ca_file, require_enrolled=False)
+                activate_install_updates = True
+            elif selected_updates is False:
+                if regular(UPDATE_CONFIG, private=True):
+                    disable_updates()
+                print("Automatic client updates disabled by installation choice.")
     finally:
         os.close(fd)
-    if args.action == "auto-update-enable":
+    if args.action == "auto-update-enable" or activate_install_updates:
         activate_updates()
 
 

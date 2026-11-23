@@ -35,6 +35,39 @@ class CIRCLTests(Fixture):
             product=self.product.name, product_match="exact", mode="exact", version="1.2.3", bucket="matches"
         )
 
+    def test_indicator_links_open_exact_scoped_records_and_filters(self):
+        from urllib.parse import urlencode
+
+        self.installation.version = ""
+        self.installation.save()
+        self.record_finding(shareable=True)
+        # Invalid ownership and retired inventory must stay excluded from drilldowns too.
+        wrong = Asset.objects.create(organization=self.a, source=self.sb, name="Foreign source")
+        Installation.objects.create(asset=wrong, product=self.product, version="")
+        summary = self.client.get(reverse("circl-panel", args=["summary"]))
+        for bucket, count in (
+            ("assets", "inventory_assets"),
+            ("installations", "installations"),
+            ("unknown", "unknown"),
+            ("no_contact", "no_contact"),
+            ("companies", "companies"),
+        ):
+            url = reverse("circl-coverage-records") + "?" + urlencode({"bucket": bucket})
+            self.assertContains(summary, 'href="' + url + '"')
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["page"].paginator.count, summary.context["counts"][count])
+            self.assertEqual(response.context["workspace_area"], "national")
+            self.assertNotContains(response, "Foreign source")
+            self.assertIn("no-store", response.headers["Cache-Control"])
+        for bucket in ("affected", "critical", "accepted"):
+            self.assertContains(summary, 'href="' + reverse("circl-findings") + "?bucket=" + bucket + '"')
+        self.assertEqual(
+            self.client.get(reverse("circl-coverage-records"), {"bucket": "invalid"}).status_code, 404
+        )
+        self.login(self.reader)
+        self.assertEqual(self.client.get(reverse("circl-coverage-records")).status_code, 403)
+
     def test_roles_navigation_and_global_sensitive_read_audit(self):
         for user in [self.admin, self.reader, self.editor]:
             self.login(user)

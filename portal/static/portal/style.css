@@ -2003,3 +2003,7 @@ h2.icon-heading > .ui-icon { width: 24px; height: 24px; flex-basis: 24px; color:
 .overview-diagnostics > summary { font-weight: 600; }
 .overview-diagnostics .overview-coverage { margin-top: 1rem; background: white; }
 .more-next-steps > summary { font-weight: 600; margin: 10px 0; }
+
+/* Whole-card indicator links expose their drilldown on pointer and keyboard. */
+.national-metrics a:hover, .national-metrics a:focus-visible { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand); }
+.national-metrics a .metric-action { text-decoration: underline; text-underline-offset: .18em; font-weight: 600; }

@@ -225,6 +225,58 @@ class InstallerTests(unittest.TestCase):
                 installer.configure_updates(origin)
             account.assert_not_called()
 
+    def test_install_updates_default_yes_and_explicit_choices_never_read_stdin(self):
+        for option, automation, tty, expected in (
+            (None, False, False, True),
+            (None, True, True, True),
+            (True, False, True, True),
+            (False, False, True, False),
+        ):
+            with (
+                self.subTest(option=option, automation=automation, tty=tty),
+                patch.object(installer.sys.stdin, "isatty", return_value=tty),
+                patch("builtins.input") as prompt,
+            ):
+                self.assertEqual(installer.installation_updates(option, automation), expected)
+                prompt.assert_not_called()
+
+    def test_interactive_updates_accept_enter_yes_no_and_reprompt(self):
+        for answers, expected in (
+            ([""], True),
+            (["yes"], True),
+            (["ja"], True),
+            (["n"], False),
+            (["nein"], False),
+            (["bad", "no"], False),
+        ):
+            with (
+                self.subTest(answers=answers),
+                patch.object(installer.sys.stdin, "isatty", return_value=True),
+                patch("builtins.input", side_effect=answers),
+            ):
+                self.assertEqual(installer.installation_updates(None), expected)
+        with (
+            patch.object(installer.sys.stdin, "isatty", return_value=True),
+            patch("builtins.input", side_effect=EOFError),
+            self.assertRaises(installer.InstallError),
+        ):
+            installer.installation_updates(None)
+
+    def test_unregistered_update_waits_without_download_or_registration(self):
+        config = {"schema": "bearings.client-update.v1", "enabled": True, "server": "https://example.invalid"}
+        with (
+            patch.object(installer, "recover_update", return_value=False),
+            patch.object(installer, "read_update_json", return_value=config),
+            patch.object(installer, "lookup_account", return_value=SimpleNamespace()),
+            patch.object(installer, "check_state"),
+            patch.object(installer, "enrolled", return_value=False),
+            patch.object(installer, "download") as download,
+            patch.object(installer, "update_status") as status,
+        ):
+            installer.automatic_update()
+        download.assert_not_called()
+        self.assertEqual(status.call_args.kwargs["result"], "awaiting_enrollment")
+
     def test_cli_requires_root_before_touching_system(self):
         with patch("sys.argv", ["install.py"]), patch.object(installer.os, "geteuid", return_value=1000):
             with patch.object(installer, "systemctl") as command, self.assertRaises(installer.InstallError):

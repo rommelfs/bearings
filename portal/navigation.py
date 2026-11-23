@@ -48,6 +48,7 @@ ROUTES = {
         "circl-overview",
         "circl-research",
         "circl-findings",
+        "circl-coverage-records",
         "circl-map-location",
     },
     "overview": {"overview"},

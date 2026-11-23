@@ -113,6 +113,7 @@ urlpatterns = [
     ),
     path("organizations/<slug:slug>/review/", inventory_review_views.review, name="inventory-review"),
     path("circl/", circl_views.overview, name="circl-overview"),
+    path("circl/coverage/", circl_views.coverage_records, name="circl-coverage-records"),
     path("circl/findings/", circl_views.findings, name="circl-findings"),
     path("circl/research/", circl_views.inventory_research, name="circl-research"),
     path(

@@ -222,6 +222,10 @@
       {
         "title": "Evaluate Ubuntu source status and running-kernel rules without hidden coverage gaps",
         "body": "Implemented compiler 4 support for the exact Canonical Ubuntu kernel ABI variable expression and bounded uname flavor grammar, optional host/shared/unknown client kernel scope, explicit container host separation, complete definition accounting and immutable paginated positive kernel evidence. Supplement positively matched package-presence rules with fixed-URL official Ubuntu CVE/release/source status and exact native source-version comparisons. Pending/stale/triage/conflicting/missing data remains unknown; persistent dependencies requeue changed/stale initially fixed proofs even without a Finding. Current SQL queues and receipts reject superseded hashes. Coverage gives specific reason counts and package examples; human assessments and organization/source scope remain enforced. Requires migrations 0068–0071, web/worker restart and client artifact publication for new scope reports. Public noble/focal compiler checks are feed-specific, not production host attestations; kernel technical matches remain separate from package reviews. See docs/integrations/distro-cves.md."
+      },
+      {
+        "title": "Enable default installer updates and actionable national metric drilldowns",
+        "body": "Implemented HTTPS installer default-on automatic updates with terminal Y/n choice, explicit --auto-update/--no-auto-update flags and unattended default yes without consuming secret-manager stdin. Configure unregistered hosts to wait for enrollment without downloads; activate recovery/timer only after releasing the installer lock. Existing enrollment, rollback and service-stop semantics remain preserved. National summary metrics expose eight explicit whole-card drilldowns, including scoped paginated assets/installations/unknown versions/missing response contacts and companies with outstanding reviews; existing filtered review views remain source-policy scoped. Current lists explain prepared-total timing differences. Documentation and isolated installer/UI/privacy tests cover both paths."
       }
     ]
   },

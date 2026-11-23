@@ -15,8 +15,9 @@ sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt --lx
 <pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
 python3 bearings-install.py --server '{{ origin }}' --bootstrap-stdin &lt; /run/secrets/bearings-rollout-key</pre>
 <p>Add <code>--lxc-compatible</code> for constrained LXC. Keep the key out of command arguments, logs and reusable images. Each machine generates its own device identity.</p></details>
-<h3>3. Optional: enable automatic client updates</h3>
-<p>After installation and registration, run once as an administrator. The client checks this trusted HTTPS server daily with a randomized delay of up to four hours. Unchanged releases download only checksums and do not restart reporting. Keys, profiles, pending reports and local service drop-ins are retained.</p>
+<h3>3. Automatic client updates</h3>
+<p>Automatic client updates are enabled by default. At a terminal, press Enter for yes or answer no; unattended installs enable updates without reading an extra stdin answer. Use <code>--no-auto-update</code> to opt out, or <code>--auto-update</code> to accept without prompting.</p>
+<p>For older installations without an updater, enable it once as an administrator. New HTTPS installations configure it automatically and wait for enrollment if needed. The client checks this trusted HTTPS server daily with a randomized delay of up to four hours. Unchanged releases download only checksums and do not restart reporting. Keys, profiles, pending reports and local service drop-ins are retained.</p>
 <pre>sudo python3 bearings-install.py auto-update-enable --server '{{ origin }}'</pre>
 <p>The installed updater stays local; it never downloads and executes a replacement installer. Failed replacements restore the previous client and quarantine that publication. Server operators still publish reviewed client releases explicitly.</p>
 <details><summary>Update status, immediate check and disabling</summary>
