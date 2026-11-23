@@ -20,6 +20,8 @@ from .models import InventoryCSVBatch, InventorySource, InfrastructureClaim, Ass
 from .overview_queries import overview_queries
 from .scope import normalize
 from .views import organization
+from .queue_context import with_return
+from django.urls import reverse
 
 
 class StartForm(forms.Form):
@@ -321,7 +323,7 @@ def act(request, slug, pk):
                 request,
                 "Action recorded. Remediation evidence does not automatically resolve a finding or prove a patch is installed.",
             )
-            return redirect("issue", slug=slug, pk=pk)
+            return redirect(with_return(request, reverse("issue", args=[slug, pk])))
         except (ValidationError, signing.BadSignature) as error:
             form.add_error(
                 None, error.messages if isinstance(error, ValidationError) else "Action form expired; reload"

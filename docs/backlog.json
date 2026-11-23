@@ -250,6 +250,10 @@
       {
         "title": "Replace association-count dashboards with machine proportions and scoped follow-up cases",
         "body": "Implemented mutually exclusive highest-priority machine cohorts and explicit version-match/evaluation-coverage denominators, partial/unknown coverage and exact cohort drill-down. Company cards fold raw review totals; national indicators emphasize percentages. What needs attention defaults to one machine with bounded product teasers, preserving grouped actions as an alternate view. Group software-family cases by organization, explicit source/product identity, platform, manager and evidence category; retain exact scoped record drill-down and human decisions. Add forward-only machine percentage history with gaps for legacy/missing observations and zero denominators. No opaque risk score, inferred MISP affectedness, duplicate cleanup or automatic workflow closure. Source trust/runtime/applicability and national population completeness remain explicit limits."
+      },
+      {
+        "title": "Simplify infrastructure decisions and preserve case navigation context",
+        "body": "Implemented compact machine indicators, three visible next steps, expandable technical/network/evidence details, honest review category names, explicit inventory count scopes, consistent source/task ordering, removable filter chips and preserved product/group/list context through detail/action/guided review saves. Add scoped assigned IPs in issue/guide views, conditional research fields, exact company-map review-record drill-down, explicit unknown inventory versions, loading-only placeholders without premature Retry, consistent display timestamps and responsive text/layout. Functional and browser validation uses synthetic local data; production deployment, PostgreSQL checks when the local database is available and production latency measurement remain separate. See docs/user-guide/usability-improvements.md."
       }
     ]
   },

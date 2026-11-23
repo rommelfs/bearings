@@ -1,24 +1,25 @@
-<article>
+{% load ui_time %}<article class="overview-server">
 <p class="eyebrow">{{ row.asset.organization.name }}</p>
 <h3><a href="{% url 'asset' row.asset.organization.slug row.asset.pk %}">{{ row.asset.name }} →</a></h3>
 <p>{% if row.overdue %}<a class="badge warning" href="{{ row.links.overdue }}">{{ row.overdue }} overdue actions →</a> {% endif %}{% if row.affected %}<a class="badge warning" href="{{ row.links.affected }}">{{ row.affected }} affected by analyst assessment →</a>{% elif row.reviews %}<span class="badge">Open reviews to assess or reconcile</span>{% endif %}</p>
-<p><strong>Why this server is listed:</strong> {% if row.overdue %}Recorded actions are overdue.{% elif row.affected %}An analyst has recorded affected installations.{% elif row.lifecycle %}High-priority lifecycle or exposure issues are open.{% else %}CVE–installation reviews remain open; affectedness still requires assessment or reconciliation.{% endif %}</p>
-<p>IP addresses: {% for address in row.context.addresses %}{% if address.workspace_url %}<a href="{{ address.workspace_url }}">{{ address.prefix }}</a>{% else %}{{ address.prefix }}{% endif %}{% if address.primary %} (primary){% endif %}{% if address.last_known %} <strong>(last-known assignment)</strong>{% endif %}{% if address.lifecycle and address.lifecycle != 'active' %} ({{ address.lifecycle }}){% endif %}{% if not forloop.last %}, {% endif %}{% empty %}None recorded in inventory{% endfor %} · DNS names: {% for name in row.context.dns_names %}{{ name.name }}{% if not forloop.last %}, {% endif %}{% empty %}None recorded in inventory{% endfor %}</p>{% if row.context.assigned_address_count %}<p><a href="{% url 'asset' row.asset.organization.slug row.asset.pk %}#network">{% if row.context.addresses_truncated %}Preview limited · {% endif %}All {{ row.context.assigned_address_count }} assigned IP addresses →</a></p>{% endif %}
+<details><summary>Network addresses and inventory</summary><p>IP addresses: {% for address in row.context.addresses %}{% if address.workspace_url %}<a href="{{ address.workspace_url }}">{{ address.prefix }}</a>{% else %}{{ address.prefix }}{% endif %}{% if address.primary %} (primary){% endif %}{% if address.last_known %} <strong>(last-known assignment)</strong>{% endif %}{% if address.lifecycle and address.lifecycle != 'active' %} ({{ address.lifecycle }}){% endif %}{% if not forloop.last %}, {% endif %}{% empty %}None recorded in inventory{% endfor %} · DNS names: {% for name in row.context.dns_names %}{{ name.name }}{% if not forloop.last %}, {% endif %}{% empty %}None recorded in inventory{% endfor %}</p>{% if row.context.assigned_address_count %}<p><a href="{% url 'asset' row.asset.organization.slug row.asset.pk %}#network">{% if row.context.addresses_truncated %}Preview limited · {% endif %}All {{ row.context.assigned_address_count }} assigned IP addresses →</a></p>{% endif %}
+</details>
 <p><a href="{{ row.links.reviews }}">{{ row.reviews }} open CVE–installation reviews</a>{% if row.critical %} · <a href="{{ row.links.critical }}">{{ row.critical }} with Critical source severity</a>{% endif %}{% if row.lifecycle %} · <a href="{{ row.links.lifecycle }}">{{ row.lifecycle }} high-priority lifecycle / exposure issues</a>{% endif %}</p>
-<h4>Review preview · up to 4 records</h4>
+<details class="overview-review-preview"><summary>Review evidence · {{ row.problems|length }} examples</summary><p><strong>Why this server is listed:</strong> {% if row.overdue %}Recorded actions are overdue.{% elif row.affected %}An analyst has recorded affected installations.{% elif row.lifecycle %}High-priority lifecycle or exposure issues are open.{% else %}CVE–installation reviews remain open; affectedness still requires assessment or reconciliation.{% endif %}</p>
+
 <ul class="overview-problems">{% for problem in row.problems %}<li>
 <h4><a href="{{ problem.url }}">{{ problem.title }} →</a></h4>
 {% if problem.review %}
 <p><strong>Why shown:</strong> {{ problem.review.reason }}</p>
 <p><strong>Installed software:</strong> {{ problem.review.product }} · version {{ problem.review.version }}</p>
 <p><strong>Assessment:</strong> {{ problem.review.assessment }} · <strong>Saved automatic check:</strong> {{ problem.review.automatic }}</p>
-<p class="muted">Last recorded evaluation: {{ problem.review.evaluated_at }}</p>
+<p class="muted">Last recorded evaluation: {{ problem.review.evaluated_at|display_time }}</p>
 <p><strong>Matching basis:</strong> {{ problem.review.basis }} · <strong>Advisory source:</strong> {{ problem.review.source }} · <strong>Source severity:</strong> {{ problem.review.severity }}</p>
 {% else %}<p>{{ problem.kind }} · Recorded operational issue</p>{% endif %}
 {% if problem.due %}<p><strong>Action due:</strong> {{ problem.due }}</p>{% endif %}
 {% if problem.next_action %}<p><strong>Next step:</strong> <a href="{{ problem.review_url|default:problem.url }}">{{ problem.next_action }}</a></p>{% endif %}
 {% if problem.scenario %}<details><summary>Optional risk scenario · draft</summary><p>A hypothesis for risk assessment after checking the evidence and local conditions. Exploitation and business impact have not been established.</p><p><a href="{{ problem.scenario_url }}">{{ problem.scenario.title }} →</a></p></details>{% endif %}
-</li>{% endfor %}</ul>
+</li>{% endfor %}</ul></details>
 <p><a class="button" href="{{ row.links.all }}">All actions and reviews for this server →</a></p>
 <p>{% if row.asset.responsible_contact %}<a href="mailto:{{ row.asset.responsible_contact.email }}">{{ row.asset.responsible_contact.name }}</a>{% else %}Contact not assigned{% endif %} · {{ row.asset.responsible_team|default:'Team not assigned' }}</p>
 <a class="button" href="{% url 'asset' row.asset.organization.slug row.asset.pk %}">Open server & software →</a>

@@ -306,7 +306,7 @@ def decorate(states):
                 }
             )
         state["coverage_notes"] = list(grouped_notes.values())
-        state["next_steps"] = steps[:5]
-        state["other_next_steps"] = steps[5:]
+        state["next_steps"] = steps[:3]
+        state["other_next_steps"] = steps[3:]
         state["next_step_count"] = len(steps)
         state["device_examples_shown"] = len(devices)

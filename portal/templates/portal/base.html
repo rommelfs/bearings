@@ -1,6 +1,6 @@
 {% load static ui_icons %}<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}{% if org %}{{ org.name }} · {% endif %}{{ workspace_label|default:'CIRCL' }} · Bearings{% endblock %}</title><link rel="icon" type="image/png" href="{% static 'portal/brand/bearings-favicon.png' %}"><link rel="stylesheet" href="{% static 'portal/style.css' %}?v=circl-20261123-evaluation-state-1"></head>
+<title>{% block title %}{% if org %}{{ org.name }} · {% endif %}{{ workspace_label|default:'CIRCL' }} · Bearings{% endblock %}</title><link rel="icon" type="image/png" href="{% static 'portal/brand/bearings-favicon.png' %}"><link rel="stylesheet" href="{% static 'portal/style.css' %}?v=circl-20261123-usability-1"></head>
 <body class="{% if user.is_authenticated %}workspace{% else %}public-page{% endif %} area-{{ workspace_area|default:'review' }} {% if rtir_operator %}operator-workspace{% endif %} {% block bodyclass %}{% endblock %}">
 <a class="skip-link" href="#main-content">Skip to content</a>
 <header class="app-header"><a class="brand" href="{{ workspace_home_url|default:'/' }}"><img class="brand-mark" src="{% static 'portal/brand/bearings-mark.webp' %}" width="44" height="44" alt=""><span class="brand-word">BEARINGS <span class="brand-caption">CIRCL · Infrastructure & intelligence</span></span></a>
@@ -9,7 +9,7 @@
 <details class="mobile-menu"><summary>{% ui_icon "menu" %}Workspace menu <span>{{ workspace_label }}</span></summary><nav aria-label="Mobile workspace">{% include 'portal/navigation.html' %}</nav></details>{% endif %}
 <main id="main-content" tabindex="-1">
 <div class="workspace-meta">{% if user.is_authenticated %}<p class="workspace-location">{% ui_icon workspace_area %}<a href="{{ workspace_url }}">{{ workspace_label }}</a>{% if org %}<span class="breadcrumb-divider">/</span><a href="{% url 'organization' org.slug %}">{{ org.name }}</a>{% endif %}</p>{% endif %}
-<p class="environment-label">{% if development_environment %}Development · outgoing alerts disabled{% elif notification_transport == 'smtp' %}Reviewed outreach · SMTP enabled{% else %}Reviewed outreach · local outbox{% endif %}</p></div>
+<p class="environment-label">{% if development_environment %}Development · outgoing alerts disabled{% elif notification_transport == 'smtp' %}Reviewed outreach · SMTP enabled{% else %}Notifications · local delivery{% endif %}</p></div>
 {% if synthetic_showcase_active %}<aside class="synthetic-banner"><span><strong>Synthetic exploration data</strong> · Fictional assets, evidence and risks.</span><div><a href="{% url 'demo-explore' %}">Explore scenarios →</a>{% if user.is_authenticated and user.is_superuser %}<a href="{% url 'demo-data' %}">Manage demo data</a>{% endif %}</div></aside>{% endif %}
 {% if user.is_authenticated and workflow_stage %}{% include 'portal/workflow.html' %}{% endif %}
 {% for message in messages %}<aside class="message message-{{ message.tags }}" role="status">{{ message }}</aside>{% endfor %}
