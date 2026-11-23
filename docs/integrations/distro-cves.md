@@ -316,3 +316,18 @@ Deployment: collectstatic and restart bearings-web and bearings-worker. No new
 migration, client update or client artifact publication is required. Reload an
 already open page once to load the updated UI; later assessment refreshes occur
 in place. Other overview counters remain labelled page snapshots.
+
+
+## Compact currentness projection
+
+Migration 0072 adds the stored, database-generated `DistroMatch.queue_proof` for
+interactive queue/overview reads. It selects only the current input contract's
+keys from `snapshot`, preserves JSON values/nulls, and updates automatically even
+when a bulk/raw snapshot write bypasses model hooks. Full snapshots and evidence
+revisions are retained unchanged; temporal/source/input/Ubuntu freshness is still
+checked at read time. PostgreSQL uses immutable JSONB/text operations so the
+runtime role needs no extension, custom SQL function or superuser permission.
+SQLite uses deterministic built-in JSON expressions and normalizes expression
+operands for JSON text comparison. The V1 expression is migration-owned and must
+stay stable; a changed contract requires a new version/migration. Apply migrations
+before restarting web/worker; no client artifact change is involved.

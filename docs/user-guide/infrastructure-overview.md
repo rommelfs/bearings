@@ -380,3 +380,35 @@ For this update, deploy the reviewed commit and restart `bearings-web` and
 `bearings-worker`. No schema migration, collectstatic or client update is needed.
 A successful complete import clears the source's retained import error; RHEL 10
 continues to display missing automatic coverage until CSAF/VEX support exists.
+
+
+### Stored queue facts for large retained proofs
+
+Large immutable evidence documents previously made repeated JSON field extraction
+expensive even after aggregate reuse. Migration **0072** adds `queue_proof`, a
+stored database-generated selection of the existing snapshot's currentness,
+verdict and Ubuntu evidence keys. Queue counts and preview selection read these
+compact facts; the full snapshot remains the authoritative retained evidence.
+The projection preserves JSON types/nulls and is recalculated by the database on
+snapshot inserts/updates, including bulk/raw updates. It is not a periodically
+refreshed cache. Current component/source/platform/version/sequence, vendor-rule,
+Ubuntu status, expiry and visibility checks still apply on every request.
+
+A 10,000-row PostgreSQL fixture with roughly 29 KB of additional synthetic
+retained context per proof takes **9.68 s before / 0.99 s after** this change.
+The prior smaller-proof fixture did not cover that cost. These timings are local
+synthetic measurements, not an assurance of a sub-second production request.
+
+For this revision, **run migrations before restarting the web and worker**:
+
+```sh
+./deploy/ubuntu24/manage.py migrate --noinput </dev/null
+systemctl restart bearings-web bearings-worker
+```
+
+The additive stored-column migration computes existing rows once and can briefly
+lock the match table. It leaves full snapshots, immutable history and human
+assessments intact. No static collection or client upgrade is required. A dry-run
+source import deliberately rolls back success/error changes; request a real
+**Refresh inventory** to retain a successful complete import and clear its old
+error. Queue optimization and NetBox source import are independent operations.

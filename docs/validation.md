@@ -2235,3 +2235,41 @@ Ruff and whitespace checks passed. No new migration, dependency, client artifact
 or static asset change is required. Deploy the reviewed commit and restart the
 web and worker processes; then request a complete inventory refresh. Production
 latency and import recovery still require verification after that update.
+
+
+## Large-proof infrastructure follow-up (2026-11-23)
+
+The earlier 10,000-row fixture understated retained proof size. Adding roughly
+29 KB of synthetic context per snapshot reproduces a **9.683 s** full overview,
+with 9.396 s in DB executes and a 4.428 s slowest query. Migration 0072 adds a
+stored generated queue-proof column; the same request becomes **0.991 s**, DB
+0.734 s, slowest 0.346 s, with the same 31 executes and exact 10,000 review totals.
+A separate company-counter call takes 6.062 s before / 0.944 s after. Padding is
+explicitly synthetic, not a captured operational advisory. These numbers do not
+establish production page-load time.
+
+160 PostgreSQL regressions passed across currentness,
+queue cohorts, overview counts/previews and package/vendor results. A follow-up
+SQLite run passed 72 tests with the PostgreSQL-only upgrade test skipped; booleans
+remain booleans rather than becoming integer version text. A separate
+PostgreSQL migration acceptance drops/re-adds only the generated column around
+existing retained proof, preserving snapshots, history counts and human workflow.
+Raw snapshot and bulk updates immediately invalidate/restore the queue; a direct
+write to the generated column is rejected. JSON null package metadata is retained.
+SQLite JSON expression operands are normalized to avoid whitespace-only object
+comparison failures in the one-worker fallback.
+
+An isolated PostgreSQL 16 production-profile smoke applied the migration with a
+non-superuser peer-authenticated application role and passed Gunicorn login,
+verified-loopback Nginx TLS/static, signed client enrollment and worker checks.
+The real bundled smoke also passed oversized native NetBox page recovery, source
+projection, RO/RW policies and service integrations. No production writes, real
+notification delivery or scans were performed. Frozen sync, Django checks,
+migration drift, Ruff and whitespace checks passed.
+
+Deployment now requires migration 0072 before web/worker restart. No static or
+client release is needed. The generated expression is versioned/stable for future
+migration replay. Successful source-import diagnostics that were explicitly rolled
+back do not clear operational import warnings; a separate actual complete import
+must commit. The production view's supplied phase timings motivate the fix but
+its post-upgrade latency remains unverified here.

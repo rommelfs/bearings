@@ -3,6 +3,7 @@
 import copy
 import json
 import uuid
+from unittest import skipUnless
 from pathlib import Path
 from datetime import timedelta
 from django.utils import timezone
@@ -82,6 +83,82 @@ class QueueTests(DistroTests):
         DistroFeed.objects.filter(pk=feed.pk).update(last_success=timezone.now() - timedelta(hours=13))
         self.assertEqual(self.bucket(), "pending")
         self.assertTrue(DistroMatch.objects.get(pk=match.pk).inputs_changed)
+
+    def test_generated_queue_facts_preserve_evidence_and_follow_raw_snapshot_updates(self):
+        from django.db import DatabaseError, transaction
+
+        self.prepare()
+        match = DistroMatch.objects.get()
+        snapshot = copy.deepcopy(match.snapshot)
+        snapshot["synthetic_retained_evidence"] = "Synthetic evidence context. " * 2000
+        snapshot["package"]["synthetic_optional_null"] = None
+        match.component.package_identity = snapshot["package"]
+        match.component.save(update_fields=["package_identity"])
+        DistroMatch.objects.filter(pk=match.pk).update(snapshot=snapshot)
+        match.refresh_from_db()
+        self.assertEqual(match.snapshot, snapshot)
+        self.assertEqual(match.queue_proof["package"], snapshot["package"])
+        self.assertLess(len(json.dumps(match.queue_proof)), len(json.dumps(snapshot)) // 5)
+        self.assertFalse(match.inputs_changed)
+        self.assertEqual(self.bucket(), "action")
+        # QuerySet.update bypasses application save hooks. The stored expression
+        # must still invalidate the queue immediately, with no refresh worker.
+        changed = {**snapshot, "version": "synthetic changed version"}
+        DistroMatch.objects.filter(pk=match.pk).update(snapshot=changed)
+        match.refresh_from_db()
+        self.assertEqual(match.queue_proof["version"], changed["version"])
+        self.assertTrue(match.inputs_changed)
+        self.assertEqual(self.bucket(), "pending")
+        match.snapshot = snapshot
+        DistroMatch.objects.bulk_update([match], ["snapshot"])
+        self.assertEqual(self.bucket(), "action")
+        # Neither a stale application cache nor a caller can assign the derived
+        # column independently of the authoritative retained snapshot.
+        with self.assertRaises(DatabaseError), transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE portal_distromatch SET queue_proof = %s WHERE id = %s", ["{}", match.pk]
+                )
+
+    @skipUnless(connection.vendor == "postgresql", "Stored-column upgrade acceptance uses PostgreSQL")
+    def test_migration_projects_existing_evidence_without_republishing_it(self):
+        from django.db.migrations.executor import MigrationExecutor
+        from .models import DistroMatchRevision
+
+        finding = self.prepare()
+        match = DistroMatch.objects.get()
+        snapshot, revisions = match.snapshot, DistroMatchRevision.objects.count()
+        original_status = finding.status
+        # TestCase holds fixture inserts in a transaction; resolve their deferred
+        # FK events before DDL, as a real upgrade starts after committed writes.
+        with connection.cursor() as cursor:
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+        executor = MigrationExecutor(connection)
+        try:
+            executor.migrate([("portal", "0071_ubuntu_status_queue_index")])
+        finally:
+            MigrationExecutor(connection).migrate([("portal", "0072_generated_distribution_queue_proof")])
+            with connection.cursor() as cursor:
+                cursor.execute("SET CONSTRAINTS ALL DEFERRED")
+        match.refresh_from_db()
+        finding.refresh_from_db()
+        self.assertEqual(match.snapshot, snapshot)
+        self.assertEqual(match.queue_proof["version"], snapshot["version"])
+        self.assertEqual(DistroMatchRevision.objects.count(), revisions)
+        self.assertEqual(finding.status, original_status)
+        self.assertEqual(self.bucket(), "action")
+
+    def test_projection_preserves_boolean_type_instead_of_matching_numeric_version_text(self):
+        self.prepare()
+        match = DistroMatch.objects.get()
+        match.component.version = "1"
+        match.component.save(update_fields=["version"])
+        snapshot = {**match.snapshot, "version": True}
+        DistroMatch.objects.filter(pk=match.pk).update(snapshot=snapshot)
+        match.refresh_from_db()
+        self.assertIs(match.queue_proof["version"], True)
+        self.assertTrue(match.inputs_changed)
+        self.assertEqual(self.bucket(), "pending")
 
     def test_stale_disabled_missing_and_expired_inputs_cannot_be_actionable_proof(self):
         self.prepare()

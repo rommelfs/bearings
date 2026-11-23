@@ -705,3 +705,16 @@ not an indefinitely queued refresh or a safe result. The worker no longer polls
 the nonexistent feed and corrects old pending receipts. A complete CSAF/VEX
 adapter with exact RPM platform/version/status evidence remains necessary;
 this correction does not implement it. See [distribution CVE coverage](integrations/distro-cves.md).
+
+
+## Large retained-proof queue projection
+
+The initial smaller-proof benchmark missed expensive repeated JSONB extraction.
+A 10,000-row fixture with ~29 KB of synthetic retained context per proof regresses
+to 9.68 s despite request-local aggregate reuse. Implemented migration 0072 and a
+stored, database-generated compact selection of queue facts: the same full local
+request now takes 0.99 s. Updates/bulk writes recalculate it automatically; fresh
+input/source/Ubuntu/visibility checks remain live and full evidence/history is
+retained. Existing-row migration and raw-update invalidation are tested, including
+native PostgreSQL 16 with an unprivileged runtime role. Apply migrations and restart
+web/worker. Production latency still requires a post-update measurement.

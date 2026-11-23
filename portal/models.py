@@ -5,6 +5,7 @@ from django.db import models
 from django.db.models import Q, F
 from django.db.models.functions import Coalesce, Upper
 from django.utils import timezone
+from .distro_projection import DistroQueueProofV1
 
 
 class Organization(models.Model):
@@ -2367,6 +2368,9 @@ class DistroMatch(models.Model):
     evidence_revision = models.ForeignKey(SourceRecordRevision, on_delete=models.PROTECT)
     input_hash = models.CharField(max_length=64)
     snapshot = models.JSONField(default=dict)
+    queue_proof = models.GeneratedField(
+        expression=DistroQueueProofV1("snapshot"), output_field=models.JSONField(), db_persist=True
+    )
     evaluated_at = models.DateTimeField(default=timezone.now)
     review_required = models.BooleanField(default=True)
 

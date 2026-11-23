@@ -73,14 +73,14 @@ class OverviewEvidence:
                 "package_current",
                 "analyst_applicability",
                 "record__source_severity",
-                "distro_match__snapshot__package_check__verdict",
+                "distro_match__queue_proof__verdict",
             )
             .annotate(total=Count("pk"))
         )
         for row in bins:
             counts = companies.setdefault(row["organization_id"], _review_counts())
             total = row["total"]
-            if row["package_current"] and row["distro_match__snapshot__package_check__verdict"] == "affected":
+            if row["package_current"] and row["distro_match__queue_proof__verdict"] == "affected":
                 counts["automatic_affected"] += total
             if row["queue_bucket"] == "cleared":
                 counts["review_cleared"] += total
