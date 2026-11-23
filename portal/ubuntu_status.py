@@ -377,4 +377,6 @@ def progress(device_ids):
             value = row[key]
             if value and (not item.get(key) or value > item[key]):
                 item[key] = value
+    for device_id, item in result.items():
+        item["device_id"] = str(device_id)
     return result

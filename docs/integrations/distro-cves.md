@@ -219,3 +219,34 @@ Timeout, HTTPS transport, malformed JSON, schema/identity, response-size, DNS an
 egress failures use fixed categories; raw transport exception text stays private.
 These changes require web/worker restart, but no new migration or client update.
 An upstream response that remains unavailable stays unknown and retries normally.
+
+## Automatic in-place lookup progress
+
+Ubuntu lookup widgets on client detail and infrastructure overview now poll the
+stored cache counters every ten seconds. Only widget counters, progress value,
+timestamps and safe error-list entries update: the page, form inputs, scrolling
+context and open disclosure elements are retained. The native progress element
+means **current lookup data / requested unique CVEs**, never percentage secure,
+patched or fully evaluated. A zero-request client waits for its first evaluation;
+failed/pending responses do not contribute to the bar. Counts can decrease when
+data expires or new CVEs enter the scope.
+
+Each widget offers pause and Refresh now. Hidden tabs and offline browsers stop
+requesting updates; unsuccessful/invalid/unauthorized responses retain the last
+retrieved counters with a visible warning and retry backoff up to sixty seconds.
+Requests time out after eight seconds and never overlap. JavaScript-disabled
+browsers keep the server-rendered values and an explicit reload instruction.
+The overview's refresh switch controls lookup polling while these widgets are
+present; full-page auto reload is suppressed. Other dated overview and package
+evaluation totals require a page reload after reevaluation.
+
+The authenticated GET endpoint accepts at most 36 device IDs per batch. Every
+poll rechecks current visible organizations and matching asset/source ownership,
+rejecting the whole batch if one device is unavailable. Reads are audited for
+operators, query-budgeted and private/no-store. Only stored numeric aggregates,
+timestamps and safe error categories are returned. Polling performs no upstream
+requests, client commands, inventory writes or CVE evaluations. A revoked session
+or scope does not reveal another company's counters.
+
+Deploy collectstatic and restart bearings-web. No migration, worker restart,
+client update or client artifact publication is required for this UI change.

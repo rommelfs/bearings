@@ -18,6 +18,7 @@ from http_message_signatures.exceptions import HTTPMessageSignaturesException
 from . import agents, agent_enrollment_codes, distro_cves
 from .agent_protocol import MAX_BYTES, verify, decode, public_key, identifier
 from .access import organizations_for, require, can_operator_review, audit_operator_access
+from .overview_queries import bounded_list
 from .models import AgentDevice, AgentEnrollment, AgentComponent, AgentReport, Asset, Installation, AgentFleet
 
 
@@ -444,3 +445,54 @@ def kernel_evidence(request, slug, pk):
             {"org": org, "device": device, "coverage": coverage, "kernel": kernel, "page": page},
         )
     )
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET"])
+@bounded_list
+def lookup_progress(request):
+    """Read stored scoped counters only; polling never starts upstream work."""
+    from django.db.models import F
+    from .ubuntu_status import progress
+
+    raw = request.GET.getlist("device")
+    if not raw or len(raw) > 36:
+        return private(JsonResponse({"error": "Request 1–36 devices"}, status=400))
+    try:
+        ids = {uuid.UUID(value) for value in raw if len(value) <= 36}
+        if len(ids) != len(set(raw)):
+            raise ValueError
+    except (ValueError, TypeError, AttributeError):
+        return private(JsonResponse({"error": "Invalid device selection"}, status=400))
+    try:
+        devices = list(
+            AgentDevice.objects.filter(
+                pk__in=ids,
+                organization__in=organizations_for(request.user),
+                asset__organization_id=F("organization_id"),
+                source__organization_id=F("organization_id"),
+                asset__source_id=F("source_id"),
+            )
+            .select_related("organization")
+            .only("id", "organization__id")
+        )
+        if len(devices) != len(ids):
+            return private(JsonResponse({"error": "Device selection unavailable"}, status=404))
+        for org in {d.organization_id: d.organization for d in devices}.values():
+            audit_operator_access(request.user, org)
+        rows = progress(ids)
+        empty = {"total": 0, "fresh": 0, "pending": 0, "failed": 0, "refresh_errors": 0, "errors": []}
+        return private(
+            JsonResponse(
+                {
+                    "schema": "bearings.lookup-progress.v1",
+                    "observed_at": timezone.now(),
+                    "devices": {str(d.pk): rows.get(d.pk, empty) for d in devices},
+                }
+            )
+        )
+    except OperationalError:
+        response = private(JsonResponse({"error": "Progress temporarily unavailable"}, status=503))
+        response["Retry-After"] = "30"
+        return response

@@ -2124,3 +2124,30 @@ page overflow or script errors. All browser requests are intercepted locally.
 Deployment requires web/worker restart; no new migration or client update is
 needed for this cache correction. Installer defaults and indicator links in the
 preceding commit also require republished client artifacts and collectstatic.
+
+## In-place Ubuntu lookup counters and progress — 2026-11-23
+
+Forty-six focused PostgreSQL Ubuntu, coverage, overview/query-budget and national
+UI tests pass. A subsequent sixteen-test Ubuntu run includes the final empty
+lookup widget assertion. Poll tests verify session authentication, GET-only
+behavior, 36-ID bound, malformed IDs, mixed foreign batches rejected without
+counters, current operator-policy revocation, invalid source binding, empty
+results, no-store responses and no upstream request or CVE evaluation. Device
+fields are narrowly loaded; queries retain bounded-list budgets and operator read
+auditing. No migration or new dependency is introduced.
+
+Chromium at 390px and 1440px exercises actual response CSP on client detail and
+overview with locally intercepted synthetic responses and an advanced browser
+clock. It verifies automatic numeric/native-progress updates, 75%/100% values,
+unchanged widget identity/form draft/focus/open disclosure, pause/manual refresh,
+hidden-tab/offline suppression, resumed polling, failure backoff, retained values
+on HTTP503 and invalid counter partitions, and no page navigation over multiple
+refresh periods. Hostile error text is rendered as text rather than HTML. No
+horizontal page overflow or script errors occurred in the four combinations.
+
+Frozen dependencies, Ruff/format, whitespace, Django system checks and migration
+drift pass. No production deployment or upstream status request was performed by
+polling tests. Deploy collectstatic and restart bearings-web; no worker restart,
+client update or artifact publication is needed. The progress bar measures
+current data availability only. Other dated evaluation totals remain snapshots
+until page reload, as stated in the UI.

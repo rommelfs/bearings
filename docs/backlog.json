@@ -230,6 +230,10 @@
       {
         "title": "Handle slow official Ubuntu status responses and expose live lookup progress",
         "body": "Implemented a leased 16-item Ubuntu status batch with at most four concurrent requests, a shared 45-second deadline and up to 40-second read allowance. Completion-order publication and continued pool scheduling prevent a slow first response from starving remaining batch work; unstarted requests retain their queue position without fake failure timestamps. Fixed timeout/transport/JSON/schema/size categories preserve old evidence and never expose raw connector exceptions. Scoped live per-client progress distinguishes unique current, pending/stale and failed lookups from recorded package/definition/CVE associations. Fresh changed status requeues after two-minute batching; stale evidence invalidates once without a repeated evaluation loop during outages. Explicit unknowns, vendor triage and container kernel limits remain. Tests cover concurrency, budgets, privacy, queue position, partitioned counters and secret suppression."
+      },
+      {
+        "title": "Refresh Ubuntu lookup counters in place with accessible progress and polling",
+        "body": "Implemented authenticated GET-only batched stored-counter polling for up to 36 devices, current organization/source authorization per poll, no-store responses and bounded DB work. Client detail and overview update numeric counters, native progress bar, timestamps and safe error details in place every ten seconds; no page reload, form loss or collapsed-details reset. Pause/manual refresh, hidden-tab/offline suppression, timeout, bounded retry and retained values on failure remain explicit. Unknown and failed lookups never become successful data. Initial zero-request Ubuntu clients can acquire progress without reloading. Overview global refresh controls lookup polling while other totals remain dated snapshots. Requires collectstatic and web restart; no migration, worker/client update or artifact republication."
       }
     ]
   },

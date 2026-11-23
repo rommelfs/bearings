@@ -591,6 +591,16 @@ def coverage(device):
 
     summary = dict(device.distro_summary)
     summary["ubuntu_lookup_progress"] = progress([device.pk]).get(device.pk)
+    if not summary["ubuntu_lookup_progress"] and device.os.get("id") == "ubuntu" and agents.current(device):
+        summary["ubuntu_lookup_progress"] = {
+            "device_id": str(device.pk),
+            "total": 0,
+            "fresh": 0,
+            "pending": 0,
+            "failed": 0,
+            "refresh_errors": 0,
+            "errors": [],
+        }
     feed = None
     summary.setdefault("state", "pending")
     key = distro_sources.key_for(device.os)

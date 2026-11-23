@@ -292,7 +292,8 @@ class UbuntuStatusTests(Fixture):
 
         response = self.client.get(reverse("agent-center", args=[self.a.slug]), {"device": self.device.pk})
         self.assertContains(response, "Ubuntu status lookup progress")
-        self.assertContains(response, "1 / 1 unique CVE lookups current")
+        self.assertContains(response, 'data-count="fresh">1</span>')
+        self.assertContains(response, "unique CVE lookups current")
         cache = UbuntuCVEStatus.objects.get(pk=CVE)
         cache.error = "Ubuntu status refresh failed (HTTPS timeout); previous evidence retained"
         cache.save()
@@ -309,6 +310,66 @@ class UbuntuStatusTests(Fixture):
         self.device.source = self.sb
         self.device.save(update_fields=["source"])
         self.assertFalse(ubuntu_status.progress([self.device.pk]))
+
+    def test_poll_endpoint_is_scoped_read_only_bounded_and_does_not_fetch_or_evaluate(self):
+        from django.urls import reverse
+        from .models import AgentDevice, Asset
+
+        self.cached()
+        self.prepare()
+        self.login(self.reader)
+        url = reverse("agent-lookup-progress")
+        with (
+            patch("portal.ubuntu_status.request_json") as fetch,
+            patch("portal.distro_cves.evaluate_device") as evaluate,
+        ):
+            response = self.client.get(url, {"device": [str(self.device.pk)]})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["schema"], "bearings.lookup-progress.v1")
+            self.assertEqual(response.json()["devices"][str(self.device.pk)]["fresh"], 1)
+            self.assertNotContains(response, CVE)
+            self.assertIn("no-store", response.headers["Cache-Control"])
+            self.assertEqual(self.client.post(url, {}).status_code, 405)
+            self.assertEqual(self.client.get(url).status_code, 400)
+            self.assertEqual(self.client.get(url, {"device": "bad"}).status_code, 400)
+            self.assertEqual(self.client.get(url, {"device": [str(self.device.pk)] * 37}).status_code, 400)
+            foreign_asset = Asset.objects.create(
+                organization=self.b, source=self.sb, name="private-poll-asset"
+            )
+            foreign = AgentDevice.objects.create(
+                organization=self.b,
+                source=self.sb,
+                asset=foreign_asset,
+                public_key="private-poll-key",
+                expires_at=timezone.now() + timedelta(days=1),
+            )
+            denied = self.client.get(url, {"device": [str(self.device.pk), str(foreign.pk)]})
+            self.assertEqual(denied.status_code, 404)
+            self.assertNotIn("devices", denied.json())
+            fetch.assert_not_called()
+            evaluate.assert_not_called()
+        UbuntuStatusUse.objects.filter(device=self.device).delete()
+        empty = self.client.get(url, {"device": self.device.pk}).json()["devices"][str(self.device.pk)]
+        self.assertEqual((empty["total"], empty["fresh"], empty["pending"], empty["failed"]), (0, 0, 0, 0))
+        initial = self.client.get(reverse("agent-center", args=[self.a.slug]), {"device": self.device.pk})
+        self.assertContains(initial, "data-ubuntu-progress")
+        self.assertContains(initial, "No CVE lookups requested by the last evaluation yet.")
+        self.device.source = self.sb
+        self.device.save(update_fields=["source"])
+        self.assertEqual(self.client.get(url, {"device": self.device.pk}).status_code, 404)
+        self.client.logout()
+        self.assertEqual(self.client.get(url, {"device": self.device.pk}).status_code, 302)
+
+    def test_poll_rechecks_operator_visibility_after_page_load(self):
+        from django.urls import reverse
+
+        self.prepare()
+        self.login(self.analyst)
+        url = reverse("agent-lookup-progress")
+        self.assertEqual(self.client.get(url, {"device": self.device.pk}).status_code, 200)
+        self.a.operator_visibility = False
+        self.a.save(update_fields=["operator_visibility"])
+        self.assertEqual(self.client.get(url, {"device": self.device.pk}).status_code, 404)
 
     @override_settings(UBUNTU_STATUS_FETCH_ENABLED=True)
     def test_stale_status_invalidates_once_and_new_fresh_data_requeues_after_two_minutes(self):

@@ -669,3 +669,9 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   counters separate current/pending/failed unique CVE lookups from recorded
   associations. Safe failure categories and two-minute fresh-status reevaluation
   replace opaque errors and delayed progress; unavailable data stays unknown.
+
+- Implemented in-place ten-second Ubuntu lookup polling with an accessible native
+  progress bar, live counters/timestamps/errors, pause/manual refresh and retained
+  values/backoff on failure. Batch reads recheck current organization/source
+  access, never fetch upstream data or start evaluation, and preserve forms and
+  disclosure state. See [package checks](integrations/distro-cves.md).
