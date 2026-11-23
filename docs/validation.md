@@ -2003,3 +2003,57 @@ Frozen dependency sync, Ruff, whitespace checks, Django checks and migration
 drift pass. Deploy reviewed checkout and restart bearings-web only. No migration,
 static build, worker/client update or artifact republication is needed. Production
 presentation and actual recorded limitation types remain operator acceptance.
+
+## Ubuntu source status and running-kernel coverage — 2026-11-23
+
+PostgreSQL: 196 targeted tests pass across distro publication/errors, package
+receipts/verdicts, coverage, overview next steps, exact Ubuntu status, kernel
+scope/evidence, review queues, agent protocol/inventory and the actual Go client
+against verified loopback HTTPS (including concurrent duplicate and lost-ack
+paths). After extending receipt dependencies to all contributing Ubuntu status
+proofs, 23 further Ubuntu-status/package-receipt/overview-query tests pass,
+including the two-definition/same-CVE aggregation regression. Failed, stale,
+triage, contradictory and missing metadata cases stay unknown. The fixed-source
+case without a Finding is requeued when its public status changes. Saved human
+assessment/workflow is preserved.
+
+Current Go race tests pass. Both Linux reference architectures build; the local
+native inventory collector produces a complete 1,437-package report and detects
+shared kernel scope in this test container. No operational host was enrolled.
+Kernel fixture checks cover the exact Canonical expression, ABI boundary,
+unsupported expression/pattern, unknown/custom builds, legacy protocol, explicit
+LXC override, immutable positive evidence, authorized paginated reader route and
+cross-organization refusal. A host without bound software still exposes a kernel
+review recommendation.
+
+Actual public-source checks, without database publication or operational data:
+compiler 4 indexed all 37,611 definitions of the retained noble OVAL download and
+25,983 of the freshly fetched focal download, zero unindexed. Normalized output
+was 198,886,215 and 122,640,207 bytes respectively. The focal compressed source
+SHA-256 was `8362e71fac8a04b83e0800d43ffe9193b1a46463ea26f55b720b62e53f260f0f`.
+This proves support/indexing for these downloads, not complete affectedness of a
+host. Fixed official JSON endpoint/schema checks confirm noble python-pip
+CVE-2025-66471 released in esm-apps at `24.0+dfsg-1ubuntu1.3+esm3` and
+CVE-2026-97688 still needs-triage without a fixed version. Current vendor status
+can subsequently change.
+
+Chromium at 390px and 1440px with actual response CSP passes eight local rendered
+page checks: running-kernel evidence, client coverage, overview and supplementary
+Ubuntu package evidence. One supplementary section/link is rendered, positive
+kernel comparisons are visible, and no horizontal page overflow or script errors
+occur. All browser requests are intercepted; data is synthetic.
+
+Frozen dependency synchronization, Ruff checks/format, whitespace, Django system
+checks and migration drift checks pass. Migrations0068–0071 introduce the shared
+public cache, protected proof references, retained kernel revisions, persistent
+status-use dependencies and refresh index. Deploy these before restarting web
+and worker or publishing the updated client. Old clients retain explicit unknown
+scope; container metadata still forces shared scope. Production cache filling,
+egress approval and host-specific evidence remain deployment acceptance.
+
+The retained bundled stack was updated idempotently with migrations and runtime
+restarts; its complete live smoke passed: real NetBox dual-stack assignments,
+GET-only import/update/missing-object retention, local assessment preservation,
+scoped RO/RW denial and lost-ack recovery, plus existing FlowIntel, RT, RTIR and
+human queue access checks. Only isolated synthetic lab services were written;
+no production delivery or external remediation occurred.

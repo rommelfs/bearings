@@ -120,8 +120,12 @@ def decode(raw):
         raise ValueError("JSON nesting exceeds the reference profile") from exc
 
 
-def exact(value, fields):
-    if not isinstance(value, dict) or set(value) != set(fields):
+def exact(value, fields, optional=()):
+    if (
+        not isinstance(value, dict)
+        or not set(fields) <= set(value)
+        or set(value) - set(fields) - set(optional)
+    ):
         raise ValueError("Unexpected fields")
 
 
@@ -174,7 +178,11 @@ def report_data(data):
         raise ValueError("Invalid coverage")
     if data["scope"] in ("selected-packages", "configured-binaries") and data["complete"]:
         raise ValueError("Selected packages cannot assert completeness")
-    exact(data["os"], ("id", "version", "architecture", "kernel", "reboot_hint"))
+    exact(data["os"], ("id", "version", "architecture", "kernel", "reboot_hint"), ("kernel_scope",))
+    if not isinstance(data["os"].get("kernel_scope", "unknown"), str) or data["os"].get(
+        "kernel_scope", "unknown"
+    ) not in {"host", "shared", "unknown"}:
+        raise ValueError("Invalid kernel scope")
     for field in ("id", "version", "architecture", "kernel"):
         text(data["os"][field], 120)
     if data["os"]["reboot_hint"] not in ("present", "not_observed", "unknown"):

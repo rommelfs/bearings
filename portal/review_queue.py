@@ -40,6 +40,8 @@ def classified(reviews):
             saved_feed=KT("snapshot__feed"),
             saved_rule=KT("snapshot__rule_sha256"),
             saved_sequence=Cast(KT("snapshot__inventory_sequence"), CharField()),
+            saved_ubuntu_hash=KT("snapshot__package_check__ubuntu_status__sha256"),
+            saved_ubuntu_cve=KT("snapshot__package_check__ubuntu_status__cve"),
         )
         .filter(
             finding_id=OuterRef("pk"),
@@ -59,6 +61,8 @@ def classified(reviews):
             component__observed_at__gte=timezone.now() - timedelta(hours=12),
             component__missing_since__isnull=True,
             component__device__enabled=True,
+            component__device__distro_requested=False,
+            component__device__last_sequence=F("component__device__applied_sequence"),
             component__device__expires_at__gt=timezone.now(),
             advisory__feed__enabled=True,
             advisory__feed__generation__isnull=False,
@@ -66,6 +70,15 @@ def classified(reviews):
             advisory__feed__last_success__gte=timezone.now() - timedelta(hours=12),
         )
         .filter(feed_keys)
+        .exclude(component__device__distro_summary__state__in=["error", "pending", "stale", "unsupported"])
+        .filter(
+            Q(snapshot__package_check__ubuntu_status__isnull=True)
+            | Q(
+                ubuntu_status_id=F("saved_ubuntu_cve"),
+                ubuntu_status__content_hash=F("saved_ubuntu_hash"),
+                ubuntu_status__last_success__gte=timezone.now() - timedelta(hours=12),
+            )
+        )
     )
     return reviews.annotate(package_current=Exists(current)).annotate(
         queue_bucket=Case(

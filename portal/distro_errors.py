@@ -4,6 +4,21 @@ from .connectors.http import ConnectorError
 
 
 CAUSES = {
+    "kernel_evidence_limit": (
+        "Kernel evidence budget exceeded; no partial evaluation published",
+        "Running-kernel evidence exceeded its 16 MiB retention limit.",
+        "The platform operator must inspect kernel rule expansion; the complete device transaction was rolled back.",
+    ),
+    "kernel_accounting": (
+        "Kernel definition accounting incomplete",
+        "The compiled kernel definition count does not agree with the evaluated cache.",
+        "The platform operator must inspect cache integrity and recompile before retrying; no partial check was published.",
+    ),
+    "ubuntu_status_limit": (
+        "Ubuntu status lookup budget exceeded",
+        "Supplementary Ubuntu status exceeded its bounded lookup capacity.",
+        "The platform operator must inspect source expansion; no partial device check was published.",
+    ),
     "advisory_limit": (
         "Device advisory evaluation budget exceeded",
         "The host requires more than 30,000 vendor definitions, exceeding the evaluator's safety limit.",

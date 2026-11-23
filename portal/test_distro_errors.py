@@ -171,7 +171,11 @@ class FailureRetentionTests(Fixture):
         self.load()
         distro_cves.evaluate_device(self.device.pk)
         failed_at = timezone.now()
-        old = {"evaluator_version": 2, "state": "error", "error_code": "publication_timeout"}
+        old = {
+            "evaluator_version": distro_cves.distro_results.VERSION,
+            "state": "error",
+            "error_code": "publication_timeout",
+        }
         AgentDevice.objects.filter(pk=self.device.pk).update(
             distro_requested=False, distro_checked_at=failed_at, distro_summary=old
         )

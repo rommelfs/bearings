@@ -1,0 +1,12 @@
+{% extends 'portal/base.html' %}{% block title %}Running-kernel evidence · {{ device.asset.name }}{% endblock %}{% block content %}
+<p><a href="{% url 'agent-center' org.slug %}?device={{ device.pk }}#automatic-cves">Back to this server's check →</a></p>
+<h1>Running-kernel evidence · {{ device.asset.name }}</h1>
+<p>Reported kernel: <code>{{ kernel.kernel|default:'Unknown' }}</code> · scope: {{ kernel.scope|default:'unknown' }} · evaluated {{ kernel.checked_at|default:'Not yet evaluated' }}</p>
+{% if not coverage.kernel_current %}<p class="warning">Awaiting a current kernel evaluation. Retained results are historical until current inventory, source binding and vendor data agree.</p>{% else %}
+<p>State: {{ kernel.state }} · {{ kernel.counts.matched }} matching definitions · {{ kernel.counts.not_matched }} definitions not matched · {{ kernel.counts.unresolved }} unresolved definitions.</p>
+<p>These are technical vendor-rule matches for reported running-kernel facts. They do not attest repository provenance, exploitability, a completed reboot or a saved analyst decision. They are recorded separately from package CVE reviews.</p>
+{% endif %}
+<div class="table-scroll"><table><thead><tr><th>CVE / vendor definition</th><th>Positive version conditions</th><th>Source</th></tr></thead><tbody>
+{% for row in page %}<tr><td>{% for cve in row.cves %}<div>{{ cve }}</div>{% endfor %}<small>{{ row.severity }}</small></td><td>{% for comparison in row.comparisons %}<div><code>{{ comparison.installed_version }}</code> {{ comparison.operation }} <code>{{ comparison.vendor_version }}</code></div>{% endfor %}</td><td><a href="{{ row.vendor_url }}">Canonical OVAL rule →</a><br><small>Rule hash: {{ row.rule_sha256 }}</small></td></tr>{% empty %}<tr><td colspan="3">No current positive kernel matches are available here. Shared/unknown host scope, unsupported kernel builds and unresolved conditions do not establish safety.</td></tr>{% endfor %}
+</tbody></table></div><nav>{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %} {{ page.number }} / {{ page.paginator.num_pages }} · {{ page.paginator.count }} matching definitions {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+{% endblock %}

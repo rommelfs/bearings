@@ -27,6 +27,7 @@ def decorate_package_verdict(finding):
             "unresolved": "Package affectedness unresolved",
         }.get(proof.get("verdict"), "Package affectedness unresolved"),
         "current": True,
+        "ubuntu_status_refresh_error": bool(match.ubuntu_status_id and match.ubuntu_status.error),
         "evaluated_at": match.evaluated_at,
         "feed": match.snapshot.get("feed"),
         "package": match.component.name,

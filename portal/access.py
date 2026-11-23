@@ -56,8 +56,12 @@ def audit_operator_access(user, org):
 
 def visible_findings(user, org):
     findings = org.findings.select_related(
-        "organization", "record", "installation__product", "installation__asset"
-    )
+        "organization",
+        "record",
+        "installation__product",
+        "installation__asset",
+        "distro_match__ubuntu_status",
+    ).defer("distro_match__ubuntu_status__payload")
     if not can_operator_review(user, org):
         findings = findings.filter(record__shareable=True)
     return findings
@@ -69,8 +73,16 @@ def visible_findings_for(user):
 
     analyst = is_analyst(user) if not user.is_superuser else False
     orgs = organizations_for(user)
-    findings = Finding.objects.filter(organization__in=orgs).select_related(
-        "organization", "record", "installation__product", "installation__asset__source__instance"
+    findings = (
+        Finding.objects.filter(organization__in=orgs)
+        .select_related(
+            "organization",
+            "record",
+            "installation__product",
+            "installation__asset__source__instance",
+            "distro_match__ubuntu_status",
+        )
+        .defer("distro_match__ubuntu_status__payload")
     )
     if not user.is_superuser:
         if not analyst:

@@ -336,3 +336,20 @@ applicability/workflow. Existing coverage counters remain conservative.
 Deploy the reviewed checkout and run `systemctl restart bearings-web`. This
 presentation change needs no migration, collectstatic, worker restart, client
 update or artifact publication. Existing summary/receipt data is reused.
+
+### Why a coverage limit remains after a successful check
+
+Open the affected client's **Automatic distribution CVE checks**. Package/version
+examples now distinguish missing source metadata, queued/stale official Ubuntu
+status, outstanding Ubuntu triage, conflicting release status and unsupported
+conditions. A missing source name/version calls for checking client collection;
+a vendor triage state calls for following the vendor evidence. Neither is a
+confirmed missing update. Fresh Ubuntu status is matched to the exact source
+package and release before native version comparison.
+
+Running-kernel results have their own scope and complete definition counts.
+**Running-kernel evidence** lists every current positive technical match with its
+version comparison and source. A shared container kernel requires assessment on
+the hosting system; its guest package feed cannot clear it. Unknown scope or an
+unsupported kernel build remains explicitly unresolved. Kernel review actions
+are recommendations, separate from saved package review/analyst workflow.

@@ -142,7 +142,7 @@ CONNECTOR_ALLOWED_HOSTS = [
     h.strip().lower()
     for h in os.getenv(
         "CONNECTOR_ALLOWED_HOSTS",
-        "vulnerability.circl.lu,objects.monarc.lu,security-metadata.canonical.com,www.debian.org,security.access.redhat.com",
+        "vulnerability.circl.lu,objects.monarc.lu,security-metadata.canonical.com,ubuntu.com,www.debian.org,security.access.redhat.com",
     ).split(",")
     if h.strip()
 ]
@@ -244,3 +244,5 @@ DISTRO_CVE_ENABLED = os.getenv("BEARINGS_DISTRO_CVE_ENABLED", "1") == "1"
 
 # Empty disables external raster tiles; vector geometry remains local.
 MAP_TILE_URL = os.environ.get("BEARINGS_MAP_TILE_URL", "https://geo.circl.lu/hot/{z}/{x}/{y}.png")
+
+UBUNTU_STATUS_FETCH_ENABLED = os.getenv("BEARINGS_UBUNTU_STATUS_FETCH_ENABLED", "1") == "1"

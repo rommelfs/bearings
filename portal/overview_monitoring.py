@@ -27,7 +27,7 @@ def reporter_query(org_ids):
         asset__organization_id=F("organization_id"),
         source__organization_id=F("organization_id"),
         asset__source_id=F("source_id"),
-    ).filter(Exists(components))
+    ).filter(Exists(components) | Q(distro_summary__kernel__definitions__gt=0))
     queued = Q(distro_requested=True) | Q(
         Exists(AgentReport.objects.filter(device_id=OuterRef("pk"), status="pending"))
     )
@@ -73,7 +73,12 @@ def attention_devices(org_ids):
         output_field=IntegerField(),
     )
     devices = (
-        devices.filter(Q(distro_summary__state="error") | unavailable | uncertain)
+        devices.filter(
+            Q(distro_summary__state="error")
+            | unavailable
+            | uncertain
+            | Q(distro_summary__kernel__counts__matched__gt=0)
+        )
         .annotate(
             attention_position=Window(
                 RowNumber(), partition_by=[F("organization_id")], order_by=[priority.asc(), F("pk").asc()]

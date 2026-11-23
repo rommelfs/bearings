@@ -3,7 +3,7 @@
 import json
 import uuid
 import time
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -241,7 +241,19 @@ def evaluate_device(pk):
     advisories = DistroAdvisory.objects.filter(pk__in=ids, feed=feed, generation=feed.generation)
     if advisories.count() > 30000:
         raise ConnectorError("Device advisory evaluation budget exceeded")
-    checks = distro_results.Collector()
+    resolver = None
+    if key.startswith("ubuntu:"):
+        from . import ubuntu_status
+
+        resolver = ubuntu_status.Resolver(
+            device,
+            distro_sources.UBUNTU[device.os["version"]],
+            ubuntu_status.lookup(advisories, device.os["version"]),
+        )
+    runtime_os = dict(device.os)
+    if device.asset.virtualization_type in {"lxc", "openvz", "container"}:
+        runtime_os["kernel_scope"] = "shared"
+    checks = distro_results.Collector(resolver, by_id)
     found = {}
     evaluated = {}
     rules = 0
@@ -254,14 +266,14 @@ def evaluate_device(pk):
             advisory.criteria,
             facts,
             {"binary": complete, "source": complete and not source_missing},
-            device.os,
+            runtime_os,
         )
         checks.add(
             advisory,
             facts,
             result,
             contributors,
-            device.os,
+            runtime_os,
             {"binary": complete, "source": complete and not source_missing},
         )
         evaluated[advisory.pk] = (result, contributors)
@@ -274,17 +286,20 @@ def evaluate_device(pk):
             if cid not in by_id or package_result is False:
                 continue
             for cve in advisory.metadata["cves"]:
+                proof = checks.proof(cid, advisory.pk, cve)
+                if proof.get("verdict") in {"fixed", "not_matched"}:
+                    continue
                 found[(cid, advisory.pk, cve)] = (
                     by_id[cid],
                     advisory,
-                    "potential" if package_result is True else "unknown",
+                    "potential" if proof.get("verdict") == "affected" else "unknown",
                 )
         if len(found) > MAX_MATCHES:
             raise ConnectorError("Device CVE result budget exceeded; no partial evaluation published")
     from .distro_publish import publish_many
 
     rows = [
-        (component, advisory, cve, result, checks.details.get((cid, aid)))
+        (component, advisory, cve, result, checks.proof(cid, aid, cve))
         for (cid, aid, cve), (component, advisory, result) in found.items()
     ]
     # A changed package can update automated evidence; never close a human workflow.
@@ -304,7 +319,9 @@ def evaluate_device(pk):
             result = "not_observed"
         elif match.advisory.generation != feed.generation or match.advisory.feed_id != feed.pk:
             result = "unknown"
-        elif evaluated.get(match.advisory_id, (None, {}))[1].get(match.component_id) is False:
+        elif evaluated.get(match.advisory_id, (None, {}))[1].get(match.component_id) is False or checks.proof(
+            match.component_id, match.advisory_id, match.finding.record.external_id
+        ).get("verdict") in {"fixed", "not_matched"}:
             result = "not_affected"
         else:
             result = "unknown"
@@ -321,12 +338,34 @@ def evaluate_device(pk):
                     match.advisory,
                     match.finding.record.external_id,
                     result,
-                    checks.details.get((component.pk, match.advisory_id)),
+                    checks.proof(component.pk, match.advisory_id, match.finding.record.external_id),
                 )
             )
         else:
             update_match(match, component, feed, result)
     publish_many(device, feed, rows, deadline)
+    from .distro_kernel import receipt as kernel_receipt
+
+    kernel = kernel_receipt(
+        device, feed, deadline, facts, {"binary": complete, "source": complete and not source_missing}
+    )
+    if resolver:
+        ubuntu_status.bind(device, resolver)
+    reasons = Counter()
+    source_gaps = set()
+    for (cid, aid, cve), (_, _, outcome) in found.items():
+        if outcome == "unknown":
+            proof = checks.proof(cid, aid, cve)
+            if proof.get("uncertainty_reason") in {"source_metadata_missing", "invalid_source_version"}:
+                source_gaps.add(cid)
+            reasons[
+                proof.get("uncertainty_reason")
+                or (
+                    "vendor_version_boundary_missing"
+                    if not proof.get("version_checked") and not proof.get("unresolved_conditions")
+                    else "unsupported_condition"
+                )
+            ] += 1
     checked_at = timezone.now()
     for component in by_id.values():
         component.distro_check = checks.receipt(component, device, feed, checked_at)
@@ -335,7 +374,11 @@ def evaluate_device(pk):
         "evaluator_version": distro_results.VERSION,
         "publication_version": PUBLICATION_VERSION,
         "state": "partial"
-        if source_missing or unknown or feed.summary.get("unindexed_definitions", 0)
+        if source_missing
+        or any(v[2] == "unknown" for v in found.values())
+        or unknown
+        or kernel["counts"]["unresolved"]
+        or feed.summary.get("unindexed_definitions", 0)
         else "ready",
         "unindexed_definitions": feed.summary.get("unindexed_definitions", 0),
         "feed": key,
@@ -346,6 +389,10 @@ def evaluate_device(pk):
         "potential": sum(v[2] == "potential" for v in found.values()),
         "uncertain": sum(v[2] == "unknown" for v in found.values()),
         "unsupported_conditions": unknown,
+        "uncertainty_reasons": dict(reasons),
+        "ubuntu_source_gaps": len(source_gaps),
+        "kernel": kernel,
+        "ubuntu_status_pending": bool(resolver and resolver.pending),
         "missing_source_metadata": source_missing,
         "message": "Vendor package-rule matches; official repository/signature, running code and remediation are not attested. No matching rule is not proof of safety.",
     }
@@ -507,6 +554,9 @@ def run(limit=5):
         .order_by("last_attempt", "pk")[:1]
     ):
         refresh(f.pk)
+    from . import ubuntu_status
+
+    ubuntu_status.refresh_due()
     total = 0
     for d in pending:
         try:
@@ -557,6 +607,18 @@ def coverage(device):
     summary["checked_at"] = device.distro_checked_at
     if device.stale or not agents.current(device):
         summary["state"] = "stale"
+    kernel = summary.get("kernel")
+    if isinstance(kernel, dict):
+        summary["kernel_current"] = bool(
+            settings.DISTRO_CVE_ENABLED
+            and summary["state"] not in {"stale", "pending", "error", "unsupported"}
+            and not device.distro_requested
+            and device.last_sequence == device.applied_sequence
+            and feed
+            and kernel.get("generation") == str(feed.generation)
+            and kernel.get("input_hash")
+            == digest({"os": device.os, "virtualization": device.asset.virtualization_type})
+        )
     if summary["state"] == "partial":
         from .distro_coverage_notes import explain, examples
 
@@ -580,7 +642,13 @@ def match_proof(component, feed, advisory, result, package_check=None):
         "source_package": component.package_source if component else {},
         "rule_sha256": advisory.content_hash,
     }
-    fingerprint = digest(
-        {k: v for k, v in snapshot.items() if k not in {"generation", "inventory_sequence", "report_id"}}
-    )
+    semantic = {
+        k: v for k, v in snapshot.items() if k not in {"generation", "inventory_sequence", "report_id"}
+    }
+    if (package_check or {}).get("ubuntu_status"):
+        semantic["package_check"] = {
+            **package_check,
+            "ubuntu_status": {k: v for k, v in package_check["ubuntu_status"].items() if k != "checked_at"},
+        }
+    fingerprint = digest(semantic)
     return snapshot, fingerprint

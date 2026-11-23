@@ -218,6 +218,10 @@
       {
         "title": "Separate package coverage information from actionable host repairs",
         "body": "Implemented informational grouped coverage notes outside company Next steps, explicit relevant-rule/unresolved-association/feed-wide counts and bounded per-client timestamps. Missing source-package facts retain a concrete counted collection task and outrank informational examples. Client details show up to five current scoped package/version/condition examples with same-host reader routes and fixed condition labels; pending/stale/foreign/changed receipts cannot become current examples. Existing applicability, counters and workflow remain unchanged. Read-only presentation update; restart web only. See docs/user-guide/infrastructure-overview.md."
+      },
+      {
+        "title": "Evaluate Ubuntu source status and running-kernel rules without hidden coverage gaps",
+        "body": "Implemented compiler 4 support for the exact Canonical Ubuntu kernel ABI variable expression and bounded uname flavor grammar, optional host/shared/unknown client kernel scope, explicit container host separation, complete definition accounting and immutable paginated positive kernel evidence. Supplement positively matched package-presence rules with fixed-URL official Ubuntu CVE/release/source status and exact native source-version comparisons. Pending/stale/triage/conflicting/missing data remains unknown; persistent dependencies requeue changed/stale initially fixed proofs even without a Finding. Current SQL queues and receipts reject superseded hashes. Coverage gives specific reason counts and package examples; human assessments and organization/source scope remain enforced. Requires migrations 0068–0071, web/worker restart and client artifact publication for new scope reports. Public noble/focal compiler checks are feed-specific, not production host attestations; kernel technical matches remain separate from package reviews. See docs/integrations/distro-cves.md."
       }
     ]
   },

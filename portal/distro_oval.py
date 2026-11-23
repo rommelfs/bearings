@@ -10,7 +10,7 @@ from univers.rpm import compare_rpm_versions
 from .connectors.http import ConnectorError
 
 CVE = re.compile(r"CVE-[0-9]{4}-[0-9]{4,}")
-COMPILER_VERSION = 3
+COMPILER_VERSION = 4
 
 
 def local(tag):
@@ -41,6 +41,8 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
     )
     deadline = deadline or time.monotonic() + 120
     tests, objects, states, variables, inventories = {}, {}, {}, {}, {}
+    local_variables = {}
+    object_types = {}
     seen_ids = set()
     for tag, e in entities(path, deadline):
         pk = e.get("id")
@@ -55,6 +57,7 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
                 "states": [x.get("state_ref") for x in e if local(x.tag) == "state"],
             }
         elif tag.endswith("_object"):
+            object_types[pk] = tag
             objects[pk] = {local(x.tag): field(x) for x in e}
         elif tag.endswith("_state"):
             states[pk] = (
@@ -62,6 +65,12 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
                 if e.get("operator", "AND") == "AND"
                 else [{"field": "unsupported state operator"}]
             )
+        elif tag == "local_variable":
+            # Retain only a bounded expression shape; no evaluation of arbitrary functions.
+            from copy import deepcopy
+
+            if sum(1 for _ in e.iter()) <= 16:
+                local_variables[pk] = deepcopy(e)
         elif tag == "constant_variable":
             variables[pk] = [(x.text or "").strip() for x in e if local(x.tag) == "value"]
         elif tag == "definition" and e.get("class") == "inventory":
@@ -98,6 +107,22 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
                 "check": t["attrs"].get("check", "all"),
                 "existence": t["attrs"].get("check_existence", "at_least_one_exists"),
             }
+        if tag == "variable_test":
+            from . import distro_kernel
+
+            variable = local_variables.get(obj.get("var_ref", {}).get("text"))
+            expr = distro_kernel.expression(variable, objects) if variable is not None else None
+            if (
+                expr
+                and object_types.get(expr["object"]) == "uname_object"
+                and set(obj) == {"var_ref"}
+                and set(obj["var_ref"]) == {"text"}
+                and t["attrs"].get("check", "all") in {"all", "at least one"}
+                and t["attrs"].get("check_existence", "all_exist") in {"all_exist", "at_least_one_exists"}
+                and t["attrs"].get("state_operator", "AND") == "AND"
+                and all(ss)
+            ):
+                return {"kernel_states": ss}
         guards_supported = t["attrs"].get("check", "all") in {"all", "at least one"} and t["attrs"].get(
             "check_existence", "at_least_one_exists"
         ) in {"at_least_one_exists", "any_exist"}
@@ -200,6 +225,8 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
                 if local(x.tag) == "reference" and CVE.fullmatch(x.get("ref_id", ""))
             }
         )
+        if any(len(cve) > 120 for cve in cves):
+            raise ConnectorError("Vendor CVE identity limit exceeded")
         if not cves:
             continue
         stats["vendor_definitions"] += 1
@@ -236,6 +263,17 @@ def compile_feed(path, distro, release, deadline=None, stats=None):
                 collect(child)
 
         collect(criteria)
+
+        def kernel_rule(n):
+            return (
+                "kernel_states" in n
+                or any(s.get("field") == "os_release" for g in n.get("host_states", []) for s in g)
+                or any(kernel_rule(c) for c in n.get("children", []))
+            )
+
+        if kernel_rule(criteria):
+            packages.add(("kernel", "runtime"))
+            stats["kernel_definitions"] = stats.get("kernel_definitions", 0) + 1
         if not packages:
             stats["unindexed_definitions"] += 1
             continue
@@ -288,6 +326,10 @@ def condition(value, rule, manager):
     op = rule.get("operation", "equals")
     wanted = rule.get("text", "")
     if rule["field"] == "evr":
+        if manager == "dpkg" and (
+            not isinstance(value, str) or not re.fullmatch(r"(?:[0-9]+:)?[0-9][A-Za-z0-9.+:~_-]*", value)
+        ):
+            return None
         try:
             c = compare(manager, value, wanted)
         except (ValueError, TypeError, AssertionError):
@@ -300,7 +342,7 @@ def condition(value, rule, manager):
             "greater than": c > 0,
             "greater than or equal": c >= 0,
         }.get(op)
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not value or value == "unknown":
         return None
     if op == "equals":
         return value == wanted
@@ -354,6 +396,12 @@ def evaluate(node, facts, complete, os):
         if node["operator"] == "NOT":
             ids = set()
         return result, ids
+    if "kernel_states" in node or any(
+        s.get("field") == "os_release" for g in node.get("host_states", []) for s in g
+    ):
+        from .distro_kernel import evaluate as evaluate_kernel
+
+        return evaluate_kernel(node, os), set()
     if "host_states" in node:
         values = []
         for group in node["host_states"]:
@@ -418,14 +466,14 @@ def version_proof(leaf, fact):
     return any(groups)
 
 
-def evaluate_matches(node, facts, complete, os):
+def evaluate_matches(node, facts, complete, os, version_required=True):
     """Keep OVAL truth separate from each positively named component's version proof.
 
     An OR witness for package A cannot prove package B vulnerable. Existence-only
     matches stay unresolved even when OVAL's Boolean definition evaluates true.
     """
     if "children" in node:
-        parts = [evaluate_matches(child, facts, complete, os) for child in node["children"]]
+        parts = [evaluate_matches(child, facts, complete, os, version_required) for child in node["children"]]
         truth = combine(node["operator"], [p[0] for p in parts])
         if node["operator"] == "NOT":
             return truth, {}
@@ -451,6 +499,19 @@ def evaluate_matches(node, facts, complete, os):
                 outcomes[cid] = None
         return truth, outcomes
     truth, _ = evaluate(node, facts, complete, os)
+    if "kernel_states" in node:
+        versioned = any(
+            s.get("field") == "value" and s.get("datatype") == "debian_evr_string"
+            for g in node["kernel_states"]
+            for s in g
+        )
+        return truth, {
+            "__runtime_kernel__": False
+            if truth is False
+            else True
+            if truth is True and (not version_required or versioned)
+            else None
+        }
     if "package" not in node:
         return truth, {}
     outcomes = {}
@@ -462,7 +523,7 @@ def evaluate_matches(node, facts, complete, os):
                 False
                 if truth is False or own_truth is False
                 else True
-                if truth is True and own_truth is True and version_proof(node, fact)
+                if truth is True and own_truth is True and (not version_required or version_proof(node, fact))
                 else None
             )
     return truth, outcomes

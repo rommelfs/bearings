@@ -125,3 +125,79 @@ Update the reviewed checkout and restart **bearings-web** and **bearings-worker*
 No migration, static rebuild, Linux client update or artifact republishing is
 needed. Check the new evaluation timestamp/state/code on the affected host; local
 synthetic query budgets are not proof of production latency or fleet throughput.
+
+## Ubuntu source status and running-kernel coverage (compiler 4, receipts 3)
+
+Canonical's OVAL package-presence rules alone do not prove whether an installed
+version is affected. For a positively matched presence-only branch, Bearings now
+consults the fixed official endpoint
+`https://ubuntu.com/security/cves/<CVE>.json`. It requires the exact CVE, Ubuntu
+codename and reported **source** package name/version. A `released` status supplies
+a native Debian fixed-version comparison; `not-affected` supplies an explicit
+vendor decision. Binary and source versions are not interchangeable. Unknown
+Boolean guards, contradictory pockets, absent source identities, unsupported
+versions and `needed`, `needs-triage`, `pending`, `ignored`, `deferred` or unrecognized
+statuses remain unresolved. No fuzzy name or upstream version guess is used.
+
+The shared cache retains normalized public release/source status, content hash,
+verification time and safe error category. At most four fixed-URL HTTPS requests
+run concurrently per worker pass, outside device/source transactions, with TLS,
+no redirects, bounded JSON and twenty-second deadlines. Refresh starts after six
+hours; twelve-hour-old evidence is stale; failed fetches retain previous data and
+retry after fifteen minutes. Egress must allow **ubuntu.com** as well as the OVAL
+host. Explicit `CONNECTOR_ALLOWED_HOSTS`/proxy policies must include it; the default
+allowlist includes it. `BEARINGS_UBUNTU_STATUS_FETCH_ENABLED=0` pauses public JSON
+refresh, not the age/currentness checks. Failed requests can be inspected by a
+platform superuser in Django admin's read-only Ubuntu CVE statuses list.
+
+Immutable package evidence includes the exact supplementary response hash,
+selected release/source statuses and native comparison. Cached changes immediately
+invalidate current verdicts in detail, receipts and SQL review queues. Persistent
+dependencies also requeue initially fixed packages with no existing Finding;
+staleness cannot leave those silently cleared. A new inventory or evidence result
+never overwrites a saved human assessment/workflow. Lookup/result budget failures
+roll back the complete device transaction. Pending cache population is displayed
+as uncertainty, not as a completed successful check.
+
+Compiler 4 recognizes only Canonical's exact `0:` + captured Ubuntu ABI local
+variable and a bounded literal uname series/flavor grammar. It never evaluates
+arbitrary vendor expressions/regexes. Every indexed runtime-kernel definition is
+accounted for in separate matched/not-matched/unresolved counts. Versioned matches
+retain all positive rules and comparisons in immutable kernel evidence, exposed
+through the client's check and a scoped, paginated **Running-kernel evidence**
+page. These technical kernel matches are separate from package CVE reviews and
+saved analyst decisions; a positive match creates a visible review recommendation.
+Evidence over 16 MiB or incomplete definition accounting aborts the whole device
+transaction rather than publishing a truncated success.
+
+The Linux client optionally reports `os.kernel_scope`: `host`, `shared` or
+`unknown`, using a bounded fixed systemd container-detection command. Missing or
+failed detection remains unknown. Explicit LXC/OpenVZ/container asset metadata
+also forces shared scope, including for old clients. A container's distribution
+feed cannot clear the host's kernel: assess the hosting system with its own
+inventory/distribution. An unrecognized kernel flavor/build, presence-only kernel
+rule or unsupported guard remains unresolved. Zero matching definitions does not
+establish kernel safety. Kernel-only installations still appear in coverage and
+positive-match recommendations, even without bound package software records.
+
+Coverage displays counts by specific uncertainty reason plus current package and
+version examples. Missing source-package metadata is a collection action; vendor
+triage, shared host scope and unsupported conditions are explicit limits, not
+instructions to reinstall packages. Full indexing is not full affectedness proof.
+Read paths remain organization/source scoped and perform no upstream requests.
+
+Deployment requires **migrations 0068–0071**, restart of **bearings-web** and
+**bearings-worker**, and rebuilding/publishing the Linux client for automatic
+kernel-scope reporting. Old clients remain accepted with unknown/shared scope.
+No key rotation, new enrollment or NetBox policy change is needed. Publish only a
+clean checkout with `python3 deploy/ubuntu24/ecosystem.py prepare-linux-client`.
+Existing enabled update timers pick up the client; a manual check is
+`systemctl start bearings-linux-update.service`. Inspect the new check's timestamp,
+source-status reasons and kernel scope; initial JSON cache filling takes multiple
+bounded worker passes. All remaining uncertainty stays visible.
+
+Validation distinguishes synthetic correctness tests from public source checks:
+compiler 4 indexed all 37,611 definitions in the retained noble vendor download
+and all 25,983 in the fetched focal download on 2026-11-23, with zero unindexed
+definitions. These are feed-specific observations, not a guarantee for future
+feeds or a declaration that any production host is unaffected.

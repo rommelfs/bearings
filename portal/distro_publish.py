@@ -193,6 +193,7 @@ def publish_many(device, feed, rows, deadline):
             match.snapshot = snapshot
             match.evaluated_at = now
             match.evidence_revision = evidence[record.pk, digest(record.payload)]
+            match.ubuntu_status_id = (proof or {}).get("ubuntu_status", {}).get("cve")
             finding.evaluated_at = now
             if fingerprint != match.input_hash:
                 match.input_hash = fingerprint
@@ -209,7 +210,15 @@ def publish_many(device, feed, rows, deadline):
             changed_findings.append(finding)
         DistroMatch.objects.bulk_update(
             list(matches.values()),
-            ["snapshot", "evaluated_at", "evidence_revision", "input_hash", "result", "review_required"],
+            [
+                "snapshot",
+                "evaluated_at",
+                "evidence_revision",
+                "ubuntu_status",
+                "input_hash",
+                "result",
+                "review_required",
+            ],
             batch_size=BATCH_SIZE,
         )
         DistroMatchRevision.objects.bulk_create(history, ignore_conflicts=True, batch_size=BATCH_SIZE)

@@ -5,7 +5,7 @@ from itertools import islice
 from . import distro_oval, distro_sources
 from .intelligence import digest
 
-VERSION = 2
+VERSION = 3
 SAMPLE_LIMIT = 10
 MAX_OUTCOMES = 100000
 PRIORITY = {"potential": 0, "unknown": 1, "not_matched": 2, "fixed": 3}
@@ -119,11 +119,14 @@ def fixed_threshold(leaf, fact):
 
 
 class Collector:
-    def __init__(self):
+    def __init__(self, resolver=None, components=None):
         self.results = defaultdict(dict)
         self.rules = defaultdict(set)
         self.total = 0
         self.details = {}
+        self.cve_details = {}
+        self.resolver = resolver
+        self.components = components or {}
 
     def add(self, advisory, facts, result, contributors, os, complete=None):
         leaves = defaultdict(list)
@@ -163,20 +166,16 @@ class Collector:
             safe_tree(advisory.criteria)
             and distro_oval.evaluate(guard_tree(advisory.criteria), {}, True, os)[0] is True
         )
+        named_truths = {}
+        if self.resolver and result is True and None in contributors.values():
+            named_truths = distro_oval.evaluate_matches(
+                advisory.criteria, facts, complete, os, version_required=False
+            )[1]
         for cid, tests in leaves.items():
             self.rules[cid].add(advisory.pk)
             thresholds = [fixed_threshold(leaf, fact) for leaf, fact in tests] if safe else []
             component_result = contributors.get(cid)
             fixed = component_result is False and thresholds and all(thresholds)
-            outcome = (
-                "potential"
-                if component_result is True
-                else "fixed"
-                if fixed
-                else "not_matched"
-                if component_result is False
-                else "unknown"
-            )
             comparisons = []
             for leaf, fact in tests:
                 for group in leaf.get("states", []):
@@ -229,8 +228,28 @@ class Collector:
                 raise ConnectorError("Package proof budget exceeded; no partial checks published")
             self.details[cid, advisory.pk] = proof
             for cve in advisory.metadata["cves"]:
+                cve_proof = proof
+                if self.resolver and cid in self.components:
+                    cve_proof = self.resolver(
+                        self.components[cid],
+                        cve,
+                        proof,
+                        component_result is None
+                        and safe
+                        and named_truths.get(cid) is True
+                        and not comparisons
+                        and not missing_conditions,
+                    )
+                cve_outcome = {"affected": "potential", "fixed": "fixed", "not_matched": "not_matched"}.get(
+                    cve_proof["verdict"], "unknown"
+                )
+                if len(self.cve_details) >= MAX_OUTCOMES and (cid, advisory.pk, cve) not in self.cve_details:
+                    from .connectors.http import ConnectorError
+
+                    raise ConnectorError("Package result budget exceeded; no partial checks published")
+                self.cve_details[cid, advisory.pk, cve] = cve_proof
                 previous = self.results[cid].get(cve)
-                if previous is not None and PRIORITY[previous["result"]] <= PRIORITY[outcome]:
+                if previous is not None and PRIORITY[previous["result"]] <= PRIORITY[cve_outcome]:
                     continue
                 if previous is None:
                     self.total += 1
@@ -240,16 +259,23 @@ class Collector:
                         raise ConnectorError("Package result budget exceeded; no partial checks published")
                 self.results[cid][cve] = {
                     "cve": cve,
-                    "result": outcome,
+                    "result": cve_outcome,
                     "definition": advisory.identity,
                     "rule_sha256": advisory.content_hash,
-                    "fixed_version": thresholds[0] if fixed else "",
-                    "compared_version": tests[0][1]["version"] if fixed else "",
-                    "package_check": proof,
+                    "fixed_version": cve_proof["comparisons"][0]["vendor_version"]
+                    if cve_outcome == "fixed" and cve_proof["comparisons"]
+                    else "",
+                    "compared_version": cve_proof["comparisons"][0]["installed_version"]
+                    if cve_outcome == "fixed" and cve_proof["comparisons"]
+                    else "",
+                    "package_check": cve_proof,
                     "comparison_basis": "source package"
-                    if fixed and tests[0][0]["source"]
+                    if cve_proof.get("ubuntu_status") or (fixed and tests[0][0]["source"])
                     else "binary package",
                 }
+
+    def proof(self, cid, aid, cve):
+        return self.cve_details.get((cid, aid, cve), self.details.get((cid, aid), {}))
 
     def receipt(self, component, device, feed, checked_at):
         results = self.results[component.pk]
@@ -274,4 +300,9 @@ class Collector:
             "counts": counts,
             "samples": samples,
             "sample_limit": SAMPLE_LIMIT,
+            "ubuntu_status_hashes": {
+                cve: proof["ubuntu_status"]["sha256"]
+                for (cid, _, cve), proof in self.cve_details.items()
+                if cid == component.pk and proof.get("ubuntu_status")
+            },
         }

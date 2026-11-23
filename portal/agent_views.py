@@ -405,3 +405,42 @@ def center(request, slug):
     )
     response["Referrer-Policy"] = "same-origin"
     return response
+
+
+@login_required
+@never_cache
+def kernel_evidence(request, slug, pk):
+    from .models import DistroKernelRevision
+    from .distro_sources import url_for
+    from urllib.parse import quote
+
+    org = get_object_or_404(organizations_for(request.user), slug=slug)
+    audit_operator_access(request.user, org)
+    from django.db.models import F
+
+    device = get_object_or_404(
+        AgentDevice.objects.select_related("asset", "organization", "source"),
+        pk=pk,
+        organization=org,
+        asset__organization=org,
+        source__organization=org,
+        asset__source_id=F("source_id"),
+    )
+    coverage = distro_cves.coverage(device)
+    kernel = coverage.get("kernel") or {}
+    entries = []
+    if coverage.get("kernel_current") and kernel.get("evidence_revision"):
+        revision = get_object_or_404(DistroKernelRevision, pk=kernel["evidence_revision"], device=device)
+        snapshot = revision.snapshot
+        if snapshot.get("organization_id") == org.pk and snapshot.get("source_id") == str(device.source_id):
+            entries = snapshot.get("matches", [])
+    page = Paginator(entries, 50).get_page(request.GET.get("page"))
+    for entry in page:
+        entry["vendor_url"] = url_for(kernel["feed"]) + "#" + quote(entry["definition"], safe="")
+    return private(
+        render(
+            request,
+            "portal/kernel_evidence.html",
+            {"org": org, "device": device, "coverage": coverage, "kernel": kernel, "page": page},
+        )
+    )

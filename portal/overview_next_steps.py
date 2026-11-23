@@ -56,8 +56,8 @@ def decorate(states):
                 "risks",
                 priority=0,
             )
-        devices = examples.get(org.pk, []) if state["package_products"] else []
-        if state["package_products"] and not state["package_matching_enabled"]:
+        devices = examples.get(org.pk, [])
+        if (state["package_products"] or devices) and not state["package_matching_enabled"]:
             add(
                 "Review disabled distribution package checks",
                 "Automatic matching is disabled by platform configuration; changing individual product mappings will not enable it.",
@@ -129,6 +129,16 @@ def decorate(states):
                         + detail["next_action"]
                         + " The failed attempt published no partial evaluation; current affectedness is unavailable."
                     )
+            elif (
+                isinstance(summary.get("kernel"), dict)
+                and type(summary["kernel"].get("counts", {}).get("matched")) is int
+                and summary["kernel"]["counts"]["matched"] > 0
+            ):
+                title, reason, owner = (
+                    "Review running-kernel version matches",
+                    f"{summary['kernel']['counts']['matched']} vendor kernel definitions match the reported running kernel. Inspect the retained kernel evidence and host remediation; guest package upgrades do not prove a running-kernel fix.",
+                    "Server administrator / platform operator",
+                )
             elif status == "unsupported":
                 title, reason, owner = (
                     "Resolve unsupported distribution coverage",

@@ -650,3 +650,11 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   feed-wide notes and counted source-metadata collection actions. Client details
   show bounded current package/version/condition examples without inventing fixes.
   See [overview guidance](user-guide/infrastructure-overview.md).
+
+- Implemented exact Canonical running-kernel variable/flavor support with complete
+  definition accounting, shared-host separation and immutable scoped positive
+  evidence. Supplement Ubuntu presence-only rules with official release/source
+  status and native source-version proof. All pending/stale/triage/conflicting
+  evidence remains explicit; changed/stale status requeues even initially fixed
+  packages without a Finding. Requires migrations0068–0071, web/worker restart
+  and published client for scope detection. See [package and kernel checks](integrations/distro-cves.md).

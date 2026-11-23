@@ -46,6 +46,11 @@ urlpatterns = [
     path("api/v1/agent/reports/", agent_views.reports, name="agent-reports"),
     path("api/v1/agent/status/", agent_views.status, name="agent-status"),
     path("organizations/<slug:slug>/agents/", agent_views.center, name="agent-center"),
+    path(
+        "organizations/<slug:slug>/agents/<uuid:pk>/kernel/",
+        agent_views.kernel_evidence,
+        name="kernel-evidence",
+    ),
     path("organizations/<slug:slug>/agents/fleet/", agent_fleet_views.center, name="agent-fleets"),
     path("operator/organizations/merge/", member_views.merge_companies, name="company-merge"),
     path("join/", member_views.join, name="company-join"),

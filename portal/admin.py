@@ -19,6 +19,8 @@ from .models import (
     Organization,
     MOSPSource,
     FlowIntelInstance,
+    UbuntuCVEStatus,
+    DistroKernelRevision,
 )
 
 
@@ -442,3 +444,28 @@ class MISPServerAdmin(PlatformAdmin):
                 obj.full_clean()
                 obj.save()
             audit(request.user, None, "misp.server_configured", obj.pk, fields=form.changed_data)
+
+
+class ReadonlyEvidenceAdmin(PlatformAdmin):
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        return [field.name for field in self.model._meta.fields]
+
+
+@admin.register(UbuntuCVEStatus)
+class UbuntuStatusAdmin(ReadonlyEvidenceAdmin):
+    list_display = ["cve", "last_attempt", "last_success", "error"]
+    search_fields = ["cve"]
+
+
+@admin.register(DistroKernelRevision)
+class KernelEvidenceAdmin(ReadonlyEvidenceAdmin):
+    list_display = ["device", "captured_at", "fingerprint"]

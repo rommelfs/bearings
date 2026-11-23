@@ -2357,6 +2357,7 @@ class DistroAdvisoryPackage(models.Model):
 
 
 class DistroMatch(models.Model):
+    ubuntu_status = models.ForeignKey("UbuntuCVEStatus", on_delete=models.PROTECT, null=True, blank=True)
     finding = models.OneToOneField(Finding, on_delete=models.PROTECT, related_name="distro_match")
     component = models.ForeignKey(AgentComponent, on_delete=models.PROTECT)
     advisory = models.ForeignKey(DistroAdvisory, on_delete=models.PROTECT)
@@ -2373,6 +2374,13 @@ class DistroMatch(models.Model):
     def inputs_changed(self):
         from . import distro_cves, distro_results, distro_sources
 
+        from .ubuntu_status import proof_current
+
+        proof = self.snapshot.get("package_check", {})
+        if proof.get("ubuntu_status") and (
+            not self.ubuntu_status_id or not proof_current(proof, self.ubuntu_status)
+        ):
+            return True
         return (
             self.component.device.organization_id != self.finding.organization_id
             or self.component.device.asset_id != self.finding.installation.asset_id
@@ -2394,6 +2402,10 @@ class DistroMatch(models.Model):
             or self.component.missing_since is not None
             or not self.component.device.enabled
             or self.component.device.expires_at <= timezone.now()
+            or self.component.device.distro_requested
+            or self.component.device.last_sequence != self.component.device.applied_sequence
+            or self.component.device.distro_summary.get("state")
+            in {"error", "pending", "stale", "unsupported"}
         )
 
 
@@ -2435,3 +2447,41 @@ class NationalDailySnapshot(models.Model):
             )
         ]
         indexes = [models.Index(fields=["timezone", "day"], name="national_daily_window_idx")]
+
+
+class UbuntuCVEStatus(models.Model):
+    """Shared public Canonical status cache; no company identifiers are sent upstream."""
+
+    cve = models.CharField(max_length=120, primary_key=True)
+    payload = models.JSONField(default=dict)
+    content_hash = models.CharField(max_length=64, blank=True)
+    last_attempt = models.DateTimeField(null=True)
+    last_success = models.DateTimeField(null=True)
+    error = models.CharField(max_length=160, blank=True)
+    lease_until = models.DateTimeField(null=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["last_attempt", "cve"], name="ubuntu_status_due_idx")]
+
+
+class DistroKernelRevision(models.Model):
+    device = models.ForeignKey(AgentDevice, on_delete=models.PROTECT, related_name="kernel_revisions")
+    fingerprint = models.CharField(max_length=64)
+    snapshot = models.JSONField()
+    captured_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["device", "fingerprint"], name="unique_kernel_evidence")
+        ]
+
+
+class UbuntuStatusUse(models.Model):
+    device = models.ForeignKey(AgentDevice, on_delete=models.CASCADE, related_name="ubuntu_status_uses")
+    status = models.ForeignKey(UbuntuCVEStatus, on_delete=models.PROTECT)
+    content_hash = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["device", "status"], name="unique_device_ubuntu_status")
+        ]

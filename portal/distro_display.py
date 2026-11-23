@@ -86,6 +86,9 @@ def decorate(user, products, installation_ids=None, finding_scope=None):
             human_pending=Count("pk", filter=Q(status__in=["new", "under_review", "confirmed"])),
         )
     }
+    from .ubuntu_status import receipt_flags
+
+    status_flags = receipt_flags(components)
     for c in components:
         c.vendor_source_url = distro_sources.url_for(c.feed_key) if c.feed_key else ""
         c.rule_count = counts.get((c.vendor_feed.pk, c.manager, c.lookup_name), 0) if c.vendor_feed else 0
@@ -161,6 +164,7 @@ def decorate(user, products, installation_ids=None, finding_scope=None):
             and receipt.get("version") == distro_results.VERSION
             and receipt.get("generation") == str(c.vendor_feed.generation)
             and receipt.get("input_hash") == distro_results.inputs(c, c.device)
+            and status_flags.get(c.pk, True)
         )
         if not c.check_current:
             c.result_heading = "Current package result unavailable"

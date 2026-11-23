@@ -40,6 +40,7 @@ from .services import (
 )
 
 
+@override_settings(UBUNTU_STATUS_FETCH_ENABLED=False)
 class Fixture(TestCase):
     @classmethod
     def setUpTestData(cls):

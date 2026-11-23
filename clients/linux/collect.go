@@ -26,6 +26,7 @@ type operatingSystem struct {
 	Version      string `json:"version"`
 	Architecture string `json:"architecture"`
 	Kernel       string `json:"kernel"`
+	KernelScope  string `json:"kernel_scope,omitempty"`
 	RebootHint   string `json:"reboot_hint"`
 }
 type packageSource struct {
@@ -209,8 +210,23 @@ func uts(b []int8) string {
 	}
 	return string(out)
 }
+func kernelScope() string {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "/usr/bin/systemd-detect-virt", "--container", "--quiet")
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "LC_ALL=C"}
+	_, err := cmd.Output()
+	if err == nil {
+		return "shared"
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 && len(exit.Stderr) == 0 && ctx.Err() == nil {
+		return "host"
+	}
+	return "unknown"
+}
 func operating() operatingSystem {
-	result := operatingSystem{ID: "unknown", Version: "unknown", Architecture: "unknown", Kernel: "unknown", RebootHint: "unknown"}
+	result := operatingSystem{ID: "unknown", Version: "unknown", Architecture: "unknown", Kernel: "unknown", KernelScope: kernelScope(), RebootHint: "unknown"}
 	if raw, err := readBounded("/etc/os-release", 65536); err == nil {
 		v := osRelease(raw)
 		if v["ID"] != "" {
