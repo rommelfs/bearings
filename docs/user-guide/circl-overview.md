@@ -142,3 +142,13 @@ keep larger inventories usable, including an explicit empty result for zero.
 Prepared summary totals can precede the live list; the detail page explains that
 it applies current inventory and access permissions rather than weakening scope
 to reproduce an old total. Contact rows link directly to People & scope.
+
+## Fix versions and update channels in outstanding reviews
+
+The outstanding-review list now separates **Automatic package assessment / next step** from the **Saved analyst decision**. Each row uses the same currentness checks as the package detail view. A supported affected-version comparison with an explicit vendor fix note shows its fix version and comparison basis (binary or source package). Ubuntu ESM Apps and ESM Infra are labeled separately, using the channel in the note for that same version, never merely a `+esm` suffix.
+
+A listed fix does not prove that the server can install it. Available APT candidates, repository policy and Ubuntu Pro entitlement are not collected by the current client. Expand “What to check on this host” for the package-specific `apt-cache policy` command; ESM fixes additionally suggest the read-only `pro status` check. If Candidate equals Installed below the vendor fix, check support entitlement and repository configuration, or plan a supported-release migration. After a real update, a fresh report and evaluation update automated evidence without changing human decisions.
+
+Stale inputs suppress previous fix recommendations. Missing automatic proof remains explicit. Rows count installation reviews, so one CVE may appear for several packages. Empty optional build fields are omitted; a distribution revision in the package version is still retained. The page does not install updates, enable subscriptions or close reviews.
+
+The list defaults to **Affected versions & manual reviews** using the shared review-queue classification. Explicit filters retain access to vendor clarification, pending evaluations, fixed/not-affected/assessed records and all retained reviews. Category counts remain within the selected severity, identifier and organization scope. A separate distinct-identifier count prevents installation-row multiplication from being mistaken for distinct CVEs. This groups counts, not evidence rows; each installation and evidence source remains individually reviewable.

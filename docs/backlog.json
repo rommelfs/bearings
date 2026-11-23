@@ -242,6 +242,10 @@
       {
         "title": "Implement Red Hat CSAF/VEX evaluation for RHEL 10",
         "body": "Planned core coverage: Red Hat publishes no RHEL 10 OVAL v2 feed; the former RHEL10 URL returned 404. Inventory remains supported, but automatic package affectedness is explicitly unavailable. Implement bounded official CSAF/VEX discovery/cache, exact release/architecture/module/product/source-package identity and native RPM version/status interpretation, retained freshness/proof and explicit unknown outcomes. Verify affected/fixed/not-affected/unresolved cases against real vendor records and synthetic input changes, without substituting Alma/Rocky or upstream versions for RHEL packages. Preserve human assessments and current tenant visibility. Until delivered, unsupported RHEL 10 is visible and never presented as queued coverage or a clean result. See docs/integrations/distro-cves.md and Red Hat OVAL v2 deprecation announcement."
+      },
+      {
+        "title": "Explain vendor fixes and ESM channels directly in outstanding reviews",
+        "body": "Implemented current package verdicts, explicit vendor fix thresholds and Ubuntu ESM Apps/Infra channel labels in national outstanding-review rows, detail and coordination views. Keep analyst decisions separate, suppress stale fix advice, distinguish installation-review counts from unique CVEs and omit empty optional builds. Provide read-only APT/Pro checks; never infer entitlement or available candidates from installed inventory or an esm suffix. Tests cover channel/version binding, stale proof and existing organization visibility. Automatic repository candidate/entitlement collection remains a separate future capability. Default to the shared action/manual classification; retain explicit unresolved, pending, cleared and all-record filters with scoped counts and distinct identifiers. No evidence deletion or automatic human-workflow closure."
       }
     ]
   },

@@ -718,3 +718,9 @@ input/source/Ubuntu/visibility checks remain live and full evidence/history is
 retained. Existing-row migration and raw-update invalidation are tested, including
 native PostgreSQL 16 with an unprivileged runtime role. Apply migrations and restart
 web/worker. Production latency still requires a post-update measurement.
+
+## Outstanding-review update guidance — 2026-11-23
+
+- **Explain vendor fixes and ESM channels directly in outstanding reviews**: Implemented current package verdicts, explicit vendor fix thresholds and Ubuntu ESM Apps/Infra channel labels in national outstanding-review rows, detail and coordination views. Keep analyst decisions separate, suppress stale fix advice, distinguish installation-review counts from unique CVEs and omit empty optional builds. Provide read-only APT/Pro checks; never infer entitlement or available candidates from installed inventory or an esm suffix. Tests cover channel/version binding, stale proof and existing organization visibility. Automatic repository candidate/entitlement collection remains a separate future capability. See [national overview guide](user-guide/circl-overview.md).
+
+The same increment replaces the default raw retained-review list with action/manual classification and separate unresolved, pending, cleared and all-record filters. Counts stay within the current permitted scope; distinct identifiers are separate from installation-review multiplication. All evidence remains accessible.

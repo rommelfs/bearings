@@ -2273,3 +2273,7 @@ migration replay. Successful source-import diagnostics that were explicitly roll
 back do not clear operational import warnings; a separate actual complete import
 must commit. The production view's supplied phase timings motivate the fix but
 its post-upgrade latency remains unverified here.
+
+### National review counts and ESM update guidance — 2026-11-23
+
+Validated 51 focused package-update/national-view tests on PostgreSQL and SQLite, including source-policy restrictions, retained human decisions, bound-specific ESM Apps/Infra labels, and suppressing stale fix recommendations. A 10,000-row synthetic PostgreSQL fixture with large retained proofs yielded one distinct vulnerability identifier; the list used 23 queries, with the slowest measured at 244 ms in this local run. This is not a production latency claim. Chromium rendered the response with the repository stylesheet at 390 and 1440 pixels: assessment columns, expandable read-only update guidance, selected filter and no document overflow were checked. Django checks, frozen dependency sync, migration consistency and Ruff passed; no new migration or client update is needed for this UI increment. Existing migration 0072 remains a prerequisite for the shared queue classifier. Production subscription/repository availability is not inferred or remotely changed.

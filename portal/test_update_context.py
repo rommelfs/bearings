@@ -64,6 +64,24 @@ class ContextTests(SimpleTestCase):
         changed["verdict"] = "fixed"
         self.assertFalse(update_context(match, changed)["targets"])
 
+    def test_esm_infra_requires_a_fix_note_for_the_same_boundary(self):
+        match, proof = self.match(), self.proof()
+        match.snapshot["feed"] = "ubuntu:20.04"
+        match.component.name = "php7.4-fpm"
+        proof["vendor_comments"] = [
+            "php7.4 source package in esm-infra/focal is affected and has been fixed "
+            "(note: '24.0+dfsg-1ubuntu1.3+esm3')."
+        ]
+        context = update_context(match, proof)
+        self.assertTrue(context["esm_infra"])
+        self.assertFalse(context["esm_apps"])
+        self.assertEqual(context["channels"], ["Ubuntu ESM Infra / Ubuntu Pro"])
+        proof["vendor_comments"][0] = proof["vendor_comments"][0].replace("+esm3", "+esm99")
+        self.assertEqual(update_context(match, proof)["channels"], [])
+        # Do not infer a channel from a version suffix or unrelated vendor prose.
+        proof["vendor_comments"] = ["Some packages are in esm-infra/focal"]
+        self.assertEqual(update_context(match, proof)["targets"], [])
+
     def test_non_ubuntu_non_pip_and_unsafe_names_do_not_get_invented_context(self):
         match = self.match()
         match.snapshot["feed"] = "debian:12"
@@ -135,6 +153,27 @@ class UbuntuUpdateTests(DistroTests):
         self.assertEqual(response.context["severity_counts"][1]["count"], 0)
         save_browser_evidence("queue-pip-esm", response)
         self.assertEqual((finding.analyst_applicability, finding.status), ("unassessed", "new"))
+        self.login(self.analyst)
+        national = self.client.get("/circl/findings/")
+        self.assertEqual(national.status_code, 200)
+        save_browser_evidence("national-esm-fix", national)
+        self.assertContains(national, "Vendor-listed fix")
+        self.assertContains(national, "Ubuntu ESM Apps / Ubuntu Pro")
+        self.assertContains(national, "Saved analyst decision")
+        self.assertContains(national, "not distinct CVE counts")
+        self.assertNotContains(national, "Build unknown")
+        # A changed package input must suppress the old fix recommendation.
+        component = finding.distro_match.component
+        old_version = component.version
+        component.version = "99"
+        component.save(update_fields=["version"])
+        stale = self.client.get("/circl/findings/?assessment=pending")
+        self.assertEqual(self.client.get("/circl/findings/").context["page"].paginator.count, 0)
+        self.assertContains(stale, "Awaiting current package evaluation")
+        self.assertNotContains(stale, "Vendor-listed fix")
+        component.version = old_version
+        component.save(update_fields=["version"])
+        self.login()
         # A current fixed package must leave the action list without claiming
         # that an operator enabled ESM, installed anything or resolved workflow.
         self.relax()
@@ -145,6 +184,12 @@ class UbuntuUpdateTests(DistroTests):
         distro_cves.evaluate_device(self.device.pk)
         self.assertEqual(self.client.get("/reviews/").context["review_total"], 0)
         fixed = self.client.get("/reviews/?state=cleared")
+        self.login(self.analyst)
+        self.assertEqual(self.client.get("/circl/findings/").context["page"].paginator.count, 0)
+        national_fixed = self.client.get("/circl/findings/?assessment=cleared")
+        self.assertContains(national_fixed, "includes the vendor fix")
+        self.assertNotContains(national_fixed, "Vendor-listed fix")
+        self.login()
         self.assertContains(fixed, "includes the vendor fix")
         self.assertNotContains(fixed, "Which update addresses this package?")
         save_browser_evidence("queue-pip-esm-fixed", fixed)

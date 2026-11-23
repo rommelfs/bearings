@@ -14,6 +14,8 @@ To preview the website locally and open it in your browser: `python3 scripts/dev
 
 ## Implemented
 
+- National outstanding reviews default to affected-version/manual work, with separate pending, unresolved, cleared and retained-all filters and distinct-identifier counts. Rows show current automatic package evidence, explicitly supported fix versions and Ubuntu Pro / ESM Apps or ESM Infra channels separately from saved analyst decisions. Host update availability and entitlement remain unverified; stale proof withholds fix advice.
+
 - [Direct problem links and automatic risk scenarios](docs/user-guide/automatic-scenarios.md): server badges open exact problem sets; individual problem titles, actions and drafts link directly to their evidence. Local evidence-based scenario drafts recommend compatible public MOSP templates with prefilled justification and reviewed confirmation.
 - **Infrastructure overview** is the post-login landing page: company-scoped inventory/monitoring coverage, active CVE reviews, overdue actions, accountable servers and risk-review cues, with page auto-refresh enabled. Known product names, concrete CPE identities and supported package identities automatically enroll enabled product watches; a public vendor/product picker handles unknown mappings. [Setup and overview](docs/user-guide/infrastructure-overview.md).
 

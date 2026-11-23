@@ -3,6 +3,7 @@
 from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.db import OperationalError
+from django.db.models import Count
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -103,20 +104,60 @@ def findings(request):
         return private_response(
             render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
         )
+    from .review_queue import classified, BUCKETS
+
+    assessment = request.GET.get("assessment", "action")
+    if assessment not in dict(BUCKETS):
+        return private_response(
+            render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+        )
+    qs = classified(qs)
+    bins = {
+        row["queue_bucket"]: row
+        for row in qs.order_by()
+        .values("queue_bucket")
+        .annotate(total=Count("pk"), vulnerabilities=Count("record__external_id", distinct=True))
+    }
+    counts = {key: bins.get(key, {}).get("total", 0) for key, _ in BUCKETS}
+    counts["all"] = sum(counts.values())
+    if assessment != "all":
+        qs = qs.filter(queue_bucket=assessment)
     page = object_page(
         severity_first(
             qs.select_related(
-                "organization", "record", "installation__product", "installation__asset__responsible_contact"
+                "organization",
+                "record",
+                "installation__product",
+                "installation__asset__responsible_contact",
+                "distro_match__component__device",
+                "distro_match__advisory__feed",
+                "distro_match__ubuntu_status",
             )
         ),
         25,
         request.GET.get("page"),
+        count=counts[assessment],
     )
+    from .distro_verdicts import decorate_package_verdict
+
+    for finding in page:
+        decorate_package_verdict(finding)
     return private_response(
         render(
             request,
             "portal/circl_findings.html",
-            {"page": page, "record": record, "bucket": bucket, "organization_filter": organization_filter},
+            {
+                "page": page,
+                "record": record,
+                "bucket": bucket,
+                "organization_filter": organization_filter,
+                "assessment": assessment,
+                "assessment_options": [(key, label, counts[key]) for key, label in BUCKETS],
+                "retained_total": counts["all"],
+                "distinct_vulnerabilities": bins.get(assessment, {}).get("vulnerabilities")
+                if assessment != "all"
+                else None,
+            },
         )
     )
 

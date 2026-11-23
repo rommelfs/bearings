@@ -6,11 +6,11 @@
 <section aria-label="Vendor fix and update availability"><h4>Which update addresses this package?</h4>
 <p><strong>Installed:</strong> <code>{{ finding.package_verdict.version }}</code><br>
 {% for target in finding.package_verdict.update.targets %}<strong>Vendor-listed fixed version ({{ target.basis }}):</strong> <code>{{ target.version }}</code>{% if not forloop.last %}<br>{% endif %}{% endfor %}</p>
-{% if finding.package_verdict.update.esm_apps %}<p><strong>Update channel: Ubuntu ESM Apps / Ubuntu Pro.</strong> The fix is listed in ESM Apps; an enabled entitlement and repository may be required. The newest package from the standard repositories can still be below this fix.</p>{% endif %}
+{% if finding.package_verdict.update.channels %}<p><strong>Update channel: {{ finding.package_verdict.update.channels|join:', ' }}.</strong> The fix is listed in this ESM channel; an enabled entitlement and repository may be required. The newest package from the standard repositories can still be below this fix.</p>{% endif %}
 {% if finding.package_verdict.update.package_context %}<p><strong>Why this package?</strong> {{ finding.package_verdict.update.package_context }}</p>{% endif %}
 <p><strong>Availability on this host: not checked.</strong> Installed-package reports do not include available updates or subscription status.</p>
 <details><summary>Check update availability on this host</summary>
-{% if finding.package_verdict.update.check_command %}<p>Run this read-only check on the affected host:</p><pre><code>{{ finding.package_verdict.update.check_command }}</code></pre><p>If Candidate equals Installed and is below the listed fix, APT currently offers no update for this package from its configured package lists.{% if finding.package_verdict.update.esm_apps %} Check <code>pro status</code> and ESM Apps availability with the system administrator before choosing a remediation path.{% endif %}</p>{% endif %}
+{% if finding.package_verdict.update.check_command %}<p>Run this read-only check on the affected host:</p><pre><code>{{ finding.package_verdict.update.check_command }}</code></pre><p>If Candidate equals Installed and is below the listed fix, APT currently offers no update for this package from its configured package lists.{% if finding.package_verdict.update.channels %} Check <code>pro status</code> and the listed ESM channel availability with the system administrator before choosing a remediation path.{% endif %}</p>{% endif %}
 <p>After a suitable package update, the next client report and automatic evaluation update this result. A saved analyst assessment remains separate.</p>
 </details></section>
 {% endif %}

@@ -40,7 +40,14 @@ def update_context(match, proof):
     import re
     import shlex
 
-    result = {"targets": [], "esm_apps": False, "package_context": "", "check_command": ""}
+    result = {
+        "targets": [],
+        "esm_apps": False,
+        "esm_infra": False,
+        "channels": [],
+        "package_context": "",
+        "check_command": "",
+    }
     if proof.get("verdict") != "affected":
         return result
     comments = proof.get("vendor_comments", [])
@@ -60,10 +67,17 @@ def update_context(match, proof):
             }
             if target not in result["targets"]:
                 result["targets"].append(target)
-            if match.snapshot.get("feed", "").startswith("ubuntu:") and any(
-                "esm-apps/" in note for note in notes
-            ):
-                result["esm_apps"] = True
+            if match.snapshot.get("feed", "").startswith("ubuntu:"):
+                # Bind the channel to the same explicitly fixed version. A +esm
+                # suffix alone cannot identify Apps versus Infra or entitlement.
+                for pocket, label, flag in (
+                    ("esm-apps", "Ubuntu ESM Apps / Ubuntu Pro", "esm_apps"),
+                    ("esm-infra", "Ubuntu ESM Infra / Ubuntu Pro", "esm_infra"),
+                ):
+                    if any(" in " + pocket + "/" in note for note in notes):
+                        result[flag] = True
+                        if label not in result["channels"]:
+                            result["channels"].append(label)
     name = match.component.name
     if match.component.manager == "dpkg" and re.fullmatch(r"[a-z0-9][a-z0-9+.-]{0,127}", name):
         result["check_command"] = "apt-cache policy " + shlex.quote(name)
