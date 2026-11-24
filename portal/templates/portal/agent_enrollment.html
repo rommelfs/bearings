@@ -1,0 +1,14 @@
+{% extends 'portal/base.html' %}{% block title %}Register inventory client · {{ org.name }}{% endblock %}{% block content %}
+<h1>Copy your one-use registration code</h1>
+{% if grant.claim_key_on_redeem %}
+<p>Open the Windows client downloaded from this Bearings server. Paste this code into its setup window and choose <strong>Enroll and send first report</strong>.</p>
+<p>The code is for the selected asset. It expires at {{ grant.expires_at }} and binds to the first device that presents it with a signed enrollment request. Share it privately with the intended device operator.</p>
+{% else %}
+<p>This code is bound to the public key you approved for {{ org.name }}. It expires at {{ grant.expires_at }} and is shown only now. Keep it private. Cancelling the pending enrollment invalidates it.</p>
+<p>On your Linux server, run:</p><pre>sudo python3 bearings-install.py enroll --code{% if register_host %} --register-host{% endif %}</pre>
+<p>Paste this code at the hidden terminal prompt. Do not put the code in the command itself.</p>
+{% endif %}
+<label for="enrollment-code">Registration code</label><textarea id="enrollment-code" readonly rows="8" spellcheck="false" autocomplete="off" style="width:100%">{{ code }}</textarea>
+<p>Select the code and copy it. No file upload or download is needed for registration.</p>
+<p><a href="{% url 'agent-center' org.slug %}">Back to Linux / Windows inventory reports</a> · <a href="{% url 'linux-client-downloads' %}">Linux installer and instructions</a>{% if not register_host %} · <a href="{% url 'windows-client-downloads' %}">Windows download and setup</a>{% endif %}</p>
+{% endblock %}

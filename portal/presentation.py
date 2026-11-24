@@ -3,6 +3,20 @@
 import math
 
 ACTIVE_REVIEWS = ["new", "under_review", "confirmed"]
+SEVERITY_ORDER = ["critical", "high", "medium", "low", "none", "unknown"]
+
+
+def severity_first(findings):
+    """Order the authorized query before pagination; unknown severity always follows known values."""
+    from django.db.models import Case, IntegerField, Value, When
+
+    return findings.annotate(
+        source_severity_order=Case(
+            *[When(record__source_severity=key, then=Value(i)) for i, key in enumerate(SEVERITY_ORDER)],
+            default=Value(len(SEVERITY_ORDER)),
+            output_field=IntegerField(),
+        ),
+    ).order_by("source_severity_order", "-evaluated_at", "pk")
 
 
 def vulnerability_summary(payload):
@@ -29,6 +43,18 @@ def vulnerability_summary(payload):
                 if isinstance(item.get("value"), str):
                     result["description"] = item["value"][:1500]
                     break
+    distro = payload.get("bearings_distro", {})
+    if (
+        isinstance(distro, dict)
+        and distro.get("schema") == "bearings.distro-oval.v1"
+        and distro.get("severity") in {"critical", "high", "medium", "low", "none"}
+    ):
+        result["severity"] = distro["severity"].title()
+        result["vendor_priority"] = True
+        feed = str(distro.get("feed", "")).split(":", 1)[0]
+        result["priority_source"] = {"ubuntu": "Ubuntu", "debian": "Debian", "rhel": "Red Hat"}.get(
+            feed, "Vendor"
+        )
     metrics = cna.get("metrics")
     if not isinstance(metrics, list):
         return result
@@ -53,7 +79,11 @@ def vulnerability_summary(payload):
                 if score > 0
                 else "None"
             )
-            result.update(score=score, severity=severity, cvss_version=version)
+            result.update(
+                score=score, cvss_version=version, score_severity=severity, score_key=severity.lower()
+            )
+            if not result.get("vendor_priority"):
+                result["severity"] = severity
             return result
     return result
 

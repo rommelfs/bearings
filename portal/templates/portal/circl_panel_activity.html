@@ -1,0 +1,4 @@
+{% if coverage %}<p class="muted">Prepared data: {{ coverage.companies }} / {{ coverage.total }} companies · oldest refresh {{ coverage.refreshed_at }}.{% if coverage.pending %} <strong>{{ coverage.pending }} companies pending refresh; totals below are incomplete.</strong>{% endif %}</p>{% endif %}
+<section class="national-panel"><h2>Review activity · last 30 days</h2><p><strong>{{ trend.recent }}</strong> first product-watch evidence records in the last 7 days · <strong>{{ trend.previous }}</strong> in the preceding 7 days · <strong>{{ trend.closures }}</strong> resolution decisions in 30 days.</p>
+{% include "portal/_timeline.html" with timeline=trend.timeline timeline_id="national-activity-data" %}
+</section>

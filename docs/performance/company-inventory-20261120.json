@@ -1,0 +1,168 @@
+{
+  "date": "2026-11-20",
+  "database": "isolated PostgreSQL test database",
+  "data": "synthetic; no production credentials/inventory",
+  "measurement": "Django request+render; median of three requests, first profiled; network/TLS/browser excluded",
+  "cases": {
+    "before_one_asset": {
+      "assets": 1,
+      "software": 1000,
+      "reviews": 1000,
+      "runs": [
+        {
+          "seconds": 10.9279,
+          "sql_seconds": 0.544,
+          "queries": 2031,
+          "bytes": 2043846,
+          "history_selects": 1000,
+          "payload_selects": 1
+        },
+        {
+          "seconds": 6.8008,
+          "sql_seconds": 0.202,
+          "queries": 2031,
+          "bytes": 2043846,
+          "history_selects": 1000,
+          "payload_selects": 1
+        },
+        {
+          "seconds": 7.2104,
+          "sql_seconds": 0.176,
+          "queries": 2031,
+          "bytes": 2043846,
+          "history_selects": 1000,
+          "payload_selects": 1
+        }
+      ],
+      "median_seconds": 7.2104
+    },
+    "after_one_asset": {
+      "assets": 1,
+      "software": 1000,
+      "reviews": 1000,
+      "runs": [
+        {
+          "seconds": 0.2997,
+          "sql_seconds": 0.117,
+          "queries": 29,
+          "bytes": 18604,
+          "history_selects": 0,
+          "payload_selects": 0
+        },
+        {
+          "seconds": 0.1333,
+          "sql_seconds": 0.097,
+          "queries": 29,
+          "bytes": 18604,
+          "history_selects": 0,
+          "payload_selects": 0
+        },
+        {
+          "seconds": 0.3305,
+          "sql_seconds": 0.13,
+          "queries": 29,
+          "bytes": 18604,
+          "history_selects": 0,
+          "payload_selects": 0
+        }
+      ],
+      "median_seconds": 0.2997
+    },
+    "after_signed_agent_inventory": {
+      "assets": 1,
+      "software": 1000,
+      "reviews": 1000,
+      "runs": [
+        {
+          "seconds": 0.3751,
+          "sql_seconds": 0.177,
+          "queries": 29,
+          "bytes": 21510,
+          "history_selects": 0,
+          "payload_selects": 0
+        },
+        {
+          "seconds": 0.2109,
+          "sql_seconds": 0.174,
+          "queries": 29,
+          "bytes": 21510,
+          "history_selects": 0,
+          "payload_selects": 0
+        },
+        {
+          "seconds": 0.1939,
+          "sql_seconds": 0.157,
+          "queries": 29,
+          "bytes": 21510,
+          "history_selects": 0,
+          "payload_selects": 0
+        }
+      ],
+      "median_seconds": 0.2109
+    },
+    "before_count_query_fix_large": {
+      "assets": 101,
+      "software": 100900,
+      "reviews": 10000,
+      "runs": [
+        {
+          "seconds": 4.1326,
+          "sql_seconds": 3.662,
+          "queries": 26,
+          "bytes": 349771,
+          "history_selects": 0,
+          "payload_selects": 0
+        },
+        {
+          "seconds": 3.1684,
+          "sql_seconds": 3.059,
+          "queries": 26,
+          "bytes": 349771,
+          "history_selects": 0,
+          "payload_selects": 0
+        },
+        {
+          "seconds": 3.6803,
+          "sql_seconds": 3.477,
+          "queries": 26,
+          "bytes": 349771,
+          "history_selects": 0,
+          "payload_selects": 0
+        }
+      ],
+      "median_seconds": 3.6803
+    },
+    "after_count_query_fix_large": {
+      "assets": 101,
+      "software": 100900,
+      "reviews": 10000,
+      "runs": [
+        {
+          "seconds": 1.0439,
+          "sql_seconds": 0.349,
+          "queries": 26,
+          "bytes": 349771,
+          "history_selects": 0,
+          "payload_selects": 0
+        },
+        {
+          "seconds": 0.3541,
+          "sql_seconds": 0.25,
+          "queries": 26,
+          "bytes": 349771,
+          "history_selects": 0,
+          "payload_selects": 0
+        },
+        {
+          "seconds": 0.3863,
+          "sql_seconds": 0.226,
+          "queries": 26,
+          "bytes": 349771,
+          "history_selects": 0,
+          "payload_selects": 0
+        }
+      ],
+      "median_seconds": 0.3863
+    }
+  }
+}

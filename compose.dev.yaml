@@ -47,9 +47,11 @@ services:
       - ./docker/dev:/app/docker/dev:ro
       - ./portal:/app/portal:ro
       - ./config:/app/config:ro
+      - ./website:/app/website:ro
       - dev-secrets:/run/bearings/secrets:ro
       - dev-trust:/run/bearings/trust:ro
       - local-data:/app/.local
+      - ./.local/linux-client:/app/.local/linux-client:ro
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
@@ -97,6 +99,44 @@ services:
       timeout: 3s
       start_period: 10s
       retries: 10
+  source-worker:
+    image: bearings-development
+    command: ["/app/.venv/bin/python", "docker/dev/entrypoint.py", "source-worker"]
+    env_file:
+      - path: .env
+        required: false
+    environment: *bearings-env
+    volumes: *bearings-volumes
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      bearings-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import pathlib,time; assert time.time()-pathlib.Path('/tmp/bearings-source-heartbeat').stat().st_mtime < 300"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 10
+  national-worker:
+    image: bearings-development
+    command: ["/app/.venv/bin/python", "docker/dev/entrypoint.py", "national-worker"]
+    env_file:
+      - path: .env
+        required: false
+    environment: *bearings-env
+    volumes: *bearings-volumes
+    restart: unless-stopped
+    depends_on:
+      bearings-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import pathlib,time; assert time.time()-pathlib.Path('/tmp/bearings-national-heartbeat').stat().st_mtime < 60"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 10
+
 volumes:
   postgres-data:
   local-data:

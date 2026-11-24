@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/ecrou-exact/vitrine",
+  "revision": "07ab87825dfbe100b5a3357e4d42b8789f76ffad",
+  "version": "0.14.0",
+  "components": [
+    "map",
+    "stats",
+    "code",
+    "chart"
+  ],
+  "lock_sha256": "6b539cf21fd49240b400db1c9236947aa5cdad28cf24fc2d13fc0724eab440df"
+}

@@ -1,0 +1,6 @@
+{% extends 'portal/base.html' %}{% load static %}{% block content %}
+<h1>Join with a company domain code</h1>
+{% if sent %}<h2>Check your company email</h2><p>If the code and email domain qualify, a personal confirmation link will be sent. Check your inbox or ask your company administrator if it does not arrive. Existing users sign in with the account matching that mailbox before accepting. No access has been granted yet.</p>
+{% else %}<p>Enter the shared code from your company administrator and your own company email address. The code applies to the exact email domain configured by your administrator. You must confirm that mailbox before joining; there is no automatic access based on a typed email address.</p><form method="post" autocomplete="off">{% csrf_token %}{{ form.as_p }}<button class="primary">Email my personal confirmation link</button></form>{% endif %}
+<p><a href="{% url 'company-join' %}">Already have a personal invitation? Accept it here →</a></p>
+<script src="{% static 'portal/registration.js' %}" defer></script>{% endblock %}

@@ -1,0 +1,29 @@
+{% load static %}
+<section class="linux-install-instructions" aria-label="Linux installation commands">
+<h3>1. Download and install on your Linux server</h3>
+<p>Run this complete block in a terminal on the machine you want to monitor. Python 3.8+, curl, systemd and sudo are required. Paste your rollout key at the hidden prompt.</p>
+<pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
+sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt</pre>
+<p><a href="{% url 'linux-client-artifact' 'install.py' %}">Download installer (install.py)</a> · <a href="{% url 'linux-client-artifact' 'SHA256SUMS' %}">Checksums</a></p>
+<details><summary>Installing inside a constrained LXC container</summary><p>Use this complete block instead:</p>
+<pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
+sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt --lxc-compatible</pre></details>
+<h3>2. Check that reporting has started</h3>
+<pre>sudo systemctl --no-pager --full status bearings-linux.service</pre>
+<p>After successful registration, periodic reporting starts automatically. Check the device under your company’s <strong>Linux / Windows inventory reports</strong>.</p>
+<details><summary>Automated rollout with a secret manager</summary><p>Run as root. First have your secret manager provision a root-readable file at <code>/run/secrets/bearings-rollout-key</code> (permissions 0600). This path is an example: adapt it to your deployment. The following block downloads the installer, then reads the key from that file through standard input:</p>
+<pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
+python3 bearings-install.py --server '{{ origin }}' --bootstrap-stdin &lt; /run/secrets/bearings-rollout-key</pre>
+<p>Add <code>--lxc-compatible</code> for constrained LXC. Keep the key out of command arguments, logs and reusable images. Each machine generates its own device identity.</p></details>
+<h3>3. Automatic client updates</h3>
+<p>Automatic client updates are enabled by default. At a terminal, press Enter for yes or answer no; unattended installs enable updates without reading an extra stdin answer. Use <code>--no-auto-update</code> to opt out, or <code>--auto-update</code> to accept without prompting.</p>
+<p>For older installations without an updater, enable it once as an administrator. New HTTPS installations configure it automatically and wait for enrollment if needed. The client checks this trusted HTTPS server daily with a randomized delay of up to four hours. Unchanged releases download only checksums and do not restart reporting. Keys, profiles, pending reports and local service drop-ins are retained.</p>
+<pre>sudo python3 bearings-install.py auto-update-enable --server '{{ origin }}'</pre>
+<p>The installed updater stays local; it never downloads and executes a replacement installer. Failed replacements restore the previous client and quarantine that publication. Server operators still publish reviewed client releases explicitly.</p>
+<details><summary>Update status, immediate check and disabling</summary>
+<pre>sudo python3 /usr/local/lib/bearings-linux/update.py auto-update-status
+sudo systemctl start bearings-linux-update.service
+sudo journalctl -u bearings-linux-update.service --no-pager -n 40
+sudo python3 /usr/local/lib/bearings-linux/update.py auto-update-disable</pre>
+<p>Disabling updates keeps ordinary inventory reporting running. A startup check confirms service activity, not successful report delivery or complete application health.</p></details>
+<link rel="stylesheet" href="{% static 'portal/vitrine-widgets.css' %}"><script type="module" src="{% static 'portal/vitrine-widgets.js' %}"></script></section>

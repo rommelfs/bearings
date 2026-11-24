@@ -11,7 +11,13 @@ import time
 from urllib.parse import urlsplit
 import requests
 from social_core.backends.open_id_connect import OpenIdConnectAuth
-from social_core.exceptions import AuthForbidden, AuthTokenError
+
+try:
+    from social_core.exceptions import AuthPolicyError as AuthForbidden, AuthResponseError as AuthTokenError
+except ImportError:
+    # Retained native services can load this shared module during a staged upgrade.
+    # Bearings itself requires the patched core through its frozen dependency floor.
+    from social_core.exceptions import AuthForbidden, AuthTokenError
 
 
 def identity_uid(issuer, subject):
@@ -51,13 +57,25 @@ class ApprovedOpenIdConnect(OpenIdConnectAuth):
             raise AuthTokenError(self, "Invalid authorized party")
         return super().validate_claims(id_token)
 
+    def id_key(self):
+        # Our UID is an issuer+subject digest, not a raw provider claim. Keep
+        # existing explicitly approved bindings in their historical namespace.
+        return ""
+
     def get_user_id(self, details, response):
         try:
-            return identity_uid(self.id_token_issuer(), super().get_user_id(details, response))
-        except ValueError:
+            return identity_uid(self.id_token_issuer(), self.id_token.get("sub"))
+        except (ValueError, AttributeError):
             raise AuthTokenError(self, "Invalid identity") from None
 
-    def request(self, url, *, method="GET", **kwargs):
+    def get_legacy_user_identifiers(self, details, response):
+        # Never migrate or associate accounts using provider aliases or email.
+        return []
+
+    def get_legacy_user_ids(self, details, response):
+        return []
+
+    def request(self, url, *, method="GET", stage=None, **kwargs):
         # Explicit operator endpoints: do not discover or follow response-provided URLs.
         allowed = {
             self.setting(name)
@@ -135,7 +153,11 @@ class RedactAuthQueries(logging.Filter):
     def filter(self, record):
         def redact(value):
             return (
-                re.sub(r"(/oauth/complete/[^?\s]+)\?[^\s\"]+", r"\1?[redacted]", value)
+                re.sub(
+                    r"(/oauth/complete/[^?\s]+|/(?:circl|register|contacts)/[^?\s]*)\?[^\s\"]+",
+                    r"\1?[redacted]",
+                    value,
+                )
                 if isinstance(value, str)
                 else value
             )

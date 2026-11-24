@@ -40,6 +40,7 @@ from .services import (
 )
 
 
+@override_settings(UBUNTU_STATUS_FETCH_ENABLED=False)
 class Fixture(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -177,7 +178,7 @@ class AccessTests(Fixture):
     def test_operator_dashboard_does_not_leak_restricted_counts(self):
         self.record_finding(shareable=False)
         self.login()
-        response = self.client.get("/")
+        response = self.client.get(reverse("home"))
         org = response.context["orgs"][0]
         self.assertEqual(org.finding_count, 0)
 

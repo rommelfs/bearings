@@ -1,0 +1,9 @@
+{% extends 'portal/base.html' %}
+{% load ui_icons %}
+{% block title %}Inventory clients · Bearings{% endblock %}
+{% block content %}
+<section class="client-downloads">
+  <h1 class="icon-heading">{% ui_icon "clients" %}Inventory clients</h1>
+  {% include "portal/_client_platform_links.html" %}
+</section>
+{% endblock %}

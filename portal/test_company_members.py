@@ -1,0 +1,767 @@
+from django.test import TransactionTestCase
+from django.db import connection, close_old_connections
+from unittest import skipUnless
+from concurrent.futures import ThreadPoolExecutor
+import threading
+import re
+from datetime import timedelta
+from unittest.mock import patch
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
+from django.core import mail
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.test import Client, override_settings
+from django.urls import reverse
+from django.utils import timezone
+from .tests import Fixture
+from .models import (
+    Organization,
+    Membership,
+    OrganizationInvitation,
+    InventorySource,
+    Contact,
+    Product,
+    AuditEvent,
+)
+from .company_members import invite, accept, change_member
+from .company_merge import plan, merge
+
+
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    SERVICE_MAIL_TRANSPORT="file",
+    PUBLIC_BASE_URL="https://example.invalid",
+)
+class CompanyMembersTests(Fixture):
+    def issue(self, email="new@example.invalid", role="reader"):
+        item = invite(self.admin, self.a, email, role)
+        code = re.search(r"#token=([A-Za-z0-9_-]+)", mail.outbox[-1].body)[1]
+        return item, code
+
+    def test_new_user_joins_exact_company_with_mail_proof_and_no_staff_privileges(self):
+        count = Organization.objects.count()
+        item, code = self.issue(role="admin")
+        org = accept(
+            AnonymousUser(),
+            code,
+            username="new",
+            first_name="New",
+            last_name="Member",
+            password="A-long-fresh-password-762!",
+        )
+        user = get_user_model().objects.get(username="new")
+        self.assertEqual(org, self.a)
+        self.assertEqual(Organization.objects.count(), count)
+        self.assertEqual(Membership.objects.get(user=user).role, "admin")
+        self.assertFalse(user.is_staff or user.is_superuser or user.groups.exists())
+        self.assertNotIn(code, str(list(AuditEvent.objects.values())))
+        self.assertNotEqual(item.digest, code)
+        with self.assertRaises(ValidationError):
+            accept(user, code)
+
+    def test_existing_account_requires_login_and_keeps_password_and_target_role(self):
+        old = self.reader.password
+        self.reader.email = "reader@example.invalid"
+        self.reader.save()
+        _, code = self.issue(self.reader.email, "admin")
+        with self.assertRaises(ValidationError):
+            accept(AnonymousUser(), code, username="another", password="anything")
+        accept(self.reader, code)
+        self.reader.refresh_from_db()
+        self.assertEqual(self.reader.password, old)
+        self.assertEqual(Membership.objects.get(user=self.reader, organization=self.a).role, "reader")
+
+    def test_foreign_account_and_ambiguous_email_cannot_accept(self):
+        _, code = self.issue()
+        with self.assertRaises(PermissionDenied):
+            accept(self.reader, code)
+        get_user_model().objects.create_user("duplicate1", email="new@example.invalid")
+        other = get_user_model().objects.create_user("duplicate2", email="new@example.invalid")
+        with self.assertRaises(PermissionDenied):
+            accept(other, code)
+
+    def test_current_admin_revocation_expiry_and_reinvite(self):
+        item, code = self.issue()
+        item.expires_at = timezone.now() - timedelta(seconds=1)
+        item.save()
+        with self.assertRaises(ValidationError):
+            accept(AnonymousUser(), code)
+        item.created_at -= timedelta(minutes=6)
+        item.save()
+        newer, code2 = self.issue()
+        item.refresh_from_db()
+        self.assertIsNotNone(item.revoked_at)
+        Membership.objects.filter(user=self.admin, organization=self.a).update(role="editor")
+        with self.assertRaises(ValidationError):
+            accept(AnonymousUser(), code2)
+        self.assertNotEqual(newer.digest, item.digest)
+
+    def test_only_company_admin_invites_and_cannot_grant_platform_role(self):
+        for user in [self.editor, self.reader, self.analyst, self.platform]:
+            with self.assertRaises(PermissionDenied):
+                invite(user, self.a, "new@example.invalid", "reader")
+        with self.assertRaises(ValidationError):
+            invite(self.admin, self.a, "new@example.invalid", "superuser")
+        with self.assertRaises(PermissionDenied):
+            invite(self.admin, self.b, "new@example.invalid", "admin")
+
+    def test_last_admin_http_error_does_not_crash_unbound_invitation_form(self):
+        self.client.force_login(self.admin)
+        member = Membership.objects.get(user=self.admin, organization=self.a)
+        response = self.client.post(
+            reverse("company-members", args=[self.a.slug]),
+            {"action": "member", "member": member.pk, "role": "remove"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["operation_error"])
+        self.assertTrue(Membership.objects.filter(pk=member.pk, role="admin").exists())
+
+    def test_last_admin_and_foreign_member_guard(self):
+        with self.assertRaises(ValidationError):
+            change_member(
+                self.admin, self.a, Membership.objects.get(user=self.admin, organization=self.a).pk, "remove"
+            )
+        reader = Membership.objects.get(user=self.reader, organization=self.a)
+        change_member(self.admin, self.a, reader.pk, "admin")
+        change_member(self.reader, self.a, reader.pk, "editor")
+        with self.assertRaises(PermissionDenied):
+            change_member(self.editor, self.a, reader.pk, "admin")
+
+    def test_mail_failure_and_rate_limit_are_not_membership_success(self):
+        with patch("portal.company_members.send_service_mail", side_effect=OSError):
+            item = invite(self.admin, self.a, "new@example.invalid", "reader")
+        self.assertTrue(item.mail_error)
+        self.assertFalse(Membership.objects.filter(user__email="new@example.invalid").exists())
+        with self.assertRaises(ValidationError):
+            invite(self.admin, self.a, "new@example.invalid", "reader")
+
+    def test_invitation_notice_matches_service_transport(self):
+        self.login(self.admin)
+        for mode, message in [("smtp", "SMTP relay"), ("file", "local outbox")]:
+            with (
+                self.settings(SERVICE_MAIL_TRANSPORT=mode),
+                patch("portal.company_members.send_service_mail"),
+            ):
+                response = self.client.post(
+                    reverse("company-members", args=[self.a.slug]),
+                    {"action": "invite", "email": mode + "@example.invalid", "role": "reader"},
+                    follow=True,
+                )
+            self.assertContains(response, message)
+            self.assertNotContains(response, "Local mail mode does not send externally")
+
+    def test_http_csrf_public_join_no_get_mutation_and_no_foreign_company_list(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.admin)
+        url = reverse("company-members", args=[self.a.slug])
+        self.assertEqual(
+            client.post(
+                url, {"action": "invite", "email": "new@example.invalid", "role": "reader"}
+            ).status_code,
+            403,
+        )
+        self.client.force_login(self.reader)
+        self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse("company-members", args=[self.b.slug])).status_code, 403)
+        self.assertContains(self.client.get(url), "Invite a member")
+        _, code = self.issue()
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("company-join") + "#token=" + code).status_code, 200)
+        self.assertFalse(OrganizationInvitation.objects.get(email="new@example.invalid").consumed_at)
+        response = self.client.post(
+            reverse("company-join"),
+            {
+                "code": code,
+                "confirmed": "on",
+                "username": "web-new",
+                "first_name": "Web",
+                "last_name": "Member",
+                "password1": "Unrelated-fresh-Password321!",
+                "password2": "Unrelated-fresh-Password321!",
+            },
+        )
+        self.assertContains(response, "You are now a member")
+        self.assertNotContains(response, code)
+
+
+class CompanyMergeTests(Fixture):
+    def setUp(self):
+        # Separate simple local companies, not connector-owned fixture inventories.
+        self.source = Organization.objects.create(
+            name="Duplicate", slug="duplicate", operator_visibility=False
+        )
+        self.target = Organization.objects.create(name="Keep", slug="keep", operator_visibility=True)
+        self.ssource = InventorySource.objects.create(organization=self.source, mode="manual")
+        InventorySource.objects.create(organization=self.target, mode="manual")
+        Membership.objects.create(organization=self.source, user=self.admin, role="admin")
+        Membership.objects.create(organization=self.target, user=self.admin, role="reader")
+        Membership.objects.create(organization=self.target, user=self.reader, role="admin")
+
+    def test_two_reviewed_registrations_can_join_native_target_with_existing_archives(self):
+        from .models import Asset, AgentDevice, NetBoxInstance
+
+        retained = Organization.objects.create(
+            name="Old archive", slug="old-merge-archive", merged_into=self.target
+        )
+        target_source = self.target.inventory_source
+        instance = NetBoxInstance.objects.create(
+            name="Synthetic retained NetBox",
+            base_url="https://netbox.example.invalid",
+            token_env_var="NETBOX_MERGE_TOKEN",
+            organization=self.target,
+            access_mode="read_write",
+        )
+        target_source.mode, target_source.instance, target_source.tenant_id = "external", instance, 1
+        target_source.save()
+        host = Asset.objects.create(
+            organization=self.target,
+            source=target_source,
+            name="Retained host",
+            kind="vm",
+            object_type="virtualization.virtualmachine",
+            external_id="7",
+            state="synced",
+        )
+        device = AgentDevice.objects.create(
+            organization=self.target,
+            source=target_source,
+            asset=host,
+            public_key="synthetic-kept-public-key",
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+        second = Organization.objects.create(name="Second registration", slug="second-merge-registration")
+        InventorySource.objects.create(organization=second, mode="manual")
+        Membership.objects.create(organization=second, user=self.analyst, role="editor")
+        for source in (self.source, second):
+            Contact.objects.create(
+                organization=source, name="Retained applicant", email=f"source-{source.pk}@example.invalid"
+            )
+            preview = plan(self.platform, source, self.target)
+            self.assertEqual(preview["blockers"], [])
+            merge(self.platform, preview["ticket"])
+        for source in (retained, self.source, second):
+            source.refresh_from_db()
+            self.assertEqual(source.merged_into_id, self.target.pk)
+        host.refresh_from_db()
+        device.refresh_from_db()
+        target_source.refresh_from_db()
+        self.assertEqual((host.external_id, host.source_id), ("7", target_source.pk))
+        self.assertEqual(
+            (device.asset_id, device.source_id, device.public_key),
+            (host.pk, target_source.pk, "synthetic-kept-public-key"),
+        )
+        self.assertEqual((target_source.instance_id, target_source.tenant_id), (instance.pk, 1))
+        self.assertEqual(self.target.contacts.count(), 2)
+        self.assertEqual(Membership.objects.get(organization=self.target, user=self.admin).role, "reader")
+        self.assertEqual(Membership.objects.get(organization=self.target, user=self.analyst).role, "editor")
+
+    def test_policy_change_requires_new_preview_and_incoming_roles_are_explicit(self):
+        with patch("portal.company_merge.MERGE_POLICY_VERSION", 1):
+            old = plan(self.platform, self.source, self.target)
+        with self.assertRaises(ValidationError):
+            merge(self.platform, old["ticket"])
+        preview = plan(self.platform, self.source, self.target)
+        self.assertFalse(preview["operator_visibility_result"])
+        changes = preview["member_changes"]
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(
+            (changes[0]["user_id"], changes[0]["source"], changes[0]["target"], changes[0]["result"]),
+            (self.admin.pk, "Organization administrator", "Reader", "Reader"),
+        )
+        self.client.force_login(self.platform)
+        response = self.client.post(
+            reverse("company-merge"),
+            {"action": "preview", "source": self.source.pk, "target": self.target.pk},
+        )
+        self.assertContains(response, "Membership access after merge")
+
+    def test_source_archive_chain_still_blocks_and_changed_target_archive_invalidates_preview(self):
+        archive = Organization.objects.create(
+            name="Prior archive", slug="prior-merge-archive", merged_into=self.target
+        )
+        preview = plan(self.platform, self.source, self.target)
+        self.assertEqual(preview["blockers"], [])
+        archive.name = "Changed after review"
+        archive.save()
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+        archive.merged_into = self.source
+        archive.save()
+        self.assertTrue(
+            any("source has archived" in b for b in plan(self.platform, self.source, self.target)["blockers"])
+        )
+
+    def test_merge_get_preselection_is_read_only_and_platform_only(self):
+        self.client.force_login(self.platform)
+        response = self.client.get(
+            reverse("company-merge"), {"source": self.source.pk, "target": self.target.pk, "q": "no-match"}
+        )
+        self.assertEqual(str(response.context["form"]["source"].value()), str(self.source.pk))
+        self.assertEqual(str(response.context["form"]["target"].value()), str(self.target.pk))
+        self.assertIsNone(response.context["preview"])
+        self.source.refresh_from_db()
+        self.assertIsNone(self.source.merged_into_id)
+        self.client.force_login(self.admin)
+        self.assertEqual(
+            self.client.get(
+                reverse("company-merge"), {"source": self.source.pk, "target": self.target.pk}
+            ).status_code,
+            403,
+        )
+
+    def test_domain_codes_are_revoked_on_archive_without_transfer(self):
+        from . import domain_membership
+        from .models import OrganizationDomainCode
+
+        item, raw = domain_membership.create(self.admin, self.source, "example.invalid")
+        self.assertEqual(plan(self.platform, self.source, self.target)["blockers"], [])
+        merge(self.platform, plan(self.platform, self.source, self.target)["ticket"])
+        item.refresh_from_db()
+        self.assertIsNotNone(item.revoked_at)
+        self.assertEqual(item.organization_id, self.source.pk)
+        self.assertFalse(OrganizationDomainCode.objects.filter(organization=self.target).exists())
+        self.assertFalse(domain_membership.request_invitation(raw, "archive@example.invalid"))
+
+    def test_reviewed_merge_preserves_target_roles_and_history_archives_source(self):
+        contact = Contact.objects.create(
+            organization=self.source, name="Keep contact", email="contact@example.invalid"
+        )
+        AuditEvent.objects.create(organization=self.source, actor=self.admin, action="before")
+        preview = plan(self.platform, self.source, self.target)
+        self.assertEqual(preview["blockers"], [])
+        merge(self.platform, preview["ticket"])
+        contact.refresh_from_db()
+        self.source.refresh_from_db()
+        self.target.refresh_from_db()
+        self.assertEqual(contact.organization, self.target)
+        self.assertEqual(self.source.merged_into, self.target)
+        self.assertFalse(self.target.operator_visibility)
+        self.assertEqual(Membership.objects.get(organization=self.target, user=self.admin).role, "reader")
+        self.assertFalse(self.source.membership_set.exists())
+        self.assertTrue(AuditEvent.objects.filter(organization=self.source, action="before").exists())
+        self.client.force_login(self.platform)
+        admin_url = reverse("admin:portal_organization_changelist")
+        listing = self.client.get(admin_url)
+        self.assertContains(listing, "Archived (merged)")
+        self.assertContains(listing, reverse("admin:portal_organization_change", args=[self.target.pk]))
+        self.assertIn(self.source.pk, [org.pk for org in listing.context["cl"].result_list])
+        active = self.client.get(admin_url, {"merge_status": "active"})
+        self.assertNotIn(self.source.pk, [org.pk for org in active.context["cl"].result_list])
+        archived = self.client.get(admin_url, {"merge_status": "archived"})
+        self.assertEqual([org.pk for org in archived.context["cl"].result_list], [self.source.pk])
+        self.assertIn(f"Archived → #{self.target.pk}", str(self.source))
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
+    def test_stale_commit_renders_retry_error_instead_of_server_error(self):
+        self.client.force_login(self.platform)
+        ticket = plan(self.platform, self.source, self.target)["ticket"]
+        Contact.objects.create(
+            organization=self.source, name="Changed after preview", email="changed@example.invalid"
+        )
+        response = self.client.post(
+            reverse("company-merge"), {"action": "commit", "ticket": ticket, "confirmed": "yes"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Prepare a new merge preview")
+        self.source.refresh_from_db()
+        self.assertIsNone(self.source.merged_into_id)
+
+    def test_expired_or_invalid_confirmation_shows_a_safe_retry_message(self):
+        self.client.force_login(self.platform)
+        response = self.client.post(
+            reverse("company-merge"), {"action": "commit", "ticket": "invalid-preview", "confirmed": "yes"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Merge preview expired")
+        self.source.refresh_from_db()
+        self.assertIsNone(self.source.merged_into_id)
+
+    def test_integrity_error_confirmation_does_not_crash_its_error_handler(self):
+        from django.db import IntegrityError
+
+        self.client.force_login(self.platform)
+        with patch(
+            "portal.company_merge.merge", side_effect=IntegrityError("synthetic private database detail")
+        ):
+            response = self.client.post(
+                reverse("company-merge"), {"action": "commit", "ticket": "fixture", "confirmed": "yes"}
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nothing was transferred")
+        self.assertNotContains(response, "synthetic private database detail")
+
+    def test_background_health_and_operator_audits_do_not_invalidate_preview(self):
+        from .models import InventoryReviewPolicy
+
+        policy = InventoryReviewPolicy.objects.create(organization=self.source)
+        preview = plan(self.platform, self.source, self.target)
+        AuditEvent.objects.create(organization=self.source, actor=self.platform, action="operator.access")
+        InventorySource.objects.filter(pk=self.ssource.pk).update(
+            last_import_attempt=timezone.now(), import_summary={"total": 0}
+        )
+        InventoryReviewPolicy.objects.filter(pk=policy.pk).update(
+            next_reminder_at=timezone.now() + timedelta(days=1)
+        )
+        self.assertEqual(plan(self.platform, self.source, self.target)["digest"], preview["digest"])
+        merge(self.platform, preview["ticket"])
+        self.source.refresh_from_db()
+        self.assertEqual(self.source.merged_into_id, self.target.pk)
+
+    def test_inventory_policy_change_still_invalidates_confirmation(self):
+        preview = plan(self.platform, self.source, self.target)
+        InventorySource.objects.filter(pk=self.ssource.pk).update(import_enabled=False)
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
+    def test_changes_after_preview_refuse_atomic_merge(self):
+        preview = plan(self.platform, self.source, self.target)
+        Contact.objects.create(organization=self.source, name="New", email="new@example.invalid")
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+        self.assertTrue(self.source.membership_set.exists())
+        self.assertTrue(self.source.contacts.exists())
+
+    def test_source_bindings_and_identity_collisions_block(self):
+        self.ssource.mode = "external"
+        self.ssource.save()
+        self.assertTrue(plan(self.platform, self.source, self.target)["blockers"])
+        self.ssource.mode = "manual"
+        self.ssource.save()
+        Product.objects.create(organization=self.source, name="Same", identifier="same")
+        Product.objects.create(organization=self.target, name="Same", identifier="same")
+        preview = plan(self.platform, self.source, self.target)
+        self.assertTrue(preview["blockers"])
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
+    def test_empty_duplicate_can_join_existing_native_target_without_rebinding_it(self):
+        target_source = InventorySource.objects.get(organization=self.target)
+        target_source.mode = "central"
+        target_source.save()
+        self.assertFalse(plan(self.platform, self.source, self.target)["blockers"])
+        merge(self.platform, plan(self.platform, self.source, self.target)["ticket"])
+        target_source.refresh_from_db()
+        self.assertEqual(target_source.mode, "central")
+        self.assertEqual(target_source.organization, self.target)
+
+    def test_manual_assets_cannot_enter_native_authoritative_target(self):
+        from .models import Asset
+
+        target_source = InventorySource.objects.get(organization=self.target)
+        target_source.mode = "central"
+        target_source.save()
+        Asset.objects.create(organization=self.source, source=self.ssource, name="Manual", kind="server")
+        preview = plan(self.platform, self.source, self.target)
+        self.assertTrue(preview["blockers"])
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
+    def test_late_failure_rolls_back_all_data_and_membership_transfers(self):
+        contact = Contact.objects.create(
+            organization=self.source, name="Retained", email="retained@example.invalid"
+        )
+        ticket = plan(self.platform, self.source, self.target)["ticket"]
+        with patch("portal.company_merge.audit", side_effect=RuntimeError("Synthetic late rollback")):
+            with self.assertRaises(RuntimeError):
+                merge(self.platform, ticket)
+        contact.refresh_from_db()
+        self.source.refresh_from_db()
+        self.assertEqual(contact.organization, self.source)
+        self.assertIsNone(self.source.merged_into)
+        self.assertTrue(self.source.membership_set.exists())
+
+    def test_merge_is_platform_only_and_tamper_protected(self):
+        with self.assertRaises(PermissionDenied):
+            plan(self.admin, self.source, self.target)
+        with self.assertRaises(ValidationError):
+            merge(self.platform, "tampered")
+        self.client.force_login(self.analyst)
+        self.assertEqual(self.client.get(reverse("company-merge")).status_code, 403)
+        self.client.force_login(self.platform)
+        self.assertContains(self.client.get(reverse("company-merge")), "Merge organizations")
+
+    def test_overlap_cannot_leave_merged_company_without_an_active_admin(self):
+        Membership.objects.filter(organization=self.target, user=self.reader).delete()
+        preview = plan(self.platform, self.source, self.target)
+        self.assertTrue(any("active company administrator" in b for b in preview["blockers"]))
+
+    def test_manual_asset_installation_and_evidence_identity_survive(self):
+        from .models import Asset, Installation
+
+        asset = Asset.objects.create(
+            organization=self.source, source=self.ssource, name="Manual server", kind="server"
+        )
+        product = Product.objects.create(
+            organization=self.source, name="Unique software", identifier="unique"
+        )
+        installation = Installation.objects.create(asset=asset, product=product, version="1.2")
+        ticket = plan(self.platform, self.source, self.target)["ticket"]
+        merge(self.platform, ticket)
+        asset.refresh_from_db()
+        product.refresh_from_db()
+        installation.refresh_from_db()
+        self.assertEqual(asset.organization, self.target)
+        self.assertEqual(asset.source.organization, self.target)
+        self.assertEqual(product.organization, self.target)
+        self.assertEqual(installation.asset_id, asset.pk)
+
+
+@skipUnless(connection.vendor == "postgresql", "Real row locking requires PostgreSQL")
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    SERVICE_MAIL_TRANSPORT="file",
+    PUBLIC_BASE_URL="https://example.invalid",
+)
+class MembershipConcurrencyTests(TransactionTestCase):
+    def test_concurrent_invitation_redemption_creates_one_membership(self):
+        user = get_user_model().objects.create_user("member", email="member@example.invalid")
+        owner = get_user_model().objects.create_user("owner", email="owner@example.invalid")
+        org = Organization.objects.create(name="One company", slug="one-company")
+        Membership.objects.create(user=owner, organization=org, role="admin")
+        invite(owner, org, user.email, "editor")
+        code = re.search(r"#token=([A-Za-z0-9_-]+)", mail.outbox[-1].body)[1]
+        barrier = threading.Barrier(2)
+
+        def run():
+            close_old_connections()
+            try:
+                actor = get_user_model().objects.get(pk=user.pk)
+                barrier.wait(timeout=10)
+                try:
+                    accept(actor, code)
+                    return "accepted"
+                except ValidationError:
+                    return "replayed"
+            finally:
+                connection.close()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: run(), range(2)))
+        self.assertCountEqual(results, ["accepted", "replayed"])
+        self.assertEqual(Membership.objects.filter(user=user, organization=org).count(), 1)
+
+
+@override_settings(SECRET_KEY="synthetic-merge-credential-key-which-is-long-enough")
+class PersonalMISPMergeTests(Fixture):
+    def setUp(self):
+        CompanyMergeTests.setUp(self)
+        import uuid
+        from .models import MISPServer, MISPInstance, MISPEvent
+        from .misp_credentials import encrypt
+
+        self.server = MISPServer.objects.create(
+            name="Merge fixture", base_url="https://misp.example.invalid", enabled=True
+        )
+        self.misp = MISPInstance(
+            organization=self.source,
+            owner=self.admin,
+            server=self.server,
+            name="Personal merge fixture",
+            credential_kind="encrypted",
+            enabled=True,
+            misp_user_id=42,
+            base_url=self.server.base_url,
+            token_env_var="MISP_MERGE_FIXTURE_TOKEN",
+            last_success=timezone.now(),
+        )
+        self.misp.credential_ciphertext = encrypt(self.misp, "synthetic-personal-key")
+        self.misp.save()
+        self.event = MISPEvent.objects.create(
+            source=self.misp,
+            event_uuid=uuid.uuid4(),
+            remote_id=1,
+            timestamp=1,
+            info="Private synthetic event",
+            digest="a" * 64,
+            payload={"synthetic": True},
+        )
+
+    def test_explicit_retirement_keeps_key_cache_and_native_target_identity(self):
+        from .misp_credentials import decrypt
+        from .misp import visible_events
+
+        self.assertTrue(plan(self.platform, self.source, self.target)["blockers"])
+        target_inventory = self.target.inventory_source
+        target_inventory.mode = "central"
+        target_inventory.save()
+        ciphertext = self.misp.credential_ciphertext
+        preview = plan(self.platform, self.source, self.target, retire_personal_misp=True)
+        self.assertFalse(preview["blockers"])
+        merge(self.platform, preview["ticket"])
+        self.misp.refresh_from_db()
+        self.event.refresh_from_db()
+        target_inventory.refresh_from_db()
+        self.assertFalse(self.misp.enabled)
+        self.assertEqual(self.misp.organization_id, self.source.pk)
+        self.assertEqual(self.misp.credential_ciphertext, ciphertext)
+        self.assertEqual(decrypt(self.misp), "synthetic-personal-key")
+        self.assertEqual(self.event.source_id, self.misp.pk)
+        self.assertEqual(target_inventory.mode, "central")
+        self.assertEqual(target_inventory.organization_id, self.target.pk)
+        self.assertFalse(visible_events(self.admin).filter(pk=self.event.pk).exists())
+        self.assertTrue(Membership.objects.filter(organization=self.target, user=self.admin).exists())
+        self.assertEqual(
+            AuditEvent.objects.get(action="organization.merged").details["retired_personal_misp"],
+            [self.misp.pk],
+        )
+
+    def test_active_refresh_and_nonpersonal_source_still_block(self):
+        self.misp.syncing_until = timezone.now() + timedelta(minutes=1)
+        self.misp.save()
+        preview = plan(self.platform, self.source, self.target, retire_personal_misp=True)
+        self.assertTrue(any("refresh is in progress" in b for b in preview["blockers"]))
+        self.misp.syncing_until = None
+        self.misp.credential_kind = "environment"
+        self.misp.save()
+        self.assertTrue(plan(self.platform, self.source, self.target, retire_personal_misp=True)["blockers"])
+
+    def test_retirement_is_fingerprinted_and_late_failure_rolls_it_back(self):
+        preview = plan(self.platform, self.source, self.target, retire_personal_misp=True)
+        with patch("portal.company_merge.audit", side_effect=RuntimeError("Rollback fixture")):
+            with self.assertRaises(RuntimeError):
+                merge(self.platform, preview["ticket"])
+        self.misp.refresh_from_db()
+        self.source.refresh_from_db()
+        self.assertTrue(self.misp.enabled)
+        self.assertIsNone(self.source.merged_into_id)
+        self.misp.enabled = False
+        self.misp.save()
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
+    def test_browser_form_retirement_requires_preview_and_keeps_credentials_out_of_html(self):
+        self.client.force_login(self.platform)
+        response = self.client.post(
+            reverse("company-merge"),
+            {
+                "action": "preview",
+                "source": self.source.pk,
+                "target": self.target.pk,
+                "retire_personal_misp": "on",
+            },
+        )
+        self.assertContains(response, "Confirm reviewed merge")
+        self.assertNotContains(response, self.misp.credential_ciphertext)
+        self.assertNotContains(response, "synthetic-personal-key")
+        ticket = response.context["preview"]["ticket"]
+        result = self.client.post(
+            reverse("company-merge"), {"action": "commit", "ticket": ticket, "confirmed": "yes"}
+        )
+        self.assertRedirects(result, reverse("organization", args=[self.target.slug]))
+        from .workspace_views import SESSION_COMPANY
+
+        self.assertEqual(self.client.session[SESSION_COMPANY], self.target.pk)
+        self.misp.refresh_from_db()
+        self.assertFalse(self.misp.enabled)
+
+    def test_misp_health_changes_are_ignored_but_personal_key_changes_invalidate_preview(self):
+        import uuid
+        from .models import MISPInstance
+        from .misp_credentials import encrypt
+
+        preview = plan(self.platform, self.source, self.target, retire_personal_misp=True)
+        MISPInstance.objects.filter(pk=self.misp.pk).update(
+            last_attempt=timezone.now(),
+            last_success=timezone.now(),
+            generation=uuid.uuid4(),
+            error="Background refresh status",
+        )
+        self.assertEqual(
+            plan(self.platform, self.source, self.target, retire_personal_misp=True)["digest"],
+            preview["digest"],
+        )
+        MISPInstance.objects.filter(pk=self.misp.pk).update(
+            credential_ciphertext=encrypt(self.misp, "new-synthetic-personal-key")
+        )
+        with self.assertRaises(ValidationError):
+            merge(self.platform, preview["ticket"])
+
+
+class MergedReviewScheduleTests(Fixture):
+    def setUp(self):
+        CompanyMergeTests.setUp(self)
+
+    def test_registered_duplicate_keeps_mandatory_review_on_bare_native_target(self):
+        from .models import InventoryReviewPolicy, InfrastructureRegistration
+        from .inventory_review import mandatory_review_mail, reminder_recipients, queue_review_reminders
+
+        self.admin.email = "merge-review@example.invalid"
+        self.admin.save()
+        Membership.objects.filter(organization=self.target, user=self.admin).update(role="admin")
+        InfrastructureRegistration.objects.create(
+            user=self.admin,
+            organization=self.source,
+            company_name=self.source.name,
+            contact_name="Review owner",
+            email=self.admin.email,
+            status="approved",
+            email_verified_at=timezone.now(),
+            periodic_review_consented_at=timezone.now(),
+            verification_expires=timezone.now() + timedelta(days=1),
+        )
+        original = InventoryReviewPolicy.objects.create(
+            organization=self.source,
+            interval_days=37,
+            reminder_days=4,
+            email_enabled=True,
+            last_reviewed_at=timezone.now(),
+        )
+        merge(self.platform, plan(self.platform, self.source, self.target)["ticket"])
+        policy = self.target.inventory_review_policy
+        self.assertEqual(policy.interval_days, 37)
+        self.assertEqual(policy.reminder_days, 4)
+        self.assertTrue(policy.email_enabled)
+        self.assertIsNone(policy.last_reviewed_at)
+        self.assertTrue(mandatory_review_mail(self.target))
+        self.assertIn(self.admin.email, reminder_recipients(policy))
+        self.assertEqual(queue_review_reminders(original.pk), 0)
+        self.assertFalse(reminder_recipients(original))
+
+
+@skipUnless(connection.vendor == "postgresql", "PostgreSQL row-lock validation")
+class MergeBusySourceTests(TransactionTestCase):
+    def test_busy_inventory_refuses_merge_without_waiting_or_partial_changes(self):
+        actor = get_user_model().objects.create_superuser(username="merge-lock-actor", password="synthetic")
+        source = Organization.objects.create(name="Lock source", slug="merge-lock-source")
+        target = Organization.objects.create(name="Lock target", slug="merge-lock-target")
+        inventory = InventorySource.objects.create(organization=source, mode="manual")
+        InventorySource.objects.create(organization=target, mode="manual")
+        Membership.objects.create(organization=source, user=actor, role="admin")
+        ticket = plan(actor, source, target)["ticket"]
+        self.client.force_login(actor)
+        acquired, release = threading.Event(), threading.Event()
+
+        def hold():
+            from django.db import transaction
+
+            close_old_connections()
+            try:
+                with transaction.atomic():
+                    InventorySource.objects.select_for_update().get(pk=inventory.pk)
+                    acquired.set()
+                    release.wait(5)
+            finally:
+                # CONN_MAX_AGE keeps a healthy connection alive; this short-lived
+                # test thread must close its own connection before DB teardown.
+                connection.close()
+
+        thread = threading.Thread(target=hold, daemon=True)
+        thread.start()
+        try:
+            self.assertTrue(acquired.wait(3))
+            with self.assertRaisesMessage(ValidationError, "currently changing"):
+                merge(actor, ticket)
+            response = self.client.post(
+                reverse("company-merge"), {"action": "commit", "ticket": ticket, "confirmed": "yes"}
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "currently changing")
+            source.refresh_from_db()
+            self.assertIsNone(source.merged_into_id)
+            self.assertTrue(source.membership_set.exists())
+        finally:
+            release.set()
+            thread.join(5)
+        self.assertFalse(thread.is_alive())

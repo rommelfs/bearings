@@ -1,0 +1,11 @@
+{% extends 'portal/base.html' %}{% load static %}{% block title %}Application version profiles · Bearings{% endblock %}{% block content %}
+{% include "portal/_client_platform_links.html" with platform="profiles" %}
+<h1>Application version profiles · {{ org.name }}</h1>
+<p>Define how the Linux client reads an application's release version. Validation checks the profile syntax with the published client; it never reads the application path or runs a probe on this server. Download and deploy reviewed configuration locally using your usual administration tools.</p>
+<form class="editor" method="post" data-application-profile-editor>{% csrf_token %}{{ form.as_p }}
+<p data-method-help role="status"></p><div class="actions"><button class="primary" name="action" value="preview">Validate & preview</button><button name="action" value="download">Download client configuration</button><button name="action" value="upstream">Export PR proposal</button></div></form>
+<p>The downloaded document contains this one profile and replaces the default application list when installed as <code>/etc/bearings-linux/application-probes.json</code>. Merge other profiles explicitly; keep IDs stable. Nothing is distributed to clients automatically.</p>
+{% if preview %}<section><h2>Validated client configuration</h2><pre data-profile-json style="white-space:pre-wrap;overflow-wrap:anywhere"><code>{{ preview }}</code></pre><p>Validated with the native client's parser and RE2 compiler. Local readability, exact release evidence and application runtime remain to be checked on the monitored host.</p></section>{% endif %}
+<p>The PR proposal export contains a profile recipe, example client configuration and a prepared explanation/PR text. Installation paths and IDs become example values; no collected host data is added. Nothing is sent to GitHub. Review and submit the files through your normal branch/fork and PR workflow.</p>
+<script src="{% static 'portal/application-profile-editor.js' %}" defer></script>
+<link rel="stylesheet" href="{% static 'portal/vitrine-widgets.css' %}"><script type="module" src="{% static 'portal/vitrine-widgets.js' %}"></script>{% endblock %}

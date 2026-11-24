@@ -4,10 +4,12 @@ import json
 import os
 import time
 import uuid
+from unittest.mock import patch
 from pathlib import Path
 import httpx
 from django.conf import settings
 from django.utils import timezone
+from django.db.models import Q
 from portal.models import Asset, InventoryWrite, NetBoxInstance
 from portal.services import query_inventory
 from portal.inventory import refresh_inventory
@@ -33,6 +35,139 @@ def lab_sources(config):
     if set(sources) != {"read_only", "read_write"}:
         raise RuntimeError("Both expected lab capabilities are required")
     return sources
+
+
+def verify_address_grouping(netbox, headers, source, physical):
+    """Only invocation-owned synthetic records, under main's existing bundled guard."""
+    from portal.inventory_presentation import top_level_assets
+
+    base = "https://netbox.bearings.test/api/"
+    owned = []
+
+    def create(path, data):
+        response = netbox.post(base + path + "/", headers=headers, json=data)
+        assert response.status_code == 201, "Synthetic address-grouping fixture creation failed"
+        identity = response.json()["id"]
+        assert type(identity) is int and identity > 0
+        owned.append(base + path + "/" + str(identity) + "/")
+        return identity
+
+    marker = uuid.uuid4().hex
+    try:
+        vm = create(
+            "virtualization/virtual-machines",
+            {
+                "name": "smoke-group-" + marker[:8],
+                "status": "active",
+                "tenant": source.tenant_id,
+                "site": source.instance.site_id,
+            },
+        )
+        for number, (kind, identity, parent_field) in enumerate(
+            (
+                ("dcim", int(physical.external_id), "device"),
+                ("virtualization", vm, "virtual_machine"),
+            )
+        ):
+            interface = create(
+                kind + "/interfaces",
+                {
+                    "name": "smoke-" + marker[:8],
+                    parent_field: identity,
+                    **({"type": "virtual"} if kind == "dcim" else {}),
+                },
+            )
+            octet = int(marker[:2], 16)
+            for address in (f"198.18.{octet}.{number + 10}/24", f"2001:db8:{marker[:4]}::{number + 10}/64"):
+                create(
+                    "ipam/ip-addresses",
+                    {
+                        "address": address,
+                        "tenant": source.tenant_id,
+                        "status": "active",
+                        "assigned_object_type": "dcim.interface"
+                        if kind == "dcim"
+                        else "virtualization.vminterface",
+                        "assigned_object_id": interface,
+                        "dns_name": "smoke-group.example.invalid",
+                    },
+                )
+        refresh_inventory(source.pk)
+        hosts = list(
+            Asset.objects.filter(source=source).filter(
+                Q(pk=physical.pk) | Q(object_type="virtualization.virtualmachine", external_id=str(vm))
+            )
+        )
+        assert len(hosts) == 2
+        for host in hosts:
+            addresses = host.assigned_addresses.filter(missing_since__isnull=True)
+            assert addresses.count() == 2
+            assert addresses.filter(name__startswith="2001:db8:").count() == 1
+            assert not top_level_assets(addresses).exists()
+        assert top_level_assets(Asset.objects.filter(pk__in=[h.pk for h in hosts])).count() == 2
+    finally:
+        # Reverse creation order removes IPs before their own interfaces/VM.
+        for endpoint in reversed(owned):
+            response = netbox.delete(endpoint, headers=headers)
+            assert response.status_code == 204, "Synthetic address-grouping cleanup failed"
+        refresh_inventory(source.pk)
+    print(
+        "Verified actual physical/VM dual-stack interface assignments group under two hosts; GET-only import and retained address records."
+    )
+
+
+def verify_large_inventory_pages(netbox, headers, source):
+    """Real >2 MB aggregate JSON response, on invocation-owned lab objects only."""
+    from portal.connectors import netbox as connector
+
+    base = "https://netbox.bearings.test/api/"
+    field = "smoke_large_" + uuid.uuid4().hex[:12]
+    owned = []
+    try:
+        response = netbox.post(
+            base + "extras/custom-fields/",
+            headers=headers,
+            json={"name": field, "type": "json", "object_types": ["virtualization.virtualmachine"]},
+        )
+        assert response.status_code == 201, "Large-page synthetic custom field creation failed"
+        owned.append(base + "extras/custom-fields/" + str(response.json()["id"]) + "/")
+        ids = set()
+        for number in range(4):
+            response = netbox.post(
+                base + "virtualization/virtual-machines/",
+                headers=headers,
+                json={
+                    "name": field + "-" + str(number),
+                    "status": "active",
+                    "tenant": source.tenant_id,
+                    "site": source.instance.site_id,
+                    "custom_fields": {field: {"synthetic_padding": "x" * 600000}},
+                },
+            )
+            assert response.status_code == 201, "Large-page synthetic VM creation failed"
+            identity = str(response.json()["id"])
+            ids.add(identity)
+            owned.append(base + "virtualization/virtual-machines/" + identity + "/")
+        with patch.object(connector, "request_json", wraps=connector.request_json) as request:
+            rows = connector.query_objects(source, "virtual-machines")
+        assert ids <= {row["external_id"] for row in rows}
+        assert any(call.kwargs["params"]["limit"] < 100 for call in request.call_args_list)
+        assert all(call.args[0] == "GET" for call in request.call_args_list)
+        assert all(call.kwargs["params"]["tenant_id"] == source.tenant_id for call in request.call_args_list)
+        refresh_inventory(source.pk)
+        assert (
+            Asset.objects.filter(
+                source=source, object_type="virtualization.virtualmachine", external_id__in=ids
+            ).count()
+            == 4
+        )
+    finally:
+        for endpoint in reversed(owned):
+            assert netbox.delete(endpoint, headers=headers).status_code == 204, "Large-page cleanup failed"
+        refresh_inventory(source.pk)
+    print(
+        "Verified actual >2 MB VM pages shrink within the unchanged response limit; complete scoped import passed."
+    )
 
 
 def main():
@@ -77,6 +212,7 @@ def main():
             "X-CSRFToken": netbox.cookies.get("netboxcsrftoken"),
             "Referer": "https://netbox.bearings.test/",
         }
+        verify_large_inventory_pages(netbox, api_headers, rw)
         name = "smoke-import-" + uuid.uuid4().hex[:8]
         response = netbox.post(
             "https://netbox.bearings.test/api/dcim/devices/",
@@ -97,6 +233,7 @@ def main():
         assert imported.source_url.startswith("https://localhost:"), (
             "Bundled browser links must use the host gateway port"
         )
+        verify_address_grouping(netbox, api_headers, rw, imported)
         imported.criticality, imported.responsible_team = "high", "local smoke review"
         imported.save()
         endpoint = "https://netbox.bearings.test/api/dcim/devices/" + external_id + "/"
@@ -149,8 +286,16 @@ def main():
                 "csrfmiddlewaretoken": client.cookies.get("csrftoken"),
             },
         )
-        assert response.status_code == 200 and response.url.path == "/", "Bearings login failed"
-        assert "<h1>Vulnerability review</h1>" in response.text and "company-admin" in response.text
+        assert response.status_code == 200 and response.url.path == "/infrastructure/", (
+            "Bearings login failed"
+        )
+        assert "<h1>Infrastructure overview</h1>" in response.text and "company-admin" in response.text
+        assert "data-overview-refresh checked" in response.text
+        assert response.headers.get("Server-Timing", "").startswith("overview;dur="), (
+            "Overview timing missing; restart the web process to load current application code"
+        )
+        response = client.get(base + "/reviews/")
+        assert "<h1>Vulnerability review</h1>" in response.text
         assert 'id="review-heading"' in response.text and 'class="severity-filters"' in response.text
         located = rw.asset_set.filter(
             object_type="dcim.device", state="synced", missing_since__isnull=True
@@ -166,7 +311,22 @@ def main():
             "lifecycle": "active",
             "csrfmiddlewaretoken": client.cookies.get("csrftoken"),
         }
-        assert client.post(ro_url, data=fields).status_code == 403, "Portal must reject read-only writes"
+        assert client.post(ro_url, data=fields).status_code == 404, "Foreign company must be hidden"
+        with httpx.Client(trust_env=False, follow_redirects=True) as operator:
+            operator.get(base + "/accounts/login/")
+            login = operator.post(
+                base + "/accounts/login/",
+                data={
+                    "username": "platform-admin",
+                    "password": password,
+                    "csrfmiddlewaretoken": operator.cookies.get("csrftoken"),
+                },
+            )
+            assert login.status_code == 200 and login.url.path == "/infrastructure/", "Operator login failed"
+            ro_fields = {**fields, "csrfmiddlewaretoken": operator.cookies.get("csrftoken")}
+            assert operator.post(ro_url, data=ro_fields).status_code == 403, (
+                "Portal must enforce read-only source capability for operators too"
+            )
         for kind in ["server", "vm"]:
             name = "smoke-" + kind + "-" + uuid.uuid4().hex[:8]
             fields.update(
@@ -205,5 +365,5 @@ def main():
             ]
             assert len(matches) == 1, "Write recovery duplicated an upstream object"
         print(
-            "Verified Bearings login, portal read-only denial, worker device/VM writes and lost-ack recovery without duplicates."
+            "Verified single-company login, foreign-company/read-only denial, worker device/VM writes and lost-ack recovery without duplicates."
         )

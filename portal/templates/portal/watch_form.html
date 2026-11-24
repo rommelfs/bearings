@@ -1,0 +1,15 @@
+{% extends 'portal/base.html' %}{% load static %}{% block content %}
+<a href="{% url 'organization' org.slug %}">← {{ org.name }}</a><h1>{{ title }}</h1>
+{% if saved_watch %}<p>Saved product mapping. Auto-refresh runs at the interval below while Enabled is checked.</p>{% elif suggestions|length == 1 %}<aside><strong>Product recognized — ready to use.</strong> Manufacturer and product are prefilled from {{ suggestions.0.reason|lower }}. Auto-refresh is enabled by default. Installed products with this unambiguous identity are also enrolled automatically by the background worker.</aside>{% elif suggestions %}<aside class="warning">The product name and identifier suggest different identities. Choose the correct mapping below; automatic enrollment waits for this decision.</aside>{% else %}<p>Choose your product using the public catalog search below. Auto-refresh starts as soon as the mapping is saved.</p>{% endif %}
+<form class="editor" method="post" id="watch-configuration">{% csrf_token %}
+<section class="product-picker" data-product-picker data-search-url="{% url 'discovery-catalog-search' org.slug product.pk %}">
+<h2>Find the manufacturer and product</h2><p>Searches send only the terms you enter to the public product catalog. Your company, inventory and installed version stay here.</p>
+<label for="catalog-query">Search term</label><input id="catalog-query" type="search" maxlength="120" placeholder="e.g. apache or log4j" autocomplete="off">
+<div class="actions"><button type="button" data-search="vendors">Find manufacturer</button><button type="button" data-search="products">Find product for selected manufacturer</button></div>
+<p data-picker-status role="status" aria-live="polite"></p><ul class="product-results" data-picker-results></ul><div class="actions" data-picker-pages></div>
+<noscript><p>Catalog search requires JavaScript. You can still enter the public keys directly below and save.</p></noscript>
+</section>
+{% if suggestions|length > 1 %}<div class="actions">{% for match in suggestions %}<button type="button" data-mapping-vendor="{{ match.vendor }}" data-mapping-product="{{ match.product_key }}">Use {{ match.vendor }} / {{ match.product_key }} · {{ match.reason }}</button>{% endfor %}</div>{% endif %}
+{{ form.as_p }}<button class="primary">Save</button></form>
+<script src="{% static 'portal/product-picker.js' %}?v=installation-20261121" defer></script>
+{% endblock %}

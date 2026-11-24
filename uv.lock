@@ -2,6 +2,13 @@ version = 1
 revision = 5
 requires-python = ">=3.12"
 
+[manifest]
+constraints = [
+    { name = "certifi", specifier = ">=2026.10.19" },
+    { name = "oauthlib", specifier = ">=4.0.1" },
+    { name = "social-auth-core", specifier = ">=6.2,<7" },
+]
+
 [[package]]
 name = "anyio"
 version = "4.15.1"
@@ -25,14 +32,32 @@ wheels = [
 ]
 
 [[package]]
+name = "attrs"
+version = "26.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9a/8e/82a0fe20a541c03148528be8cac2408564a6c9a0cc7e9171802bc1d26985/attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32", size = 952055, upload-time = "2026-03-19T14:22:25.026Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309", size = 67548, upload-time = "2026-03-19T14:22:23.645Z" },
+]
+
+[[package]]
 name = "bearings"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "cryptography" },
+    { name = "defusedxml" },
     { name = "django" },
+    { name = "http-message-signatures" },
     { name = "httpx" },
     { name = "psycopg", extra = ["binary"] },
     { name = "social-auth-app-django" },
+    { name = "univers" },
+]
+
+[package.optional-dependencies]
+production = [
+    { name = "gunicorn" },
 ]
 
 [package.dev-dependencies]
@@ -42,22 +67,28 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=46,<51" },
+    { name = "defusedxml", specifier = ">=0.7.1,<0.8" },
     { name = "django", specifier = ">=5.2,<5.3" },
+    { name = "gunicorn", marker = "extra == 'production'", specifier = ">=23,<26" },
+    { name = "http-message-signatures", specifier = ">=2.2,<3" },
     { name = "httpx", specifier = ">=0.28,<0.29" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2,<4" },
-    { name = "social-auth-app-django", specifier = ">=5.6,<6" },
+    { name = "social-auth-app-django", specifier = ">=7.2,<8" },
+    { name = "univers", specifier = ">=32.0.1,<33" },
 ]
+provides-extras = ["production"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "ruff", specifier = ">=0.12,<0.16" }]
 
 [[package]]
 name = "certifi"
-version = "2026.7.22"
+version = "2026.11.20"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a3/c2/24167ea9858356b47a87a50d39908bfdb72ceeefe0041586e704e5376b3a/certifi-2026.7.22.tar.gz", hash = "sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55", size = 138112, upload-time = "2026-07-22T03:35:12.644Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/51/33/4cd27639502f010084bcef7a2036391dd637439901341ce1a530f36f6e51/certifi-2026.11.20.tar.gz", hash = "sha256:af1cb240a8133f105aa52684a3a3258339d7f2fd0bd4e2812698ff5cf5588c4e", size = 128901, upload-time = "2026-11-20T23:37:49.522Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl", hash = "sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775", size = 136983, upload-time = "2026-07-22T03:35:11.276Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/39/5eec3296860b94ac20bb8ed807725b88f6adfab3f343df592afd975f5f86/certifi-2026.11.20-py3-none-any.whl", hash = "sha256:7422df25243767b9877031a2248cb14d09ddac9beee846f4cef3d5c9191d488f", size = 127913, upload-time = "2026-11-20T23:37:48.117Z" },
 ]
 
 [[package]]
@@ -363,12 +394,49 @@ wheels = [
 ]
 
 [[package]]
+name = "gunicorn"
+version = "25.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c4/f4/e78fa054248fab913e2eab0332c6c2cb07421fca1ce56d8fe43b6aef57a4/gunicorn-25.3.0.tar.gz", hash = "sha256:f74e1b2f9f76f6cd1ca01198968bd2dd65830edc24b6e8e4d78de8320e2fe889", size = 634883, upload-time = "2026-03-27T00:00:26.092Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/c8/8aaf447698c4d59aa853fd318eed300b5c9e44459f242ab8ead6c9c09792/gunicorn-25.3.0-py3-none-any.whl", hash = "sha256:cacea387dab08cd6776501621c295a904fe8e3b7aae9a1a3cbb26f4e7ed54660", size = 208403, upload-time = "2026-03-27T00:00:27.386Z" },
+]
+
+[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/01/ee/02a2c011bdab74c6fb3c75474d40b3052059d95df7e73351460c8588d963/h11-0.16.0.tar.gz", hash = "sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1", size = 101250, upload-time = "2025-04-24T03:35:25.427Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl", hash = "sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86", size = 37515, upload-time = "2025-04-24T03:35:24.344Z" },
+]
+
+[[package]]
+name = "http-message-signatures"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "http-sf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4d/6c/37bdc3b2544c833a4feb13b2717cba99c583f423f1f698e6029d7eadfb5d/http_message_signatures-2.2.0.tar.gz", hash = "sha256:2ecee025a212c201d0e776506746a2fb2a46de95815f10b50ce4a3d63af6e41c", size = 59975, upload-time = "2026-10-23T05:53:21.532Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/cb/4d2b4a6f3ab6e4766a03dc753b80d574c9f1b7a0954d769430f96388f2c9/http_message_signatures-2.2.0-py3-none-any.whl", hash = "sha256:897cf16689c245d4716d6b8020e49890bb0ae32fb268ce2be54fdd1f930a63a0", size = 30462, upload-time = "2026-10-23T05:53:20.023Z" },
+]
+
+[[package]]
+name = "http-sf"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/d1/af2d7665a9cb295f95a4125826a45443bd6f554946d1ca9876cf3ef1dc3b/http_sf-1.5.0.tar.gz", hash = "sha256:b54cfa55f428dd7cb1cfcc6fbd5020f967060df136ffa37cab5b9798f647612f", size = 55553, upload-time = "2026-10-23T01:43:58.992Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/4a/5a1d3b0fcb58cbd827a968f69d6139c1af419dd008f2c4caf8a8ab78b7bd/http_sf-1.5.0-py3-none-any.whl", hash = "sha256:031282bd376549b04fcaa397d9ef351acdc5bd383435cccd1d8ea17b1661c80e", size = 27696, upload-time = "2026-10-23T01:43:57.816Z" },
 ]
 
 [[package]]
@@ -410,11 +478,20 @@ wheels = [
 
 [[package]]
 name = "oauthlib"
-version = "4.0.0"
+version = "4.0.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7a/d8/a1bcc8ba112a627f8ffbdc212a78ce18d3ac07e91a5ca65d27918eee25a1/oauthlib-4.0.0.tar.gz", hash = "sha256:efb274799819440f95b4ab3b818869f1ce9ae26c5beacba0201d1a1b76b54f86", size = 187232, upload-time = "2026-09-28T06:01:18.77Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/17/2bb072de0b990303c985f26869fd47bb179024a051f47e7f9d208eb92f8e/oauthlib-4.0.1.tar.gz", hash = "sha256:3d73febdb6faa00f277c81fb04be7b7586fb96fc3b7f0b9c772dada69a25ede7", size = 191219, upload-time = "2026-10-31T09:52:58.008Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d9/f4/78229a1066068ca14fc60fb26cf7381cabe4382261392b90e5f9552722d4/oauthlib-4.0.0-py3-none-any.whl", hash = "sha256:624c28c13a0a59cabf9747dfa52af63be3e512a7f2714df16e91b5b3a145e6cd", size = 159715, upload-time = "2026-09-28T06:01:17.008Z" },
+    { url = "https://files.pythonhosted.org/packages/df/ef/3b8adde1b32a6f540758bff734d3442c621734c83708e5f02b0ba2f43b84/oauthlib-4.0.1-py3-none-any.whl", hash = "sha256:498a298876e996301950a5b053d12c31628bb7b895db03666430c69ce182eb61", size = 161934, upload-time = "2026-10-31T09:52:56.206Z" },
+]
+
+[[package]]
+name = "packaging"
+version = "26.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79", size = 313412, upload-time = "2026-08-04T18:15:28.737Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c", size = 129956, upload-time = "2026-08-04T18:15:27.159Z" },
 ]
 
 [[package]]
@@ -575,22 +652,40 @@ wheels = [
 ]
 
 [[package]]
+name = "semantic-version"
+version = "2.10.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7d/31/f2289ce78b9b473d582568c234e104d2a342fd658cc288a7553d83bb8595/semantic_version-2.10.0.tar.gz", hash = "sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c", size = 52289, upload-time = "2022-05-26T13:35:23.454Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/23/8146aad7d88f4fcb3a6218f41a60f6c2d4e3a72de72da1825dc7c8f7877c/semantic_version-2.10.0-py2.py3-none-any.whl", hash = "sha256:de78a3b8e0feda74cabc54aab2da702113e33ac9d9eb9d2389bcf1f58b7d9177", size = 15552, upload-time = "2022-05-26T13:35:21.206Z" },
+]
+
+[[package]]
+name = "semver"
+version = "3.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/a0/3d3f51a1304c0e8c93e06a23308f566f2d52d62f92dac903b85ef79dea6f/semver-3.1.2.tar.gz", hash = "sha256:bea193552413194252d33ff26ce0962b76669bd1c6fb17e8e203ac37f072feaf", size = 293659, upload-time = "2026-11-15T17:01:42.931Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ab/60/27e29790ff15ea0a485b8dc200d514328294f956e4abc3d43d88c0b5338d/semver-3.1.2-py3-none-any.whl", hash = "sha256:45d107c3fa880910441dfab9d555046cba2829a25feeadfe4a1566439635c510", size = 19100, upload-time = "2026-11-15T17:01:41.321Z" },
+]
+
+[[package]]
 name = "social-auth-app-django"
-version = "5.9.0"
+version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
     { name = "django" },
     { name = "social-auth-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/62/f9/c761cf93cb0a102ddd59498ea560b398be6bd14b8d6a4c493cc011b4bb80/social_auth_app_django-5.9.0.tar.gz", hash = "sha256:5b79c53321f9528334d53ddb154452a3b7e598b7ff4c2c1302be9a76b1349e8d", size = 29751, upload-time = "2026-04-29T14:52:50.715Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/b5/32f7e96f7ab0fbb0e75d202b9d2af6666b3fae2abc8428db7b5ad9ba9b7e/social_auth_app_django-7.2.0.tar.gz", hash = "sha256:f0f647e1d96925cb0e368951266b36f4b9fcb8d4b36456a08ed6b54ad8a70785", size = 91023, upload-time = "2026-10-20T13:26:34.92Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/8c/5a06761549ea5e7e3c6e87d25ed2029ed5ba9ba39c493bc8a591548d6575/social_auth_app_django-5.9.0-py3-none-any.whl", hash = "sha256:80edf5c207d871f2225a0fc6bb414004c0342c30deb3a217eb38a63b66e749bb", size = 28568, upload-time = "2026-04-29T14:52:49.473Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/68/e31ab96c7750ab1d8706b09411d55562da9e87e200fa845f7cd014745872/social_auth_app_django-7.2.0-py3-none-any.whl", hash = "sha256:b91db5f116590c35160c1277ff1a5da8839eef682a2e9067c1c02bb1e47c2e1d", size = 51224, upload-time = "2026-10-20T13:26:33.496Z" },
 ]
 
 [[package]]
 name = "social-auth-core"
-version = "4.9.1"
+version = "6.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -601,9 +696,9 @@ dependencies = [
     { name = "requests" },
     { name = "requests-oauthlib" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/32/2e/15fd3e5bfd7eba91b04e3ebf2dac8a2d1237ba69e63752567b0dc2586a4a/social_auth_core-4.9.1.tar.gz", hash = "sha256:34ee16bddc10b8bf5d6a90c3a033f6e5bb1300197984ad66a4d363783f23bcd8", size = 252961, upload-time = "2026-04-30T07:16:18.62Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/72/fc/c0545b9a6a8bed1fec5eb1195999b278f5345c7f1b09ef835b0886092ea0/social_auth_core-6.2.0.tar.gz", hash = "sha256:93daa49e5cb11e7ac06838690679fc6e2901d9add2ba8316651ee19aca26a340", size = 474536, upload-time = "2026-10-20T13:15:02.045Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ff/f2/0cb91ff294282800cc5ec7cefdfa3d87068c805d30920e3842fc859853ac/social_auth_core-4.9.1-py3-none-any.whl", hash = "sha256:2eca8a6ae678bae7e24e5aa3c72f99c77983012a09b8916ce9791dcfccade725", size = 457143, upload-time = "2026-04-30T07:16:17.235Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/0c/413127509bc8fbe5dace05ebc09c692096f152ecde65210152b680d8ffd7/social_auth_core-6.2.0-py3-none-any.whl", hash = "sha256:385771345372b9e87b448fe23b1ca4909fcbb0b752d1206600ab3c18342cd321", size = 308148, upload-time = "2026-10-20T13:15:00.267Z" },
 ]
 
 [[package]]
@@ -631,6 +726,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d9/68/f1b440335057bfce71b6e50a9d09445aa2ecbd08359a337976627b8409e7/tzdata-2026.5.tar.gz", hash = "sha256:8cc73c0a0bfca7dbfa59235d60b2eff82231dee33f53d206db1acd9173cfc0a7", size = 200404, upload-time = "2026-10-03T09:23:14.143Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/94/21/1e5995a1c920cce14e4bffae20c665ec10e7ed03ab25e006cd741092b718/tzdata-2026.5-py2.py3-none-any.whl", hash = "sha256:b683bd1b6659ddcd810ff02ad09ba821d4bf1065072805063eb35c49617905ac", size = 347996, upload-time = "2026-10-03T09:23:12.535Z" },
+]
+
+[[package]]
+name = "univers"
+version = "32.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "packaging" },
+    { name = "semantic-version" },
+    { name = "semver" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/70/b6/874e832506ff2e5eb4f62a67a810199ee5f5175ad6dbca271da88b5b7cb9/univers-32.0.1.tar.gz", hash = "sha256:fae187245f72bee1581f29b0b0b6e907049b2ea136e3e52bf8d8edbfef10e7f0", size = 297048, upload-time = "2026-05-01T16:42:14.492Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a7/4f/1c7953d10a9147dc1ec8a4902a1e08d7107d1f4833e316470190039e8507/univers-32.0.1-py3-none-any.whl", hash = "sha256:50a574ff2321e31e1eba7aa586bf63a9558d91c69c70316bf26c75e1b122499b", size = 98791, upload-time = "2026-05-01T16:42:12.859Z" },
 ]
 
 [[package]]

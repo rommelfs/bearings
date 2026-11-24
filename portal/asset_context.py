@@ -51,6 +51,8 @@ def asset_context(asset, *, workspace=False, case_id=None):
         "serial": label(data.get("serial")),
         "asset_tag": label(data.get("asset_tag")),
     }
+    if label(data.get("dns_name")):
+        result["dns_names"].append({"name": label(data["dns_name"]), "url": ""})
     for field, path in REFERENCE_PATHS.items():
         ref = data.get(field)
         if isinstance(ref, dict):

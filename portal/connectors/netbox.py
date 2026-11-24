@@ -1,7 +1,7 @@
 import os
 import re
 from urllib.parse import parse_qs, urlsplit
-from .http import ConnectorError, approved_base, request_json
+from .http import ConnectorError, ResponseTooLarge, approved_base, request_json
 from ..models import NetBoxInstance
 
 
@@ -57,9 +57,22 @@ def query_objects(source, object_type="devices"):
     url = base + path
     scope = {"tenant_id": source.tenant_id} if source.tenant_id else {}
     records, identities, expected_count = [], set(), None
+    page_size = 100
     for _ in range(100):
         offset = len(records)
-        page = request_json("GET", url, headers=headers, params={**scope, "limit": 100, "offset": offset})
+        try:
+            page = request_json(
+                "GET", url, headers=headers, params={**scope, "limit": page_size, "offset": offset}
+            )
+        except ResponseTooLarge:
+            # Software custom fields can make a VM page exceed the normal HTTP
+            # bound. Retry the same offset with fewer objects, never a larger
+            # response budget or an incomplete import. Retries consume the same
+            # total request budget as successful pages.
+            if page_size == 1:
+                raise ResponseTooLarge("Single NetBox object exceeds 2 MB limit; query discarded") from None
+            page_size = max(1, page_size // 2)
+            continue
         count, rows = page.get("count"), page.get("results")
         if (
             type(count) is not int
@@ -115,7 +128,7 @@ def query_objects(source, object_type="devices"):
             raise ConnectorError("NetBox pagination changed destination; query discarded")
         params = parse_qs(next_parts.query)
         expected = {
-            "limit": ["100"],
+            "limit": [str(page_size)],
             "offset": [str(len(records))],
             **{k: [str(v)] for k, v in scope.items()},
         }
@@ -132,6 +145,11 @@ def write_asset(asset):
         return "development.asset", f"fixture-{asset.pk}"
     instance, base, headers = connection(source, write=True)
     vm = asset.kind == "vm"
+    tag_id = None
+    if asset.virtualization_type:
+        tag_id = instance.virtualization_tags.get(asset.virtualization_type)
+        if not vm or type(tag_id) is not int or tag_id < 1:
+            raise ConnectorError("Configure an approved virtualization tag for this VM")
     endpoint = "/api/virtualization/virtual-machines/" if vm else "/api/dcim/devices/"
     # Operator must provision a text custom field 'bearings_id' on devices and virtual machines.
     # Read-before-retry recovers an accepted POST whose response was lost.
@@ -156,12 +174,18 @@ def write_asset(asset):
         raise ConnectorError("Ambiguous or partial NetBox query; reconciliation required")
     if existing["results"]:
         record = existing["results"][0]
+        if asset.external_id and (not isinstance(record, dict) or str(record.get("id")) != asset.external_id):
+            raise ConnectorError("Existing NetBox identity changed; no replacement or hostname adoption")
     else:
+        if asset.external_id:
+            raise ConnectorError("Existing NetBox UUID binding is missing; no replacement object created")
         body = {
             "name": asset.name,
             "status": "active" if asset.lifecycle == "active" else "offline",
             "custom_fields": {"bearings_id": str(asset.pk)},
         }
+        if tag_id:
+            body["tags"] = [tag_id]
         if source.tenant_id:
             body["tenant"] = source.tenant_id
         if vm and instance.site_id:
@@ -185,4 +209,31 @@ def write_asset(asset):
         or record["custom_fields"].get("bearings_id") != str(asset.pk)
     ):
         raise ConnectorError("NetBox identity or tenant mismatch; reconciliation required")
+    if tag_id:
+        tags = record.get("tags")
+        if not isinstance(tags, list) or any(
+            not isinstance(t, dict) or type(t.get("id")) is not int or t["id"] < 1 for t in tags
+        ):
+            raise ConnectorError("Incomplete NetBox tag identity; reconciliation required")
+        current = [t["id"] for t in tags]
+        if tag_id not in current:
+            # The UUID and tenant were verified above; retain every existing tag.
+            expected_id = record["id"]
+            record = request_json(
+                "PATCH",
+                base + endpoint + str(record["id"]) + "/",
+                headers=headers,
+                json={"tags": [*current, tag_id]},
+            )
+            if (
+                not isinstance(record, dict)
+                or type(record.get("id")) is not int
+                or record["id"] != expected_id
+                or not in_scope(source, record)
+                or not isinstance(record.get("custom_fields"), dict)
+                or record["custom_fields"].get("bearings_id") != str(asset.pk)
+                or not isinstance(record.get("tags"), list)
+                or not any(t.get("id") == tag_id for t in record.get("tags", []) if isinstance(t, dict))
+            ):
+                raise ConnectorError("NetBox tag update unconfirmed; reconciliation required")
     return ("virtualization.virtualmachine" if vm else "dcim.device"), str(record["id"])

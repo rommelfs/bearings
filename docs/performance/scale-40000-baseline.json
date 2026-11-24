@@ -1,0 +1,916 @@
+{
+  "label": "baseline",
+  "dataset": {
+    "counts": {
+      "users": 40000,
+      "assets": 1200000,
+      "issues": 360000,
+      "findings": 240000,
+      "products": 120000,
+      "installations": 1200000,
+      "organizations": 40000,
+      "discovery_matches": 240000
+    },
+    "companies": 40000,
+    "seed_seconds": 520.2,
+    "seed_version": 1,
+    "synthetic_only": true,
+    "assets_per_company": 30
+  },
+  "environment": {
+    "postgres": "PostgreSQL 17.11 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "database_bytes": 1530386099,
+    "python": "3.12.14",
+    "host_cpus": 5,
+    "debug": false,
+    "diagnostic_statement_timeout_ms": 5000,
+    "diagnostic_query_limit": 1000,
+    "diagnostic_wall_budget_seconds": 12,
+    "sso": false,
+    "transport": "local only; initial Django test outbox; subsequent file-sink verification",
+    "postgres_cpus": 2,
+    "postgres_memory_gib": 3
+  },
+  "tables": [
+    {
+      "table": "portal_asset",
+      "estimated_rows": 1199958,
+      "bytes": 454557696
+    },
+    {
+      "table": "portal_installation",
+      "estimated_rows": 1200000,
+      "bytes": 196018176
+    },
+    {
+      "table": "portal_discoveryrevision",
+      "estimated_rows": 480000,
+      "bytes": 158564352
+    },
+    {
+      "table": "portal_assetissue",
+      "estimated_rows": 360000,
+      "bytes": 155844608
+    },
+    {
+      "table": "portal_issuerevision",
+      "estimated_rows": 360000,
+      "bytes": 149012480
+    },
+    {
+      "table": "portal_finding",
+      "estimated_rows": 240000,
+      "bytes": 83001344
+    },
+    {
+      "table": "portal_sourcerecordrevision",
+      "estimated_rows": 120000,
+      "bytes": 64774144
+    },
+    {
+      "table": "portal_discoverymatch",
+      "estimated_rows": 240000,
+      "bytes": 60751872
+    },
+    {
+      "table": "portal_sourcerecord",
+      "estimated_rows": 120000,
+      "bytes": 59260928
+    },
+    {
+      "table": "portal_product",
+      "estimated_rows": 120000,
+      "bytes": 26492928
+    },
+    {
+      "table": "portal_contact",
+      "estimated_rows": 80000,
+      "bytes": 20848640
+    },
+    {
+      "table": "portal_productwatch",
+      "estimated_rows": 120000,
+      "bytes": 20807680
+    },
+    {
+      "table": "portal_findinghistory",
+      "estimated_rows": 80000,
+      "bytes": 15130624
+    },
+    {
+      "table": "portal_infrastructureclaim",
+      "estimated_rows": 80000,
+      "bytes": 13426688
+    },
+    {
+      "table": "portal_organization",
+      "estimated_rows": 40000,
+      "bytes": 9723904
+    }
+  ],
+  "serial": [
+    {
+      "name": "company_overview",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 435.2,
+          "status": 200,
+          "queries": 34,
+          "sql_ms": 211.6,
+          "guard": null,
+          "bytes": 16436,
+          "process_peak_rss_mib": 75.1,
+          "server_timing": "overview;dur=426.6, database;dur=208.6, dbmax;dur=67.3, scope;dur=18.9, companies;dur=88.5, priority;dur=281.8, render;dur=34.2, ranking;dur=59.3, issuepreviews;dur=31.7, legacypreviews;dur=157.4"
+        },
+        {
+          "ms": 198.0,
+          "status": 200,
+          "queries": 34,
+          "sql_ms": 124.0,
+          "guard": null,
+          "bytes": 16436,
+          "process_peak_rss_mib": 75.3,
+          "server_timing": "overview;dur=192.2, database;dur=122.4, dbmax;dur=15.1, scope;dur=10.1, companies;dur=63.6, priority;dur=106.6, render;dur=7.2, ranking;dur=55.0, issuepreviews;dur=26.7, legacypreviews;dur=22.8"
+        },
+        {
+          "ms": 274.6,
+          "status": 200,
+          "queries": 34,
+          "sql_ms": 175.8,
+          "guard": null,
+          "bytes": 16436,
+          "process_peak_rss_mib": 75.4,
+          "server_timing": "overview;dur=270.5, database;dur=174.6, dbmax;dur=31.4, scope;dur=10.2, companies;dur=87.6, priority;dur=159.1, render;dur=10.7, ranking;dur=72.0, issuepreviews;dur=36.2, legacypreviews;dur=48.6"
+        }
+      ],
+      "median_ms": 274.6
+    },
+    {
+      "name": "company_inventory",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 27.7,
+          "status": 200,
+          "queries": 13,
+          "sql_ms": 8.2,
+          "guard": null,
+          "bytes": 8032,
+          "process_peak_rss_mib": 75.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 22.3,
+          "status": 200,
+          "queries": 13,
+          "sql_ms": 8.1,
+          "guard": null,
+          "bytes": 8032,
+          "process_peak_rss_mib": 75.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 15.5,
+          "status": 200,
+          "queries": 13,
+          "sql_ms": 5.6,
+          "guard": null,
+          "bytes": 8032,
+          "process_peak_rss_mib": 75.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 22.3
+    },
+    {
+      "name": "company_detail",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 157.6,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 21.9,
+          "guard": null,
+          "bytes": 53002,
+          "process_peak_rss_mib": 76.2,
+          "server_timing": ""
+        },
+        {
+          "ms": 54.6,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 13.0,
+          "guard": null,
+          "bytes": 53002,
+          "process_peak_rss_mib": 76.8,
+          "server_timing": ""
+        },
+        {
+          "ms": 53.0,
+          "status": 200,
+          "queries": 27,
+          "sql_ms": 12.6,
+          "guard": null,
+          "bytes": 53002,
+          "process_peak_rss_mib": 77.6,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 54.6
+    },
+    {
+      "name": "company_asset",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 39.4,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 12.4,
+          "guard": null,
+          "bytes": 11125,
+          "process_peak_rss_mib": 77.8,
+          "server_timing": ""
+        },
+        {
+          "ms": 28.6,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 10.3,
+          "guard": null,
+          "bytes": 11125,
+          "process_peak_rss_mib": 77.9,
+          "server_timing": ""
+        },
+        {
+          "ms": 25.6,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 10.9,
+          "guard": null,
+          "bytes": 11125,
+          "process_peak_rss_mib": 77.9,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 28.6
+    },
+    {
+      "name": "company_issues",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 4119.6,
+          "status": 200,
+          "queries": 19,
+          "sql_ms": 4080.6,
+          "guard": null,
+          "bytes": 16315,
+          "process_peak_rss_mib": 77.9,
+          "server_timing": ""
+        },
+        {
+          "ms": 3423.1,
+          "status": 200,
+          "queries": 19,
+          "sql_ms": 3383.9,
+          "guard": null,
+          "bytes": 16315,
+          "process_peak_rss_mib": 77.9,
+          "server_timing": ""
+        },
+        {
+          "ms": 3657.1,
+          "status": 200,
+          "queries": 19,
+          "sql_ms": 3625.7,
+          "guard": null,
+          "bytes": 16315,
+          "process_peak_rss_mib": 77.9,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 3657.1
+    },
+    {
+      "name": "company_reviews",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 871.0,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 847.0,
+          "guard": null,
+          "bytes": 18951,
+          "process_peak_rss_mib": 78.2,
+          "server_timing": ""
+        },
+        {
+          "ms": 825.5,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 802.7,
+          "guard": null,
+          "bytes": 18951,
+          "process_peak_rss_mib": 78.2,
+          "server_timing": ""
+        },
+        {
+          "ms": 762.5,
+          "status": 200,
+          "queries": 23,
+          "sql_ms": 741.8,
+          "guard": null,
+          "bytes": 18951,
+          "process_peak_rss_mib": 78.3,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 825.5
+    },
+    {
+      "name": "company_actions",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 3068.2,
+          "status": 503,
+          "queries": 18,
+          "sql_ms": 3041.1,
+          "guard": "postgres_timeout",
+          "bytes": 6758,
+          "process_peak_rss_mib": 78.8,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 3068.2
+    },
+    {
+      "name": "company_wizard",
+      "role": "owner",
+      "samples": [
+        {
+          "ms": 32.0,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 7.8,
+          "guard": null,
+          "bytes": 10786,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": ""
+        },
+        {
+          "ms": 17.4,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 4.9,
+          "guard": null,
+          "bytes": 10786,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": ""
+        },
+        {
+          "ms": 22.6,
+          "status": 200,
+          "queries": 16,
+          "sql_ms": 9.8,
+          "guard": null,
+          "bytes": 10786,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 22.6
+    },
+    {
+      "name": "national_shell",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 14.0,
+          "status": 200,
+          "queries": 7,
+          "sql_ms": 4.9,
+          "guard": null,
+          "bytes": 12406,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": "national;dur=6.3, nationalshell;dur=6.3"
+        },
+        {
+          "ms": 8.8,
+          "status": 200,
+          "queries": 7,
+          "sql_ms": 3.3,
+          "guard": null,
+          "bytes": 12406,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": "national;dur=3.7, nationalshell;dur=3.7"
+        },
+        {
+          "ms": 8.4,
+          "status": 200,
+          "queries": 7,
+          "sql_ms": 2.6,
+          "guard": null,
+          "bytes": 12406,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": "national;dur=4.5, nationalshell;dur=4.5"
+        }
+      ],
+      "median_ms": 8.8
+    },
+    {
+      "name": "national_summary",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 4152.9,
+          "status": 503,
+          "queries": 19,
+          "sql_ms": 4139.7,
+          "guard": "postgres_timeout",
+          "bytes": 171,
+          "process_peak_rss_mib": 79.1,
+          "server_timing": "national;dur=4147.8, database;dur=4136.6, dbmax;dur=3006.8"
+        }
+      ],
+      "median_ms": 4152.9
+    },
+    {
+      "name": "national_problems",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 1372.9,
+          "status": 200,
+          "queries": 19,
+          "sql_ms": 1361.4,
+          "guard": null,
+          "bytes": 1126,
+          "process_peak_rss_mib": 79.4,
+          "server_timing": "national;dur=1366.5, database;dur=1358.7, dbmax;dur=1356.1, nationalvulns;dur=1357.9"
+        },
+        {
+          "ms": 1345.3,
+          "status": 200,
+          "queries": 19,
+          "sql_ms": 1328.4,
+          "guard": null,
+          "bytes": 1126,
+          "process_peak_rss_mib": 79.4,
+          "server_timing": "national;dur=1336.1, database;dur=1324.6, dbmax;dur=1321.8, nationalvulns;dur=1327.4"
+        },
+        {
+          "ms": 1605.4,
+          "status": 200,
+          "queries": 19,
+          "sql_ms": 1591.3,
+          "guard": null,
+          "bytes": 1126,
+          "process_peak_rss_mib": 79.4,
+          "server_timing": "national;dur=1599.0, database;dur=1589.4, dbmax;dur=1584.0, nationalvulns;dur=1586.1"
+        }
+      ],
+      "median_ms": 1372.9
+    },
+    {
+      "name": "national_versions",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 3031.4,
+          "status": 503,
+          "queries": 15,
+          "sql_ms": 3023.1,
+          "guard": "postgres_timeout",
+          "bytes": 171,
+          "process_peak_rss_mib": 79.6,
+          "server_timing": "national;dur=3025.3, database;dur=3018.7, dbmax;dur=3017.7"
+        }
+      ],
+      "median_ms": 3031.4
+    },
+    {
+      "name": "national_activity",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 3045.5,
+          "status": 503,
+          "queries": 16,
+          "sql_ms": 3013.9,
+          "guard": "postgres_timeout",
+          "bytes": 171,
+          "process_peak_rss_mib": 79.6,
+          "server_timing": "national;dur=3040.5, database;dur=3010.6, dbmax;dur=3006.9"
+        }
+      ],
+      "median_ms": 3045.5
+    },
+    {
+      "name": "national_map",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 6166.0,
+          "status": 500,
+          "queries": 16,
+          "sql_ms": 6104.7,
+          "guard": "postgres_timeout",
+          "bytes": 145,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 6166.0
+    },
+    {
+      "name": "national_findings",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 4658.2,
+          "status": 200,
+          "queries": 11,
+          "sql_ms": 4633.6,
+          "guard": null,
+          "bytes": 17890,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 4353.8,
+          "status": 200,
+          "queries": 11,
+          "sql_ms": 4332.9,
+          "guard": null,
+          "bytes": 17890,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 5199.3,
+          "status": 200,
+          "queries": 11,
+          "sql_ms": 5178.2,
+          "guard": null,
+          "bytes": 17890,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 4658.2
+    },
+    {
+      "name": "national_company_search",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 680.5,
+          "status": 200,
+          "queries": 47,
+          "sql_ms": 592.8,
+          "guard": null,
+          "bytes": 50346,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": "overview;dur=677.3, database;dur=591.5, dbmax;dur=91.8, scope;dur=46.6, companies;dur=154.7, priority;dur=461.5, render;dur=12.4, ranking;dur=249.4, issuepreviews;dur=107.2, legacypreviews;dur=101.3"
+        },
+        {
+          "ms": 832.8,
+          "status": 200,
+          "queries": 47,
+          "sql_ms": 726.0,
+          "guard": null,
+          "bytes": 50346,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": "overview;dur=829.2, database;dur=725.0, dbmax;dur=182.6, scope;dur=50.3, companies;dur=154.8, priority;dur=610.8, render;dur=11.1, ranking;dur=246.8, issuepreviews;dur=264.8, legacypreviews;dur=95.2"
+        },
+        {
+          "ms": 683.2,
+          "status": 200,
+          "queries": 47,
+          "sql_ms": 528.9,
+          "guard": null,
+          "bytes": 50346,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": "overview;dur=680.5, database;dur=528.1, dbmax;dur=98.7, scope;dur=43.2, companies;dur=133.2, priority;dur=492.0, render;dur=9.8, ranking;dur=282.3, issuepreviews;dur=98.3, legacypreviews;dur=107.5"
+        }
+      ],
+      "median_ms": 683.2
+    },
+    {
+      "name": "national_inventory",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 2156.6,
+          "status": 200,
+          "queries": 130,
+          "sql_ms": 2090.5,
+          "guard": null,
+          "bytes": 24789,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 1978.5,
+          "status": 200,
+          "queries": 130,
+          "sql_ms": 1916.8,
+          "guard": null,
+          "bytes": 24789,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": ""
+        },
+        {
+          "ms": 1924.0,
+          "status": 200,
+          "queries": 130,
+          "sql_ms": 1864.1,
+          "guard": null,
+          "bytes": 24789,
+          "process_peak_rss_mib": 90.4,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 1978.5
+    },
+    {
+      "name": "national_issues",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 994.9,
+          "status": 500,
+          "queries": 1000,
+          "sql_ms": 420.3,
+          "guard": "query_count",
+          "bytes": 145,
+          "process_peak_rss_mib": 108.7,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 994.9
+    },
+    {
+      "name": "national_reviews",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 38935.3,
+          "status": 500,
+          "queries": 6,
+          "sql_ms": 3680.3,
+          "guard": "wall_time",
+          "bytes": 145,
+          "process_peak_rss_mib": 3344.8,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 38935.3
+    },
+    {
+      "name": "research_exact",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 14286.1,
+          "status": 200,
+          "queries": 15,
+          "sql_ms": 14255.1,
+          "guard": null,
+          "bytes": 26330,
+          "process_peak_rss_mib": 3344.8,
+          "server_timing": ""
+        },
+        {
+          "ms": 14319.1,
+          "status": 200,
+          "queries": 15,
+          "sql_ms": 14288.2,
+          "guard": null,
+          "bytes": 26330,
+          "process_peak_rss_mib": 3344.8,
+          "server_timing": ""
+        },
+        {
+          "ms": 14170.4,
+          "status": 200,
+          "queries": 15,
+          "sql_ms": 14145.4,
+          "guard": null,
+          "bytes": 26330,
+          "process_peak_rss_mib": 3344.8,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 14286.1
+    },
+    {
+      "name": "research_range",
+      "role": "analyst",
+      "samples": [
+        {
+          "ms": 12481.0,
+          "status": 500,
+          "queries": 10,
+          "sql_ms": 12469.0,
+          "guard": "wall_time",
+          "bytes": 145,
+          "process_peak_rss_mib": 3344.8,
+          "server_timing": ""
+        }
+      ],
+      "median_ms": 12481.0
+    }
+  ],
+  "checks": [
+    {
+      "name": "exact_company_count",
+      "passed": true
+    },
+    {
+      "name": "exact_asset_count",
+      "passed": true
+    },
+    {
+      "name": "anonymous_login_required",
+      "passed": true
+    },
+    {
+      "name": "one_company_per_owner",
+      "passed": true
+    },
+    {
+      "name": "foreign_asset_denied",
+      "passed": true
+    },
+    {
+      "name": "national_denied_to_owner",
+      "passed": true
+    },
+    {
+      "name": "national_map_denied_to_owner",
+      "passed": true
+    },
+    {
+      "name": "foreign_company_denied",
+      "passed": true
+    },
+    {
+      "name": "private_company_denied_to_analyst",
+      "passed": true
+    },
+    {
+      "name": "national_summary_available",
+      "passed": false
+    },
+    {
+      "name": "owner_inventory_contains_only_own_assets",
+      "passed": true
+    },
+    {
+      "name": "owner_asset_write",
+      "passed": true
+    }
+  ],
+  "workflows": [
+    {
+      "name": "company_asset_write_rolled_back",
+      "ms": 17.8
+    },
+    {
+      "name": "process_jobs",
+      "ms": 4.3,
+      "queries": 2,
+      "result": "ok"
+    },
+    {
+      "name": "remind_inventory",
+      "ms": 158.6,
+      "queries": 159,
+      "result": "ok"
+    }
+  ],
+  "http": {
+    "concurrency": 4,
+    "requests": 12,
+    "seconds": 5.07,
+    "requests_per_second": 2.37,
+    "p50_ms": 616.8,
+    "p95_ms": 3137.0,
+    "failures": 3,
+    "results": [
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 417.8,
+        "queries": 34,
+        "guard": "none"
+      },
+      {
+        "name": "national_shell",
+        "status": 200,
+        "ms": 48.9,
+        "queries": 7,
+        "guard": "none"
+      },
+      {
+        "name": "national_problems",
+        "status": 503,
+        "ms": 3137.0,
+        "queries": 16,
+        "guard": "postgres_timeout"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 537.6,
+        "queries": 34,
+        "guard": "none"
+      },
+      {
+        "name": "national_shell",
+        "status": 200,
+        "ms": 58.5,
+        "queries": 7,
+        "guard": "none"
+      },
+      {
+        "name": "national_problems",
+        "status": 503,
+        "ms": 3106.7,
+        "queries": 16,
+        "guard": "postgres_timeout"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 695.9,
+        "queries": 34,
+        "guard": "none"
+      },
+      {
+        "name": "national_shell",
+        "status": 200,
+        "ms": 94.7,
+        "queries": 7,
+        "guard": "none"
+      },
+      {
+        "name": "national_problems",
+        "status": 503,
+        "ms": 3107.0,
+        "queries": 16,
+        "guard": "postgres_timeout"
+      },
+      {
+        "name": "company_overview",
+        "status": 200,
+        "ms": 907.3,
+        "queries": 34,
+        "guard": "none"
+      },
+      {
+        "name": "national_shell",
+        "status": 200,
+        "ms": 111.2,
+        "queries": 7,
+        "guard": "none"
+      },
+      {
+        "name": "national_problems",
+        "status": 200,
+        "ms": 2931.2,
+        "queries": 19,
+        "guard": "none"
+      }
+    ],
+    "excluded_serial_failures": [
+      "national_summary",
+      "national_versions",
+      "national_activity"
+    ]
+  },
+  "application_revision": "93cac038959e6817a36bd9235fc334152aa16430",
+  "notes": [
+    "The users fixture count refers to 40000 company owners, plus one analyst account.",
+    "500/503 and diagnostic guard samples are failed responses, not successful latencies.",
+    "Full estimated query plans remain in ignored .local/scale-test/baseline.json.",
+    "No production application query or behavior was changed during this baseline run."
+  ],
+  "acceptance_passed": false,
+  "workflow_verification": {
+    "phase": "workflows",
+    "reminder_ms": 179.1,
+    "queries": 159,
+    "backend": "django.core.mail.backends.filebased.EmailBackend",
+    "new_sent": 8,
+    "new_files": 6,
+    "new_messages": 8,
+    "errors": 0
+  }
+}

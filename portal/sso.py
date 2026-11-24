@@ -1,4 +1,5 @@
 import time
+from time import perf_counter
 from django.conf import settings
 from django.contrib import auth, messages
 from django.shortcuts import redirect
@@ -32,7 +33,9 @@ class SessionGuard:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.session.get(auth.BACKEND_SESSION_KEY) == "config.oidc.ApprovedOpenIdConnect":
+        entered = perf_counter()
+        sso_session = request.session.get(auth.BACKEND_SESSION_KEY) == "config.oidc.ApprovedOpenIdConnect"
+        if sso_session:
             pk = request.session.get("bearings_sso_binding")
             started = request.session.get("bearings_sso_started", 0)
             binding = UserSocialAuth.objects.filter(pk=pk, user_id=request.user.pk, provider="oidc").first()
@@ -51,7 +54,18 @@ class SessionGuard:
                 valid = False
             if not valid:
                 auth.logout(request)
-        return self.get_response(request)
+        checked = perf_counter()
+        response = self.get_response(request)
+        if sso_session:
+            # Includes lazy authentication and current binding checks, without
+            # persisting queries, tokens or authorization decisions in a cache.
+            timings = (
+                f"session;dur={(checked - entered) * 1000:.1f}, "
+                f"django;dur={(perf_counter() - entered) * 1000:.1f}"
+            )
+            existing = response.get("Server-Timing")
+            response["Server-Timing"] = f"{existing}, {timings}" if existing else timings
+        return response
 
     def process_exception(self, request, exception):
         if request.path.startswith("/oauth/") and not isinstance(exception, Http404):

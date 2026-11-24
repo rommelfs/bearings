@@ -7,13 +7,14 @@ from django.db.models import Prefetch, Q
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 from .access import can_edit, can_operator_review, require, visible_findings
 from .connectors.http import ConnectorError, validate_base
 from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link, resolve_risk
-from .models import MOSPRisk, MOSPSource, RiskLink
+from .models import MOSPRisk, MOSPSource, RiskLink, Product, Installation
 from .views import organization
-from .presentation import decorate_finding
+from .presentation import decorate_finding, severity_first
 
 
 def vulnerability_url(finding):
@@ -28,10 +29,49 @@ def finding_page(request, org):
     links = RiskLink.objects.select_related("risk_revision__risk__source", "evidence_revision", "created_by")
     findings = (
         visible_findings(request.user, org)
-        .select_related("installation__asset__source__instance")
+        .select_related(
+            "installation__asset__source__instance",
+            "distro_match__component__device",
+            "distro_match__advisory__feed",
+        )
         .prefetch_related(Prefetch("risk_links", queryset=links), "history__actor")
         .order_by("-evaluated_at", "pk")
     )
+    if request.GET.get("asset"):
+        import uuid
+
+        try:
+            asset_id = uuid.UUID(request.GET["asset"])
+        except (ValueError, TypeError):
+            raise Http404 from None
+        asset = get_object_or_404(org.assets, pk=asset_id)
+        findings = findings.filter(installation__asset=asset)
+    for name, model, scope in [
+        ("product", Product, {"organization": org}),
+        ("installation", Installation, {"product__organization": org, "asset__organization": org}),
+    ]:
+        if request.GET.get(name):
+            try:
+                pk = int(request.GET[name])
+                if len(request.GET[name]) > 19 or pk < 1:
+                    raise ValueError
+            except ValueError:
+                raise Http404 from None
+            selected = get_object_or_404(model, pk=pk, **scope)
+            findings = findings.filter(
+                **{"installation__product" if name == "product" else "installation": selected}
+            )
+    attention = request.GET.get("attention", "")
+    if attention in {"reviews", "affected", "critical"}:
+        from .presentation import ACTIVE_REVIEWS
+
+        findings = findings.filter(
+            status__in=ACTIVE_REVIEWS, installation__asset__lifecycle="active"
+        ).exclude(analyst_applicability="not_affected")
+        if attention == "affected":
+            findings = findings.filter(analyst_applicability="affected")
+        elif attention == "critical":
+            findings = findings.filter(record__source_severity="critical")
     if request.GET.get("finding"):
         try:
             finding_id = int(request.GET["finding"])
@@ -39,9 +79,14 @@ def finding_page(request, org):
             raise Http404 from None
         get_object_or_404(findings, pk=finding_id)
         findings = findings.filter(pk=finding_id)
-    page = Paginator(findings, 25).get_page(request.GET.get("page"))
+    if request.GET.get("changed") == "1":
+        findings = findings.filter(Q(discovery__review_required=True) | Q(distro_match__review_required=True))
+    page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     for finding in page:
         decorate_finding(finding)
+        from .distro_verdicts import decorate_package_verdict
+
+        decorate_package_verdict(finding)
         from .flowintel_views import decorate
 
         decorate(finding, request.user)
@@ -54,18 +99,26 @@ def finding_page(request, org):
 
 
 @login_required
+@never_cache
 def intelligence(request, slug):
     org = organization(request, slug)
+    filters = request.GET.copy()
+    filters.pop("page", None)
+    page = finding_page(request, org)
+    from .timelines import review_decisions
+
     return render(
         request,
         "portal/intelligence.html",
         {
             "org": org,
-            "page": finding_page(request, org),
+            "page": page,
+            "review_timeline": review_decisions(page.paginator.object_list),
             "editable": can_edit(request.user, org) or can_operator_review(request.user, org),
             "sources": MOSPSource.objects.all(),
             "withdrawal_form": RiskWithdrawalForm(),
             "finding_review_form": FindingReviewForm(),
+            "filter_query": filters.urlencode(),
         },
     )
 
@@ -174,7 +227,11 @@ def create_risk_link(request, slug, pk):
                 if guided:
                     from django.urls import reverse
 
-                    return redirect(reverse("case-guide", args=[slug, pk]) + "?step=action")
+                    from .queue_context import with_return
+
+                    return redirect(
+                        with_return(request, reverse("case-guide", args=[slug, pk]) + "?step=action")
+                    )
                 return redirect("intelligence", slug=slug)
     else:
         try:

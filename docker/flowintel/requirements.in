@@ -10,7 +10,7 @@ flask-wtf==1.2.2
 gunicorn==25.3.0
 jsonschema==4.26.0
 matrix-nio==0.25.2
-msal==1.36.0
+msal==1.39.0
 # Direct requirements of the approved-identity OIDC adapter (already transitively locked).
 pyjwt[crypto]==2.15.1
 psycopg2-binary==2.9.11
@@ -26,5 +26,9 @@ redis==7.4.0
 requests==2.33.1
 schedule==1.2.2
 sqlalchemy==2.0.49
-werkzeug==3.1.8
+werkzeug==3.1.9
 wtforms==3.2.1
+
+# Reviewed security floors for the locked native/lab profile.
+cryptography>=50,<51
+dnspython>=2.9.2,<3

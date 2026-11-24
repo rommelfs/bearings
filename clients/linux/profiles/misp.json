@@ -1,0 +1,11 @@
+{
+  "schema": "bearings.application-profile.v1",
+  "title": "MISP release manifest",
+  "license": "AGPL-3.0-or-later",
+  "references": ["https://github.com/MISP/MISP/blob/2.5/VERSION.json"],
+  "profile": {
+    "id": "misp-main",
+    "method": "misp-version-json",
+    "path": "/var/www/MISP/VERSION.json"
+  }
+}

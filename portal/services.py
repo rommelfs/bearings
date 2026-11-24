@@ -14,13 +14,16 @@ from .models import ContactToken, Finding, FindingHistory, InventorySource, Inve
 
 @transaction.atomic
 def submit_asset(user, org, form):
-    source = org.inventory_source
+    source = InventorySource.objects.select_for_update().get(organization=org)
     require(can_edit(user, org) and source.can_write)
     asset = form.save(commit=False)
     asset.organization, asset.source = org, source
+    if source.mode == "manual":
+        asset.state = "recorded"
     asset.full_clean()
     asset.save()
-    InventoryWrite.objects.create(asset=asset)
+    if source.mode != "manual":
+        InventoryWrite.objects.create(asset=asset)
     audit(user, org, "inventory.submitted", asset.pk)
     return asset
 
@@ -38,6 +41,20 @@ def process_write(pk, force=False):
         source.last_attempt = now
         job.attempts += 1
         try:
+            if job.agent_managed:
+                from .models import AgentDevice
+
+                if (
+                    not source.agent_managed
+                    or not AgentDevice.objects.filter(
+                        asset=asset,
+                        organization_id=source.organization_id,
+                        source=source,
+                        enabled=True,
+                        expires_at__gt=now,
+                    ).exists()
+                ):
+                    raise ConnectorError("Managed registration policy or device identity is no longer active")
             object_type, external_id = write_asset(asset)
         except (ConnectorError, ValueError):
             # No upstream bodies, credentials, URLs or untrusted exception messages in logs/state.
@@ -90,24 +107,52 @@ def review_contact(user, contact):
     audit(user, contact.organization, "contact.role_reviewed", contact.pk)
 
 
-def issue_contact_token(user, contact):
+def issue_contact_token(user, contact, *, service=False):
     raw = secrets.token_urlsafe(32)
     with transaction.atomic():
+        if service:
+            from .access import can_review_contact
+            from .models import Contact
+
+            contact = Contact.objects.select_for_update().get(pk=contact.pk)
+            require(user.is_active and can_review_contact(user, contact.organization))
+        if (
+            service
+            and ContactToken.objects.filter(
+                contact=contact,
+                used_at__isnull=True,
+                expires_at__gt=timezone.now() + timedelta(hours=23, minutes=45),
+            ).exists()
+        ):
+            return False
         ContactToken.objects.filter(contact=contact, used_at__isnull=True).update(used_at=timezone.now())
         ContactToken.objects.create(
             contact=contact,
             digest=hashlib.sha256(raw.encode()).hexdigest(),
             expires_at=timezone.now() + timedelta(hours=24),
         )
-        # Local sink only; no production message delivery is configured.
-        send_mail(
-            "Bearings development: verify contact channel",
-            f"LOCAL DEVELOPMENT ONLY. Open /contacts/verify/ and submit this one-use token: {raw}\n"
-            "This verifies only email reachability, not authority, role review, or emergency availability.",
-            settings.DEFAULT_FROM_EMAIL,
-            [contact.email],
-        )
+        if service:
+            from .service_mail import public_base, send_service_mail
+
+            send_service_mail(
+                "Confirm your Bearings notification mailbox",
+                f"An administrator nominated this team mailbox for {contact.organization.name}. Confirm only if this mailbox should receive its notifications.\n\n"
+                f"Open {public_base()}/contacts/verify/#token={raw}\n\n"
+                f"Or open /contacts/verify/ and submit this one-use token: {raw}\n\n"
+                "The token expires in 24 hours. Opening the link alone confirms nothing. This verifies mailbox access only, not a role, emergency availability or infrastructure authority.",
+                contact.email,
+            )
+        else:
+            # Local sink only; no production message delivery is configured.
+            send_mail(
+                "Bearings development: verify contact channel",
+                f"LOCAL DEVELOPMENT ONLY. Open /contacts/verify/ and submit this one-use token: {raw}\n"
+                "This verifies only email reachability, not authority, role review, or emergency availability.",
+                settings.DEFAULT_FROM_EMAIL,
+                [contact.email],
+            )
         audit(user, contact.organization, "contact.verification_prepared", contact.pk)
+    return True
 
 
 @transaction.atomic
@@ -202,4 +247,8 @@ def transition_finding(user, finding, status, reason, assessment=""):
         finding.analyst_applicability = assessment
     finding.status = status
     finding.save(update_fields=["status", "analyst_applicability"])
+    from .models import DiscoveryMatch, DistroMatch
+
+    DiscoveryMatch.objects.filter(finding=finding).update(review_required=False)
+    DistroMatch.objects.filter(finding=finding).update(review_required=False)
     audit(user, finding.organization, "finding.status_changed", finding.pk, status=status)

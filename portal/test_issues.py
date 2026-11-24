@@ -208,6 +208,16 @@ class AssetIssueTests(tests.Fixture):
         self.assertEqual(response.context["page"][0].pk, high.pk)
         self.assertEqual(response.context["counts"]["total"], 27)
         self.assertEqual(response.context["counts"]["unknown"], 26)
+        scoped = self.client.get(reverse("issues"), {"organization": self.a.slug})
+        self.assertEqual(scoped.context["counts"], response.context["counts"])
+        self.assertEqual(
+            [row.pk for row in scoped.context["page"]], [row.pk for row in response.context["page"]]
+        )
+        scoped_next = self.client.get(reverse("issues"), {"organization": self.a.slug, "page": 2})
+        self.assertEqual(len(scoped_next.context["page"]), 2)
+        self.assertFalse(
+            {row.pk for row in scoped.context["page"]} & {row.pk for row in scoped_next.context["page"]}
+        )
         self.assertEqual(
             self.client.get(reverse("issues"), {"kind": "license"}).context["page"].paginator.count, 26
         )
@@ -387,6 +397,9 @@ class AssetIssueTests(tests.Fixture):
             delivery = batch.deliveries.get()
             self.assertNotEqual(local.deliveries.get().fingerprint, delivery.fingerprint)
             with override_settings(DEFAULT_FROM_EMAIL="changed@example.com"):
+                with self.assertRaises(ValidationError):
+                    approve_local(self.admin, batch.pk, [delivery.pk])
+            with override_settings(EMAIL_TLS_VERIFY=False, EMAIL_TLS_UNVERIFIED_HOST="smtp.example.com"):
                 with self.assertRaises(ValidationError):
                     approve_local(self.admin, batch.pk, [delivery.pk])
             self.assertEqual(NotificationReceipt.objects.count(), 0)

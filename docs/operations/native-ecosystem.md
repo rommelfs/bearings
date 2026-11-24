@@ -1,0 +1,210 @@
+# Native NetBox, FlowIntel and Keycloak on Ubuntu 24.04
+
+This extends the [existing native Bearings server](ubuntu24.md). It does not run the developer Compose stack, seed companies/assets, replace the Bearings database/key, change existing inventory source identities, enable public registration or send notifications. The operator executes the commands on the server as root. Local component tests do not establish a production SLA or replace target acceptance.
+
+## Layout and boundaries
+
+| Application | Public origin | Internal listener | Database role/database |
+| --- | --- | --- | --- |
+| Bearings | `https://bearings.circl.lu` | Existing private socket | Existing `bearings` |
+| NetBox 4.7.3 | `https://netbox.bearings.circl.lu` | `/run/bearings-netbox/web.sock` | `bearings_netbox` |
+| FlowIntel pinned case-workflow build | `https://flowintel.bearings.circl.lu` | `/run/bearings-flowintel/web.sock` | `bearings_flowintel` |
+| Keycloak 26.8.1 | `https://sso.bearings.circl.lu` | Loopback 18083; health 19000 | `bearings_keycloak` |
+
+Separate non-login users, PostgreSQL databases/roles, root-owned source/virtual environments and protected runtime directories isolate the services. NetBox/FlowIntel use local PostgreSQL peer authentication; Keycloak uses a separately generated local TCP database password. No application role is a PostgreSQL superuser. The two Redis instances have separate private Unix sockets, with no TCP listeners. An existing global Redis installation is preserved; the unused default service is stopped only if newly installed by this installer.
+
+Native source lives under `/opt/bearings-services`, private configuration/receipts under `/etc/bearings/ecosystem`, runtime data under `/var/lib/bearings-*`, public NetBox static assets under `/var/www/bearings-netbox/static`. PostgreSQL storage remains owned by Ubuntu's PostgreSQL service. Back up all these state/configuration locations and all four databases together. Never delete the receipt to retry installation; it contains retained keys/passwords and source identity.
+
+NetBox and FlowIntel source commits are fixed. Python packages are hash-locked, and Keycloak's official archive is verified against a recorded SHA-256. NetBox uses the upstream pins with psycopg binary/pool and Gunicorn 25.3.0 for this native profile. These checksums are not independent publisher signatures. Source/license notices remain in the upstream trees. FlowIntel is the same bounded case-workflow runtime tested by the lab; PDF/AI/analyzer infrastructure and outbound SMTP/Matrix/webhooks are not deployed.
+
+## 1. Prepare DNS and backups
+
+Point the three additional names at the existing server, with A/AAAA records or CNAMEs to `bearings.circl.lu.`. Publish AAAA only with working end-to-end IPv6. Allow TCP 80/443; do not expose databases, Redis, health or native application ports. Make and verify a backup of the existing Bearings database, private environment and state before changing services.
+
+Use the reviewed source revision supplied with the implementation. The original guide used a detached checkout, so use `git fetch` and an explicit reviewed revision rather than assuming `git pull` updates it:
+
+```sh
+cd /opt/bearings
+git fetch origin
+git checkout --detach REVIEWED_COMMIT
+python3 deploy/ubuntu24/ecosystem.py plan
+```
+
+Recommended starting allocation: at least 8 GiB RAM, four CPUs and sufficient disk for all databases/uploads/backups. `free` and `/proc/cpuinfo` can show the host capacity in LXC: inspect the actual cgroup/container limits too. Keycloak's heap is explicitly capped at 1 GiB; application workers use conservative counts, not the host CPU count. This is a starting allocation, not capacity evidence.
+
+## 2. Install internal services
+
+Replace the email below with the intended first FlowIntel administrator address. This creates a local recovery account but sends no mail. On the constrained plain LXC installation diagnosed in this conversation:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py install --lxc-compatible --admin-email YOUR_EMAIL
+```
+
+For a host supporting the complete systemd mount sandbox, omit `--lxc-compatible`; the unprivileged sandbox preflight must pass. Compatibility is explicit: it omits the inner filesystem mount protection, retaining dedicated identities, no-new-privileges, empty capabilities, SUID restrictions and ordinary filesystem permissions. Outer LXC confinement is not changed. Do not globally disable AppArmor or use a privileged container as a shortcut.
+
+The command installs Ubuntu packages, separate pinned runtimes, schema migrations and services. Fresh NetBox migrations can take several minutes. Successful service start alone is insufficient: the helper waits for actual native login/health responses before reporting readiness. This stage installs ACME-only HTTP virtual hosts; it does not expose the application over plaintext HTTP.
+
+If interrupted, inspect the error and repeat **the same command and flags**. Keys/passwords and application records are retained. Unknown pre-existing accounts/directories/databases/sites are refused instead of adopted. After successful activation, the first-install command refuses reuse; upgrades require review/backups. No unattended upgrade is implemented. In a failure, the existing Bearings installation remains separate; do not reset its database/environment or run `scripts/dev.py` on this server.
+
+## 3. Certificate and activation
+
+After DNS reaches this server, obtain an operator-approved certificate. If Let's Encrypt HTTP-01 is the chosen policy, substitute the operational certificate contact address:
+
+```sh
+certbot certonly --webroot -w /var/lib/letsencrypt --cert-name bearings-ecosystem -d netbox.bearings.circl.lu -d flowintel.bearings.circl.lu -d sso.bearings.circl.lu --email YOUR_EMAIL --agree-tos
+python3 deploy/ubuntu24/ecosystem.py activate
+```
+
+Alternatively install the approved certificate/key at the two paths expected by the generated sites, or review the templates for your organization's certificate management. Do not overwrite the existing Bearings certificate. Certbot renewal is already enabled by the base deployment; test renewal policy as appropriate.
+
+Activation tests Nginx configuration and rolls back generated site files on configuration failure. It verifies the exact public HTTPS issuer using the server's trusted CA store, then appends the retained Bearings client configuration to its private environment and restarts Bearings. The original environment is backed up as `/etc/bearings/ecosystem/bearings-before-sso.env`. Existing different SSO issuer/client settings cause refusal, never silent identity repointing. On failed Django configuration checks the environment is restored. A later runtime failure needs operator recovery; activation is not a distributed transaction.
+
+Verify after application boot:
+
+```sh
+systemctl --no-pager status bearings-web bearings-worker bearings-national bearings-netbox bearings-netbox-worker bearings-flowintel bearings-keycloak bearings-netbox-redis bearings-flowintel-redis
+curl --fail --head --max-time 15 https://bearings.circl.lu/accounts/login/
+curl --fail --head --max-time 15 https://netbox.bearings.circl.lu/login/
+curl --fail --head --max-time 15 https://flowintel.bearings.circl.lu/account/login
+curl --fail --max-time 15 https://sso.bearings.circl.lu/realms/bearings/.well-known/openid-configuration
+```
+
+The native sites omit access logs and suppress proxied request error logging to avoid retaining authentication-code queries. Diagnose startup through the protected service journals and internal readiness/socket checks. Do not paste credentials, cookies, full environment files or authentication URLs into public issues.
+
+## 4. Local recovery accounts and explicit SSO
+
+Create NetBox's own recovery administrator interactively, then display the generated initial Keycloak/FlowIntel recovery credentials **on the server terminal only**:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py manage netbox createsuperuser --username platform-admin
+python3 deploy/ubuntu24/ecosystem.py credentials
+```
+
+Changed passwords cannot be recovered by `credentials`; it shows the initial values only, never rotates them or exposes API/OIDC/database keys. Existing Bearings local recovery remains available at `/accounts/login/`. Keycloak's initial administrator is a bootstrap account: replace it with an individually managed administrator/MFA policy before onboarding customers. Keycloak SMTP, password recovery and MFA require explicit operator configuration and acceptance; they are not silently enabled.
+
+Open Keycloak's `/admin/` console, select the **bearings** realm, create the intended human user and set a temporary initial password. Copy that user's **immutable User ID**. The realm initially has no company, analyst or demo users. The three clients have exact callbacks, confidential independent credentials, code flow and mandatory PKCE; password/implicit/service-account grants are disabled for these clients.
+
+Link the verified same User ID to existing local accounts. Replace actor/account names as appropriate. These commands grant no new local roles or company membership:
+
+```sh
+/opt/bearings/deploy/ubuntu24/manage.py link_oidc_identity --actor platform-admin --username platform-admin --subject KEYCLOAK_USER_ID
+python3 deploy/ubuntu24/ecosystem.py link-netbox-sso --actor platform-admin --username platform-admin --subject KEYCLOAK_USER_ID
+python3 deploy/ubuntu24/ecosystem.py manage flowintel link-sso --actor YOUR_EMAIL --user YOUR_EMAIL --subject KEYCLOAK_USER_ID
+```
+
+NetBox/FlowIntel linking refuses existing/revoked bindings rather than resetting them. Bearings uses its existing audited link/revoke command. Different applications retain their own permissions. A matching email alone never links accounts. Test an explicitly linked user and an unassigned user; the latter must not get access. A provider login should avoid a second password prompt across applications, while local recovery remains usable. Absolute SSO sessions are bounded; global logout, SCIM and coordinated cross-application deprovisioning are not implemented.
+
+Native pages retain their own framing policies and are initially opened separately; the lab's embedding exception is not automatically deployed. NetBox `/media/` is deliberately not publicly served in this profile because uploads can contain private files. Public static assets work; private attachment/media delivery needs a separately reviewed authorization-aware design before use.
+
+## 5. Bind actual company inventory and CIRCL case work
+
+Installation/SSO does **not** prove authorized inventory access. Do not connect customers using a NetBox administrator's token. In NetBox, create each company's tenant and separately constrained human/API identity. Start with read-only API permissions and test foreign-tenant denial. Register the approved instance/credential reference and exact company/tenant binding in Bearings administration, then perform the first GET-only import. Review device/VM/IP/prefix and reference-data permissions before enabling writes. Empty manual inventory may be converted through the approved onboarding workflow; a populated manual inventory or existing authoritative source must not be repointed automatically. The developer `enroll-company-sso` script is lab-only and must not be used here.
+
+For FlowIntel, create a CIRCL service organization and a dedicated non-admin Editor bridge account within it. Store its API key server-side in the protected Bearings environment under a dedicated variable, then configure a `FlowIntelInstance` with that variable name, the HTTPS URL and the expected service organization ID. Do not reuse the recovery administrator key. Verify scope/current permissions and a controlled case before enabling operational exports. Existing visibility checks, analyst approval and notification policies continue to apply; installing FlowIntel does not authorize customer data export or delivery.
+
+General native constituent company/tenant/API provisioning remains separate work. The explicit CIRCL pilot below now provides a bounded native connector rollout; it does not turn the lab enrollment fixture into production onboarding.
+
+## Recovery and updates
+
+Inspect `journalctl -u bearings-netbox -u bearings-netbox-worker -u bearings-flowintel -u bearings-keycloak --since '-10 minutes' --no-pager`. Keep secrets/config/receipts and database state together. A boot-time 502 may disappear after workers finish loading; a persistent one needs the current journal/socket evidence. Do not weaken sandbox flags beyond the explicitly selected compatibility policy.
+
+For SSO configuration rollback, retain local recovery access, stop/review affected workers, restore the protected `bearings-before-sso.env` backup and restart the three Bearings services. Do not delete the Keycloak realm or native application databases. Restoring that environment also restores its old service configuration; reconcile any changes made after the backup rather than blindly copying it over.
+
+Upgrades are reviewed maintenance: back up/restore-test all databases/state/config, preserve identity/client credentials and bindings, update pinned upstream versions/hash locks, run migration/component/permission tests, reconcile unit/proxy changes, then restart and verify. The first-install helper deliberately refuses to upgrade an activated installation. Sustained workload, monitoring, host hardening, backup restores, real certificate renewal and customer lifecycle acceptance remain operator requirements.
+
+
+### Resume after NetBox collectstatic permission error
+
+An early native profile set `STATIC_ROOT` in NetBox configuration, but NetBox 4.7.3 intentionally ignores that name and fixes its Django setting to `<NETBOX_ROOT>/static`. The corrected profile uses supported `STORAGES.staticfiles.OPTIONS.location` to collect into `/var/www/bearings-netbox/static`, with explicit public file/directory modes. The program tree remains root-owned and read-only to the service. `LOGIN_REQUIRED` is no longer set explicitly because this version defaults to required login and deprecates that parameter. Missing prebuilt NetBox documentation can still produce the separate non-fatal `staticfiles.W004` warning.
+
+If installation stopped at `Permission denied: /opt/bearings-services/netbox/netbox/static`, fetch/check out the reviewed correction and repeat the original `install --lxc-compatible` command (or the original sandbox flags). The receipt keeps the administrator address and secrets; completed migrations are retained. Do not delete the receipt/database or grant the application ownership of the source tree. The regression now verifies the effective storage backend and collects actual assets as an unprivileged user against read-only source; the old setting must fail that same test.
+
+
+### HTTPS issuer certificate mismatch on IPv6
+
+If activation reports an HTTPS issuer certificate error, compare verified requests over IPv4 and IPv6 (`curl -4` and `curl -6`) to the exact public metadata URL. A successful loopback `--resolve` check proves the local vhost/certificate, not the public IPv6 route. An early template listened only on IPv4; with a published AAAA record, Nginx's existing IPv6 default vhost could therefore return a different certificate. The corrected ACME and TLS vhosts explicitly listen on both IPv4 and IPv6 for all three subdomains.
+
+Fetch/check out the reviewed fix and repeat **activate**, not install. This regenerates the three vhosts and checks the real public HTTPS issuer before changing Bearings SSO settings. Reuse the existing certificate, database, clients and keys; do not bypass TLS verification or force internal hostname overrides to hide broken browser IPv6 access. Issuer failures now distinguish certificate validation, DNS, timeouts, refused connections and HTTP status without exposing raw exceptions, proxy credentials or metadata bodies.
+
+
+Activation also waits briefly for the new Nginx workers after reload: a successful reload command only signals the master and can precede the certificate/vhost transition. The issuer probe retries transient certificate/connection/5xx failures at most eight times, with a two-second request timeout and 250 ms pauses. Every attempt still verifies CA trust, hostname and the exact issuer; redirects, non-transient errors, invalid/oversized metadata and a different issuer fail closed. No environment/binding changes occur until a fully verified probe succeeds. This is a finite readiness check, not a certificate bypass.
+
+
+### Resume NetBox SSO linking after a Django admin LogEntry error
+
+NetBox does not install `django.contrib.admin`. An early native link helper incorrectly imported its LogEntry model and failed before reading the binding input or creating any link. Update to the reviewed correction and repeat only `link-netbox-sso`; retain the successful Bearings link. Do not enable Django admin, change passwords or reinstall NetBox for this error.
+
+The corrected helper records actor ID/name, target ID/name, time, event UUID, issuer and hashed identity in `UserSocialAuth.extra_data.operator_audit`, in the same transaction as the new binding. It then emits a structured event to the local system logger (`bearings-netbox-sso`, AUTHPRIV); configure system-log retention separately. These are binding metadata and a system-log event, not a Django admin or NetBox ObjectChange entry. Existing/revoked bindings remain refused without modification. No passwords, tokens or raw subjects are included in the log event. Deleting a binding removes its metadata, so retained system logs remain important for historical audit.
+
+
+### FlowIntel SSO click stays on the login page
+
+The pinned upstream policy `form-action 'self'` can block a browser's cross-origin redirect after the CSRF-protected login POST. The adapter now permits the one configured HTTPS IdP origin in that directive only on `/account/login` and `/bearings-sso/login`. Other paths/directives remain unchanged; a different upstream form restriction is not silently widened. Native framing restrictions and all server-side OIDC/CSRF/identity checks remain enabled.
+
+The native adapter is a deployed copy, so checking out the reviewed fix alone does not update the running FlowIntel service. After updating the Bearings source revision, install the reviewed file locally on the same server and restart only FlowIntel:
+
+```sh
+install -o root -g root -m 0644 /opt/bearings/docker/flowintel/sso.py /opt/bearings-services/flowintel/flowintel_sso.py
+systemctl restart bearings-flowintel
+```
+
+Allow the service to load, then force-reload the FlowIntel login page to replace the old document/CSP and click SSO again. Keys, passwords, bindings, private configuration and database state are retained; do not repeat installation or linking. The guarded browser regression (`scripts/flowintel_browser_smoke.py`) runs only against the synthetic lab, reproduces the old policy block and completes real Chromium/WebKit login after the fix. It requires optional pinned Playwright tooling, not additional production packages.
+
+## First CIRCL inventory and case bridge
+
+The native operator helper now supports one explicit pilot: CIRCL on this installation. This is independent of constituent registration and does not manufacture consent, verified contacts, membership, addresses or scope attestations. It does not generalize the lab-only constituent SSO provisioner to production.
+
+As root in `/opt/bearings`, after the reviewed update:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py connect-circl
+python3 deploy/ubuntu24/ecosystem.py connect-circl --apply
+```
+
+The first command only reports the current organization/source and counts. Apply creates the missing organization, a distinct NetBox tenant, an API-only user with exactly tenant-constrained view permissions for devices/VMs/IPs/prefixes and that tenant, and a read-only token expiring after 90 days. An empty manual source may be converted under its source lock. Populated manual inventories or other authoritative sources require an explicit reviewed migration. The service cannot edit NetBox; existing human administrators can maintain the tenant's inventory. Constituent human read/write provisioning remains a separate lifecycle.
+
+FlowIntel gets a distinct service organization, a service-only identity with an unrecoverable random password and a separate non-admin editing role/API key. No recovery administrator key is reused. No cases, customer exports or notifications are created by this command; existing case approval and visibility rules remain required. Validate a controlled case separately before operational use.
+
+Credentials pass through captured stdin/stdout and the root-owned mode-0600 `/etc/bearings/ecosystem/circl-connection.json` receipt into the protected Bearings environment. They are not printed or copied by the operator. Repeat calls validate the recorded native identities, permissions, token activity and binding; they refuse changed/revoked policies instead of recreating them. Preserve this receipt with database/config backups. If interrupted between an upstream commit and saving its receipt, the next call refuses the unrecorded identity: inspect and reconcile locally, without deleting inventory or resetting identities. Automatic credential rotation is not implemented; schedule token renewal before the 90-day expiry.
+
+Apply restarts the Bearings services and runs the initial `sync_netbox --source SOURCE_UUID` through the native management wrapper. This performs the existing HTTPS, tenant-checked, GET-only import. Verify sustained service health; the same command can be repeated with the printed source UUID. An initial import failure stops the operation, retains the bindings/last-known data and records source health for diagnosis; a subsequent apply revalidates identities before retrying. An empty result means no inventory has been entered, not that infrastructure is secure. Source errors retain last-known projections.
+
+## Stage and test CIRCL service mail
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py configure-mail
+/opt/bearings/deploy/ubuntu24/manage.py service_mail_check --actor platform-admin --probe
+/opt/bearings/deploy/ubuntu24/manage.py service_mail_check --actor platform-admin --send-test-to sascha.rommelfangen@circl.lu
+```
+
+The approved relay is stored literally as `[cped.circl.lu]`; SMTP uses its unwrapped hostname for DNS/TLS. This brackets convention does not request MX routing. The staged profile assumes port 25 with mandatory STARTTLS and normal CA/hostname verification, no SMTP credentials, sender `info@circl.lu` and subject prefix `[CIRCL BEARINGS]`. A failure requires operator investigation; there is no plaintext or certificate-check fallback. The inspection command prints no passwords; the probe sends no email. The explicit test sends exactly one tagged message to the selected address. SMTP acceptance is not inbox receipt.
+
+Staging preserves other environment secrets and leaves `BEARINGS_SERVICE_MAIL_TRANSPORT=file` and `BEARINGS_PUBLIC_REGISTRATION=0`. Only after confirming inbox receipt should the operator set service transport to `smtp`, enable public registration if desired, and restart the three Bearings services. This does not change vulnerability outreach transport or release its queue. Existing file messages are not replayed automatically. The tag also appears in outreach previews and their approval fingerprints; changing it invalidates old approvals. Keycloak and FlowIntel's own outgoing mail settings remain independent and unchanged.
+
+### Explicit encryption-only SMTP relay
+
+The CIRCL operator accepts the self-signed certificate on `cped.circl.lu` as transport encryption. Configure that exception with:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py configure-mail --allow-self-signed
+/opt/bearings/deploy/ubuntu24/manage.py service_mail_check --actor platform-admin --probe
+```
+
+This writes `SMTP_TLS_VERIFY=0` and `SMTP_TLS_UNVERIFIED_HOST=cped.circl.lu`. STARTTLS remains mandatory on port 25: an unsupported/failed TLS upgrade stops delivery, with no plaintext retry. The dedicated SMTP SSL context skips certificate-chain and hostname verification only for the explicitly matching relay. It provides encryption without authenticating that relay. The backend refuses an unmatched hostname or an unencrypted configuration; changing relay hosts requires revisiting the explicit exception. HTTPS connectors, SSO and global Python/OpenSSL trust are unchanged. The same SMTP policy applies to controlled tests, registration/reminder service mail and separately authorized SMTP outreach. Its verification policy is part of the outreach approval fingerprint, so changing policy requires a new preview/approval.
+
+Verification is enabled by default; running `configure-mail` without the flag restores it. Both forms keep regular service delivery file-based and public registration disabled. Once the probe succeeds, use the explicit one-recipient test command above and confirm receipt before enabling regular delivery. Inspection reports `certificate_verification: false` when this exception is active. No certificates or keys need copying between servers.
+
+
+## Prepare Linux client downloads on the native server
+
+As root in the clean reviewed `/opt/bearings` checkout, run:
+
+```sh
+python3 deploy/ubuntu24/ecosystem.py prepare-linux-client
+```
+
+This downloads official Go 1.27.4 for the builder's amd64/arm64 architecture, checks its recorded SHA-256 before extraction, retains its protected receipt and builds both static client architectures from the checked-out source. Compiler modules and telemetry are disabled. No Go compiler is needed on ordinary monitored hosts. Builds use private temporary caches and a separate immutable release directory; the existing protected environment is backed up and switched only after build completion, then only Bearings web is restarted. Dirty source, mismatched archives/compiler version or build failure refuse publication without replacing the active directory. Old releases are retained for reviewed rollback. HTTPS/checksums establish download consistency, not independent publisher signatures. No device, company, inventory, enrollment or service permission is created by preparing downloads.
+
+On the first native CIRCL pilot, the NetBox bridge is deliberately read-only. Before enrollment, record the actual host in NetBox under the existing CIRCL tenant (for the LXC, a VM entry with its real site/cluster), then run the existing scoped import. Keep the NetBox tenant/source/credential unchanged; choose **existing asset** in the agent enrollment UI. New-host enrollment is intentionally denied on that read-only source. Software observations are accepted separately from NetBox hardware writes. Do not invent a physical location or infer verified IP authority from the client.
+
+On an LXC target, download the published installer from `/downloads/linux/install.py` and run `python3 bearings-install.py --server https://bearings.circl.lu --lxc-compatible` from a directory outside the source checkout. Paste its public key in the company's Linux inventory reports, approve the existing host and paste the one-use code at `enroll --code`. No grant file crosses SSH boundaries. The compatibility override retains non-root/capability/resource restrictions but explicitly reduces filesystem/namespace isolation for that service. It is not a global LXC or certificate exception. Verify `systemctl status bearings-linux` and its journal before accepting the target.

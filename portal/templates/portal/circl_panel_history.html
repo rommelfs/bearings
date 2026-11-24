@@ -1,0 +1,11 @@
+{% load ui_icons ui_time %}
+<section class="national-panel"><h2 class="icon-heading">{% ui_icon "chart" %}Indicator history</h2>
+<p>Daily stock observations · {{ companies }} currently permitted compan{{ companies|pluralize:'y,ies' }} · {{ complete_days }} complete comparable day{{ complete_days|pluralize }} in the last 30 days{% if partial_days %} · {{ partial_days }} incomplete day{{ partial_days|pluralize }} withheld{% endif %}.</p>
+<p class="muted">Latest comparable observation: {{ latest_capture|display_time|default:"Not yet captured" }}.</p>
+<p>Automatic capture starts after this update, normally hourly (sooner after date or permission changes); each day keeps the latest successful observation per company. These are measured review/inventory stocks, separate from discovery and resolution activity. New history cannot reconstruct earlier totals. Toggle legend labels to inspect smaller series when counts differ greatly.</p>
+<section><h3>Comparable machine proportions</h3>{% include 'portal/_timeline.html' with timeline=machine_chart timeline_id='history-machine-proportions' %}</section>
+<details><summary>Technical review and inventory stock history</summary>
+<details class="history-disclosure">{% include 'portal/_chart_disclosure_summary.html' with icon='review' title='Review indicators over time' description='Open reviews, confirmed affectedness and source severity' only %}{% include 'portal/_timeline.html' with timeline=charts.0 timeline_id='history-reviews-data' %}</details>
+<details class="history-disclosure">{% include 'portal/_chart_disclosure_summary.html' with icon='inventory' title='Inventory over time' description='Assets and recorded software installations' only %}{% include 'portal/_timeline.html' with timeline=charts.1 timeline_id='history-inventory-data' %}</details>
+<details class="history-disclosure">{% include 'portal/_chart_disclosure_summary.html' with icon='coverage' title='Coverage gaps over time' description='Unknown versions, response contacts and source health' only %}{% include 'portal/_timeline.html' with timeline=charts.2 timeline_id='history-coverage-data' %}</details>
+</details></section>

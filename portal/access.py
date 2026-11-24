@@ -1,11 +1,36 @@
+from contextvars import ContextVar
+from functools import wraps
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
-from .models import AuditEvent, Organization
+from django.db.models import Q, Exists, OuterRef
+from .models import AuditEvent, Organization, Membership
 
 ANALYST_GROUP = "CIRCL analysts"
+_ANALYST_READ = ContextVar("bearings_analyst_read", default=None)
+
+
+def analyst_read_snapshot(view):
+    """Reuse this actor's group read only inside one read-only view/render.
+
+    No session/user-object cache: the next request rechecks revocation. Actor
+    identity guards nested reads for other users; finally restores outer scope.
+    Organization memberships and operator visibility remain live query predicates.
+    """
+
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        token = _ANALYST_READ.set((id(request.user), is_analyst(request.user)))
+        try:
+            return view(request, *args, **kwargs)
+        finally:
+            _ANALYST_READ.reset(token)
+
+    return wrapped
 
 
 def is_analyst(user):
+    scoped = _ANALYST_READ.get()
+    if scoped is not None and scoped[0] == id(user):
+        return scoped[1]
     return user.is_authenticated and user.groups.filter(name=ANALYST_GROUP).exists()
 
 
@@ -13,11 +38,13 @@ def organizations_for(user):
     if not user.is_authenticated:
         return Organization.objects.none()
     if user.is_superuser:
-        return Organization.objects.all()
-    q = Q(membership__user=user)
-    if is_analyst(user):
-        q |= Q(operator_visibility=True)
-    return Organization.objects.filter(q).distinct()
+        return Organization.objects.filter(merged_into__isnull=True)
+    if not is_analyst(user):
+        return Organization.objects.filter(membership__user=user, merged_into__isnull=True)
+    membership = Membership.objects.filter(user=user, organization_id=OuterRef("pk"))
+    policy = Q(Exists(membership))
+    policy |= Q(operator_visibility=True)
+    return Organization.objects.filter(policy, merged_into__isnull=True)
 
 
 def role_for(user, org):
@@ -54,8 +81,12 @@ def audit_operator_access(user, org):
 
 def visible_findings(user, org):
     findings = org.findings.select_related(
-        "organization", "record", "installation__product", "installation__asset"
-    )
+        "organization",
+        "record",
+        "installation__product",
+        "installation__asset",
+        "distro_match__ubuntu_status",
+    ).defer("distro_match__ubuntu_status__payload")
     if not can_operator_review(user, org):
         findings = findings.filter(record__shareable=True)
     return findings
@@ -65,12 +96,44 @@ def visible_findings_for(user):
     """Cross-organization queue with the same current raw/derived policy as workspace reads."""
     from .models import Finding
 
-    findings = Finding.objects.filter(organization__in=organizations_for(user)).select_related(
-        "organization", "record", "installation__product", "installation__asset__source__instance"
+    analyst = is_analyst(user) if not user.is_superuser else False
+    orgs = organizations_for(user)
+    findings = (
+        Finding.objects.filter(organization__in=orgs)
+        .select_related(
+            "organization",
+            "record",
+            "installation__product",
+            "installation__asset__source__instance",
+            "distro_match__ubuntu_status",
+        )
+        .defer("distro_match__ubuntu_status__payload")
     )
     if not user.is_superuser:
+        if not analyst:
+            ids = list(orgs.values_list("pk", flat=True)[:101])
+            if len(ids) <= 100:
+                findings = findings.filter(organization_id__in=ids)
         policy = Q(record__shareable=True)
-        if is_analyst(user):
+        if analyst:
             policy |= Q(organization__operator_visibility=True)
         findings = findings.filter(policy)
     return findings
+
+
+def audit_organizations(user, orgs):
+    """Audit actually displayed companies with bounded membership checks/inserts."""
+    orgs = list({org.pk: org for org in orgs}.values())
+    if not user.is_superuser and not is_analyst(user):
+        return
+    member_ids = set(
+        Membership.objects.filter(user=user, organization__in=orgs).values_list("organization_id", flat=True)
+    )
+    AuditEvent.objects.bulk_create(
+        [
+            AuditEvent(actor=user, organization=org, action="operator.access")
+            for org in orgs
+            if user.is_superuser or org.pk not in member_ids
+        ],
+        batch_size=100,
+    )

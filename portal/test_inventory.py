@@ -14,7 +14,7 @@ from django.core.management import CommandError, call_command
 from django.test import Client
 from django.utils import timezone
 from .tests import Fixture
-from .connectors.http import ConnectorError
+from .connectors.http import ConnectorError, ResponseTooLarge
 from .connectors.netbox import write_asset
 from .inventory import refresh_inventory
 from .models import Asset, InventoryWrite, NetBoxInstance, Installation
@@ -166,6 +166,27 @@ class InventoryImportTests(Fixture):
                     refresh_inventory(self.sa.pk)
                 self.assertFalse(self.sa.asset_set.exclude(external_id="").exists())
                 self.records = before
+
+    def test_exhausted_size_retries_preserve_every_prior_projection_and_receipt(self):
+        refresh_inventory(self.sa.pk)
+        self.sa.refresh_from_db()
+        success, summary = self.sa.last_import_success, self.sa.import_summary
+        original = self.response
+
+        def response(method, url, **kwargs):
+            if "/virtualization/virtual-machines/" in url:
+                raise ResponseTooLarge("untrusted response must not be stored")
+            return original(method, url, **kwargs)
+
+        self.records["devices"][0]["name"] = "discard this partial change"
+        self.http.side_effect = response
+        with self.assertRaises(ConnectorError):
+            refresh_inventory(self.sa.pk)
+        self.sa.refresh_from_db()
+        self.assertEqual((self.sa.last_import_success, self.sa.import_summary), (success, summary))
+        self.assertEqual(self.imported().name, "imported server")
+        self.assertFalse(self.sa.asset_set.filter(missing_since__isnull=False).exists())
+        self.assertNotIn("untrusted", self.sa.import_error)
 
     def test_pagination_is_complete_before_import_and_partial_pages_do_not_mark_missing(self):
         def pages(method, url, **kwargs):
@@ -359,8 +380,107 @@ class InventoryImportTests(Fixture):
         with self.assertRaises(ValidationError):
             self.alpha.full_clean()
 
+    # Real concurrent transactions are meaningful on PostgreSQL, not SQLite's single-writer fallback.
 
-# Real concurrent transactions are meaningful on PostgreSQL, not SQLite's single-writer fallback.
+    def assign_ip(self, *, kind="virtualization.vminterface", parent=1):
+        field = "virtual_machine" if kind == "virtualization.vminterface" else "device"
+        self.records["ip-addresses"][0].update(
+            assigned_object_type=kind,
+            assigned_object_id=77,
+            assigned_object={
+                "id": 77,
+                "name": "eth0",
+                field: {"id": parent, "name": "not trusted for matching"},
+            },
+        )
+
+    def test_addresses_group_by_explicit_interface_and_instance_not_name_or_primary_ip(self):
+        from .inventory_presentation import top_level_assets
+
+        self.assign_ip()
+        second = copy.deepcopy(self.records["ip-addresses"][0])
+        second.update(id=2, address="2001:db8::10/64")
+        self.records["ip-addresses"].append(second)
+        refresh_inventory(self.sa.pk)
+        refresh_inventory(self.sb.pk)
+        host = self.imported("vm")
+        addresses = list(host.assigned_addresses.all())
+        self.assertEqual(len(addresses), 2)
+        self.assertTrue(all(a.organization_id == self.a.pk and a.source_id == self.sa.pk for a in addresses))
+        self.assertEqual(self.imported().assigned_addresses.count(), 0)
+        self.assertEqual(top_level_assets(self.sa.asset_set.exclude(external_id="")).count(), 3)
+        self.assertNotEqual(host.pk, self.imported("vm", self.sb).pk)
+        self.assertTrue(all(c.args[0] == "GET" for c in self.http.call_args_list))
+
+    def test_preexisting_address_reviews_and_software_are_retained_when_grouped(self):
+        refresh_inventory(self.sa.pk)
+        address = self.imported("ip_address")
+        address.criticality = "high"
+        address.responsible_team = "Existing address review team"
+        address.save()
+        installed = Installation.objects.create(asset=address, product=self.product, version="retained")
+        review = self.record_finding()
+        review.installation = installed
+        review.save()
+        self.assign_ip(kind="dcim.interface")
+        refresh_inventory(self.sa.pk)
+        address.refresh_from_db()
+        review.refresh_from_db()
+        self.assertEqual(address.network_host_id, self.imported().pk)
+        self.assertEqual(address.criticality, "high")
+        self.assertEqual(address.responsible_team, "Existing address review team")
+        self.assertEqual(review.installation_id, installed.pk)
+        self.assertEqual(installed.asset_id, address.pk)
+        self.assertEqual(refresh_inventory(self.sa.pk)["updated"], 0)
+
+    def test_foreign_missing_or_unassigned_parent_does_not_hide_address(self):
+        from .inventory_presentation import top_level_assets
+
+        self.assign_ip(parent=999)
+        Asset.objects.create(
+            organization=self.b,
+            source=self.sb,
+            name="Foreign host",
+            kind="vm",
+            object_type="virtualization.virtualmachine",
+            external_id="999",
+        )
+        refresh_inventory(self.sa.pk)
+        address = self.imported("ip_address")
+        self.assertIsNone(address.network_host_id)
+        self.assertNotIn("assignment", address.upstream_data)
+        self.assertTrue(top_level_assets(self.sa.asset_set.all()).filter(pk=address.pk).exists())
+        for unsupported in ("fhrp.fhrpgroup", "plugin.interface"):
+            self.records["ip-addresses"][0]["assigned_object_type"] = unsupported
+            refresh_inventory(self.sa.pk)
+            address.refresh_from_db()
+            self.assertIsNone(address.network_host_id)
+            self.assertNotIn("assignment", address.upstream_data)
+        self.assign_ip()
+        refresh_inventory(self.sa.pk)
+        address.refresh_from_db()
+        self.assertEqual(address.network_host_id, self.imported("vm").pk)
+        self.records["ip-addresses"][0].update(
+            assigned_object_type=None, assigned_object_id=None, assigned_object=None
+        )
+        refresh_inventory(self.sa.pk)
+        address.refresh_from_db()
+        self.assertIsNone(address.network_host_id)
+
+    def test_malformed_interface_rolls_back_and_missing_address_keeps_last_known_assignment(self):
+        self.assign_ip()
+        refresh_inventory(self.sa.pk)
+        address = self.imported("ip_address")
+        self.records["ip-addresses"][0]["assigned_object"]["id"] = 78
+        with self.assertRaises(ConnectorError):
+            refresh_inventory(self.sa.pk)
+        address.refresh_from_db()
+        self.assertEqual(address.network_host_id, self.imported("vm").pk)
+        self.records["ip-addresses"] = []
+        refresh_inventory(self.sa.pk)
+        address.refresh_from_db()
+        self.assertIsNotNone(address.missing_since)
+        self.assertEqual(address.network_host_id, self.imported("vm").pk)
 
 
 @skipUnless(connection.vendor == "postgresql", "PostgreSQL row-lock validation")

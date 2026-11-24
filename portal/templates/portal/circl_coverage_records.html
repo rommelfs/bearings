@@ -1,0 +1,12 @@
+{% extends 'portal/base.html' %}{% block title %}{{ title }} · CIRCL{% endblock %}{% block content %}
+<p><a href="{% url 'circl-overview' %}">← National overview</a></p><h1>{{ title }}</h1>
+<p>{{ page.paginator.count }} records under your current access permissions. Prepared overview totals may reflect an earlier refresh; this list uses current inventory and permissions.</p>
+{% if bucket == 'no_contact' %}<p>Open People &amp; scope to assign a response contact, confirm email reachability and review the role. A data-protection contact alone does not satisfy this indicator.</p>{% endif %}
+<div class="table-scroll"><table><thead><tr><th>Company</th><th>Record</th>{% if installations %}<th>Installed version</th>{% endif %}<th>Open details</th></tr></thead><tbody>
+{% for row in page %}<tr>{% if companies %}<td><a href="{% url 'organization' row.slug %}">{{ row.name }}</a></td><td>{{ row.slug }}</td><td>{% if bucket == 'companies' %}<a href="{% url 'circl-findings' %}?organization={{ row.slug|urlencode }}">Outstanding reviews →</a>{% else %}<a href="{% url 'organization' row.slug %}#contacts">People &amp; scope →</a>{% endif %}</td>
+{% elif installations %}<td><a href="{% url 'organization' row.asset.organization.slug %}">{{ row.asset.organization.name }}</a></td><td>{{ row.product.name }} · {{ row.asset.name }}</td><td>{{ row.version|default:'Unknown' }}</td><td><a href="{% url 'asset' row.asset.organization.slug row.asset.pk %}">Server &amp; installed software →</a></td>
+{% else %}<td><a href="{% url 'organization' row.organization.slug %}">{{ row.organization.name }}</a></td><td>{{ row.name }} · {{ row.get_kind_display }}</td><td><a href="{% url 'asset' row.organization.slug row.pk %}">Asset details →</a></td>{% endif %}</tr>
+{% empty %}<tr><td colspan="4">No records match this indicator under your current access permissions.</td></tr>{% endfor %}
+</tbody></table></div>
+<nav aria-label="Indicator records pages">{% if page.has_previous %}<a href="?bucket={{ bucket|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} / {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?bucket={{ bucket|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+{% endblock %}

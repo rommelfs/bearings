@@ -125,3 +125,44 @@ python3 scripts/dev.py up --sso
 Then start a **new** login at **https://localhost:9441/accounts/login/**. The old authorization response is tied to the previous redirect URI; do not edit or replay it. The callback now remains on **https://localhost:9441/oauth/complete/oidc/** (or the configured `BEARINGS_CANVAS_PORT`). No browser TLS/HSTS setting needs to be disabled.
 
 Startup creates/verifies the separate Bearings client-provisioning job before app initialization. It narrowly migrates the exact generated legacy HTTP callback list to the exact HTTPS localhost/127.0.0.1 workspace callbacks, after checking retained client policy, PKCE and secret. Disabled state, users, roles, credentials and custom client fields are preserved. Modified callback lists, authentication policy or mismatched secrets fail closed for operator review rather than being reset. The generated private provisioning file lives in the Bearings secrets volume, outside Keycloak's realm-import directory. App/worker processes restart on explicit SSO startup so retained images load the updated callback too. Independently operated IdPs and NetBox callbacks are unchanged.
+
+
+## Diagnose slow page navigation with an existing SSO session
+
+The bundled lab has a standard-library diagnostic; it does not require browser developer tools or a new dependency:
+
+```bash
+python3 scripts/dev.py web-timing
+# For the CIRCL identity:
+python3 scripts/dev.py web-timing --username circl-analyst
+```
+
+After updating code, run `python3 scripts/dev.py up --no-build` first. The diagnostic refuses external/non-SSO environments and unexpected issuers/origins, verifies the lab CA, signs in through the real local Keycloak authorization-code flow with an existing synthetic account and the retained lab password, then measures the running HTTPS overview and Applications page. It also measures the direct HTTP and proxied HTTPS login pages before authentication. Two authenticated samples per page are separated by six seconds to include a request after the lab proxy's five-second DNS cache expires. Changed account passwords may require operator investigation if the retained lab credential no longer matches; the diagnostic never resets passwords or grants access. It signs out its own app session afterward.
+
+Output contains phase, status and milliseconds only; no page bodies, authentication codes, cookies, passwords, tokens or inventory are printed. `ttfb_ms` is time to response headers, including redirects if present; `total_ms` includes reading the HTML body. These are HTTP measurements, excluding browser rendering. For existing SSO sessions, `server_ms.session` covers session loading, lazy authentication and current binding/lifetime checks, while `server_ms.django` covers that middleware plus the page response. On `/`, `server_ms.overview` covers the overview view/database aggregates/template rendering. The timing ranges overlap and must not be added. All values are milliseconds.
+
+Compare `ttfb_ms` with `django`: a large gap directs investigation toward the connection/proxy path or processing outside the measured middleware. A large `session` points to authentication/session database processing. A large `overview` points to overview/database/template work. Missing `session`/`django` measurements on authenticated overview/Applications responses means the responding process may not be running the current instrumentation; a Git commit alone does not identify the live process. This evidence narrows the investigation and does not declare a slow deployment fixed. Source restrictions, current identity revocation checks and absolute session expiry remain intact; normal authenticated navigation does not query the IdP.
+
+
+For slow overview processing, the diagnostic also reports `scope`, `companies`, `priority`, `render`, `database` and `dbmax`. The first four separate view phases; `database` sums database execute time, including planning/compilation, and `dbmax` is its slowest individual statement. These overlap the full `overview` and `django` ranges. PostgreSQL JIT is disabled only inside the overview's local transaction and restored afterward, preserving the caller's prior setting even inside an existing transaction. This avoids compilation overhead without changing global database configuration or current visibility. The application does not infer a particular deployment's root cause from local benchmark results alone.
+
+
+If `priority` dominates a slow overview, inspect its submetrics `ranking` (candidate selection/counts/assets), `issuepreviews` (bounded issue IDs and scoped detail loading) and `legacypreviews` (remaining legacy CVE slots). The latter is skipped for cards already filled with four visible issue previews. These nested ranges overlap `priority` and database timing. Slow `database`/`dbmax` with fast `session` and Applications localizes a database path; it does not establish JIT as the cause. The follow-up user measurements remained slow after local JIT suppression, so that hypothesis did not explain that environment.
+
+## Signing in as the local platform administrator
+
+The bundled `platform-admin` is a Bearings local account, without a fixture Keycloak identity. Open **https://localhost:9441/accounts/login/** (or your configured Bearings HTTPS port), then use the **Local account / administrator sign-in** Username/Password form and the ordinary **Sign in** button. The SSO button takes you to a different identity store.
+
+`python3 scripts/dev.py credentials` includes an explicit platform-admin entry and explains this local login route. Newly created local lab accounts use the generated password displayed at the end. If an account password has since been changed, that generated value is not a copy of its current password; bootstrap and this read-only command preserve existing passwords, disabled state, grants and SSO bindings. Production local accounts follow the operator's own credentials/recovery policy.
+
+## Complete credential and URL directory
+
+`python3 scripts/dev.py credentials` prints a service-by-service directory for the selected lab profiles. It lists the managed human login accounts for Bearings, NetBox, Keycloak (including `sso-admin`), FlowIntel and RT/RTIR; distinguishes local login, SSO, intentionally unassigned users and recovery; and reads the current Bearings usernames/active flags, including self-registrations. Self-registered/changed user passwords are not recoverable and are not presented as generated lab passwords. Machine API identities are not interactive demo logins.
+
+The directory includes actual published Docker ports rather than guessing from defaults or the current shell. Links cover login, workspace, company/national entry, registration, pending registration/activation, Django admin, local outbox, NetBox inventory, Keycloak account/admin consoles, FlowIntel, RT and RTIR/recovery. Disabled profiles are omitted; unavailable mappings are marked instead of substituted. External NetBox mode shows only its configured safe HTTPS base URL and keeps external account management separate, without connecting to that server.
+
+Generated initial passwords are labeled per service, including Keycloak's separate bootstrap administrator password. They are read from retained local files without rotating anything; changed/deleted/disabled accounts are not restored. Missing service/files are reported and do not hide the remaining directory. Treat the command's full console output as confidential: it contains passwords and must not be pasted into public issues/logs. It does not output API tokens, OIDC client secrets or database credentials.
+
+## Registered company onboarding
+
+Approved registered responsible persons can explicitly link an existing IdP identity through **SSO & access**, after local password confirmation and signed provider authentication. The bundled lab also has an operator-only, read-only-by-default `enroll-company-sso` command for IdP creation and dedicated native NetBox view/add/change permissions on the company's own inventory. Existing demo permissions stay unchanged. See [company SSO](../user-guide/company-sso.md) for commands, empty-inventory conversion restrictions, partial-stage recovery, external deployment boundaries and optional operator-attested MISP organization UUIDs. Managed native human usernames appear in `credentials`; initial enrollment passwords remain private operator receipts and are not current-password recovery.

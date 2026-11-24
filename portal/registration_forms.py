@@ -1,0 +1,225 @@
+"""Public reporting applications and accountable inventory review."""
+
+import re
+from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from .models import InfrastructureRegistration, InventoryReviewPolicy, Organization
+from .configuration_forms import PublicKeysForm
+
+
+REGISTRATION_COMMITMENTS_VERSION = "2026-11-18"
+
+
+class InfrastructureRegistrationForm(PublicKeysForm, forms.ModelForm):
+    company_name = forms.CharField(max_length=180, label="Company / organization")
+    company_address = forms.CharField(
+        max_length=1000,
+        required=False,
+        label="Company address (optional)",
+        widget=forms.Textarea(attrs={"rows": 3, "autocomplete": "street-address"}),
+        help_text="Street, postal code, city and country. You can add this later.",
+    )
+    first_name = forms.CharField(
+        max_length=150, label="First name", widget=forms.TextInput(attrs={"autocomplete": "given-name"})
+    )
+    last_name = forms.CharField(
+        max_length=150, label="Last name", widget=forms.TextInput(attrs={"autocomplete": "family-name"})
+    )
+    job_title = forms.CharField(
+        max_length=120,
+        label="Role / job title within the organization",
+        widget=forms.TextInput(attrs={"autocomplete": "organization-title"}),
+        help_text="For example, IT manager, system administrator or security officer. This is your declared company role, not a portal permission.",
+    )
+    email = forms.EmailField(
+        label="Your email address",
+        help_text="Used to confirm your personal account. Add a shared team mailbox below if needed.",
+    )
+    notification_email = forms.EmailField(
+        max_length=254,
+        required=False,
+        label="Team notification email (optional)",
+        help_text="For a shared security@, abuse@ or noc@ mailbox. Confirm that mailbox before it receives notifications; your personal login email stays separate.",
+    )
+    emergency_phone = forms.CharField(
+        max_length=80,
+        label="Emergency contact telephone number",
+        widget=forms.TextInput(attrs={"type": "tel", "autocomplete": "tel"}),
+        help_text="Include the international country code, e.g. +352 123 456. This number is not automatically verified.",
+    )
+    consent = forms.BooleanField(
+        label="I request CIRCL review and consent to CIRCL accessing my organization's infrastructure information after approval"
+    )
+    attestation = forms.BooleanField(
+        label="I am authorized to share this organization's contact and infrastructure information with CIRCL; I understand that IP/domain authority remains subject to verification"
+    )
+    periodic_consent = forms.BooleanField(
+        label="I agree to periodic data reviews and email reactivity checks, and will respond to these requests"
+    )
+    updates_consent = forms.BooleanField(
+        label="I will keep this information current and report changes to contacts, responsibilities and infrastructure immediately"
+    )
+
+    class Meta:
+        model = get_user_model()
+        fields = [
+            "username",
+            "company_name",
+            "company_address",
+            "first_name",
+            "last_name",
+            "job_title",
+            "email",
+            "notification_email",
+            "emergency_phone",
+            "pgp_public_key",
+            "smime_certificate",
+            "consent",
+            "attestation",
+            "periodic_consent",
+            "updates_consent",
+        ]
+
+    @property
+    def registration_sections(self):
+        groups = (
+            ("Organization and account", ("company_name", "username", "email")),
+            ("Responsible contact", ("first_name", "last_name", "job_title", "emergency_phone")),
+            ("Participation commitments", ("consent", "attestation", "periodic_consent", "updates_consent")),
+        )
+        return [(title, [self[name] for name in names]) for title, names in groups]
+
+    @property
+    def registration_optional_fields(self):
+        return [
+            self[name]
+            for name in ("company_address", "notification_email", "pgp_public_key", "smime_certificate")
+        ]
+
+    @property
+    def registration_optional_open(self):
+        # A collapsed invalid field must never hide the reason submission failed.
+        return any(field.errors or field.value() for field in self.registration_optional_fields)
+
+    def clean(self):
+        data = super().clean()
+        full_name = " ".join(part for part in [data.get("first_name", ""), data.get("last_name", "")] if part)
+        if len(full_name) > 180:
+            self.add_error(None, "The combined first and last name must be at most 180 characters.")
+        data["contact_name"] = full_name
+        return data
+
+    def clean_notification_email(self):
+        return self.cleaned_data["notification_email"].casefold()
+
+    def clean_emergency_phone(self):
+        value = re.sub(r"[\s()./-]", "", self.cleaned_data["emergency_phone"])
+        if not re.fullmatch(r"\+[1-9][0-9]{6,14}", value):
+            raise forms.ValidationError("Enter an international number starting with + and 7–15 digits.")
+        return value
+
+    def clean_email(self):
+        value = self.cleaned_data["email"].casefold()
+        if (
+            get_user_model().objects.filter(email__iexact=value).exists()
+            or InfrastructureRegistration.objects.filter(email=value).exists()
+        ):
+            raise forms.ValidationError(
+                "This address cannot be registered again. Sign in, resend verification, or contact the operator."
+            )
+        return value
+
+
+class RegistrationVerificationForm(forms.Form):
+    password1 = forms.CharField(label="Choose your portal password", widget=forms.PasswordInput())
+    password2 = forms.CharField(label="Repeat password", widget=forms.PasswordInput())
+    requested = forms.BooleanField(
+        label="I requested this organization registration and am setting its password"
+    )
+
+    def clean(self):
+        data = super().clean()
+        if data.get("password1") != data.get("password2"):
+            self.add_error("password2", "Passwords do not match.")
+        if data.get("password1"):
+            validate_password(data["password1"])
+        return data
+
+    code = forms.CharField(
+        max_length=128,
+        widget=forms.TextInput(attrs={"autocomplete": "one-time-code"}),
+        label="Email verification code",
+    )
+
+
+class VerificationResendForm(forms.Form):
+    email = forms.EmailField()
+
+
+class RegistrationDecisionForm(forms.Form):
+    decision = forms.ChoiceField(
+        choices=[
+            ("approve", "Approve CIRCL visibility of this company"),
+            ("reject", "Decline CIRCL visibility of this company"),
+            ("notify", "Retry decision email"),
+        ]
+    )
+    note = forms.CharField(
+        max_length=2000,
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Internal review note",
+    )
+    checked = forms.BooleanField(
+        label="I checked this application. Approval grants CIRCL visibility; owner access is separate and declared scopes remain unverified."
+    )
+
+
+class InventoryReviewSettingsForm(forms.ModelForm):
+    interval_days = forms.IntegerField(min_value=1, max_value=365)
+    reminder_days = forms.IntegerField(min_value=1, max_value=90)
+
+    def __init__(self, *args, mandatory_email=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if mandatory_email:
+            self.fields.pop("email_enabled")
+
+    class Meta:
+        model = InventoryReviewPolicy
+        fields = ["interval_days", "reminder_days", "email_enabled"]
+
+
+class InventoryReviewForm(forms.Form):
+    token = forms.CharField(max_length=2000, widget=forms.HiddenInput())
+    checked = forms.BooleanField(
+        label="I reviewed the current contacts, declared IP/domain scopes, assets and software versions, including unknowns and gaps"
+    )
+
+
+class CompanyAddressForm(forms.ModelForm):
+    class Meta:
+        model = Organization
+        fields = ["postal_address"]
+        labels = {"postal_address": "Company address (optional)"}
+        help_texts = {
+            "postal_address": "Street, postal code, city and country. This is your organization's location; servers may be elsewhere."
+        }
+        widgets = {"postal_address": forms.Textarea(attrs={"rows": 3, "autocomplete": "street-address"})}
+
+
+class RegistrationOverrideForm(forms.Form):
+    note = forms.CharField(
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Reason for the administrative override",
+    )
+    checked = forms.BooleanField(
+        label="Activate private company access without asserting email ownership. I will give the one-use password setup link to the intended responsible person through a trusted channel. CIRCL sharing remains separate."
+    )
+
+
+class RegistrationMailRetryForm(forms.Form):
+    checked = forms.BooleanField(
+        label="Send a new verification message to this application's registered email. The previous link will stop working."
+    )

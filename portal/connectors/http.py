@@ -4,13 +4,19 @@ import ipaddress
 import json
 import os
 import socket
+import time
 from urllib.parse import urlsplit
 import httpx
 from django.conf import settings
+from django.views.decorators.debug import sensitive_variables
 
 
 class ConnectorError(Exception):
     pass
+
+
+class ResponseTooLarge(ConnectorError):
+    """A bounded response was rejected, without exposing its body or destination."""
 
 
 class UpstreamHTTPError(ConnectorError):
@@ -66,7 +72,8 @@ def approved_base(url, allow_private=False, *, proxy_dns=None):
     return url.rstrip("/")
 
 
-def request_json(method, url, *, allow_list=False, **kwargs):
+@sensitive_variables()
+def request_json(method, url, *, allow_list=False, deadline=None, **kwargs):
     try:
         with httpx.Client(timeout=15, follow_redirects=False) as client:
             with client.stream(method, url, **kwargs) as response:
@@ -74,15 +81,24 @@ def request_json(method, url, *, allow_list=False, **kwargs):
                     raise UpstreamHTTPError(response.status_code)
                 chunks, size = [], 0
                 for chunk in response.iter_bytes():
+                    if deadline is not None and time.monotonic() > deadline:
+                        raise ConnectorError("Connector response time budget exceeded")
                     size += len(chunk)
                     if size > 2_000_000:
-                        raise ConnectorError("Upstream response exceeds 2 MB limit")
+                        raise ResponseTooLarge("Upstream response exceeds 2 MB limit")
                     chunks.append(chunk)
                 data = json.loads(b"".join(chunks))
                 if not isinstance(data, dict) and not (allow_list and isinstance(data, list)):
                     raise ConnectorError("Expected an upstream JSON object")
                 return data
-    except (httpx.HTTPError, ValueError):
-        raise ConnectorError(
-            "Connector transport or JSON failure; retry after checking service health"
-        ) from None
+    except (httpx.HTTPError, ValueError, RecursionError) as exc:
+        error = ConnectorError("Connector transport or JSON failure; retry after checking service health")
+        # Fixed categories only: never expose a URL, token, body or exception message.
+        error.reason_code = (
+            "timeout"
+            if isinstance(exc, httpx.TimeoutException)
+            else "transport"
+            if isinstance(exc, httpx.HTTPError)
+            else "invalid_json"
+        )
+        raise error from None

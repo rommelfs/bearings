@@ -1,0 +1,33 @@
+---
+# Reference pattern: use a reviewed origin and a short-lived company rollout key
+# from Vault/secret lookup. Never initialize device state in machine images.
+- name: Register approved Linux hosts with Bearings
+  hosts: bearings_linux
+  become: true
+  serial: 20
+  vars:
+    bearings_origin: https://bearings.example
+    bearings_lxc_compatible: false
+  tasks:
+    - name: Download reviewed installer using OS HTTPS trust
+      ansible.builtin.get_url:
+        url: "{{ bearings_origin }}/downloads/linux/install.py"
+        dest: /opt/bearings-install.py
+        owner: root
+        group: root
+        mode: '0600'
+        validate_certs: true
+        timeout: 20
+
+    - name: Install and register with a bounded company rollout key
+      ansible.builtin.command:
+        argv: "{{ ['python3', '/opt/bearings-install.py', '--server', bearings_origin, '--bootstrap-stdin'] + (['--lxc-compatible'] if bearings_lxc_compatible else []) }}"
+        stdin: "{{ bearings_rollout_key }}"
+        stdin_add_newline: false
+      no_log: true
+      throttle: 2
+      register: bearings_rollout_result
+      until: bearings_rollout_result.rc == 0
+      retries: 4
+      delay: "{{ 15 + (10 | random) }}"
+      changed_when: "'Automatic registration confirmed' in bearings_rollout_result.stdout"

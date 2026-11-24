@@ -1,0 +1,16 @@
+{% extends 'portal/base.html' %}{% load static %}{% block content %}
+<a href="{% url 'asset' org.slug asset.pk %}">← {{ asset.name }}</a><h1>{{ title }}</h1>
+<p>Add software installed on this host. Choose a public manufacturer/product identity or reuse a product already saved in your organization, then enter the actual installed version.</p>
+<form class="editor" method="post">{% csrf_token %}
+<section class="product-picker" data-product-picker data-installation-picker data-search-url="{% url 'installation-catalog' org.slug asset.pk %}">
+<h2>Find software in the public product catalog</h2><p>This is separate from the saved-product list below. Only search terms you submit leave Bearings; your host, organization and installed version are not sent. The catalog supplies manufacturer/product keys, not a complete list of CPE versions.</p>
+<label for="catalog-query">Manufacturer or product search</label><input id="catalog-query" type="search" maxlength="120" placeholder="e.g. misp" autocomplete="off">
+<div class="actions"><button type="button" data-search="vendors">Find manufacturer</button><button type="button" data-search="products">Find product for selected manufacturer</button></div>
+<p data-picker-status role="status" aria-live="polite"></p><ul class="product-results" data-picker-results></ul><div class="actions" data-picker-pages></div>
+<noscript><p>Public catalog search requires JavaScript. You can enter a product name and CPE directly below.</p></noscript>
+</section>
+<p><strong>MISP example:</strong> select manufacturer <code>misp</code>, product <code>misp</code>, and enter the version installed on this host. Or enter product name <code>MISP</code> and identifier <code>cpe:2.3:a:misp:misp:*:*:*:*:*:*:*:*</code> directly. Leave Edition and Build empty if unknown; MISP is not an operating system.</p>
+<p>A CPE establishes product identity. Automatic CVE monitoring still checks the installed version against available evidence; matching a name alone does not prove affectedness.</p>
+{{ form.as_p }}<button class="primary">Save software</button></form>
+<script src="{% static 'portal/product-picker.js' %}?v=installation-20261121" defer></script>
+{% endblock %}

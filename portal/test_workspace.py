@@ -2,7 +2,7 @@
 
 from django.urls import reverse
 
-from .models import AuditEvent, Membership, Organization
+from .models import Asset, AuditEvent, Membership, Organization
 from .tests import Fixture
 
 
@@ -69,3 +69,32 @@ class WorkspaceTests(Fixture):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Source: Not configured")
         self.assertEqual(response.context["page"][0].asset_count, 0)
+
+    def test_inventory_counts_machine_once_and_compacts_pending_workspaces_without_removal(self):
+        for number, name in enumerate(("192.0.2.10/24", "2001:db8::10/64"), 1):
+            Asset.objects.create(
+                organization=self.a,
+                source=self.sa,
+                object_type="ipam.ipaddress",
+                kind="ip_address",
+                name=name,
+                external_id=str(number),
+                network_host=self.asset,
+            )
+        pending = Organization.objects.create(name=self.a.name, slug="pending-workspace")
+        Membership.objects.create(user=self.reader, organization=pending, role="reader")
+        self.login(self.reader)
+        response = self.client.get(reverse("inventory"))
+        self.assertEqual([o.pk for o in response.context["main_orgs"]], [self.a.pk])
+        self.assertEqual(response.context["main_orgs"][0].asset_count, 1)
+        self.assertEqual([o.pk for o in response.context["pending_orgs"]], [pending.pk])
+        self.assertNotContains(response, reverse("company-merge") + "?source=")
+        self.assertEqual(
+            self.client.get(reverse("inventory"), {"q": pending.slug}).context["pending_orgs"], []
+        )
+        pending.refresh_from_db()
+        self.assertIsNone(pending.merged_into_id)
+        self.login(self.platform)
+        self.assertContains(
+            self.client.get(reverse("inventory")), reverse("company-merge") + f"?source={pending.pk}"
+        )

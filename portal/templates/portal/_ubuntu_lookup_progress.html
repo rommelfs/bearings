@@ -1,0 +1,13 @@
+{% load ui_time %}{% if progress.device_id %}<section class="ubuntu-lookup-progress" data-ubuntu-progress data-timezone="{% display_timezone %}" data-device="{{ progress.device_id }}" data-endpoint="{% url 'agent-lookup-progress' %}">
+<h4>Ubuntu status lookup progress · live</h4>
+<p data-evaluation-phase role="status">{{ progress.evaluation.message|default:'Checking evaluation freshness…' }}</p>
+<p data-evaluation-render-status class="muted"></p>
+<progress data-lookup-bar max="{{ progress.total|default:1 }}" value="{{ progress.fresh|default:0 }}" aria-label="CVE lookups with current Ubuntu data"></progress>
+<p><strong><span data-count="fresh">{{ progress.fresh }}</span> / <span data-count="total">{{ progress.total }}</span> unique CVE lookups current · <span data-lookup-percent>{% if progress.total %}{% widthratio progress.fresh progress.total 100 %}{% else %}0{% endif %}</span>%</strong> · <span data-count="pending">{{ progress.pending }}</span> waiting, in progress or stale · <span data-count="failed">{{ progress.failed }}</span> failed without current data.</p>
+<p class="warning" data-refresh-warning{% if not progress.refresh_errors %} hidden{% endif %}><span data-count="refresh_errors">{{ progress.refresh_errors }}</span> current entries also had a failed refresh; retained data is still within the 12-hour verification window.</p>
+<p class="muted">These are distinct CVEs requested by this client's last evaluation, not package/CVE associations or confirmed vulnerabilities. Last attempt: <span data-lookup-attempt>{{ progress.last_attempt|display_time|default:'Not yet attempted' }}</span> · latest success: <span data-lookup-success>{{ progress.last_success|display_time|default:'None yet' }}</span>. The package assessment below updates when a newer completed evaluation is available.</p>
+<p data-lookup-empty{% if progress.total %} hidden{% endif %}>No CVE lookups requested by the last evaluation yet.</p>
+<label><input type="checkbox" data-lookup-auto checked> Update these counters automatically every 10 seconds</label> <button type="button" data-lookup-now>Refresh now</button>
+<p class="muted" role="status" data-lookup-status>Connecting to current counters…</p><p class="muted">Last counter refresh: <span data-lookup-updated>page load</span></p><noscript><p>JavaScript is disabled. Reload this page to update these counters.</p></noscript>
+<details data-lookup-errors{% if not progress.errors %} hidden{% endif %}><summary>Lookup failure categories</summary><ul>{% for error in progress.errors %}<li>{{ error.count }} · {{ error.reason }}</li>{% endfor %}</ul></details>
+</section>{% endif %}

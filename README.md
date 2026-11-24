@@ -2,9 +2,24 @@
 
 A standalone organization inventory and evidence review portal intended for CIRCL operation. It connects inventory ownership, emergency contacts, infrastructure authority claims, and technology relevance without equating a match with compromise.
 
-**Status: first runnable development increment, not production-ready.** No operational data is included. The existing repository is `rommelfs/bearings`; no additional repository is needed. This is a public open-source project licensed under [GNU AGPL v3.0 or later](LICENSE) (`AGPL-3.0-or-later`).
+**Status: runnable development and pilot workspace, not production-ready.** No operational data is included. The existing repository is `rommelfs/bearings`; no additional repository is needed. This is a public open-source project licensed under [GNU AGPL v3.0 or later](LICENSE) (`AGPL-3.0-or-later`).
+
+CIRCL analysts also have a **[National overview](docs/user-guide/circl-overview.md)** at `/circl/`: outstanding vulnerability reach, software-version prevalence, recorded review activity and local confidential version research before a CVE exists. It uses permitted reporting inventory; it does not claim complete national coverage or verified patch installation.
+
+## Documentation and project introduction
+
+Start with the [documentation index](docs/README.md), [FAQ](docs/faq.md) and [current next steps](docs/product/next-priorities.md). The four-language [public static website source](website/README.md) explains the product with use cases and synthetic screenshots. [Company invitations and merges](docs/user-guide/company-members.md) and [personal customer MISP access](docs/user-guide/personal-misp.md) are implemented with explicit local/native permission boundaries.
+
+To preview the website locally and open it in your browser: `python3 scripts/dev.py website --language de` (EN/FR/LB are also available). The preview uses HTTP on `127.0.0.1:8050`; the application keeps its separate HTTPS entrance.
 
 ## Implemented
+
+- Machine-based infrastructure indicators: current distribution-version-match and evaluation-coverage proportions with explicit denominators, partial/unknown coverage and one highest source priority per machine. “What needs attention?” defaults to compact machine teasers; the previous grouped-action view remains selectable. Software-family cases separate proven version evidence, application applicability, vendor clarification and retained reviews; raw package/CVE counts remain technical detail. Forward-only national machine-percentage history preserves gaps.
+
+- The technical retained-review view provides pending, unresolved, cleared and retained-all filters and distinct-identifier counts. Rows show current automatic package evidence, explicitly supported fix versions and Ubuntu Pro / ESM Apps or ESM Infra channels separately from saved analyst decisions. Host update availability and entitlement remain unverified; stale proof withholds fix advice.
+
+- [Direct problem links and automatic risk scenarios](docs/user-guide/automatic-scenarios.md): server badges open exact problem sets; individual problem titles, actions and drafts link directly to their evidence. Local evidence-based scenario drafts recommend compatible public MOSP templates with prefilled justification and reviewed confirmation.
+- **Infrastructure overview** is the post-login landing page: company-scoped inventory/monitoring coverage, active CVE reviews, overdue actions, accountable servers and risk-review cues, with page auto-refresh enabled. Known product names, concrete CPE identities and supported package identities automatically enroll enabled product watches; a public vendor/product picker handles unknown mappings. [Setup and overview](docs/user-guide/infrastructure-overview.md).
 
 - Django authentication, multi-organization memberships (administrator, editor, reader), CIRCL analyst group, and operator-controlled visibility (default deny).
 - Organization and authorized CIRCL dashboards; versioned, session-authenticated read APIs with the same isolation rules.
@@ -22,9 +37,17 @@ A standalone organization inventory and evidence review portal intended for CIRC
 - [CIRCL constituent campaigns and company notifications](docs/user-guide/notifications.md): filter all or several companies once, review private per-company messages, approve the campaign together and track background outcomes. Explicit contact blockers/exclusions, templates, draft subscriptions, file delivery by default, opt-in TLS SMTP, scoped inbox and acknowledgments.
 - [Read-only company-instance federation pilot](docs/integrations/federation.md): expiring explicit company grants, bounded snapshots, provenance/freshness and retained reports, separate from authoritative local inventory.
 
-**Not yet implemented:** MISP ingestion, automatic applicability/version matching, full vulnerability alias resolution, source-specific redistribution policy evaluation, scan coordination, production bounce/escalation management, resumable/delta federation, global SSO logout/MFA enforcement, production SSO acceptance, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
+- [Continuous review](docs/user-guide/continuous-review.md): scheduled explicit vendor/product CVE discovery, conservative exact/SemVer matching, retained evidence and changed-review cues; structured contact roles, accountable asset contacts, optional DPO recipients and timed reminder/management-escalation drafts; organization-local risk assessments with a documented 5×5 matrix, treatment, residual estimates, expiring acceptance and a scoped CIRCL/company risk register.
+
+**Not yet implemented:** MISP ingestion, broad version-ecosystem/backport/configuration applicability, full vulnerability alias resolution, source-specific redistribution policy evaluation, scan coordination, production bounce handling and automatic escalation delivery, resumable/delta federation, global SSO logout/MFA enforcement, production SSO acceptance, public deployment, or a production job scheduler. See [backlog](docs/backlog.md) and the [agreed next phases](docs/roadmap.md).
 
 See [asset location, source-severity filters and linked analyst triage](docs/user-guide/asset-triage.md).
+
+[CIRCL company map](docs/user-guide/circl-map.md): severity markers and optional heatmap, local Luxembourg postal/place lookup, explicit manual points and current scoped problem links; no external tiles or address submission.
+
+[Self-registration and data-review reminders](docs/user-guide/reporting-registration.md): email confirmation immediately opens a private company workspace; CIRCL sharing is approved afterward. Registration includes an emergency telephone and explicit sharing/update/periodic-check commitments. Platform admins and CIRCL for shared organizations manage the review intervals; required service email checks and owner confirmations keep networks/domains and optional software inventory current. An optional independently confirmed team notification mailbox keeps shared security/NOC contacts separate from personal logins. Platform admins can inspect local lab mail, retry verification and use an audited private-access activation override with owner password setup; mailbox proof and CIRCL sharing stay separate.
+
+[Company configuration & setup](docs/user-guide/company-configuration.md): after CIRCL approval, a resumable four-part guide covers IPs/networks/domains, local hardware/software entry, manual AIL keyword/Honeytoken configuration and contacts/public communication material. Sections also work independently, with autosave, conflict protection and a setup progress bar. Registration accepts optional public PGP/S/MIME material instead of requiring infrastructure declarations. AIL configuration is exported for manual import and human review; no direct connector or automatic alerts.
 
 New to Bearings? Open **Start here** for a [guided case](docs/user-guide/guided-cases.md): machine → evidence → risk → action → follow-up. The opt-in PHP example uses CVE-2026-109618 and CVE-2026-109619; product/CVE selection stays flexible.
 
@@ -34,7 +57,7 @@ See the [unpatched Exchange example and analyst workflow](docs/user-guide/exchan
 
 ## Explore synthetic scenarios
 
-The bundled lab now includes **10 fictional companies, 300 assets, 900 installations, 960 asset issues, six weeks of exposure history and offline response/message previews**. Follow **Explore the scenarios** in the banner. No scans, messages or remote cases are created by this dataset. Platform administrators can preview and safely remove the tracked examples; a retained marker prevents reseeding on restart. See [synthetic data, cleanup and production boundaries](docs/operations/synthetic-data.md).
+The bundled lab now includes **10 fictional companies, 300 assets, 900 installations, 960 asset issues, six weeks of exposure history and offline response/message previews**. Follow **Explore the scenarios** in the banner. Its fictional firms now include clearly synthetic addresses across Luxembourg for the local company map; edited/real addresses remain untouched. No scans, messages or remote cases are created by this dataset. Platform administrators can preview and safely remove the tracked examples; a retained marker prevents reseeding on restart. See [synthetic data, cleanup and production boundaries](docs/operations/synthetic-data.md).
 
 ## Optional single sign-on
 
@@ -175,3 +198,10 @@ python3 scripts/dev.py manage sync_netbox --all
 ```
 
 Native development uses `DJANGO_DEBUG=1 uv run python manage.py sync_netbox --all`; schedule `sync_netbox --all --due` alongside `process_jobs` when running without the starter worker. A refresh performs GETs only for both read-only and read/write connections. Each source commits only after all four object types/pages validate; failures retain its last complete projection and success time while other sources continue. Missing objects are flagged for review rather than deleted. See [synchronization](docs/operations/synchronization.md) for field ownership, scheduling, freshness and limits. The inventory API now returns up to 100 assets per page (`?page=2`) with pagination metadata.
+
+
+Native CIRCL operators can enable [managed NetBox host registration with VM technology tags](docs/operations/managed-netbox.md) after the read-only pilot. The staged command verifies both the external object and Bearings import while preserving existing client keys and software/CVE records. Existing rollout codes retain their original mode.
+
+Managed Linux inventory can export native interfaces/IP assignments to an explicitly configured tenant VRF and a structured OS/software/provenance snapshot to central or customer-owned NetBox. Per-customer RW setup and the separately planned NetBox-to-NetBox migration are described in [managed NetBox operations](docs/operations/managed-netbox.md#reported-inventory-export-migration-0064).
+
+The [21 November UI/security audit](docs/audits/2026-11-21-ui-security.md) records production read-only observations, synthetic authenticated checks, scoped UI corrections, frozen dependency security updates and remaining infrastructure/audit work.

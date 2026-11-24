@@ -1,0 +1,77 @@
+.company-map {
+  min-height: 200px;
+  width: 100%;
+  border: 1px solid #bcccdc;
+  border-radius: 10px;
+  background: #e4f0f4;
+  z-index: 0;
+}
+.map-controls {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: end;
+  margin: 12px 0;
+}
+.map-controls label {
+  display: block;
+  flex: 1 1 160px;
+}
+.map-controls select {
+  width: 100%;
+}
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  font-size: 0.85rem;
+  margin: 12px 0;
+}
+.map-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 1px solid #34495e;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--dot);
+}
+.map-legend [data-level="critical"] {
+  --dot: #b91446;
+}
+.map-legend [data-level="high"] {
+  --dot: #c65316;
+}
+.map-legend [data-level="medium"] {
+  --dot: #bf8a00;
+}
+.map-legend [data-level="low"] {
+  --dot: #287fb0;
+}
+.map-legend [data-level="unrated"] {
+  --dot: #775da2;
+}
+.map-legend [data-level="no_open"] {
+  --dot: #647880;
+}
+.company-map-panel {
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  .company-map {
+    min-height: 200px;
+  }
+  .company-map-panel {
+    padding: 14px;
+  }
+}
+
+/* Keep map controls/popups in the same locally hosted corporate typeface. */
+[data-map-selection]:empty {
+  display: none;
+}
+[data-map-selection] > div {
+  padding: 0.7rem;
+  border-bottom: 1px solid var(--line);
+}

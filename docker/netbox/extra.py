@@ -26,6 +26,7 @@ if os.getenv("BEARINGS_SSO_LAB") == "1":
     SOCIAL_AUTH_OIDC_TOKEN_ENDPOINT_AUTH_METHOD = "client_secret_basic"
     SOCIAL_AUTH_OIDC_JWT_DECODE_OPTIONS = {"require": ["iss", "sub", "aud", "exp", "iat"]}
     SOCIAL_AUTH_OIDC_JWT_ALGORITHMS = ["RS256"]
+    SOCIAL_AUTH_OLD_ID_KEYS = {"oidc": None}
     SOCIAL_AUTH_PIPELINE = (
         "social_core.pipeline.social_auth.social_details",
         "social_core.pipeline.social_auth.social_uid",

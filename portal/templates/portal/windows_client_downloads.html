@@ -1,0 +1,70 @@
+{% extends 'portal/base.html' %}
+{% load ui_icons %}
+{% block title %}Windows client · Bearings{% endblock %}
+{% block content %}
+<section class="client-downloads" aria-labelledby="windows-client">
+  {% include "portal/_client_platform_links.html" with platform="windows" %}
+  <h1 id="windows-client" class="icon-heading">{% ui_icon "clients" %}Bearings Windows client</h1>
+  <p>Send the Windows build and machine-installed software inventory to Bearings. The executable includes its runtime and runs under an ordinary Windows account. Create a key under <a href="{% url 'client-rollouts' %}{% if request.GET.organization %}?organization={{ request.GET.organization|urlencode }}{% endif %}">Rollout keys</a>, or ask your Bearings administrator for one.</p>
+  <nav aria-label="Windows client guide">
+    <a href="#download">Download</a> · <a href="#install">Install and enroll</a> · <a href="#rollout">Rollout</a> · <a href="#periodic">Periodic reports</a> · <a href="#update">Update</a>
+  </nav>
+  <h2 id="download">Download</h2>
+  <p>Open <strong>Settings → System → About</strong> on the Windows computer and look for <strong>System type</strong>.</p>
+  {% if ready %}
+  <ul>
+    {% for architecture, description, filename in packages %}
+    <li><a href="{% url 'windows-client-artifact' filename %}">Download {{ architecture }} ZIP</a> for {{ description }}</li>
+    {% endfor %}
+  </ul>
+  <p><a href="{% url 'windows-client-artifact' 'SHA256SUMS' %}">SHA-256 checksums</a> · <a href="{% url 'windows-client-artifact' 'bearings-windows-source.zip' %}">Corresponding source and license</a></p>
+  {% if download_commands %}
+  <details><summary>Download from this Bearings server in PowerShell</summary>
+    {% for architecture, command in download_commands %}
+    <p>{{ architecture }}</p><pre><code>{{ command }}</code></pre>
+    {% endfor %}
+  </details>
+  {% endif %}
+  {% else %}
+  <p>Windows downloads are currently unavailable on this server. Ask your Bearings administrator for the approved ZIP and SHA-256 checksum. Use x64 for 64-bit Intel or AMD, ARM64 for Windows on ARM, or x86 for 32-bit Windows.</p>
+  {% endif %}
+  <p>Use Windows 10 version 1709 or later, or a compatible Windows Server release. Compare the SHA-256 value with the approved release manifest before extracting. The reference EXEs are unsigned.</p>
+  <pre><code>Get-FileHash .\bearings-windows-x64.zip -Algorithm SHA256</code></pre>
+  <p>For ARM64 or x86, substitute the filename you downloaded.</p>
+  <h2 id="install">Install and enroll</h2>
+  <ol>
+    <li>Extract the ZIP from this Bearings server and double-click <strong>bearings-windows.exe</strong> under the Windows account that will send reports. The setup window displays the preconfigured HTTPS server.</li>
+    <li>Paste the shared Bearings rollout key. Choose <strong>Register and enable reports</strong>. The client registers the computer as a new host, sends the first report and creates the scheduled task for your signed-in account.</li>
+  </ol>
+  <p>Windows verifies HTTPS with its certificate store. For servers using a private CA, your IT administrator can distribute the approved trust certificate through Windows.</p>
+  <details><summary>PowerShell setup and reporting commands</summary>
+    <pre><code>.\bearings-windows.exe --version
+.\bearings-windows.exe enroll --code
+.\bearings-windows.exe report
+.\bearings-windows.exe status</code></pre>
+  </details>
+  <h2 id="rollout">Rollout to several computers</h2>
+  <p>Pilot one Windows host first. Use your organization’s software distribution tool to copy the approved EXE to the other computers. Use the authorized rollout key on each computer under its reporting account. Verify the enrolled hosts and receipts in the organization’s inventory reports.</p>
+  <p>Keep registration codes out of rollout scripts, command lines and logs. Keep device state local to its original account and device. The rollout key controls the organization, host type, inventory mode, maximum devices and expiry.</p>
+  <h2 id="periodic">Start periodically</h2>
+  <p>The setup window creates a task named <strong>Bearings Windows Inventory</strong> followed by an account-specific suffix. It runs every six hours while that account is signed in. Choose <strong>Check status</strong> to see whether the task was verified and whether the latest report was applied. If the task could not be created, choose <strong>Enable automatic reports</strong> to retry. Use Task Scheduler to confirm the first run.</p>
+  <details><summary>Foreground reporting and manual Task Scheduler setup</summary>
+  <p>For a foreground run, use <code>watch</code>. It reports at startup and every six hours while the process is open.</p>
+  <pre><code>.\bearings-windows.exe watch --interval 21600</code></pre>
+  <p>For daily operation, create a task in <strong>Windows Task Scheduler</strong>:</p>
+  <ol>
+    <li>Choose <strong>Create Task</strong> and select the same Windows account and profile used for enrollment. For a pilot, choose <strong>Run only when user is logged on</strong> and leave elevation off.</li>
+    <li>Set a daily trigger that repeats every six hours for one day. Enable running after a missed start and choose <strong>Do not start a new instance</strong> for overlaps.</li>
+    <li>Use the absolute path to <code>bearings-windows.exe</code> as <strong>Program/script</strong> and <code>report</code> as <strong>Add arguments</strong>. If enrollment used a custom <code>--state-dir</code>, append the same absolute directory in quotes.</li>
+    <li>Run the task manually. Under the reporting account, confirm that <code>status</code> shows the new report as <code>applied</code>. For signed-out operation, validate the task with that account’s profile and DPAPI access before rolling it out.</li>
+  </ol>
+  </details>
+  <h2 id="update">Update an enrolled client</h2>
+  <ol>
+    <li>Download and verify the new ZIP for the same architecture and extract it into a staging folder. Run the staged EXE with <code>--version</code>.</li>
+    <li>Pause the task and let any active report finish. Stop any foreground <code>watch</code>. Keep a copy of the old EXE, then replace it in <code>%LOCALAPPDATA%\Programs\Bearings</code>. If setup previously copied the EXE but failed to create the task, update that copy and choose <strong>Enable automatic reports</strong>.</li>
+    <li>Keep the reporting account, profile and state directory. The default state is <code>%LOCALAPPDATA%\Bearings\Windows</code>. Updating the executable preserves the enrollment and queued reports, including state from the Python reference client. Device credentials expire after 90 days. Ask your administrator to review expired credentials.</li>
+    <li>Run <code>report</code> and <code>status</code> with the replacement and confirm the new report was applied. Re-enable the schedule and run it once. For binary rollback, use the prior compatible EXE with the current state directory.</li>
+  </ol>
+</section>
+{% endblock %}

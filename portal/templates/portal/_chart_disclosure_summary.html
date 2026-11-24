@@ -1,0 +1,2 @@
+{% load ui_icons %}
+<summary><span class="history-symbol">{% ui_icon icon %}</span><span class="history-disclosure-copy"><strong>{{ title }}{% if title_context %} · {{ title_context }}{% endif %}</strong><small>{{ description }}</small></span><span class="history-disclosure-action"><span class="when-closed">View chart</span><span class="when-open">Hide chart</span>{% ui_icon 'chevron' %}</span></summary>

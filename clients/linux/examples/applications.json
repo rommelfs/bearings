@@ -1,0 +1,32 @@
+{
+  "schema": "bearings.application-probes.v1",
+  "applications": [
+    {
+      "id": "misp-main",
+      "method": "misp-version-json",
+      "path": "/var/www/MISP/VERSION.json"
+    },
+    {
+      "id": "example-json",
+      "method": "json-fields",
+      "name": "Example App",
+      "path": "/opt/example-app/package.json",
+      "fields": ["version"],
+      "version_pattern": "^v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)$"
+    },
+    {
+      "id": "example-text",
+      "method": "file-regex",
+      "name": "Example Service",
+      "path": "/opt/example-service/RELEASE",
+      "version_pattern": "(?m)^Version: ([0-9]+\\.[0-9]+\\.[0-9]+)$"
+    },
+    {
+      "id": "example-git",
+      "method": "git-tag",
+      "name": "Example Git App",
+      "path": "/opt/example-git-app",
+      "version_pattern": "(?m)^v([0-9]+\\.[0-9]+\\.[0-9]+)$"
+    }
+  ]
+}

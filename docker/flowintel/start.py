@@ -182,6 +182,7 @@ def main():
             "/home/flowintel/venv/bin/gunicorn",
             [
                 "gunicorn",
+                "--no-control-socket",
                 "--bind",
                 "0.0.0.0:7006",
                 "--workers",

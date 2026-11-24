@@ -1,0 +1,5 @@
+{% extends 'portal/base.html' %}{% load static %}{% block content %}
+<h1>Join an existing organization</h1><p>Have a shared company email-domain code? <a href="{% url 'company-domain-join' %}">Request your confirmation email here →</a></p>
+{% if joined %}<p>You are now a member of {{ joined.name }}.</p><a href="{% url 'login' %}">Sign in</a> · <a href="{% url 'organization' joined.slug %}">Open company</a>
+{% else %}<p>Ask your company administrator for an invitation. Your company is selected by the invitation; no new company is created.</p>{% if user.is_authenticated %}<p>Accept as {{ user.username }} ({{ user.email }}). The invitation must match this account's email address.</p>{% else %}<p>Already have an account? <a href="{% url 'login' %}?next={% url 'company-join' %}">Sign in first</a>, then reopen the invitation link or enter its code. New members complete the account fields below.</p>{% endif %}<form method="post" autocomplete="off">{% csrf_token %}{{ form.as_p }}<button class="primary">Accept invitation</button></form>{% endif %}
+<script src="{% static 'portal/registration.js' %}" defer></script>{% endblock %}

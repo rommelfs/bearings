@@ -1,4 +1,8 @@
 import copy
+import re
+from html import unescape
+from urllib.parse import parse_qs, urlsplit
+from django.urls import reverse
 import io
 import uuid
 from unittest.mock import patch
@@ -141,10 +145,18 @@ class ExchangeExampleTests(Fixture):
     def test_analyst_sees_high_severity_build_and_consequences_without_compromise_inference(self):
         finding = self.seed()
         self.login(self.analyst)
-        home = self.client.get("/")
-        for text in [CVE, "High", "8.1", BUILD, "Review required", "confidential email", "No exploitation"]:
+        home = self.client.get(reverse("home"))
+        for text in [CVE, "High", "8.1", BUILD, "Manual assessment", "confidential email", "No exploitation"]:
             self.assertContains(home, text)
-        self.assertContains(home, f"?finding={finding.pk}#finding-{finding.pk}")
+        links = [urlsplit(unescape(link)) for link in re.findall(r'href="([^"]+)"', home.content.decode())]
+        self.assertTrue(
+            any(
+                link.fragment == f"finding-{finding.pk}"
+                and parse_qs(link.query).get("finding") == [str(finding.pk)]
+                and parse_qs(link.query).get("return_to") == [reverse("home")]
+                for link in links
+            )
+        )
         detail = self.client.get(self.url("intelligence", finding.organization), {"finding": finding.pk})
         self.assertContains(detail, "Possible consequences")
         self.assertContains(detail, "Source severity: High")
@@ -161,7 +173,7 @@ class ExchangeExampleTests(Fixture):
         org = finding.organization
         org.operator_visibility = False
         org.save()
-        self.assertNotContains(self.client.get("/"), CVE)
+        self.assertNotContains(self.client.get(reverse("home")), CVE)
         self.assertEqual(
             self.client.get(self.url("intelligence", org), {"finding": finding.pk}).status_code, 404
         )
@@ -170,23 +182,23 @@ class ExchangeExampleTests(Fixture):
         finding.record.shareable = False
         finding.record.save()
         self.login(self.admin)
-        self.assertNotContains(self.client.get("/"), CVE)
+        self.assertNotContains(self.client.get(reverse("home")), CVE)
         self.assertEqual(
             self.client.get(self.url("intelligence", org), {"finding": finding.pk}).status_code, 404
         )
         self.login(self.analyst)
-        self.assertContains(self.client.get("/"), CVE)
+        self.assertContains(self.client.get(reverse("home")), CVE)
         finding.status = "accepted_risk"
         finding.save()
-        self.assertNotContains(self.client.get("/"), CVE)
+        self.assertNotContains(self.client.get(reverse("home")), CVE)
         self.assertContains(self.client.get(self.url("intelligence", org)), CVE)
 
     def test_source_text_is_escaped_and_foreign_filter_is_denied(self):
         self.payload["containers"]["cna"]["title"] = '<script>alert("source")</script>'
         finding = self.seed()
         self.login(self.admin)
-        self.assertContains(self.client.get("/"), "&lt;script&gt;")
-        self.assertNotContains(self.client.get("/"), '<script>alert("source")</script>')
+        self.assertContains(self.client.get(reverse("home")), "&lt;script&gt;")
+        self.assertNotContains(self.client.get(reverse("home")), '<script>alert("source")</script>')
         self.assertEqual(
             self.client.get(self.url("intelligence", finding.organization), {"finding": "bad"}).status_code,
             404,
@@ -204,8 +216,8 @@ class ExchangeExampleTests(Fixture):
         for i in range(28):
             persist_lookup(self.admin, self.installation, "fixture://queue", f"CVE-2026-{80000 + i}", {})
         self.login(self.analyst)
-        home = self.client.get("/")
+        home = self.client.get(reverse("home"))
         self.assertEqual(home.context["review_page"].paginator.count, 29)
         self.assertEqual(len(home.context["review_page"]), 25)
         self.assertEqual(home.context["review_page"][0].pk, finding.pk)
-        self.assertEqual(len(self.client.get("/?review_page=2").context["review_page"]), 4)
+        self.assertEqual(len(self.client.get(reverse("home") + "?review_page=2").context["review_page"]), 4)

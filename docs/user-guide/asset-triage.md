@@ -53,3 +53,33 @@ These are documentation address ranges and an intentionally non-resolving exampl
 Primary DNS is resolved from the complete authorized IP snapshot by source-local primary-IP ID and matching canonical address. An equal address in another VRF, source or instance is not evidence of the hostname. Only primary-IP DNS is currently projected; additional interfaces, all secondary addresses, service topology and reachability remain separate work. See [synchronization](../operations/synchronization.md) for failure/retention guarantees and the [Exchange exercise](exchange-example.md) for CVE/applicability assumptions.
 
 Apply migration 0009 when running natively. It backfills a source-severity cache from existing supported CNA CVSS records so ordering and filters work for older findings too. Normal evidence ingestion maintains it; it does not rewrite evidence snapshots, analyst decisions or sharing policy. Unsupported or malformed scores stay Unknown.
+
+Individual asset reviews and Asset → Vulnerability → Risk default to **Critical → High → Medium → Low → None → Unknown**, then newest evaluation and stable identity. Sorting is applied to the authorized database query before pagination; missing severity remains explicit and never becomes a low-risk assertion.
+
+
+## Installed software versus CVE reviews
+
+Company inventory and machine software tables list reported installations, not detected vulnerabilities. Package/product identity and reported version identify the software. Supported distribution packages display the same recognition and automatic matching status as the discovery page: ready, queued, missing metadata, stale, disabled or unsupported. No per-package configuration is needed for supported Ubuntu/Debian/RHEL package matching. Follow **Automatic matching status & coverage** for the exact product and vendor-rule details.
+
+**Recorded CVE reviews** links to the exact installation and counts only findings currently visible to you, including retained reviews. It is not a count of confirmed vulnerabilities. Zero reviews neither proves safety nor means that a complete check succeeded. Other software retains its explicit product-mapping workflow.
+
+Manual CVE retrieval is available to authorized editors under the collapsed **Investigate a known CVE (optional)** section on the machine's software row. Enter a CVE identifier you already know, then fetch its details for manual review. There is no prefilled/example CVE beside every package. Retrieval creates review evidence without confirming applicability; automatic package checks run independently. Viewing these tables makes no external CVE requests and sends no mail.
+
+
+### Reading a package check
+
+The result headline answers whether the evaluated package rules require review. **Review required** means a potential match or unresolved vendor condition. **No package-rule alert in the evaluated results** means neither was found in the rules actually evaluated; the adjacent coverage label still applies. **Current package result unavailable** means the check cannot presently support a current conclusion, including new reports waiting for processing. Missing rules are explicitly shown as missing coverage.
+
+Open **Automatic matching status & coverage** for the evaluated report time, successful check time and vendor-data time. Results requiring review appear first. **Fixed by installed package version** is collapsed by default and includes CVE, compared binary/source version, vendor fixed-version threshold and rule provenance. **Other vendor rules not matched** is a separate result and must not be read as “patched” or an explicit “not affected” manufacturer statement. Each outcome lists up to ten recent examples with its total count; it is not a full historical list. The separate human-review section can remain outstanding after package updates.
+
+
+## Compact company inventory
+
+The company workspace shows a workflow-count summary instead of loading every CVE and review history. Open **CVE reviews, evidence & assessments** for the complete authorized, paginated queue and review actions. These are retained workflow counts, not a count of currently vulnerable software. Contacts and scope declarations have independent pages; changing one section preserves the others. Inventory shows at most fifty assets and ten software previews per asset.
+
+Agent hosts without an external NetBox identity are explicitly labeled **Recorded in Bearings only**. A read-only connector or observed-only fleet does not create the host in NetBox. After an operator enables managed inventory, new managed codes can register the host and the confirmed NetBox link appears after UUID reconciliation; pending registration is explicitly labeled. A NetBox application link alone is not evidence of a confirmed host binding.
+
+
+### Inventory synchronization states
+
+The asset page distinguishes client reporting, the linked NetBox host and actual inventory export. A successful host registration does not imply software or IP synchronization. Disabled/read-only/unconfigured exports stay visible with their reason; queued/failed/current confirmations and older receipts are distinct. Primary IP is not selected automatically. Secondary actions and export diagnostics expand on demand. Client reporting belongs to Inventory navigation; optional integration/admin/help groups expand automatically at their active destination.

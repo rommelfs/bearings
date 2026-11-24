@@ -85,6 +85,36 @@ class PlumTests(tests.Fixture):
         self.a.save()
         self.assertFalse(plum.visible_snapshots(self.analyst).exists())
 
+    def test_overview_exposure_revocation_preserves_unrelated_issue_counts_and_links(self):
+        row = self.ingest()
+        exposure = plum.create_review(self.admin, row, 443, "tcp", "", "Check current exposure")
+        ordinary = AssetIssue.objects.create(
+            organization=self.a,
+            asset=self.asset,
+            kind="support",
+            priority="high",
+            title="Ordinary support issue",
+            next_action="Review local support",
+        )
+        self.login()
+        response = self.client.get(reverse("overview"))
+        self.assertEqual(response.context["companies"][0]["issues"], 2)
+        self.assertContains(response, self.url("issue", pk=ordinary.pk))
+        self.assertContains(response, self.url("issue", pk=exposure.pk))
+        self.source.organizations.clear()
+        response = self.client.get(reverse("overview"))
+        self.assertEqual(response.context["companies"][0]["issues"], 1)
+        self.assertContains(response, self.url("issue", pk=ordinary.pk))
+        self.assertNotContains(response, self.url("issue", pk=exposure.pk))
+        self.login(self.analyst)
+        self.assertEqual(self.client.get(reverse("overview")).context["companies"][0]["issues"], 2)
+        self.claim.status = "expired"
+        self.claim.save()
+        response = self.client.get(reverse("overview"))
+        self.assertEqual(response.context["companies"][0]["issues"], 1)
+        self.assertContains(response, self.url("issue", pk=ordinary.pk))
+        self.assertNotContains(response, self.url("issue", pk=exposure.pk))
+
     def test_scope_revocation_and_changed_assignments_hide_counts_and_evidence(self):
         row = self.ingest()
         self.login()

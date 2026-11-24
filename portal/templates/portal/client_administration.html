@@ -1,0 +1,21 @@
+{% extends 'portal/base.html' %}
+{% block title %}{% if section == 'rollouts' %}Rollout keys{% else %}Profiles{% endif %} · Bearings{% endblock %}
+{% block content %}
+{% include "portal/_client_platform_links.html" with platform=section %}
+<h1>{% if section == 'rollouts' %}Rollout keys{% else %}Application version profiles{% endif %}</h1>
+{% if organizations %}
+<form method="get">
+  <label>Organization
+    <select name="organization" required>
+      <option value="">Choose an organization</option>
+      {% for company in organizations %}
+      <option value="{{ company.slug }}"{% if company == selected_company_workspace %} selected{% endif %}>{{ company.name }} · {{ company.slug }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">Continue</button>
+</form>
+{% else %}
+<p>Ask your company administrator for access.</p>
+{% endif %}
+{% endblock %}

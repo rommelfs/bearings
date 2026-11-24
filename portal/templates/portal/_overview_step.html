@@ -1,0 +1,6 @@
+{% load ui_time ui_icons %}
+<li>
+<div class="next-step-heading">{% ui_icon step.icon %}<strong>{{ step.title }}{% if step.host %} · {{ step.host }}{% endif %}</strong></div>
+<div class="next-step-route"><span class="muted">Who to involve: {{ step.owner }}</span><a href="{{ step.url }}">{{ step.action }} →</a></div>
+<details class="next-step-reason"><summary>Why this step?</summary><p>{{ step.reason }}</p>{% if step.host %}<p class="muted">Last server receipt: {{ step.received_at|display_time|default:'None recorded' }} · Last applied observation: {{ step.observed_at|display_time|default:'None recorded' }} · Package evaluation attempt: {{ step.attempted_at|display_time|default:'None recorded' }}.</p>{% endif %}</details>
+</li>
