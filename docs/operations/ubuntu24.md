@@ -90,6 +90,40 @@ The public Linux client page is `/downloads/linux/`. Build reviewed artifacts on
 
 Use a reviewed/pinned source revision and retain the private environment/database/state. Before upgrading take/verify backups, then stop `bearings-web`, `bearings-worker` and `bearings-national`; fetch/check out the reviewed revision as root. Sync the frozen production extra using `/opt/bearings-tools/bin/uv sync --frozen --no-dev --extra production --python /usr/bin/python3.12`, run the management helper's migrate/collectstatic/check commands, reconcile changed unit/proxy templates and restart/check the three services. Do not use the first-install helper for upgrades and do not run developer seed/bootstrap/volume-reset commands on this server. Review pending external writes before worker reactivation after restore or failed/uncertain remote requests; preserve original source IDs and native recovery rules.
 
+### Windows inventory upgrade from `6acb4c8`
+
+Use the reviewed Windows inventory revision that includes `6acb4c8`. The
+upgrade adds migration `0073_windows_inventory` and retains the host overview.
+The frozen dependencies and native service configuration match `6acb4c8`.
+
+After verifying the backup, run the following as root from the existing
+`/opt/bearings` checkout. Replace `REVIEWED_WINDOWS_COMMIT` with the reviewed
+commit ID. The preflight checks the current revision and rejects local changes
+before stopping the services.
+
+```sh
+set -eu
+cd /opt/bearings
+reviewed=REVIEWED_WINDOWS_COMMIT
+test -z "$(git status --porcelain)"
+test "$(git rev-parse HEAD)" = 6acb4c85ed52ca3fba2588da7d2dda329308b973
+git fetch origin refs/heads/codex/windows-inventory-client
+git merge-base --is-ancestor HEAD "$reviewed"
+systemctl stop bearings-web bearings-worker bearings-national
+git switch --detach "$reviewed"
+/opt/bearings-tools/bin/uv sync --frozen --no-dev --extra production --python /usr/bin/python3.12
+./deploy/ubuntu24/manage.py migrate --noinput </dev/null
+./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null
+./deploy/ubuntu24/manage.py check </dev/null
+systemctl start bearings-web bearings-worker bearings-national
+systemctl is-active bearings-web bearings-worker bearings-national
+```
+
+Confirm the public HTTPS portal opens and the company's **Linux / Windows
+inventory reports** page is available. Enrollment uses the approved HTTPS
+origin in `BEARINGS_PUBLIC_URL`. Follow the [Windows client guide](../../clients/windows/README.md)
+for setup, existing-asset enrollment and periodic reports.
+
 
 ### LXC: 502 with systemd `226/NAMESPACE`
 

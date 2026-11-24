@@ -11,7 +11,7 @@ from datetime import timedelta
 from django.utils import timezone
 from django.test import TransactionTestCase, override_settings
 from clients.windows import bearings_windows as client
-from . import agents, agent_protocol, test_agent_client
+from . import agents, agent_protocol, distro_cves, test_agent_client
 from .models import AgentReport, Installation
 from . import test_agents
 from .tests import Fixture
@@ -122,6 +122,24 @@ class WindowsAgentTests(Fixture):
             unknown.installation.product.identifier.startswith("pkg:generic/windows-registration/")
         )
         self.assertEqual(unknown.windows["view"], "32")
+
+    def test_host_overview_shows_windows_inventory_without_package_evaluation(self):
+        self.enroll()
+        response = self.send(observation())
+        self.assertEqual(response.status_code, 202)
+        agents.process_one(self.device.pk, response.json()["report_id"])
+        self.assertEqual(distro_cves.evaluate_device(self.device.pk)["state"], "unsupported")
+
+        self.login(self.reader)
+        response = self.client.get(self.url("organization"))
+        self.assertContains(response, "Windows 26100.1234")
+        self.assertContains(response, "No current package evaluation")
+        hosts = response.context["host_page"]
+        host = next(row for row in hosts if row.pk == self.asset.pk)
+        self.assertIsNotNone(host.report_time)
+        self.assertFalse(host.evaluated)
+        self.assertIsNone(host.fix_packages)
+        self.assertNotIn(self.other.pk, [row.pk for row in hosts])
 
     def test_strict_windows_scope_identity_build_and_no_runtime_claim(self):
         good = observation()

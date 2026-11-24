@@ -1,11 +1,36 @@
+from contextvars import ContextVar
+from functools import wraps
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q, Exists, OuterRef
 from .models import AuditEvent, Organization, Membership
 
 ANALYST_GROUP = "CIRCL analysts"
+_ANALYST_READ = ContextVar("bearings_analyst_read", default=None)
+
+
+def analyst_read_snapshot(view):
+    """Reuse this actor's group read only inside one read-only view/render.
+
+    No session/user-object cache: the next request rechecks revocation. Actor
+    identity guards nested reads for other users; finally restores outer scope.
+    Organization memberships and operator visibility remain live query predicates.
+    """
+
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        token = _ANALYST_READ.set((id(request.user), is_analyst(request.user)))
+        try:
+            return view(request, *args, **kwargs)
+        finally:
+            _ANALYST_READ.reset(token)
+
+    return wrapped
 
 
 def is_analyst(user):
+    scoped = _ANALYST_READ.get()
+    if scoped is not None and scoped[0] == id(user):
+        return scoped[1]
     return user.is_authenticated and user.groups.filter(name=ANALYST_GROUP).exists()
 
 

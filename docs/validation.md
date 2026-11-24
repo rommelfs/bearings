@@ -2297,3 +2297,19 @@ The local full suite ran 1048 tests: two pre-existing macOS temporary-path asser
 - The full PostgreSQL Django suite ran 1,053 tests with 12 skips and zero failures. Test data and HTTPS endpoints were local and synthetic.
 - The original [GitHub Checks run](https://github.com/rommelfs/bearings/actions/runs/45352739057) failed because the synthetic registry permission test depended on the host reporting an architecture name accepted by the Windows client. Its PostgreSQL matrix job was cancelled. The fixture now supplies a deterministic architecture independently of the host. GitHub started [Checks](https://github.com/rommelfs/bearings/actions/runs/45354362994) and the [Development stack](https://github.com/rommelfs/bearings/actions/runs/45354363024) for the corrected implementation.
 - The four native Windows tests were discovered and skipped on Linux. Native DPAPI, Windows registry views, cross-process locking, Task Scheduler and Windows-to-server acceptance remain pending. The [proposed Windows job](../clients/windows/windows-ci.patch) applies cleanly to the current workflow and requires workflow write permission to activate. Track remaining acceptance in [issue #127](https://github.com/rommelfs/bearings/issues/127).
+
+### Upgrade verification from `6acb4c8`
+
+The combined branch retains the scoped host overview from `6acb4c8` and adds
+the Windows inventory receiver. A disposable PostgreSQL 17 database migrated
+from portal schema 0072 to `0073_windows_inventory`. Frozen dependency sync,
+Django check and migration consistency, Ruff and whitespace checks passed.
+
+All 32 targeted PostgreSQL cases passed across Windows inventory, the host
+overview and company inventory, including the two verified loopback HTTPS
+transport cases with synthetic registry data. The new cross-feature test
+also passed on SQLite. It verifies that Windows build and report time reach
+the scoped host overview, and that missing Windows CVE evaluation remains
+visible as a coverage gap. See the
+[native Ubuntu upgrade steps](operations/ubuntu24.md#windows-inventory-upgrade-from-6acb4c8)
+and [Windows client setup](../clients/windows/README.md).

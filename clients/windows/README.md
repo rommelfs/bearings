@@ -1,10 +1,13 @@
 # Bearings Windows reference client
 
-SPDX: AGPL-3.0-or-later. [Source](https://github.com/rommelfs/bearings/tree/main/clients/windows), [license](../../LICENSE), [receiver and coverage contract](../../docs/integrations/windows-agent.md).
+SPDX: AGPL-3.0-or-later. [Source](https://github.com/rommelfs/bearings), [license](../../LICENSE), [receiver and coverage contract](../../docs/integrations/windows-agent.md).
 
 The client sends the OS build including UBR, reported product name, edition and display release, and machine-installed software from the Windows uninstall registry views. Periodic reporting uses existing Bearings enrollment, Ed25519 HTTP signatures and verified HTTPS. Setup requires **Windows 10 version 1709 or later (or a compatible Windows Server release), Python 3.12+, uv, a reviewed checkout with its frozen `uv.lock`, and an existing Bearings asset**. Use native ARM64 Python on ARM64 Windows so the reporting scope is consistent. Distribute the Python source and its locked dependencies through your approved channel. Native Windows acceptance is pending. The proposed [Windows CI patch](windows-ci.patch) requires workflow write permission to activate.
 
 Open PowerShell from the reviewed checkout under the Windows account that will run scheduled reports. Use an unprivileged account with read access to the machine registry and exclusive write access to its local state and checkout, apart from trusted administrators.
+
+Prepare the server with migration `0073_windows_inventory` before enrolling
+the client. See the [native server upgrade from `6acb4c8`](../../docs/operations/ubuntu24.md#windows-inventory-upgrade-from-6acb4c8).
 
 ```powershell
 uv sync --frozen

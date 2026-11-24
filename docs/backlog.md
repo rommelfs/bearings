@@ -4,7 +4,7 @@ Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHu
 
 ## Windows inventory increment — 2026-11-24
 
-- **Deliver Windows OS and machine software inventory client**: Implemented existing-asset authenticated enrollment, signed HTTPS reporting/status, DPAPI-encrypted durable state/outbox, OS build/UBR/edition/release and 32/64-bit machine uninstall registry observations. Separate software/OS projection retains unknown versions, missing evidence and human ownership. Migration 0073 and all focused Windows receiver and local HTTPS tests passed on cloud PostgreSQL 17 with synthetic registry data. Setup and scheduling instructions are available. Native Windows, Task Scheduler and fleet acceptance remain pending. Microsoft CVE/KB applicability, per-user/Store/portable inventory, signed packaging/downloads and Windows fleet bootstrap remain planned. See [Windows integration](integrations/windows-agent.md).
+- **Deliver Windows OS and machine software inventory client**: Implemented existing-asset authenticated enrollment, signed HTTPS reporting/status, DPAPI-encrypted durable state/outbox, OS build/UBR/edition/release and 32/64-bit machine uninstall registry observations. Separate software/OS projection retains unknown versions, missing evidence and human ownership. Migration 0073 and all focused Windows receiver and local HTTPS tests passed on cloud PostgreSQL 17 with synthetic registry data. Setup and scheduling instructions are available. The upgrade from `6acb4c8` retains the scoped host overview and passed migration and cross-feature tests on PostgreSQL. Native Windows, Task Scheduler and fleet acceptance remain pending. Microsoft CVE/KB applicability, per-user/Store/portable inventory, signed packaging/downloads and Windows fleet bootstrap remain planned. See [Windows integration](integrations/windows-agent.md).
 
 ## Implementation update — 2026-10-20
 
@@ -759,3 +759,7 @@ general HTTPS/import/write checks remain unconditional in every variant.
 PostgreSQL performance follow-up: batch temporary JIT/planning/timeout settings
 into three read/apply/restore round trips. Preserve prior/nested settings and error
 rollback; retain the existing overview/list query budgets and evidence checks.
+
+## Host-first organization view — 2026-11-24
+
+Implemented the approved host overview with stronger reading text, scoped current version/issue priorities, application-discovery/evaluation gaps, exact vendor-fix counts, freshness, search/sort/page controls and expandable retained administration/inventory. Preserve original host context through asset/evidence navigation. Keep missing/stale proof and repository update availability explicit. Bounded queries/hydration and next-request analyst revocation are tested; no migrations, writes or operational deployments. Actual repository candidate/update/entitlement collection remains planned. See [host overview and update steps](user-guide/host-overview.md).

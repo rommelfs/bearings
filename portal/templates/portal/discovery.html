@@ -1,4 +1,4 @@
-{% extends 'portal/base.html' %}{% block content %}
+{% extends 'portal/base.html' %}{% block content %}{% if queue_return_url %}<p><a href="{{ queue_return_url }}">← Back to filtered list</a></p>{% endif %}
 <p class="eyebrow">CONTINUOUS INVENTORY REVIEW</p><h1>Automatic CVE discovery</h1>
 <p>Standard Linux packages are checked automatically against cached distribution advisories. Other products use exact public vendor/product keys. Enabled watches regularly retrieve CVE evidence and create company/CIRCL review items. Vendor package-version rules establish affected or fixed package versions automatically. Presence-only or unsupported rules remain explicitly unresolved. Local exposure and human workflow are assessed separately.</p>
 {% for product in page %}<article><h2>{{ product.organization.name }} / {{ product.name }}</h2><p>{{ product.identifier|default:'No normalized identifier recorded' }}</p>

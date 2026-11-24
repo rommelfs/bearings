@@ -311,7 +311,13 @@ class CompanyInventoryTests(Fixture):
         self.assertEqual(len(response.context["inventory_page"]), 50)
         self.assertLess(len(queries), 40)
         self.assertLess(len(response.content), 160000)
-        self.assertContains(response, "Ubuntu 24.04", count=50)
+        # The primary host page also displays OS names. Keep this assertion
+        # scoped to the existing 50-row full-inventory table.
+        inventory_html = (
+            response.content.decode().split('<table class="company-hosts">', 1)[1].split("</table>", 1)[0]
+        )
+        self.assertEqual(inventory_html.count("Ubuntu 24.04"), 50)
+        self.assertEqual(len(response.context["host_page"]), 25)
         self.assertNotContains(response, "base-package-")
         self.assertNotContains(response, "Investigate a known CVE")
         for host in response.context["inventory_page"]:
