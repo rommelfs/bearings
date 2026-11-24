@@ -38,43 +38,34 @@ def overview_queries(*, query_timeout_ms=None, budget_ms=None, planning_limit=No
         if connection.vendor != "postgresql":
             yield timing
             return
+        settings = {"jit": "off"}
+        if planning_limit is not None:
+            if not 1 <= planning_limit <= 8:
+                raise ValueError("Invalid overview planning limit")
+            settings.update(join_collapse_limit=str(planning_limit), from_collapse_limit=str(planning_limit))
+        if query_timeout_ms is not None:
+            if not 1 <= query_timeout_ms <= 30000:
+                raise ValueError("Invalid overview query timeout")
+            settings["statement_timeout"] = f"{query_timeout_ms}ms"
+        names = list(settings)
+        read_sql = "SELECT " + ", ".join("current_setting(%s)" for _ in names)
+        write_sql = "SELECT " + ", ".join("set_config(%s,%s,true)" for _ in names)
+
+        def parameters(values):
+            return [value for pair in zip(names, values) for value in pair]
+
         with transaction.atomic():
+            # Read, apply and restore in three round trips regardless of how many
+            # protections are enabled. Keep reads separate from writes so SQL
+            # expression evaluation order cannot change the saved prior values.
             with connection.cursor() as cursor:
-                cursor.execute("SHOW jit")
-                previous = cursor.fetchone()[0]
-                cursor.execute("SET LOCAL jit = off")
-                previous_planning = None
-                if planning_limit is not None:
-                    if not 1 <= planning_limit <= 8:
-                        raise ValueError("Invalid overview planning limit")
-                    cursor.execute(
-                        "SELECT current_setting('join_collapse_limit'), current_setting('from_collapse_limit')"
-                    )
-                    previous_planning = cursor.fetchone()
-                    cursor.execute(
-                        "SELECT set_config('join_collapse_limit',%s,true), set_config('from_collapse_limit',%s,true)",
-                        [str(planning_limit), str(planning_limit)],
-                    )
-                previous_timeout = None
-                if query_timeout_ms is not None:
-                    if not 1 <= query_timeout_ms <= 30000:
-                        raise ValueError("Invalid overview query timeout")
-                    cursor.execute("SHOW statement_timeout")
-                    previous_timeout = cursor.fetchone()[0]
-                    cursor.execute(
-                        "SELECT set_config('statement_timeout', %s, true)", [f"{query_timeout_ms}ms"]
-                    )
+                cursor.execute(read_sql, names)
+                previous = cursor.fetchone()
+                cursor.execute(write_sql, parameters(settings.values()))
             # An exception rolls back the transaction/savepoint and its SET LOCAL.
             yield timing
             with connection.cursor() as cursor:
-                if previous_planning is not None:
-                    cursor.execute(
-                        "SELECT set_config('join_collapse_limit',%s,true), set_config('from_collapse_limit',%s,true)",
-                        previous_planning,
-                    )
-                if previous_timeout is not None:
-                    cursor.execute("SELECT set_config('statement_timeout', %s, true)", [previous_timeout])
-                cursor.execute("SELECT set_config('jit', %s, true)", [previous])
+                cursor.execute(write_sql, parameters(previous))
 
 
 def bounded_list(view):

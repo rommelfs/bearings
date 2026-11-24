@@ -751,3 +751,7 @@ Python 3.8 and bundled integration validation are required in CI before PR #124 
 The integration rerun confirmed real device/VM writes and recovery. Corrected the
 native SSO-link test's matrix scope: it runs in SSO variants with the real adapter;
 general HTTPS/import/write checks remain unconditional in every variant.
+
+PostgreSQL performance follow-up: batch temporary JIT/planning/timeout settings
+into three read/apply/restore round trips. Preserve prior/nested settings and error
+rollback; retain the existing overview/list query budgets and evidence checks.

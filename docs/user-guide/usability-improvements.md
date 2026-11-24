@@ -88,3 +88,10 @@ It subsequently exposed an unrelated SSO check running in non-SSO matrix variant
 where the SSO adapter intentionally is not mounted. That check is restricted to
 SSO-enabled variants; all general import/write/recovery checks still run everywhere.
 The native runtime continues to test linking against its actual disposable database.
+
+PostgreSQL query-budget validation exposed repeated settings round trips in the
+existing overview protection wrapper. Reading, applying and restoring JIT, join
+planning and optional statement timeouts now use three round trips altogether.
+Prior values, nested transactions and error rollback remain protected; the existing
+query budgets are unchanged. This removes three overview and six bounded-list
+queries without omitting evidence, authorization or timeout enforcement.
