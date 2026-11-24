@@ -117,6 +117,7 @@ class NativeDeploymentTests(unittest.TestCase):
             env = root / "bearings.env"
             current = (
                 "DJANGO_SECRET_KEY=synthetic-retained-key\n"
+                'BEARINGS_PUBLIC_URL="https://bearings.example.invalid"\n'
                 f"BEARINGS_LINUX_CLIENT_DIR={old}\nBEARINGS_WINDOWS_CLIENT_DIR={old}\n"
             )
             env.write_text(current)
@@ -128,6 +129,8 @@ class NativeDeploymentTests(unittest.TestCase):
                 self.assertEqual(env.read_text(), current)
                 self.assertNotEqual(args[0], "systemctl")
                 builds.append(Path(args[1]).name)
+                if builds[-1] == "build_windows_client.py":
+                    self.assertEqual(args[args.index("--server") + 1], "https://bearings.example.invalid")
                 target = args[-1]
                 target.mkdir()
                 output = target / "SHA256SUMS"
@@ -174,6 +177,9 @@ class NativeDeploymentTests(unittest.TestCase):
                 patch.object(native, "directory", side_effect=lambda path, **_: path.mkdir(exist_ok=True)),
                 patch.object(native, "client_compiler", return_value="/synthetic/go"),
                 patch.object(native, "run", side_effect=run),
+                patch.object(
+                    native, "protected_read", return_value="BEARINGS_PUBLIC_URL=https://bearings.test\n"
+                ),
                 patch.object(native, "write") as publish,
             ):
                 with self.assertRaises(subprocess.CalledProcessError):

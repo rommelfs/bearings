@@ -5,9 +5,11 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
+from urllib.parse import urlsplit
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,7 +29,18 @@ def command(*args, **kwargs):
     return subprocess.check_output(args, text=True, **kwargs).strip()
 
 
-def build(compiler, output):
+def build_server(value):
+    if not re.fullmatch(r"https://(?:[A-Za-z0-9.-]+|\[[A-Fa-f0-9:.]+\])(?::[0-9]{1,5})?/?", value):
+        raise ValueError("Windows client server must be an ASCII HTTPS origin")
+    parsed = urlsplit(value)
+    port = parsed.port
+    if port == 0:
+        raise ValueError("Invalid HTTPS port")
+    return "https://" + parsed.netloc.lower()
+
+
+def build(compiler, output, server=""):
+    server = build_server(server) if server else ""
     version = command(compiler, "version")
     if not version.startswith("go version go"):
         raise ValueError("Supply the Go language compiler with --go")
@@ -42,6 +55,9 @@ def build(compiler, output):
     revision = command("git", "rev-parse", "HEAD", cwd=ROOT)
     if command("git", "status", "--porcelain", cwd=ROOT):
         raise ValueError("Build from a clean, reviewed checkout")
+    ldflags = f"-s -w -X main.version={revision[:12]}"
+    if server:
+        ldflags += f" -X main.defaultServer={server}"
 
     env = {**os.environ, "GOTOOLCHAIN": "local", "CGO_ENABLED": "0", "GOWORK": "off", "GOFLAGS": ""}
     go_root = Path(command(compiler, "env", "GOROOT", env=env))
@@ -50,9 +66,10 @@ def build(compiler, output):
         "README.md": (CLIENT / "README.md").read_bytes(),
         "SOURCE.txt": (
             f"Source: https://github.com/rommelfs/bearings/tree/{revision}/clients/windows\n"
-            f"Commit: {revision}\nCompiler: {version}\n"
+            f"Commit: {revision}\nCompiler: {version}\nHTTPS origin: {server or 'unconfigured'}\n"
             "Corresponding source: bearings-windows-source.zip (distributed alongside this ZIP).\n"
-            "Build the extracted source with CGO_ENABLED=0 go build -mod=vendor .\n"
+            f"Build the extracted source for the target Windows GOARCH with CGO_ENABLED=0 "
+            f"go build -mod=vendor -trimpath -buildvcs=false -ldflags '{ldflags}' .\n"
             "This is an unsigned reference build. SHA256SUMS provides checksums.\n"
         ).encode(),
         "licenses/Go-LICENSE": (go_root / "LICENSE").read_bytes(),
@@ -101,7 +118,7 @@ def build(compiler, output):
                     "-trimpath",
                     "-buildvcs=false",
                     "-ldflags",
-                    f"-s -w -X main.version={revision[:12]}",
+                    ldflags,
                     "-o",
                     str(binary),
                     ".",
@@ -127,12 +144,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--go", default="go")
     parser.add_argument("--output", type=Path, default=ROOT / ".local/windows-client")
+    parser.add_argument("--server", default="", help="Approved Bearings HTTPS origin embedded in every EXE")
     args = parser.parse_args()
     compiler = shutil.which(args.go)
     if compiler is None:
         parser.error("Supply a Go compiler with --go")
     try:
-        build(str(Path(compiler).resolve()), args.output)
+        build(str(Path(compiler).resolve()), args.output, args.server)
     except (ValueError, subprocess.CalledProcessError) as exc:
         parser.error(str(exc))
 

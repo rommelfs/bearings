@@ -136,7 +136,7 @@ func run(args []string) error {
 		watch(*dir, *interval)
 		return nil
 	}
-	s, err := openStore(*dir, command == "init")
+	s, err := openStore(*dir, command == "init" || command == "enroll")
 	if err != nil {
 		return err
 	}

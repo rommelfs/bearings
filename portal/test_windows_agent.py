@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.test import TransactionTestCase, override_settings
 from clients.windows import bearings_windows as client
 from . import agents, agent_protocol, distro_cves, test_agent_client
-from .models import AgentReport, Installation
+from .models import AgentEnrollment, AgentReport, Installation
 from . import test_agents
 from .tests import Fixture
 
@@ -93,7 +93,7 @@ class WindowsAgentTests(Fixture):
     def test_portal_explains_standalone_windows_client_setup(self):
         self.login(self.admin)
         downloads = self.client.get("/downloads/windows/")
-        self.assertContains(downloads, r".\bearings-windows.exe init")
+        self.assertContains(downloads, "Create a Windows registration code")
         self.assertContains(downloads, r".\bearings-windows.exe enroll --code")
         self.assertContains(downloads, r".\bearings-windows.exe watch")
         self.assertContains(downloads, "Rollout to several computers")
@@ -106,11 +106,64 @@ class WindowsAgentTests(Fixture):
             self.client.get("/downloads/linux/?organization=alpha"), 'href="/downloads/windows/"'
         )
         center = self.client.get(self.url("agent-center"))
-        self.assertContains(center, r".\bearings-windows.exe init")
+        self.assertContains(center, "Create a Windows registration code")
         self.assertContains(center, 'href="/downloads/windows/"')
         platforms = self.client.get("/downloads/?organization=alpha")
         self.assertContains(platforms, 'href="/downloads/linux/?organization=alpha"')
         self.assertContains(platforms, 'href="/downloads/windows/"')
+
+    @override_settings(PUBLIC_BASE_URL="https://testserver")
+    def test_windows_code_binds_first_signing_key_and_rejects_other_devices(self):
+        self.login(self.reader)
+        action = {"action": "enroll-windows", "asset": self.asset.pk, "acknowledged": "on"}
+        self.assertEqual(self.client.post(self.url("agent-center"), action).status_code, 403)
+        self.login(self.admin)
+        denied = self.client.post(self.url("agent-center"), {**action, "asset": self.other.pk})
+        self.assertEqual(denied.status_code, 200)
+        self.assertFalse(AgentEnrollment.objects.exists())
+
+        page = self.client.post(self.url("agent-center"), action)
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("no-store", page["Cache-Control"])
+        code = page.context["code"]
+        self.assertTrue(code.startswith("bearings-windows-v1."))
+        encoded = code.split(".", 1)[1]
+        payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+        self.assertNotIn("public_key", payload)
+        self.assertEqual(payload["url"], "https://testserver")
+        self.assertEqual(payload["asset_id"], str(self.asset.pk))
+        grant = AgentEnrollment.objects.get()
+        self.assertTrue(grant.claim_key_on_redeem)
+        self.assertEqual(grant.public_key, "")
+
+        request = {
+            "schema": "bearings.agent.enroll.windows.v1",
+            "request_id": str(uuid.uuid4()),
+            "public_key": self.public,
+        }
+        target = "/api/v1/agent/enroll/"
+        identity = "enroll:" + str(grant.pk)
+        headers = {"Authorization": "Bearer " + payload["grant"]}
+        attacker = client.Ed25519PrivateKey.generate()
+        self.assertEqual(
+            self.post(target, request, key=attacker, identity=identity, headers=headers).status_code, 403
+        )
+        grant.refresh_from_db()
+        self.assertIsNone(grant.used_at)
+        accepted = self.post(target, request, identity=identity, headers=headers)
+        self.assertEqual(accepted.status_code, 200, accepted.content)
+        retry = self.post(target, request, identity=identity, headers=headers)
+        self.assertEqual(retry.json(), accepted.json())
+        competing = {
+            **request,
+            "public_key": base64.b64encode(attacker.public_key().public_bytes_raw()).decode(),
+            "request_id": str(uuid.uuid4()),
+        }
+        self.assertEqual(
+            self.post(target, competing, key=attacker, identity=identity, headers=headers).status_code, 403
+        )
+        grant.refresh_from_db()
+        self.assertEqual(grant.public_key, self.public)
 
     def test_windows_downloads_require_complete_release_and_matching_checksum(self):
         base = "/downloads/windows/"

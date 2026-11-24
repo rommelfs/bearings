@@ -45,10 +45,17 @@ def current(device):
 
 
 @transaction.atomic
-def create_enrollment(actor, org, asset, key, new_asset_kind="", *, fleet=None, observed_only=False):
+def create_enrollment(
+    actor, org, asset, key, new_asset_kind="", *, fleet=None, observed_only=False, claim_key_on_redeem=False
+):
     org = Organization.objects.select_for_update(of=("self",), no_key=True).get(pk=org.pk)
     require(administrator(actor, org))
-    public_key(key)
+    if claim_key_on_redeem:
+        require(
+            asset is not None and key == "" and fleet is None and not observed_only and not new_asset_kind
+        )
+    else:
+        public_key(key)
     require(
         (fleet is None and not observed_only)
         or (
@@ -98,7 +105,7 @@ def create_enrollment(actor, org, asset, key, new_asset_kind="", *, fleet=None, 
         new_asset_kind = ""
     if asset is not None and AgentDevice.objects.filter(asset=asset, enabled=True).exists():
         raise ValidationError("Revoke the existing device before enrolling a replacement")
-    if AgentDevice.objects.filter(public_key=key).exists():
+    if key and AgentDevice.objects.filter(public_key=key).exists():
         raise ValidationError("Create a fresh key for this enrollment; never reuse a revoked key")
     secret = secrets.token_urlsafe(32)
     grant = AgentEnrollment.objects.create(
@@ -111,6 +118,7 @@ def create_enrollment(actor, org, asset, key, new_asset_kind="", *, fleet=None, 
         new_asset_kind=new_asset_kind,
         created_by=actor,
         public_key=key,
+        claim_key_on_redeem=claim_key_on_redeem,
         token_hash=hashlib.sha256(secret.encode()).hexdigest(),
         expires_at=timezone.now() + timedelta(minutes=30),
     )
@@ -120,7 +128,8 @@ def create_enrollment(actor, org, asset, key, new_asset_kind="", *, fleet=None, 
         "agent.enrollment_created",
         grant.pk,
         asset=str(asset.pk) if asset else "new-host",
-        fingerprint=hashlib.sha256(public_key(key).public_bytes_raw()).hexdigest(),
+        fingerprint=hashlib.sha256(public_key(key).public_bytes_raw()).hexdigest() if key else "",
+        claim_key_on_redeem=claim_key_on_redeem,
     )
     return grant, f"{grant.pk}.{secret}"
 
@@ -153,11 +162,25 @@ def redeem(grant_id, secret, raw, signature_input, signature, request_url):
     ):
         raise ValueError("Enrollment unavailable")
     data = json.loads(raw)
-    if (
+    if grant.claim_key_on_redeem:
+        if (
+            set(data) != {"schema", "request_id", "public_key"}
+            or data["schema"] != "bearings.agent.enroll.windows.v1"
+            or grant.asset_id is None
+            or grant.fleet_id is not None
+        ):
+            raise ValueError("Invalid Windows enrollment")
+        key = data["public_key"]
+        public_key(key)
+        if grant.public_key and grant.public_key != key:
+            raise ValueError("Windows code already bound to another key")
+    elif (
         set(data) not in ({"schema", "request_id"}, {"schema", "request_id", "host"})
         or data["schema"] != "bearings.agent.enroll.v1"
     ):
         raise ValueError("Invalid enrollment")
+    else:
+        key = grant.public_key
     identifier(data["request_id"])
     digest = hashlib.sha256(raw).hexdigest()
     if grant.used_at:
@@ -238,13 +261,14 @@ def redeem(grant_id, secret, raw, signature_input, signature, request_url):
         organization=grant.organization,
         asset=grant.asset,
         source=grant.source,
-        public_key=grant.public_key,
+        public_key=key,
         reported_network=network,
         expires_at=timezone.now() + timedelta(days=90),
     )
     device.full_clean()
     device.save()
     grant.used_at = timezone.now()
+    grant.public_key = key
     grant.request_hash = digest
     grant.signed_body = raw
     grant.signature_input = signature_input
@@ -253,6 +277,7 @@ def redeem(grant_id, secret, raw, signature_input, signature, request_url):
     grant.save(
         update_fields=[
             "used_at",
+            "public_key",
             "request_hash",
             "signed_body",
             "signature_input",

@@ -40,3 +40,18 @@ def encode(data):
     return "bearings-enroll-v1." + base64.urlsafe_b64encode(
         json.dumps(data, separators=(",", ":")).encode()
     ).decode().rstrip("=")
+
+
+def windows_code(grant, token):
+    return "bearings-windows-v1." + base64.urlsafe_b64encode(
+        json.dumps(
+            {
+                "schema": "bearings.agent.grant.windows.v1",
+                "url": trusted_origin(),
+                "grant": token,
+                "asset_id": str(grant.asset_id),
+                "expires_at": grant.expires_at.isoformat(),
+            },
+            separators=(",", ":"),
+        ).encode()
+    ).decode().rstrip("=")

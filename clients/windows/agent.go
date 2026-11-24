@@ -14,6 +14,9 @@ import (
 )
 
 const maxQueue = 64
+const windowsGrant = "bearings.agent.grant.windows.v1"
+
+var defaultServer string // Set when the publisher builds an executable for its HTTPS origin.
 
 type grant struct {
 	Schema       string    `json:"schema"`
@@ -82,11 +85,16 @@ func (s *state) ready() error {
 func readGrant(code string) (grant, error) {
 	var g grant
 	value, ok := strings.CutPrefix(strings.TrimSpace(code), "bearings-enroll-v1.")
+	expected := "bearings.agent.grant.v1"
+	if !ok {
+		value, ok = strings.CutPrefix(strings.TrimSpace(code), "bearings-windows-v1.")
+		expected = windowsGrant
+	}
 	if !ok || len(value) > 16_000 {
 		return g, errors.New("invalid registration code")
 	}
 	data, err := base64.RawURLEncoding.Strict().DecodeString(value)
-	if err != nil || json.Unmarshal(data, &g) != nil {
+	if err != nil || json.Unmarshal(data, &g) != nil || g.Schema != expected {
 		return g, errors.New("invalid registration code")
 	}
 	return g, nil
@@ -98,7 +106,8 @@ func enroll(s *state, save func() error, g grant, ca string) (enrolled, error) {
 		return result, errors.New("already enrolled; use reviewed replacement procedure")
 	}
 	tokenID, secret, _ := strings.Cut(g.Token, ".")
-	if g.Schema != "bearings.agent.grant.v1" || g.PublicKey != s.publicKey() ||
+	claim := g.Schema == windowsGrant
+	if (claim && g.PublicKey != "") || (!claim && (g.Schema != "bearings.agent.grant.v1" || g.PublicKey != s.publicKey())) ||
 		!uuid.MatchString(g.AssetID) || g.RegisterHost || !g.ExpiresAt.After(time.Now()) ||
 		!uuid.MatchString(tokenID) || !grantToken.MatchString(secret) {
 		return result, errors.New("use an unexpired registration code bound to this key and an existing asset")
@@ -107,6 +116,16 @@ func enroll(s *state, save func() error, g grant, ca string) (enrolled, error) {
 	if err != nil {
 		return result, err
 	}
+	if claim || defaultServer != "" {
+		configured, err := origin(defaultServer)
+		if err != nil {
+			return result, errors.New("download the Windows client built by your Bearings server")
+		}
+		if configured != server {
+			return result, errors.New("this registration code belongs to a different Bearings server")
+		}
+		server = configured
+	}
 	identity := "enroll:" + tokenID
 	if s.Pending != nil {
 		previous, err := origin(s.URL)
@@ -114,9 +133,16 @@ func enroll(s *state, save func() error, g grant, ca string) (enrolled, error) {
 			return result, errors.New("another enrollment is pending; local state retained")
 		}
 	} else {
-		s.Pending = &pendingEnrollment{Identity: identity, Body: json.RawMessage(`{"schema":"bearings.agent.enroll.v1","request_id":"` + identifier() + `"}`)}
+		body := `{"schema":"bearings.agent.enroll.v1","request_id":"` + identifier() + `"}`
+		if claim {
+			body = `{"schema":"bearings.agent.enroll.windows.v1","request_id":"` + identifier() +
+				`","public_key":"` + s.publicKey() + `"}`
+		}
+		s.Pending = &pendingEnrollment{Identity: identity, Body: json.RawMessage(body)}
 	}
-	if ca != "" {
+	if claim {
+		s.CAFile = ""
+	} else if ca != "" {
 		s.CAFile = ca
 	}
 	s.URL = server

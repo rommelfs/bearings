@@ -5,7 +5,7 @@
 <section class="client-downloads" aria-labelledby="windows-client">
   {% include "portal/_client_platform_links.html" with platform="windows" %}
   <h1 id="windows-client" class="icon-heading">{% ui_icon "clients" %}Bearings Windows client</h1>
-  <p>Send the Windows build and machine-installed software inventory to Bearings. The executable includes its runtime and runs under an ordinary Windows account. The server must have the Windows inventory migration 0073.</p>
+  <p>Send the Windows build and machine-installed software inventory to Bearings. The executable includes its runtime and runs under an ordinary Windows account. The server must have the Windows enrollment migration 0074.</p>
   <nav aria-label="Windows client guide">
     <a href="#download">Download</a> · <a href="#install">Install and enroll</a> · <a href="#rollout">Rollout</a> · <a href="#periodic">Periodic reports</a> · <a href="#update">Update</a>
   </nav>
@@ -33,26 +33,19 @@
   <p>For ARM64 or x86, substitute the filename you downloaded.</p>
   <h2 id="install">Install and enroll</h2>
   <ol>
-    <li>Extract the ZIP and double-click <strong>bearings-windows.exe</strong> under the account that will send reports. The setup window opens and displays this device’s public key.</li>
-    <li>Copy the public key. In <strong>Linux / Windows inventory reports</strong>, have a company administrator approve it for this existing asset. Paste the one-time code into the setup window and choose <strong>Enroll and send first report</strong>.</li>
+    <li>Extract the ZIP from this Bearings server and double-click <strong>bearings-windows.exe</strong> under the Windows account that will send reports. The setup window displays the preconfigured HTTPS server.</li>
+    <li>In <strong>Linux / Windows inventory reports</strong>, a company administrator selects the existing asset and chooses <strong>Create a Windows registration code</strong>. Paste the one-time code into the setup window and choose <strong>Enroll and send first report</strong>.</li>
     <li>Choose <strong>Check status</strong> until the report shows <code>applied</code>. Choose <strong>Enable automatic reports</strong> and confirm. The client copies itself to <code>%LOCALAPPDATA%\Programs\Bearings</code> and registers a task for the same account.</li>
   </ol>
+  <p>Windows verifies HTTPS with its certificate store. For servers using a private CA, your IT administrator can distribute the approved trust certificate through Windows.</p>
   <details><summary>PowerShell setup and reporting commands</summary>
-  <ol>
-    <li>Extract the ZIP into a permanent directory writable only by the reporting account and trusted administrators. Open PowerShell in that directory under the Windows account that will send the reports.
-      <pre><code>.\bearings-windows.exe --version
-.\bearings-windows.exe init</code></pre>
-    </li>
-    <li>In your organization’s <strong>Linux / Windows inventory reports</strong>, a company administrator selects the existing Windows asset and approves the public key printed by <code>init</code>. Use the one-time code within 30 minutes. Paste it into the hidden prompt.
-      <pre><code>.\bearings-windows.exe enroll --code
+    <pre><code>.\bearings-windows.exe --version
+.\bearings-windows.exe enroll --code
 .\bearings-windows.exe report
 .\bearings-windows.exe status</code></pre>
-    </li>
-    <li><code>pending</code> means the server accepted the report for processing. Check <code>status</code> again until that report shows <code>applied</code>. If you use an approved private CA, add <code>--ca-file C:\Approved\bearings-ca.pem</code> to the enrollment command.</li>
-  </ol>
   </details>
   <h2 id="rollout">Rollout to several computers</h2>
-  <p>Pilot one existing asset first. Use your organization’s software distribution tool to copy the approved EXE to the other computers. Generate a fresh key on each device under its reporting account, approve its existing asset individually, and verify its first report before enabling its schedule.</p>
+  <p>Pilot one existing asset first. Use your organization’s software distribution tool to copy the approved EXE to the other computers. Create a separate code for each existing asset, redeem it under its reporting account, and verify the first report before enabling its schedule.</p>
   <p>Keep registration codes out of rollout scripts, command lines and logs. Keep device state local to its original account and device. This enrollment process supports existing assets and a separate approval for each device.</p>
   <h2 id="periodic">Start periodically</h2>
   <p>The setup window creates a task named <strong>Bearings Windows Inventory</strong> followed by an account-specific suffix. It runs every six hours while that account is signed in. Pause any earlier Bearings task before switching to the new one. Use Task Scheduler to confirm the first run.</p>

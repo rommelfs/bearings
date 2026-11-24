@@ -3,8 +3,10 @@ package main
 
 import (
 	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +17,44 @@ import (
 
 	"golang.org/x/text/cases"
 )
+
+func TestWindowsCodeUsesEmbeddedOriginAndOwnKey(t *testing.T) {
+	previous := defaultServer
+	defer func() { defaultServer = previous }()
+	defaultServer = "https://approved.example"
+	g := grant{
+		Schema: windowsGrant, URL: "https://approved.example:443/",
+		Token:   identifier() + ".public-test-token-of-at-least-32-characters",
+		AssetID: identifier(), ExpiresAt: time.Now().Add(time.Hour),
+	}
+	raw, err := json.Marshal(g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := readGrant("bearings-windows-v1." + base64.RawURLEncoding.EncodeToString(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := initialState()
+	stop := errors.New("test stops before network delivery")
+	if _, err := enroll(&s, func() error { return stop }, got, ""); !errors.Is(err, stop) {
+		t.Fatalf("claim did not preserve its authenticated outbox body: %v", err)
+	}
+	var body struct {
+		Schema string `json:"schema"`
+		Key    string `json:"public_key"`
+	}
+	if json.Unmarshal(s.Pending.Body, &body) != nil || body.Schema != "bearings.agent.enroll.windows.v1" ||
+		body.Key != s.publicKey() || s.URL != defaultServer {
+		t.Fatal("claim did not use the local key and the embedded HTTPS origin")
+	}
+	defaultServer = "https://different.example"
+	got.URL = "https://not-the-configured-origin.example"
+	fresh := initialState()
+	if _, err := enroll(&fresh, func() error { t.Fatal("wrong origin persisted"); return nil }, got, ""); err == nil {
+		t.Fatal("accepted code for a different origin")
+	}
+}
 
 // Fixed seed and expected signature were produced by the independent Python RFC 9421 library.
 func TestSignatureVector(t *testing.T) {

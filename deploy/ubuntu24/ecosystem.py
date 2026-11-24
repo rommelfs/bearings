@@ -15,6 +15,7 @@ from pathlib import Path
 import pwd
 import re
 import secrets
+import shlex
 import shutil
 import socket
 import ssl
@@ -102,6 +103,14 @@ def client_compiler():
     return compiler
 
 
+def client_server(current):
+    origins = re.findall(r"(?m)^[ \t]*BEARINGS_PUBLIC_URL[ \t]*=(.*)$", current)
+    values = shlex.split(origins[0]) if len(origins) == 1 else []
+    if len(values) != 1 or not values[0]:
+        raise ValueError("Set one BEARINGS_PUBLIC_URL in the protected Bearings environment")
+    return values[0]
+
+
 def prepare_clients(*, restart=True):
     """Build both release sets before switching their environment pointers together."""
     if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
@@ -128,12 +137,17 @@ def prepare_clients(*, restart=True):
                 "GOSUMDB": "sum.golang.org",
             }
             for target in ("linux", "windows"):
+                server_args = []
+                if target == "windows":
+                    server = client_server(protected_read(BEARINGS_ENV))
+                    server_args = ["--server", server]
                 run(
                     [
                         sys.executable,
                         ROOT / f"scripts/build_{target}_client.py",
                         "--go",
                         compiler,
+                        *server_args,
                         "--output",
                         release / target,
                     ],
@@ -146,6 +160,8 @@ def prepare_clients(*, restart=True):
             path.chmod(0o644)
         release.chmod(0o755)
         current = protected_read(BEARINGS_ENV)
+        if client_server(current) != server:
+            raise ValueError("BEARINGS_PUBLIC_URL changed during the client build. Retry publication.")
         updated = merge_environment(
             current,
             {

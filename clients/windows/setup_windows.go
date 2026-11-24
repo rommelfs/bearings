@@ -4,7 +4,6 @@ package main
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"unsafe"
@@ -37,8 +36,7 @@ const (
 	wmDestroy = 0x0002
 	wmResult  = 0x8001
 
-	copyKey = 101 + iota
-	enrollKey
+	enrollKey = 101 + iota
 	sendReport
 	checkReport
 	enableSchedule
@@ -64,12 +62,12 @@ type windowMessage struct {
 }
 
 type setupWindow struct {
-	window, publicKey, code, ca, note uintptr
-	buttons                           []uintptr
-	dir                               string
-	font, instance, dpi               uintptr
-	busy                              bool
-	results                           chan string
+	window, code, note  uintptr
+	buttons             []uintptr
+	dir                 string
+	font, instance, dpi uintptr
+	busy                bool
+	results             chan string
 }
 
 func utf16Text(value string) *uint16 {
@@ -91,36 +89,27 @@ func (w *setupWindow) add(class, label string, style, id uintptr, left, top, wid
 	return control
 }
 
-func (w *setupWindow) controls(key, note string) error {
-	const (
-		tabStop = 0x10000
-		border  = 0x800000
-		edit    = border | tabStop | 0x0080 // ES_AUTOHSCROLL
-	)
+func (w *setupWindow) controls(server, note string) error {
+	const tabStop = 0x10000
+	const edit = 0x800000 | tabStop | 0x0080
 	parts := []uintptr{
-		w.add("STATIC", "1. Give this public key to your Bearings administrator for the existing asset.", 0, 0, 20, 18, 590, 23),
-		w.add("STATIC", "2. Paste the one-time registration code.", 0, 0, 20, 97, 590, 23),
-		w.add("STATIC", "Approved CA file (optional, paste a PEM file path)", 0, 0, 20, 157, 586, 20),
-		w.add("STATIC", "3. Confirm a report is applied before enabling automatic reports.", 0, 0, 20, 217, 586, 23),
+		w.add("STATIC", "Bearings server: "+server, 0, 0, 20, 18, 586, 24),
+		w.add("STATIC", "Paste the one-time Windows registration code from the portal.", 0, 0, 20, 57, 586, 23),
 	}
-	w.publicKey = w.add("EDIT", key, edit|0x0800, 0, 20, 45, 460, 26)
-	w.code = w.add("EDIT", "", edit|0x0020, 0, 20, 124, 586, 26) // ES_PASSWORD
-	w.ca = w.add("EDIT", "", edit, 0, 20, 182, 586, 26)
-	w.note = w.add("STATIC", note, 0, 0, 20, 321, 586, 78)
-	copy := w.add("BUTTON", "Copy public key", tabStop, copyKey, 493, 44, 113, 29)
+	w.code = w.add("EDIT", "", edit|0x0020, 0, 20, 85, 586, 26)
+	w.note = w.add("STATIC", note, 0, 0, 20, 218, 586, 78)
 	w.buttons = []uintptr{
-		w.add("BUTTON", "Enroll and send first report", tabStop, enrollKey, 20, 247, 190, 30),
-		w.add("BUTTON", "Send report", tabStop, sendReport, 218, 247, 105, 30),
-		w.add("BUTTON", "Check status", tabStop, checkReport, 331, 247, 106, 30),
-		w.add("BUTTON", "Enable automatic reports", tabStop, enableSchedule, 20, 284, 190, 30),
+		w.add("BUTTON", "Enroll and send first report", tabStop, enrollKey, 20, 132, 190, 30),
+		w.add("BUTTON", "Send report", tabStop, sendReport, 218, 132, 105, 30),
+		w.add("BUTTON", "Check status", tabStop, checkReport, 331, 132, 106, 30),
+		w.add("BUTTON", "Enable automatic reports", tabStop, enableSchedule, 20, 174, 190, 30),
 	}
-	for _, control := range append(parts, append(w.buttons, w.publicKey, w.code, w.ca, w.note, copy)...) {
+	for _, control := range append(parts, append(w.buttons, w.code, w.note)...) {
 		if control == 0 {
 			return errors.New("could not create the Windows setup controls")
 		}
 	}
-	sendMessage.Call(w.code, 0x00C5, 16_000, 0) // EM_SETLIMITTEXT
-	sendMessage.Call(w.ca, 0x00C5, 4096, 0)
+	sendMessage.Call(w.code, 0x00C5, 16_000, 0)
 	return nil
 }
 
@@ -134,7 +123,7 @@ func (w *setupWindow) response(value string) {
 	setText.Call(w.note, uintptr(unsafe.Pointer(utf16Text(value))))
 }
 
-func (w *setupWindow) operation(action uintptr, code, ca string) (string, error) {
+func (w *setupWindow) operation(action uintptr, code string) (string, error) {
 	s, err := openStore(w.dir, false)
 	if err != nil {
 		return "", err
@@ -146,13 +135,10 @@ func (w *setupWindow) operation(action uintptr, code, ca string) (string, error)
 		if err != nil {
 			return "", err
 		}
-		if ca != "" {
-			ca, err = filepath.Abs(ca)
-			if err != nil {
-				return "", errors.New("invalid approved CA path")
-			}
+		if g.Schema != windowsGrant {
+			return "", errors.New("create a Windows registration code in the Bearings portal")
 		}
-		if _, err := enroll(&s.state, s.save, g, ca); err != nil {
+		if _, err := enroll(&s.state, s.save, g, ""); err != nil {
 			return "", err
 		}
 		fallthrough
@@ -197,12 +183,6 @@ func (w *setupWindow) event(hwnd uintptr, message uint32, word, param uintptr) u
 	switch message {
 	case wmCommand:
 		action := word & 0xffff
-		if action == copyKey {
-			sendMessage.Call(w.publicKey, 0x00B1, 0, ^uintptr(0)) // EM_SETSEL
-			sendMessage.Call(w.publicKey, 0x0301, 0, 0)           // WM_COPY
-			w.response("Public key copied. Give it to your Bearings administrator.")
-			return 0
-		}
 		if action >= enrollKey && action <= enableSchedule && !w.busy {
 			if action == enableSchedule {
 				answer, _, _ := messageBox.Call(hwnd,
@@ -212,15 +192,15 @@ func (w *setupWindow) event(hwnd uintptr, message uint32, word, param uintptr) u
 					return 0
 				}
 			}
-			var code, ca string
+			var code string
 			if action == enrollKey {
-				code, ca = field(w.code, 16_000), field(w.ca, 4096)
+				code = field(w.code, 16_000)
 				setText.Call(w.code, uintptr(unsafe.Pointer(utf16Text(""))))
 			}
 			w.setBusy(true)
 			w.response("Working. Keep this window open.")
 			go func() {
-				result, err := w.operation(action, code, ca)
+				result, err := w.operation(action, code)
 				if err != nil {
 					result = err.Error()
 				}
@@ -271,8 +251,16 @@ func setupGUI() error {
 	if err != nil {
 		return err
 	}
-	key, enrolled := s.state.publicKey(), s.state.DeviceID != ""
+	enrolled := s.state.DeviceID != ""
+	server := defaultServer
+	if enrolled {
+		server = s.state.URL
+	}
 	s.close()
+	server, err = origin(server)
+	if err != nil {
+		return errors.New("download the Windows client built by your Bearings server")
+	}
 	if proc := user32.NewProc("SetProcessDPIAware"); proc.Find() == nil {
 		proc.Call()
 	}
@@ -293,7 +281,7 @@ func setupGUI() error {
 		return errors.New("could not register the Windows setup window")
 	}
 	w.window, _, _ = createWindow.Call(0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(utf16Text("Bearings Windows "+version))),
-		0x00CA0000, 0x80000000, 0x80000000, w.scale(650), w.scale(459), 0, 0, w.instance, 0)
+		0x00CA0000, 0x80000000, 0x80000000, w.scale(650), w.scale(356), 0, 0, w.instance, 0)
 	if w.window == 0 {
 		return errors.New("could not open the Windows setup window")
 	}
@@ -301,7 +289,7 @@ func setupGUI() error {
 	if enrolled {
 		note = "This Windows account is already enrolled. Send a report or check its status."
 	}
-	if err := w.controls(key, note); err != nil {
+	if err := w.controls(server, note); err != nil {
 		user32.NewProc("DestroyWindow").Call(w.window)
 		return err
 	}

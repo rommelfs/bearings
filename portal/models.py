@@ -2137,7 +2137,7 @@ class AgentFleet(models.Model):
 
 
 class AgentEnrollment(models.Model):
-    """One-use, public-key-bound authorization, created by a company administrator."""
+    """One-use authorization created by a company administrator."""
 
     virtualization_type = models.CharField(
         max_length=20, choices=VIRTUALIZATION_TYPES, blank=True, default=""
@@ -2151,7 +2151,8 @@ class AgentEnrollment(models.Model):
     new_asset_kind = models.CharField(max_length=20, blank=True)
     source = models.ForeignKey(InventorySource, on_delete=models.PROTECT)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    public_key = models.CharField(max_length=44, db_index=True)
+    public_key = models.CharField(max_length=44, db_index=True, blank=True)
+    claim_key_on_redeem = models.BooleanField(default=False)
     token_hash = models.CharField(max_length=64)
     created_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField()

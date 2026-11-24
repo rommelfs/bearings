@@ -6,7 +6,7 @@ SPDX: AGPL-3.0-or-later. [Source](https://github.com/rommelfs/bearings), [licens
 
 Open `/downloads/windows/` on your Bearings server. Choose the ZIP that matches **System type** in **Settings → System → About**. Use **x64** for 64-bit Intel or AMD Windows, **ARM64** for ARM Windows, and **x86** for 32-bit Windows. The native Bearings publisher prepares the Windows and Linux packages together. If the server has no download links, ask your administrator to run the [client publisher](../../docs/operations/ubuntu24.md#client-downloads). Windows 10 version 1709 or later, or a compatible Windows Server release, is required. Each ZIP contains a standalone console executable with its Go runtime. The endpoint uses Windows system libraries, the registry, DPAPI and its certificate store.
 
-Compare the ZIP's SHA-256 with the supplied `SHA256SUMS`. The reference packages are unsigned. Extract `bearings-windows.exe` into a permanent directory writable only by the reporting account and trusted administrators. Run it as the ordinary Windows account that will send reports, with read access to the machine registry. The server needs migration `0073_windows_inventory` ([native server upgrade](../../docs/operations/ubuntu24.md#windows-inventory-upgrade-from-6acb4c8)).
+Compare the ZIP's SHA-256 with the supplied `SHA256SUMS`. The reference packages are unsigned. Extract `bearings-windows.exe` into a permanent directory writable only by the reporting account and trusted administrators. Run it as the ordinary Windows account that will send reports, with read access to the machine registry. The server needs migrations `0073_windows_inventory` and `0074_windows_code_enrollment`. The server-built EXE contains the approved HTTPS origin.
 
 ```powershell
 Get-FileHash .\bearings-windows-x64.zip -Algorithm SHA256
@@ -16,41 +16,40 @@ Substitute the ZIP you downloaded if using ARM64 or x86.
 
 ### Setup window
 
-Double-click `bearings-windows.exe` under your Windows reporting account. Choose
-**Copy public key** and have a company administrator approve the existing asset.
-Paste the one-time code in the masked field, enter an optional approved PEM
-file path, and choose **Enroll and send first report**. Use **Check status** to
-confirm the report was applied. Choose **Enable automatic reports** and confirm.
-This copies the EXE to `%LOCALAPPDATA%\Programs\Bearings` and creates a task
-named **Bearings Windows Inventory** with an account-specific suffix. The task
-runs every six hours while that account is signed in. Pause any earlier
-Bearings schedule before enabling the new one. Windows policy can restrict
-task creation.
+Double-click `bearings-windows.exe` under the account that will send inventory.
+In the organization’s **Linux / Windows inventory reports**, a company
+administrator selects the existing Windows asset and chooses **Create a
+Windows registration code**. Paste that code in the setup window and choose
+**Enroll and send first report**. The first valid signed request binds
+the one-use code to the locally generated device key. The code expires
+after 30 minutes. Windows uses its certificate store to verify HTTPS,
+including private CA trust provisioned by the administrator.
+
+Use **Check status** until the report is applied, then choose **Enable automatic
+reports** and confirm. The EXE is copied to `%LOCALAPPDATA%\Programs\Bearings`
+and creates a six-hour task for the signed-in account. Pause an earlier Bearings
+schedule before switching. Account policy may restrict task creation.
 
 ### PowerShell setup
 
-Open PowerShell in the directory containing the EXE:
+Open PowerShell in the directory containing the EXE.
 
 ```powershell
 .\bearings-windows.exe --version
-.\bearings-windows.exe init
-```
-
-In the company's **Linux / Windows inventory reports** page, a company administrator or platform superuser approves this public key for an **existing asset** and creates a one-use registration code. Enter it at the hidden interactive prompt:
-
-```powershell
 .\bearings-windows.exe enroll --code
 .\bearings-windows.exe report
 .\bearings-windows.exe status
 ```
 
-The grant contains the administrator-configured HTTPS origin. For a private approved CA, append `--ca-file C:\Approved\bearings-ca.pem` to enrollment. You can provide this file when retrying the same code after a certificate error. Keep codes out of arguments, logs and screenshots. The code expires after 30 minutes and the device credential after 90 days. If a code becomes unusable, have the administrator inspect the grant/device before canceling or revoking it as applicable. For a reviewed replacement, initialize a fresh key in a new private state directory and retain any prior queued reports for review.
+Keep codes out of arguments, logs and screenshots. The device credential
+expires after 90 days. The administrator can review an expired credential
+or cancel an unused grant in Bearings.
 
 `collect` prints local inventory only. Handle its output as confidential. `status` reports the latest acknowledged observation. `pending` means the server accepted it for processing. Check for `applied` before scheduling regular reports.
 
 ## Roll out to several computers
 
-Pilot one existing asset first. Copy only the reviewed program to the other devices using your organization’s software distribution tool. On each device, use its reporting account to generate a fresh key, obtain approval and a separate one-use code for its existing asset, and confirm the first applied report before enabling periodic runs. Keep device state on the original device and codes out of scripts and logs.
+Pilot one existing asset first. Copy only the reviewed program to the other devices using your organization’s software distribution tool. On each device, use its reporting account to redeem a separate one-use code for its existing asset, and confirm the first applied report before enabling periodic runs. Keep device state on the original device and codes out of scripts and logs.
 
 ## Automatic reporting
 
@@ -84,7 +83,7 @@ Linux cross-builds verify the three executable targets, with portable tests for 
 On the build machine, use Python 3.12+ and Go 1.24+ from a clean reviewed checkout:
 
 ```sh
-python3 scripts/build_windows_client.py --go /path/to/go
+python3 scripts/build_windows_client.py --go /path/to/go --server https://bearings.example
 ```
 
 This writes architecture-specific EXEs and ZIPs, `SHA256SUMS` and a matching source ZIP into `.local/windows-client`. Distribute the source ZIP with the binary packages. For a native developer test, run `go test ./...` from `clients/windows` on Windows. The Python source remains available as a compatibility reference.

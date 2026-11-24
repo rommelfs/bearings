@@ -2369,3 +2369,14 @@ write. The native first installer and documented reviewed upgrade call the
 same publisher. The operator tests cover a complete publication, a failed
 Windows build after Linux succeeds, retention of the older release and the
 no-restart maintenance path.
+
+### Windows enrollment with a single code
+
+PostgreSQL migrated from 0073 to 0074. All 67 targeted tests passed with
+the native Linux reference available for real HTTPS interoperability.
+Windows enrollment tests verify company and asset scope, proof of possession,
+first-key binding and idempotent retry after a lost acknowledgement. Portable
+Go tests cover initialization of the signed Windows request and rejecting
+a code for another server before any network call. Go race checks passed
+and native Windows tests cross-compiled for x64, ARM64 and x86. Rendering and
+scheduling still require acceptance on native Windows.
