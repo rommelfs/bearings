@@ -103,6 +103,45 @@ func probeExecutable(name string, expected clientBuildInfo) error {
 	return nil
 }
 
+// Run the rename outside the process whose executable is being replaced. Some
+// Windows image/resource handles reject self-replacement even with POSIX flags.
+func workerReplace(worker, from, to string, expectedHash string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, worker, "--replace-client", from, to)
+	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
+	command.WaitDelay = 2 * time.Second
+	var output boundedOutput
+	output.limit = 16384
+	command.Stdout = &output
+	command.Stderr = &output
+	err := command.Run()
+	installed, readErr := readBounded(to, maxUpdateArchive)
+	if readErr == nil && digest(installed) == expectedHash {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("Windows replacement worker failed: %s", strings.TrimSpace(string(output.data)))
+	}
+	return errors.New("Windows replacement did not install the expected executable")
+}
+
+func runReplacementWorker(args []string) error {
+	if len(args) != 2 {
+		return errors.New("invalid replacement worker arguments")
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	for _, name := range args {
+		if !filepath.IsAbs(name) || !strings.EqualFold(filepath.Dir(name), filepath.Dir(executable)) || rejectReparse(name) != nil {
+			return errors.New("replacement worker paths must stay in its program directory without links")
+		}
+	}
+	return replaceExecutable(args[0], args[1])
+}
+
 func installRelease(target string, executable []byte, expected clientBuildInfo, save func() error) error {
 	if rejectReparse(target) != nil {
 		return errors.New("client program path must be free of links and junctions")
@@ -131,19 +170,24 @@ func installRelease(target string, executable []byte, expected clientBuildInfo, 
 			os.Remove(backup)
 		}
 	}()
-	if err := replaceExecutable(candidate, target); err != nil {
-		return fmt.Errorf("Windows could not atomically replace the client; previous executable retained: %w", err)
+	worker, err := stagedExecutable(dir, executable)
+	if err != nil {
+		return err
 	}
-	err = probeExecutable(target, expected)
+	defer os.Remove(worker)
+	err = workerReplace(worker, candidate, target, digest(executable))
+	if err == nil {
+		err = probeExecutable(target, expected)
+	}
 	if err == nil {
 		err = save()
 	}
 	if err != nil {
-		if replaceExecutable(backup, target) != nil {
+		if rollbackErr := workerReplace(worker, backup, target, digest(previous)); rollbackErr != nil {
 			removeBackup = false
 			return fmt.Errorf("client update failed; rollback failed; retained executable backup: %s", backup)
 		}
-		return errors.New("client update verification or state save failed; previous executable restored")
+		return fmt.Errorf("client update failed; previous executable restored: %w", err)
 	}
 	return nil
 }

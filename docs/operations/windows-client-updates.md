@@ -103,7 +103,8 @@ uses the administrator's trusted HTTPS download and checksum review. These
 packages do not have Authenticode signatures.
 
 Replacement uses Go 1.25+ directory-relative Windows rename with
-`FileRenameInformationEx` replace-existing/POSIX semantics on the same volume. It does not first remove or rename the task target. A separate
+`FileRenameInformationEx` replace-existing/POSIX semantics on the same volume. A separate verified copy performs the rename so the running client does not
+replace its own process image. It does not first remove or rename the task target. A separate
 program lock prevents simultaneous updates through different state directories.
 Symlinks and junctions are rejected. A synchronized backup supports restoration
 if the installed startup probe or state save fails. If restoration also fails,

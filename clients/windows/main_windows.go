@@ -106,6 +106,9 @@ func run(args []string) error {
 		fmt.Println("Bearings Windows " + version)
 		return nil
 	}
+	if args[0] == "--replace-client" {
+		return runReplacementWorker(args[1:])
+	}
 	if args[0] == "--update-info" {
 		return outputBuildInfo()
 	}
