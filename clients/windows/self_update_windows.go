@@ -58,12 +58,14 @@ func renameExecutable(from, to string) error {
 		FileName       [1]uint16
 	}
 	offset := unsafe.Offsetof(renameInfo{}.FileName)
-	length := offset + uintptr((len(name)-1)*2)
+	// The Win32 wrapper consumes a NUL-terminated FileName even though
+	// FileNameLength excludes that terminator. Keep it inside the allocated buffer.
+	length := offset + uintptr(len(name)*2)
 	data := make([]byte, length)
 	info := (*renameInfo)(unsafe.Pointer(&data[0]))
 	info.Flags = windows.FILE_RENAME_REPLACE_IF_EXISTS | windows.FILE_RENAME_POSIX_SEMANTICS
 	info.FileNameLength = uint32((len(name) - 1) * 2)
-	copy(unsafe.Slice((*uint16)(unsafe.Pointer(&data[offset])), len(name)-1), name[:len(name)-1])
+	copy(unsafe.Slice((*uint16)(unsafe.Pointer(&data[offset])), len(name)), name)
 	if err := windows.SetFileInformationByHandle(handle, windows.FileRenameInfoEx, &data[0], uint32(length)); err != nil {
 		return fmt.Errorf("rename executable to %q: %w", to, err)
 	}
