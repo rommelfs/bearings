@@ -53,6 +53,7 @@ type state struct {
 	CAFile    string             `json:"ca_file,omitempty"`
 	URL       string             `json:"url,omitempty"`
 	Pending   *pendingEnrollment `json:"pending,omitempty"`
+	Rollout   *rolloutState      `json:"rollout,omitempty"`
 	DeviceID  string             `json:"device_id,omitempty"`
 	ExpiresAt *time.Time         `json:"expires_at,omitempty"`
 	Receipt   *receipt           `json:"receipt,omitempty"`
@@ -101,14 +102,23 @@ func readGrant(code string) (grant, error) {
 }
 
 func enroll(s *state, save func() error, g grant, ca string) (enrolled, error) {
+	return enrollGrant(s, save, g, ca, "")
+}
+
+func enrollGrant(s *state, save func() error, g grant, ca, hostname string) (enrolled, error) {
 	var result enrolled
 	if s.DeviceID != "" {
 		return result, errors.New("already enrolled; use reviewed replacement procedure")
 	}
 	tokenID, secret, _ := strings.Cut(g.Token, ".")
 	claim := g.Schema == windowsGrant
+	newHost := hostname != ""
+	if !newHost && s.Rollout != nil {
+		return result, errors.New("another rollout is pending; use its original key")
+	}
 	if (claim && g.PublicKey != "") || (!claim && (g.Schema != "bearings.agent.grant.v1" || g.PublicKey != s.publicKey())) ||
-		!uuid.MatchString(g.AssetID) || g.RegisterHost || !g.ExpiresAt.After(time.Now()) ||
+		g.RegisterHost != newHost || (newHost && (claim || g.AssetID != "" || s.Rollout == nil)) ||
+		(!newHost && !uuid.MatchString(g.AssetID)) || !g.ExpiresAt.After(time.Now()) ||
 		!uuid.MatchString(tokenID) || !grantToken.MatchString(secret) {
 		return result, errors.New("use an unexpired registration code bound to this key and an existing asset")
 	}
@@ -138,6 +148,11 @@ func enroll(s *state, save func() error, g grant, ca string) (enrolled, error) {
 			body = `{"schema":"bearings.agent.enroll.windows.v1","request_id":"` + identifier() +
 				`","public_key":"` + s.publicKey() + `"}`
 		}
+		if newHost {
+			// bootstrap validates the hostname before saving the exact signed request.
+			body = `{"schema":"bearings.agent.enroll.v1","request_id":"` + identifier() +
+				`","host":{"hostname":"` + hostname + `","addresses":[]}}`
+		}
 		s.Pending = &pendingEnrollment{Identity: identity, Body: json.RawMessage(body)}
 	}
 	if claim {
@@ -158,10 +173,13 @@ func enroll(s *state, save func() error, g grant, ca string) (enrolled, error) {
 		return result, err
 	}
 	if result.Schema != "bearings.agent.enrolled.v1" || !uuid.MatchString(result.DeviceID) ||
-		result.AssetID != g.AssetID || !result.ExpiresAt.After(time.Now()) {
+		!uuid.MatchString(result.AssetID) || (!newHost && result.AssetID != g.AssetID) || !result.ExpiresAt.After(time.Now()) {
 		return result, errors.New("invalid enrollment receipt; pending state retained")
 	}
 	s.DeviceID, s.ExpiresAt, s.Pending = result.DeviceID, &result.ExpiresAt, nil
+	if newHost {
+		s.Rollout = nil
+	}
 	return result, save()
 }
 

@@ -94,12 +94,12 @@ func (w *setupWindow) controls(server, note string) error {
 	const edit = 0x800000 | tabStop | 0x0080
 	parts := []uintptr{
 		w.add("STATIC", "Bearings server: "+server, 0, 0, 20, 18, 586, 24),
-		w.add("STATIC", "Paste the one-time Windows registration code from the portal.", 0, 0, 20, 57, 586, 23),
+		w.add("STATIC", "Paste the Bearings rollout key.", 0, 0, 20, 57, 586, 23),
 	}
 	w.code = w.add("EDIT", "", edit|0x0020, 0, 20, 85, 586, 26)
 	w.note = w.add("STATIC", note, 0, 0, 20, 218, 586, 78)
 	w.buttons = []uintptr{
-		w.add("BUTTON", "Enroll and send first report", tabStop, enrollKey, 20, 132, 190, 30),
+		w.add("BUTTON", "Register and enable reports", tabStop, enrollKey, 20, 132, 190, 30),
 		w.add("BUTTON", "Send report", tabStop, sendReport, 218, 132, 105, 30),
 		w.add("BUTTON", "Check status", tabStop, checkReport, 331, 132, 106, 30),
 		w.add("BUTTON", "Enable automatic reports", tabStop, enableSchedule, 20, 174, 190, 30),
@@ -131,17 +131,22 @@ func (w *setupWindow) operation(action uintptr, code string) (string, error) {
 	defer s.close()
 	switch action {
 	case enrollKey:
-		g, err := readGrant(code)
-		if err != nil {
+		hostname, err := os.Hostname()
+		if err != nil && rolloutInput(code) {
+			return "", errors.New("cannot read the Windows computer name")
+		}
+		if _, err := enrollCode(&s.state, s.save, code, "", hostname); err != nil {
 			return "", err
 		}
-		if g.Schema != windowsGrant {
-			return "", errors.New("create a Windows registration code in the Bearings portal")
+		name, scheduleErr := scheduleReporter()
+		report, reportErr := reportNow(s)
+		if scheduleErr != nil {
+			return "Registered. " + scheduleErr.Error() + ". Use Enable automatic reports to retry.", nil
 		}
-		if _, err := enroll(&s.state, s.save, g, ""); err != nil {
-			return "", err
+		if reportErr != nil || report == nil {
+			return "Registered. Automatic reports enabled. The first report will retry.\r\nTask: " + name, nil
 		}
-		fallthrough
+		return "Registered. Automatic reports enabled every six hours while signed in.\r\nFirst report: " + report.Status + ".", nil
 	case sendReport:
 		r, err := reportNow(s)
 		if err != nil {
@@ -151,13 +156,15 @@ func (w *setupWindow) operation(action uintptr, code string) (string, error) {
 			return "No pending report. Use Send report to collect another observation.", nil
 		}
 		return "Report status: " + r.Status + ". If pending, use Check status.", nil
-	case checkReport, enableSchedule:
+	case checkReport:
 		r, err := status(&s.state)
 		if err != nil {
 			return "", err
 		}
-		if action == checkReport || r.Status != "applied" {
-			return "Report status: " + r.Status + ". Automatic reports require an applied report.", nil
+		return "Report status: " + r.Status + ".", nil
+	case enableSchedule:
+		if err := s.state.ready(); err != nil {
+			return "", err
 		}
 		name, err := scheduleReporter()
 		if err != nil {
@@ -285,7 +292,7 @@ func setupGUI() error {
 	if w.window == 0 {
 		return errors.New("could not open the Windows setup window")
 	}
-	note := "Waiting for your Bearings registration code."
+	note := "Waiting for your Bearings rollout key."
 	if enrolled {
 		note = "This Windows account is already enrolled. Send a report or check its status."
 	}

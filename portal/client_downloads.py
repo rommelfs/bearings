@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 from django.views.decorators.cache import never_cache
@@ -124,6 +124,10 @@ def _open_windows(name):
 @never_cache
 @require_GET
 def windows(request):
+    enrollment_orgs = _rollout_organizations(request)
+    if request.GET.get("setup") == "windows":
+        org = get_object_or_404(enrollment_orgs, slug=request.GET.get("organization", ""))
+        return redirect(reverse("agent-fleets", args=[org.slug]) + "?platform=windows")
     ready = _complete_release(_open_windows, WINDOWS_ARTIFACTS)
     try:
         server = trusted_origin()
@@ -139,7 +143,12 @@ def windows(request):
     return render(
         request,
         "portal/windows_client_downloads.html",
-        {"ready": ready, "packages": WINDOWS_PACKAGES, "download_commands": commands},
+        {
+            "ready": ready,
+            "packages": WINDOWS_PACKAGES,
+            "download_commands": commands,
+            "enrollment_orgs": list(enrollment_orgs),
+        },
     )
 
 

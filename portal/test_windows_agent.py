@@ -13,8 +13,8 @@ from datetime import timedelta
 from django.utils import timezone
 from django.test import TransactionTestCase, override_settings
 from clients.windows import bearings_windows as client
-from . import agents, agent_protocol, distro_cves, test_agent_client
-from .models import AgentEnrollment, AgentReport, Installation
+from . import agent_fleets, agents, agent_protocol, distro_cves, test_agent_client
+from .models import AgentDevice, AgentEnrollment, AgentReport, Asset, Installation
 from . import test_agents
 from .tests import Fixture
 
@@ -93,47 +93,50 @@ class WindowsAgentTests(Fixture):
     def test_portal_explains_standalone_windows_client_setup(self):
         self.login(self.admin)
         downloads = self.client.get("/downloads/windows/")
-        self.assertContains(downloads, "Create a Windows registration code")
+        self.assertContains(downloads, "Get a rollout key")
+        self.assertContains(downloads, f'href="{self.url("agent-fleets")}?platform=windows"')
         self.assertContains(downloads, r".\bearings-windows.exe enroll --code")
         self.assertContains(downloads, r".\bearings-windows.exe watch")
         self.assertContains(downloads, "Rollout to several computers")
         self.assertContains(downloads, "Windows Task Scheduler")
         self.assertContains(downloads, "Update an enrolled client")
-        self.assertContains(downloads, "Enable automatic reports")
+        self.assertContains(downloads, "Register and enable reports")
         self.assertContains(downloads, "Windows downloads are currently unavailable")
         self.assertNotContains(downloads, "/downloads/windows/bearings-windows-x64.zip")
         self.assertContains(
             self.client.get("/downloads/linux/?organization=alpha"), 'href="/downloads/windows/"'
         )
         center = self.client.get(self.url("agent-center"))
-        self.assertContains(center, "Create a Windows registration code")
+        self.assertNotContains(center, "Create a Windows registration code")
         self.assertContains(center, 'href="/downloads/windows/"')
         platforms = self.client.get("/downloads/?organization=alpha")
         self.assertContains(platforms, 'href="/downloads/linux/?organization=alpha"')
         self.assertContains(platforms, 'href="/downloads/windows/"')
 
-    @override_settings(PUBLIC_BASE_URL="https://testserver")
-    def test_windows_code_binds_first_signing_key_and_rejects_other_devices(self):
+    def test_download_rollout_entry_is_scoped_and_opens_shared_rollouts(self):
         self.login(self.reader)
-        action = {"action": "enroll-windows", "asset": self.asset.pk, "acknowledged": "on"}
-        self.assertEqual(self.client.post(self.url("agent-center"), action).status_code, 403)
+        path = "/downloads/windows/"
+        page = self.client.get(path)
+        self.assertNotContains(page, f'href="{self.url("agent-fleets")}?platform=windows"')
+        self.assertEqual(
+            self.client.get(path, {"setup": "windows", "organization": self.a.slug}).status_code, 404
+        )
         self.login(self.admin)
-        denied = self.client.post(self.url("agent-center"), {**action, "asset": self.other.pk})
-        self.assertEqual(denied.status_code, 200)
+        self.assertEqual(
+            self.client.get(path, {"setup": "windows", "organization": self.b.slug}).status_code, 404
+        )
+        self.login(self.platform)
+        page = self.client.get(path)
+        self.assertContains(page, 'name="organization" required')
+        result = self.client.get(path, {"setup": "windows", "organization": self.a.slug}, follow=True)
+        self.assertEqual(result.redirect_chain, [(self.url("agent-fleets") + "?platform=windows", 302)])
+        self.assertContains(result, "Create limited rollout key")
+        self.assertNotContains(result, "Existing Windows asset")
         self.assertFalse(AgentEnrollment.objects.exists())
 
-        page = self.client.post(self.url("agent-center"), action)
-        self.assertEqual(page.status_code, 200)
-        self.assertIn("no-store", page["Cache-Control"])
-        code = page.context["code"]
-        self.assertTrue(code.startswith("bearings-windows-v1."))
-        encoded = code.split(".", 1)[1]
-        payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
-        self.assertNotIn("public_key", payload)
-        self.assertEqual(payload["url"], "https://testserver")
-        self.assertEqual(payload["asset_id"], str(self.asset.pk))
-        grant = AgentEnrollment.objects.get()
-        self.assertTrue(grant.claim_key_on_redeem)
+    @override_settings(PUBLIC_BASE_URL="https://testserver")
+    def test_windows_code_binds_first_signing_key_and_rejects_other_devices(self):
+        grant, token = agents.create_enrollment(self.admin, self.a, self.asset, "", claim_key_on_redeem=True)
         self.assertEqual(grant.public_key, "")
 
         request = {
@@ -143,7 +146,7 @@ class WindowsAgentTests(Fixture):
         }
         target = "/api/v1/agent/enroll/"
         identity = "enroll:" + str(grant.pk)
-        headers = {"Authorization": "Bearer " + payload["grant"]}
+        headers = {"Authorization": "Bearer " + token}
         attacker = client.Ed25519PrivateKey.generate()
         self.assertEqual(
             self.post(target, request, key=attacker, identity=identity, headers=headers).status_code, 403
@@ -164,6 +167,49 @@ class WindowsAgentTests(Fixture):
         )
         grant.refresh_from_db()
         self.assertEqual(grant.public_key, self.public)
+
+    @override_settings(PUBLIC_BASE_URL="https://testserver")
+    def test_linux_rollout_key_registers_a_new_windows_host_and_accepts_inventory(self):
+        fleet, token = agent_fleets.create(self.admin, self.a, "Synthetic rollout", "desktop", max_devices=1)
+        host = "synthetic-windows"
+        request = {
+            "schema": "bearings.agent.bootstrap.v1",
+            "public_key": self.public,
+            "request_id": str(uuid.uuid4()),
+        }
+        bootstrap = self.post(
+            "/api/v1/agent/bootstrap/",
+            request,
+            identity="fleet:" + str(fleet.pk),
+            headers={"Authorization": "Bearer " + token},
+        )
+        self.assertEqual(bootstrap.status_code, 200, bootstrap.content)
+        self.assertFalse(Asset.objects.filter(organization=self.a, name=host).exists())
+        grant = bootstrap.json()
+        self.assertTrue(grant["register_host"])
+        self.assertEqual(grant["asset_id"], "")
+        enrollment_token = grant["grant"]
+        response = self.post(
+            "/api/v1/agent/enroll/",
+            {
+                "schema": "bearings.agent.enroll.v1",
+                "request_id": str(uuid.uuid4()),
+                "host": {"hostname": host, "addresses": []},
+            },
+            identity="enroll:" + enrollment_token.split(".")[0],
+            headers={"Authorization": "Bearer " + enrollment_token},
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.device = AgentDevice.objects.get(pk=response.json()["device_id"])
+        self.assertEqual(self.device.asset.name, host)
+        self.assertEqual(self.device.asset.kind, "desktop")
+        self.assertEqual(self.device.source_id, self.sa.pk)
+        self.assertNotEqual(self.device.asset_id, self.asset.pk)
+        self.assertTrue(self.device.asset.upstream_data["agent_observed_only"])
+        accepted = self.send(observation())
+        self.assertEqual(accepted.status_code, 202, accepted.content)
+        agents.process_one(self.device.pk, accepted.json()["report_id"])
+        self.assertTrue(self.device.components.filter(key="win-reg:os:all").exists())
 
     def test_windows_downloads_require_complete_release_and_matching_checksum(self):
         base = "/downloads/windows/"

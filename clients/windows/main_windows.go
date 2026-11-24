@@ -70,18 +70,18 @@ func watch(dir string, seconds int) {
 	}
 }
 
-func consoleGrant() (grant, error) {
+func consoleCode() (string, error) {
 	fd := int(os.Stdin.Fd())
 	if !term.IsTerminal(fd) {
-		return grant{}, errors.New("enrollment requires an interactive console with hidden input")
+		return "", errors.New("enrollment requires an interactive console with hidden input")
 	}
 	fmt.Fprint(os.Stderr, "Registration code: ")
 	raw, err := term.ReadPassword(fd)
 	fmt.Fprintln(os.Stderr)
 	if err != nil {
-		return grant{}, errors.New("could not read the hidden registration code")
+		return "", errors.New("could not read the hidden registration code")
 	}
-	return readGrant(string(raw))
+	return string(raw), nil
 }
 
 func run(args []string) error {
@@ -154,11 +154,15 @@ func run(args []string) error {
 				return errors.New("use a valid path for the approved CA")
 			}
 		}
-		value, err := consoleGrant()
+		value, err := consoleCode()
 		if err != nil {
 			return err
 		}
-		result, err := enroll(&s.state, s.save, value, *ca)
+		hostname, err := os.Hostname()
+		if err != nil && rolloutInput(value) {
+			return errors.New("cannot read the Windows computer name")
+		}
+		result, err := enrollCode(&s.state, s.save, value, *ca, hostname)
 		if err != nil {
 			return err
 		}

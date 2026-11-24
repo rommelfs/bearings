@@ -66,6 +66,7 @@ class FleetForm(forms.Form):
 def center(request, slug, *, downloads_page=False):
     org = get_object_or_404(organizations_for(request.user), slug=slug)
     require(agents.administrator(request.user, org))
+    windows_rollout = not downloads_page and request.GET.get("platform") == "windows"
     source = InventorySource.objects.select_related("instance").filter(organization=org).first()
     form = FleetForm(request.POST if request.POST.get("action") == "create" else None, source=source)
     token = None
@@ -84,6 +85,10 @@ def center(request, slug, *, downloads_page=False):
                 return redirect(
                     reverse("linux-client-downloads") + "?" + urlencode({"organization": org.slug})
                 )
+            if windows_rollout:
+                from django.urls import reverse
+
+                return redirect(reverse("agent-fleets", args=[org.slug]) + "?platform=windows")
             return redirect("agent-fleets", slug=org.slug)
         require(request.POST.get("action") == "create")
         if form.is_valid():
@@ -110,6 +115,7 @@ def center(request, slug, *, downloads_page=False):
                 "org": org,
                 "form": form,
                 "fleet_token": token,
+                "windows_rollout": windows_rollout,
                 "fleets": AgentFleet.objects.filter(organization=org).order_by("-created_at")[:50],
             },
         )

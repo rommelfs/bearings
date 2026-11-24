@@ -256,16 +256,6 @@ class EnrollmentForm(forms.Form):
         return key
 
 
-class WindowsEnrollmentForm(EnrollmentForm):
-    public_key = None
-    new_asset_kind = None
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["asset"].label = "Existing Windows asset"
-        self.fields["asset"].required = True
-
-
 @login_required
 @never_cache
 @require_http_methods(["GET", "POST"])
@@ -286,32 +276,10 @@ def center(request, slug):
         asset_query=asset_query,
         selected_asset=request.GET.get("asset", ""),
     )
-    windows_form = WindowsEnrollmentForm(
-        request.POST if request.POST.get("action") == "enroll-windows" else None,
-        org=org,
-        asset_query=asset_query,
-        selected_asset=request.GET.get("asset", ""),
-    )
     if request.method == "POST":
         require(manage)
         try:
             action = request.POST.get("action")
-            if action == "enroll-windows" and windows_form.is_valid():
-                agent_enrollment_codes.trusted_origin()
-                grant, token = agents.create_enrollment(
-                    request.user, org, windows_form.cleaned_data["asset"], "", claim_key_on_redeem=True
-                )
-                return private(
-                    render(
-                        request,
-                        "portal/agent_enrollment.html",
-                        {
-                            "org": org,
-                            "grant": grant,
-                            "code": agent_enrollment_codes.windows_code(grant, token),
-                        },
-                    )
-                )
             if action == "enroll" and form.is_valid():
                 grant, token = agents.create_enrollment(
                     request.user,
@@ -423,7 +391,6 @@ def center(request, slug):
                 "report_timeline": report_receipts(devices.filter(pk=selected.pk) if selected else devices),
                 "now": timezone.now(),
                 "form": form,
-                "windows_form": windows_form,
                 "asset_query": asset_query,
                 "manage": manage,
                 "devices": Paginator(devices, 25).get_page(request.GET.get("devices_page")),

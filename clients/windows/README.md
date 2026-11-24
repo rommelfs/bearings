@@ -16,19 +16,19 @@ Substitute the ZIP you downloaded if using ARM64 or x86.
 
 ### Setup window
 
-Double-click `bearings-windows.exe` under the account that will send inventory.
-In the organization’s **Linux / Windows inventory reports**, a company
-administrator selects the existing Windows asset and chooses **Create a
-Windows registration code**. Paste that code in the setup window and choose
-**Enroll and send first report**. The first valid signed request binds
-the one-use code to the locally generated device key. The code expires
-after 30 minutes. Windows uses its certificate store to verify HTTPS,
-including private CA trust provisioned by the administrator.
+Double-click `bearings-windows.exe` under the account that will send reports.
+Paste the same bounded rollout key used for Linux and choose **Register and
+enable reports**. The client registers the computer as a new host in the
+organization authorized by the key, sends the first report and creates a task
+that runs every six hours while the account is signed in. The Windows hostname
+is a self-reported label. Browsing reports and checking receipts stay in the
+organization’s inventory workspace.
 
-Use **Check status** until the report is applied, then choose **Enable automatic
-reports** and confirm. The EXE is copied to `%LOCALAPPDATA%\Programs\Bearings`
-and creates a six-hour task for the signed-in account. Pause an earlier Bearings
-schedule before switching. Account policy may restrict task creation.
+Use **Get a rollout key** on `/downloads/windows/` if your administrator has
+not already issued one. A rollout key authorizes a limited number of new hosts
+and determines their inventory mode. Windows verifies HTTPS using the system
+certificate store. For a signed-out schedule, use the manual setup and verify
+that the reporting account can access its Windows profile and DPAPI state.
 
 ### PowerShell setup
 
@@ -49,7 +49,7 @@ or cancel an unused grant in Bearings.
 
 ## Roll out to several computers
 
-Pilot one existing asset first. Copy only the reviewed program to the other devices using your organization’s software distribution tool. On each device, use its reporting account to redeem a separate one-use code for its existing asset, and confirm the first applied report before enabling periodic runs. Keep device state on the original device and codes out of scripts and logs.
+Pilot one Windows host first. Copy the reviewed EXE to the other devices using your software distribution tool. Each device uses the authorized rollout key and its reporting account to register a new host. Confirm its first applied report in Bearings. Keep the rollout key out of scripts, logs and reusable images, and keep device state on the original device.
 
 ## Automatic reporting
 

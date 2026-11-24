@@ -2390,3 +2390,15 @@ including the original counts and hydration. The global queue keeps its
 existing plan. The regression checks matching ordering, deadline counts
 and distinct consecutive pages. Bounded-list cancellation diagnostics record
 the view, category and duration, with no SQL or request data.
+
+### Shared Linux and Windows device rollout
+
+The Windows GUI accepts the Linux rollout key, redeems the issued grant for
+a new host and schedules reporting as part of registration. Previously issued
+single-device codes and deployed device credentials retain their endpoints and
+format. All 93 focused PostgreSQL tests passed, including real Linux TLS
+interoperability, signed Windows new-host enrollment and scoped issue
+pagination. Portable Go race tests verified TLS bootstrap, exact enrollment
+retry and keeping the rollout bearer out of persisted state. Go vet and
+native cross-compiled test programs passed for all three Windows targets.
+Native GUI and Task Scheduler execution still require a Windows endpoint.

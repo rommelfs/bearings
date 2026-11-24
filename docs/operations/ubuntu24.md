@@ -96,7 +96,7 @@ python3 deploy/ubuntu24/ecosystem.py prepare-clients
 The command uses a checksum-pinned Go compiler, builds Linux amd64/arm64
 and Windows x64/ARM64/x86 packages, and prepares the checksums and corresponding
 source. The Windows EXEs embed the approved HTTPS origin from `BEARINGS_PUBLIC_URL`.
-Apply migration `0074_windows_code_enrollment` before issuing Windows codes. Build egress includes `go.dev` and its Go archive host, plus
+Apply the current portal migrations before registering Windows clients. Both clients accept the same limited rollout keys. Build egress includes `go.dev` and its Go archive host, plus
 `proxy.golang.org` and `sum.golang.org` for locked Windows module dependencies.
 The command switches both paths together in the protected Bearings environment
 after both builds finish and restarts the web service. Prior release directories

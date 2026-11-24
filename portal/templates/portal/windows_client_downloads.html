@@ -5,7 +5,23 @@
 <section class="client-downloads" aria-labelledby="windows-client">
   {% include "portal/_client_platform_links.html" with platform="windows" %}
   <h1 id="windows-client" class="icon-heading">{% ui_icon "clients" %}Bearings Windows client</h1>
-  <p>Send the Windows build and machine-installed software inventory to Bearings. The executable includes its runtime and runs under an ordinary Windows account. The server must have the Windows enrollment migration 0074.</p>
+  {% if enrollment_orgs|length == 1 %}
+  <p><a class="button primary" href="{% url 'agent-fleets' enrollment_orgs.0.slug %}?platform=windows">Get a rollout key</a></p>
+  {% elif enrollment_orgs %}
+  <form method="get">
+    <input type="hidden" name="setup" value="windows">
+    <label>Organization
+      <select name="organization" required>
+        <option value="">Select the organization receiving the Windows reports</option>
+        {% for company in enrollment_orgs %}<option value="{{ company.slug }}"{% if company == selected_company_workspace %} selected{% endif %}>{{ company.name }} · {{ company.slug }}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit">Get a rollout key</button>
+  </form>
+  {% else %}
+  <p>Get a rollout key from your company administrator.</p>
+  {% endif %}
+  <p>Send the Windows build and machine-installed software inventory to Bearings. The executable includes its runtime and runs under an ordinary Windows account. Use a rollout key from your Bearings administrator.</p>
   <nav aria-label="Windows client guide">
     <a href="#download">Download</a> · <a href="#install">Install and enroll</a> · <a href="#rollout">Rollout</a> · <a href="#periodic">Periodic reports</a> · <a href="#update">Update</a>
   </nav>
@@ -34,8 +50,7 @@
   <h2 id="install">Install and enroll</h2>
   <ol>
     <li>Extract the ZIP from this Bearings server and double-click <strong>bearings-windows.exe</strong> under the Windows account that will send reports. The setup window displays the preconfigured HTTPS server.</li>
-    <li>In <strong>Linux / Windows inventory reports</strong>, a company administrator selects the existing asset and chooses <strong>Create a Windows registration code</strong>. Paste the one-time code into the setup window and choose <strong>Enroll and send first report</strong>.</li>
-    <li>Choose <strong>Check status</strong> until the report shows <code>applied</code>. Choose <strong>Enable automatic reports</strong> and confirm. The client copies itself to <code>%LOCALAPPDATA%\Programs\Bearings</code> and registers a task for the same account.</li>
+    <li>Paste the same bounded rollout key used for Linux registration. Choose <strong>Register and enable reports</strong>. The client registers the computer as a new host, sends the first report and creates the scheduled task for your signed-in account.</li>
   </ol>
   <p>Windows verifies HTTPS with its certificate store. For servers using a private CA, your IT administrator can distribute the approved trust certificate through Windows.</p>
   <details><summary>PowerShell setup and reporting commands</summary>
@@ -45,8 +60,8 @@
 .\bearings-windows.exe status</code></pre>
   </details>
   <h2 id="rollout">Rollout to several computers</h2>
-  <p>Pilot one existing asset first. Use your organization’s software distribution tool to copy the approved EXE to the other computers. Create a separate code for each existing asset, redeem it under its reporting account, and verify the first report before enabling its schedule.</p>
-  <p>Keep registration codes out of rollout scripts, command lines and logs. Keep device state local to its original account and device. This enrollment process supports existing assets and a separate approval for each device.</p>
+  <p>Pilot one Windows host first. Use your organization’s software distribution tool to copy the approved EXE to the other computers. Use the authorized rollout key on each computer under its reporting account. Verify the enrolled hosts and receipts in the organization’s inventory reports.</p>
+  <p>Keep registration codes out of rollout scripts, command lines and logs. Keep device state local to its original account and device. The rollout key controls the organization, host type, inventory mode, maximum devices and expiry.</p>
   <h2 id="periodic">Start periodically</h2>
   <p>The setup window creates a task named <strong>Bearings Windows Inventory</strong> followed by an account-specific suffix. It runs every six hours while that account is signed in. Pause any earlier Bearings task before switching to the new one. Use Task Scheduler to confirm the first run.</p>
   <details><summary>Foreground reporting and manual Task Scheduler setup</summary>
