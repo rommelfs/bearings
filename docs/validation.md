@@ -2380,3 +2380,13 @@ Go tests cover initialization of the signed Windows request and rejecting
 a code for another server before any network call. Go race checks passed
 and native Windows tests cross-compiled for x64, ARM64 and x86. Rendering and
 scheduling still require acceptance on native Windows.
+
+### Organization issue list
+
+An isolated PostgreSQL 17 profile with 80,000 synthetic issues in one
+organization measured 0.91 s end to end with the correlated candidate scan.
+Direct sorting of scoped visible IDs measured 0.27 s with the same data,
+including the original counts and hydration. The global queue keeps its
+existing plan. The regression checks matching ordering, deadline counts
+and distinct consecutive pages. Bounded-list cancellation diagnostics record
+the view, category and duration, with no SQL or request data.

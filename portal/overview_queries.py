@@ -2,8 +2,15 @@
 
 from contextlib import contextmanager
 from contextvars import ContextVar
+import logging
 from time import perf_counter
 from django.db import connection, transaction, OperationalError
+
+logger = logging.getLogger(__name__)
+
+
+class OverviewBudgetExceeded(OperationalError):
+    pass
 
 
 class QueryTiming:
@@ -14,7 +21,7 @@ class QueryTiming:
 
     def __call__(self, execute, sql, params, many, context):
         if self.deadline and perf_counter() >= self.deadline:
-            raise OperationalError("Overview section time budget exceeded")
+            raise OverviewBudgetExceeded("Overview section time budget exceeded")
         started = perf_counter()
         try:
             return execute(sql, params, many, context)
@@ -78,12 +85,27 @@ def bounded_list(view):
     def wrapped(request, *args, **kwargs):
         from .access import audit, is_analyst
 
+        started = perf_counter()
         try:
             if request.user.is_superuser or is_analyst(request.user):
                 audit(request.user, None, "operator.list_read", target=view.__name__)
             with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
                 response = view(request, *args, **kwargs)
-        except OperationalError:
+        except OperationalError as exc:
+            sqlstate = getattr(exc.__cause__, "sqlstate", None)
+            reason = (
+                "request_budget"
+                if isinstance(exc, OverviewBudgetExceeded)
+                else "query_cancelled"
+                if sqlstate == "57014"
+                else "database"
+            )
+            logger.warning(
+                "Bounded view unavailable view=%s reason=%s elapsed_ms=%d",
+                view.__name__,
+                reason,
+                (perf_counter() - started) * 1000,
+            )
             # Render without request context processors, also when the DB is unavailable.
             response = HttpResponse(get_template("portal/query_unavailable.html").render({}), status=503)
             response["Retry-After"] = "5"

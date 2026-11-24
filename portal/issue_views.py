@@ -184,17 +184,22 @@ def board(request):
         base = base.filter(deadline_order__isnull=True)
     else:
         timing = ""
+    ordering = ("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk")
+    key_source = None
+    if not org_id:
+        key_source = (
+            AssetIssue.objects.filter(organization__in=orgs)
+            .annotate(deadline_order=Coalesce("action_due", "event_date"), priority_order=priority_order)
+            .order_by(*ordering)
+        )
+    # A single-company list can order its already filtered IDs directly.
+    # The broader queue retains its ordered candidate scan.
     page = object_page(
-        base.order_by("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk"),
+        base.order_by(*ordering),
         25,
         request.GET.get("page"),
         count=counts[timing] if timing else counts["total"],
-        key_source=AssetIssue.objects.filter(organization__in=orgs.filter(slug=org_id) if org_id else orgs)
-        .annotate(
-            deadline_order=Coalesce("action_due", "event_date"),
-            priority_order=priority_order,
-        )
-        .order_by("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk"),
+        key_source=key_source,
     )
     decorate_addresses([issue.asset for issue in page])
     for issue in page:
