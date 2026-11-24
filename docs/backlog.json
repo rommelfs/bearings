@@ -265,11 +265,15 @@
       },
       {
         "title": "Record Windows Update cache inventory without patching or false compliance claims",
-        "body": "Implemented bounded, embedded Windows PowerShell/WUA cache-only installed/pending software-update identities, KBs, hidden flags, separate restart/cache-age evidence, explicit errors/partial/truncation/timeouts and optional-payload fallback. Signed receiver validates scope/identity/counts/dates and retains last complete observations across failures or older clients; host/client pages show historical and escaped evidence. No online scan, download, install, policy changes, inferred CVE fixes or complete CBS/MSI/driver history. Rule v2 retains OS update facts and corrects Windows arm64/x86 keys. Native WUA/PowerShell/Task Scheduler pilot and per-product Hotpatch/LTSC/ESU rules remain open. See docs/integrations/windows-agent.md and docs/user-guide/windows-update-installation.de.md."
+        "body": "Implemented bounded, embedded Windows PowerShell/WUA cache-only installed/pending software-update identities, KBs, hidden flags, separate restart/cache-age evidence, explicit errors/partial/truncation/timeouts and optional-payload fallback. Signed receiver validates scope/identity/counts/dates and retains last complete observations across failures or older clients; host/client pages show historical and escaped evidence. No online scan, download, install, policy changes, inferred CVE fixes or complete CBS/MSI/driver history. Rule v2 retains OS update facts and corrects Windows arm64/x86 keys. Native WUA/PowerShell/Task Scheduler pilot and per-product Hotpatch/LTSC/ESU rules remain open. See docs/integrations/windows-agent.md and docs/user-guide/windows-update-installation.md."
       },
       {
         "title": "Reduce correlated review queue proof planning while preserving tenant and source checks",
         "body": "Implemented exact outer one-to-one match-PK correlation and reused visible finding organization/installation/asset/source facts instead of three redundant inner joins. This addresses the existing fe1c836b PostgreSQL full-suite pagination statement-timeout blocker before publication. Keep every input/freshness/vendor-proof predicate, saved analyst override, 5-second statement limit and bounded hydration/query budgets. Source/tenant/asset/installation mutation coverage and 88 focused PostgreSQL tests pass; full branch CI remains the merge gate. See docs/validation.md."
+      },
+      {
+        "title": "Keep documentation and user guides in English",
+        "body": "Implemented the repository-wide English documentation policy in AGENTS.md. Translate the Windows Update installation guide to English at a language-neutral path, retain an English notice at the legacy URL and update references. Relative links, identical installation command blocks and backlog JSON are validated; no runtime behavior or deployment changes."
       }
     ]
   },
