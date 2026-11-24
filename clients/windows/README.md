@@ -2,7 +2,7 @@
 
 SPDX: AGPL-3.0-or-later. [Source](https://github.com/rommelfs/bearings/tree/main/clients/windows), [license](../../LICENSE), [receiver and coverage contract](../../docs/integrations/windows-agent.md).
 
-Implemented outbound authenticated Windows machine inventory: OS build including UBR, reported product name/edition/display release, and additional machine-installed software registered in the 32-bit and 64-bit uninstall registry views. Periodic reporting uses the existing Bearings device enrollment, Ed25519 HTTP signatures and verified HTTPS. This first reference requires **Windows, Python 3.12+, uv, a reviewed checkout with its frozen `uv.lock`, and an existing Bearings asset**. It is Python source, not a signed standalone executable or Windows service installer. Native Windows acceptance is pending; a Windows CI job is supplied.
+Implemented outbound authenticated Windows machine inventory: OS build including UBR, reported product name/edition/display release, and additional machine-installed software registered in the 32-bit and 64-bit uninstall registry views. Periodic reporting uses the existing Bearings device enrollment, Ed25519 HTTP signatures and verified HTTPS. This first reference requires **Windows, Python 3.12+, uv, a reviewed checkout with its frozen `uv.lock`, and an existing Bearings asset**. It is Python source, not a signed standalone executable or Windows service installer. Native Windows acceptance is pending; a Windows CI job is supplied as [windows-ci.patch](windows-ci.patch), pending workflow-authorized application.
 
 From the reviewed checkout in PowerShell, under the Windows account that will also do the periodic reporting:
 
