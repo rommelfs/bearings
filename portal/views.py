@@ -871,6 +871,10 @@ def asset_detail(request, slug, pk):
         .order_by("-enabled", "-created_at")
         .first()
     )
+    if agent_device:
+        from .windows_updates import presentation
+
+        agent_device.windows_update_view = presentation(agent_device)
     return render(
         request,
         "portal/asset.html",

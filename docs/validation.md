@@ -2421,3 +2421,86 @@ Portable Go race tests exercised UTF-16 task queries and refusal of disabled
 or changed tasks. Go vet and test cross-compilation passed for x64, ARM64 and
 x86. Actual registration and execution of a task on Windows remain to be
 verified on a Windows endpoint.
+
+## Windows vendor-rule increment — 2026-11-24
+
+Continued in the existing `/workspace/bearings` checkout on
+`codex/windows-inventory-client`; initial working tree was clean, and the fetched
+branch and provided baseline both resolved to
+`fe1c836b5c9bfd8015286da18370033e2cc8b22d`. No worktree or subagent was created.
+
+Frozen dependency synchronization, Django system checks, PostgreSQL migrations,
+migration drift and repository-wide Ruff lint/format checks pass. The final
+focused PostgreSQL 17 run executes **61 tests, all passing**, including 13 new
+Windows mapping/discovery tests plus existing Windows signature/publication and
+continuous-review and isolated overview pagination tests. Synthetic contracts cover exact publisher/product and
+CNA aliases, WebView2/shared-CPE refusal, version boundaries and numeric order,
+ESR major branches, OS role/edition/release/architecture/build combinations,
+missing servicing lines, malformed manufacturer destinations, unknown versions,
+source/tenant/report binding, freshness/missing/revoked devices, immutable
+observations, metadata-only rechecks, paused watches, private source evidence
+and saved/manual assessment preservation. The HTML response is checked through
+real scoped Django requests; no browser visual acceptance is claimed here.
+
+Go **1.27.4** (downloaded from go.dev with its published archive SHA-256 verified)
+passes Windows-client `go test -race ./...` and `go vet ./...` on Linux. Windows
+client tests cross-compile for **amd64, arm64 and 386**. These checks do not execute
+Windows registry/DPAPI/Task Scheduler. Release packaging correctly refuses a dirty
+checkout; no package was published and no production client was upgraded.
+
+Manufacturer/CPE research used read-only public sources listed in
+[Windows CVE evidence](integrations/windows-cves.md). All test inventory and CVE
+rules are synthetic. The PostgreSQL containers/databases are isolated task-owned
+fixtures. No production inventory, notification, NetBox write, deployment, public
+backlog publication, push or merge occurred. The user's previously reported
+`Report status: applied` confirms one successfully processed Windows report;
+execution of the corrected scheduled task on real Windows remains outstanding.
+
+The implemented catalog and regular-GAC comparison path remain partial coverage.
+Per-product LTSC/hotpatch/ESU/KB/entitlement rules, verified numeric MSRC ProductIDs,
+Office/Adobe tracks, unambiguous WebView2/Firefox channel collection and historical
+import mappings remain explicitly unresolved. Current ordinary client OS reports
+lack servicing-line evidence and therefore cannot establish an OS CVE decision.
+
+The complete updated PostgreSQL suite executed **1,082 tests: 1,069 passed,
+12 skipped, one failed**. The failure is
+`ScalePaginationTests.test_review_hydrates_only_displayed_assets_and_paginates_company_cards`:
+`/reviews/` returns HTTP 503 after the existing five-second PostgreSQL statement
+limit. It repeats without concurrent checks. The isolated pagination module passes
+both tests in 1.377 seconds, retaining its row/query budgets. The identical failure
+also reproduces in the original Python runtime modules from baseline `fe1c836b`
+(**1,069 tests: 1,056 passed, 12 skipped, one failed**), loaded from six temporary
+`git show` module files via `portal.__path__`; no checkout/worktree was created and
+the working files were retained. Thus this is not a green whole-suite acceptance
+claim; the baseline full-suite timing failure remains open and no timeout or
+query budget was weakened. Seven of the skips are the existing real Linux-client
+HTTPS tests whose compiled reference artifact is absent in this checkout. The
+Windows rule tests execute; their synthetic data is not substituted for native
+Windows acceptance. Final focused coverage also checks the deferred report-body
+loading optimization and rejects four-part browser ranges mislabeled as SemVer.
+
+
+## Windows Update cache inventory — 2026-11-24
+
+The new signed optional OS section records software update identities/KBs from
+local-only WUA searches, separate restart/cache-age hints and explicit partial or
+failed queries. The existing checkout/branch and prior Windows changes are
+preserved. There is no new database migration. Frozen sync, repository Ruff
+lint/format, Go race tests/vet and amd64/arm64/x86 Windows cross-compilation are
+checked. The focused PostgreSQL run passes **73 tests**, including **eight new
+Windows Update cases** and the prior Windows/CVE/inventory-status cases. Tests
+exercise exact signature admission, source/tenant limits, old-client compatibility,
+reboot consistency, bounded UUID/revision/KB data, spoofed receipts, unknown cache
+age, independent partial/failure states, retained last success, build/age/revocation
+historical flags and escaped host/client views. Go tests cover invalid/oversized
+helper output and optional-payload fallback preserving registry reports.
+
+The helper is embedded into the EXE and corresponding source packaging includes
+its `.ps1` source. Built-in Windows PowerShell 5.1 is a documented OS requirement;
+execution policy is not bypassed. There is no online search, patching, download,
+policy change or completed native-Windows acceptance claim. Native WUA COM,
+PowerShell/application-control behavior and the corrected scheduled task need an
+actual Windows pilot. Pending update counts are local-cache observations, not
+patch-compliance verdicts. Per-product Hotpatch/LTSC/ESU fixes remain unresolved.
+A further signed-agent/fleet/package/Windows/CVE regression run passes **126 tests**. The existing baseline whole-suite PostgreSQL pagination timeout described above is also present in GitHub run 45393075642 and is not hidden or weakened by this increment. Publication/merge has now been
+explicitly requested by the user; production deployment is not performed here.

@@ -12,7 +12,7 @@ The implementation follows Microsoft's documented [uninstall registry metadata](
 
 A `windows-machine` report uses the existing `bearings.agent.v1` envelope with OS id `windows`, exactly one OS component, manager `win-reg`, no services/application probes and bounded `windows` evidence. OS component identity is `win-reg:os:all`. Program identity hashes the case-folded complete uninstall key and registry view; two views/installations are never merged just because names match. Receiver recomputes identities and validates paths, evidence, OS build consistency, counts and text bounds. Missing DisplayVersion is retained as an empty unknown version, never guessed.
 
-Automatically inventoried registrations become separate installation records when the device's existing automatic-software policy allows it; OS receives the operating-system flag. Generic registration identifiers deliberately assert no vendor/CPE mapping. Existing manual software is not adopted by name. Subsequent reports own only their assigned version field. A product-name change or disagreement between two known publishers under a bound registry identity stops publication for explicit ownership review instead of silently retargeting an installation. Human assessments, build/edition ownership and evidence history remain separate. Reported Windows edition/release are retained in observation evidence, not adopted into manually maintained installation fields. Automatic Microsoft CVE/KB applicability is explicitly unavailable; no clean security result is inferred.
+Automatically inventoried registrations become separate installation records when the device's existing automatic-software policy allows it; OS receives the operating-system flag. Generic registration identifiers deliberately assert no vendor/CPE mapping. Existing manual software is not adopted by name. Subsequent reports own only their assigned version field. A product-name change or disagreement between two known publishers under a bound registry identity stops publication for explicit ownership review instead of silently retargeting an installation. Human assessments, build/edition ownership and evidence history remain separate. Reported Windows edition/release are retained in observation evidence, not adopted into manually maintained installation fields. A first curated application/MSRC-candidate increment is described in [Windows CVE evidence](windows-cves.md). Missing update-line/channel evidence and unsupported products remain unresolved; automatic Microsoft KB remediation/compliance is unavailable and no clean security result is inferred.
 
 ## Authorization and failure semantics
 
@@ -26,4 +26,59 @@ No remote commands, installer operations, scans or arbitrary destinations. HTTPS
 
 Migration **0073** retains Windows component evidence and **0074** retains compatibility with previously issued Windows single-asset enrollment codes; apply it before restarting web/worker. The Windows EXEs bundle the Go runtime. The Python reference remains available for compatibility. Synthetic tests exercise registry views, Unicode/unknown versions, real signature admission, automatic OS/software projection, changes/missing retention, revocation, schema refusal, enrollment retry, explicit CA recovery, exact receipts, offline sampling and durable outbox behavior. A proposed native Windows CI job in [windows-ci.patch](../../clients/windows/windows-ci.patch) runs DPAPI tamper detection, state persistence/corruption refusal, concurrent locking and actual local registry collection, without printing/uploading inventory. That patch is supplied, not applied or executed: the current GitHub OAuth access lacks workflow permission. Apply through a workflow-authorized operator before relying on Windows CI.
 
-Local native Windows/Windows Task Scheduler, endpoint ACL/account/profile behavior, independent Windows 11/Server/ARM64 installations and real Windows-to-HTTPS end-to-end acceptance remain **unvalidated** until run on those targets. Architecture-specific unsigned EXEs and ZIPs are built from reviewed source. The portal's `/downloads/windows/` guide supports operator-approved ZIP downloads, with checksums and matching source. The setup window reports the latest inventory receipt separately from the six-hour Task Scheduler task. Task setup verifies the stored definition for the same interactive account, reuses a matching task and displays a Windows diagnostic when task creation fails. Existing tasks with different settings or a disabled schedule are left for review in Task Scheduler. Authenticode signing and a Windows service remain planned. This is a reviewable first reference, not a fleet deployment acceptance claim.
+The user reported `Report status: applied` from the Windows client, confirming one successfully processed real Windows report. Execution of the corrected Task Scheduler definition on real Windows remains pending. Endpoint ACL/account/profile behavior, independent Windows 11/Server/ARM64 installations and fleet acceptance remain **unvalidated** until exercised on those targets. Architecture-specific unsigned EXEs and ZIPs are built from reviewed source. The portal's `/downloads/windows/` guide supports operator-approved ZIP downloads, with checksums and matching source. The setup window reports the latest inventory receipt separately from the six-hour Task Scheduler task. Task setup verifies the stored definition for the same interactive account, reuses a matching task and displays a Windows diagnostic when task creation fails. Existing tasks with different settings or a disabled schedule are left for review in Task Scheduler. Authenticode signing and a Windows service remain planned. This is a reviewable first reference, not a fleet deployment acceptance claim.
+
+## Windows Update cache inventory
+
+The Go client now includes a fixed, embedded Windows PowerShell helper (built-in
+Windows PowerShell 5.1 is required). It reads the local Windows Update Agent COM
+cache with `Online=false` and `CanAutomaticallyUpgradeService=false`; it does not
+contact an update server, install/download updates, change settings or bypass
+PowerShell execution policy. Application control or a missing/disabled WUA service
+may prevent collection; this is explicit unavailable/error evidence, not a clean
+result. The registry inventory continues even when the optional query times out
+(after 45 seconds), emits invalid/oversized data or exceeds the 1 MB report budget.
+
+Optional `os.windows_update` evidence separately records installed and pending
+**software update identities**, their revision/title, up to 16 KB identifiers,
+hidden status, and at most 250 entries per query. Counts describe WUA identities,
+not unique KBs. Superseded/hidden updates may appear. `ok`, `partial`, `error`,
+`unavailable` and `timeout` remain distinct. Null counts denote failed queries;
+truncated/partially successful queries cannot become complete results. Driver
+updates, the complete CBS/MSI/hotfix history and install dates are not claimed.
+
+WUA `SystemInfo.RebootRequired` supplies a separate three-state restart indicator.
+The last successful Automatic Updates search date is retained as a separately
+labelled UTC cache-age hint (it may not reflect other update tools); unknown or
+older-than-24-hours cache dates are visible. Successful local cache queries, zero
+pending updates and a negative restart indicator never prove full patch compliance
+or CVE remediation. Per-product regular/Hotpatch/LTSC/ESU manufacturer/KB rules
+remain a separate incomplete capability in [Windows CVE evidence](windows-cves.md).
+
+Signed reports use the existing admission and source/device locks. The receiver
+validates all bounds, UUID/revision/KB identities, counts, dates and restart
+consistency. Clients cannot submit server-owned retained receipts. Last complete
+installed/pending queries and last known restart evidence survive failed/partial
+queries. Old clients remain accepted; a later report without update data retains
+old evidence without refreshing its observation time, and labels it historical.
+Changed builds, expired/revoked clients and changed source bindings also prevent a
+current presentation. Raw signed report history retains the exact observation.
+
+Both the authorized host detail and client observations page show this evidence,
+including escaped titles and numeric-only Microsoft KB links. The CVE observation
+fingerprint retains optional update evidence; rule v2 also corrects native Windows
+architecture keys to `arm64` and `x86`. It does not infer a servicing line, ESU
+entitlement, Hotpatch baseline or MSRC fix from a KB name. There is no new schema
+migration after 0074. Upgrade web/worker before publishing the new client.
+
+Microsoft API references:
+
+- [Local-only search setting](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-uamg/31a1923c-fb3a-416c-825d-168a79ef5c95)
+- [Search criteria and superseded updates](https://learn.microsoft.com/en-us/windows/win32/api/wuapi/nf-wuapi-iupdatesearcher-search)
+- [Restart indicator](https://learn.microsoft.com/en-us/windows/win32/api/wuapi/nf-wuapi-isysteminformation-get_rebootrequired)
+- [Automatic Updates search timestamp](https://learn.microsoft.com/en-us/windows/win32/api/wuapi/nf-wuapi-iautomaticupdatesresults-get_lastsearchsuccessdate)
+
+Synthetic PostgreSQL admission/retention/rendering and Go tests/cross-compilation
+validate the contract. Native WUA COM/PowerShell collection and corrected Task
+Scheduler execution still need a real Windows pilot. See the
+[German installation/upgrade guide](../user-guide/windows-update-installation.de.md).

@@ -28,6 +28,10 @@ def valid_key(value):
 
 
 def suggestions(product):
+    if product.identifier.startswith("pkg:generic/windows-registration/"):
+        from .windows_cves import product_suggestions
+
+        return product_suggestions(product)
     candidates = {}
 
     def add(pair, reason):

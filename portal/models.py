@@ -530,17 +530,10 @@ class DiscoveryMatch(models.Model):
     def inputs_changed(self):
         from .intelligence import digest
 
-        installation = self.finding.installation
+        from .discovery import evaluation_inputs
+
         return self.input_hash != digest(
-            [
-                digest(self.finding.record.payload),
-                self.watch.vendor,
-                self.watch.product_key,
-                installation.product.identifier,
-                installation.version,
-                installation.build,
-                installation.edition,
-            ]
+            evaluation_inputs(self.watch, self.finding.installation, self.finding.record.payload)
         )
 
 

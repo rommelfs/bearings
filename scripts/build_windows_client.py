@@ -48,9 +48,9 @@ def build(compiler, output, server=""):
     module = {
         Path(name).name: (ROOT / name).read_bytes()
         for name in tracked
-        if name.endswith((".go", "/go.mod", "/go.sum"))
+        if name.endswith((".go", ".ps1", "/go.mod", "/go.sum"))
     }
-    if set(CLIENT.glob("*.go")) - {CLIENT / name for name in module}:
+    if (set(CLIENT.glob("*.go")) | set(CLIENT.glob("*.ps1"))) - {CLIENT / name for name in module}:
         raise ValueError("Add all reviewed Windows Go source files to version control before building")
     revision = command("git", "rev-parse", "HEAD", cwd=ROOT)
     if command("git", "status", "--porcelain", cwd=ROOT):

@@ -10,13 +10,13 @@ Run on the new container as root (or prefix administrative commands with sudo). 
 umask 022
 apt-get update
 apt-get install -y git ca-certificates
-git clone --branch codex/continuous-review-workflow https://github.com/rommelfs/bearings.git /opt/bearings
+git clone --branch main https://github.com/rommelfs/bearings.git /opt/bearings
 cd /opt/bearings
 git rev-parse HEAD
 bash deploy/ubuntu24/install.sh
 ```
 
-Record/review that source revision; the development branch moves. The helper installs Python 3.12, pinned uv, frozen production dependencies, PostgreSQL, Nginx and Certbot. It creates the dedicated non-login `bearings` account/database role/database, root-owned mode-0600 `/etc/bearings/bearings.env` with a newly generated random secret, `/var/lib/bearings` private state and public static/client directories. It runs committed migrations, static collection and deploy checks, prepares both client downloads, then enables web/worker/national services. Dependencies/source remain root-owned; the application can write only its state/runtime directories.
+Record/review that source revision; the main branch moves. The helper installs Python 3.12, pinned uv, frozen production dependencies, PostgreSQL, Nginx and Certbot. It creates the dedicated non-login `bearings` account/database role/database, root-owned mode-0600 `/etc/bearings/bearings.env` with a newly generated random secret, `/var/lib/bearings` private state and public static/client directories. It runs committed migrations, static collection and deploy checks, prepares both client downloads, then enables web/worker/national services. Dependencies/source remain root-owned; the application can write only its state/runtime directories.
 
 PostgreSQL uses the local Unix socket and peer authentication as the dedicated OS/database user. There is no shared/default database password and no public database listener is configured. Do not silently change peer authentication to `trust`. If using a remote database instead, configure a separate scoped role/verified TLS and review the connection/secret setup explicitly.
 

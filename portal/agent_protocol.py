@@ -185,7 +185,11 @@ def report_data(data):
         raise ValueError("Invalid coverage")
     if data["scope"] in ("selected-packages", "configured-binaries") and data["complete"]:
         raise ValueError("Selected packages cannot assert completeness")
-    exact(data["os"], ("id", "version", "architecture", "kernel", "reboot_hint"), ("kernel_scope",))
+    exact(
+        data["os"],
+        ("id", "version", "architecture", "kernel", "reboot_hint"),
+        ("kernel_scope", "windows_update"),
+    )
     if not isinstance(data["os"].get("kernel_scope", "unknown"), str) or data["os"].get(
         "kernel_scope", "unknown"
     ) not in {"host", "shared", "unknown"}:
@@ -203,9 +207,17 @@ def report_data(data):
         or data["services"]
         or data["os"]["architecture"] not in ("x86", "x86_64", "arm64")
         or data["os"].get("kernel_scope") != "host"
-        or data["os"]["reboot_hint"] != "unknown"
+        or ("windows_update" not in data["os"] and data["os"]["reboot_hint"] != "unknown")
     ):
         raise ValueError("Windows inventory only covers the machine OS build and registry")
+    if "windows_update" in data["os"]:
+        from .windows_updates import validate
+
+        if not windows:
+            raise ValueError("Windows Update evidence requires Windows inventory")
+        validate(data["os"]["windows_update"], observed)
+        if data["os"]["reboot_hint"] != data["os"]["windows_update"]["reboot"]:
+            raise ValueError("Windows reboot observations must agree")
     if "host" in data:
         host_claim(data["host"])
     applications = data.get("applications", [])
@@ -404,7 +416,24 @@ def validate_windows_component(c):
     if c["version"] != "":
         text(c["version"], 120)
     evidence = c["windows"]
-    exact(evidence, ("kind", "registry_key", "view", "publisher", "edition", "release"))
+    exact(
+        evidence,
+        ("kind", "registry_key", "view", "publisher", "edition", "release"),
+        optional=("installation_type", "servicing_channel", "update_line"),
+    )
+    if "installation_type" in evidence:
+        if evidence["kind"] != "os":
+            raise ValueError("Installation type belongs to OS evidence")
+        if evidence["installation_type"] != "":
+            text(evidence["installation_type"], 120)
+    for field, choices in {
+        "servicing_channel": {"gac", "ltsc", "unknown"},
+        "update_line": {"regular", "hotpatch", "esu", "unknown"},
+    }.items():
+        if field in evidence and (
+            evidence["kind"] != "os" or not isinstance(evidence[field], str) or evidence[field] not in choices
+        ):
+            raise ValueError("Invalid Windows servicing evidence")
     for field, length in (("publisher", 255), ("edition", 120), ("release", 120)):
         if evidence[field] != "":
             text(evidence[field], length)

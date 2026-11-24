@@ -16,12 +16,13 @@ const maxComponents = 5000
 var digits = regexp.MustCompile(`^[0-9]+$`)
 
 type evidence struct {
-	Kind      string `json:"kind"`
-	Key       string `json:"registry_key"`
-	View      string `json:"view"`
-	Publisher string `json:"publisher"`
-	Edition   string `json:"edition"`
-	Release   string `json:"release"`
+	InstallationType string `json:"installation_type,omitempty"`
+	Kind             string `json:"kind"`
+	Key              string `json:"registry_key"`
+	View             string `json:"view"`
+	Publisher        string `json:"publisher"`
+	Edition          string `json:"edition"`
+	Release          string `json:"release"`
 }
 
 type component struct {
@@ -34,12 +35,13 @@ type component struct {
 }
 
 type operatingSystem struct {
-	ID           string `json:"id"`
-	Version      string `json:"version"`
-	Architecture string `json:"architecture"`
-	Kernel       string `json:"kernel"`
-	KernelScope  string `json:"kernel_scope"`
-	RebootHint   string `json:"reboot_hint"`
+	WindowsUpdate *updateObservation `json:"windows_update,omitempty"`
+	ID            string             `json:"id"`
+	Version       string             `json:"version"`
+	Architecture  string             `json:"architecture"`
+	Kernel        string             `json:"kernel"`
+	KernelScope   string             `json:"kernel_scope"`
+	RebootHint    string             `json:"reboot_hint"`
 }
 
 type report struct {
@@ -68,7 +70,7 @@ func clean(value string, limit int, allowEmpty bool) bool {
 
 func newComponent(key, name, version string, windows evidence) (component, error) {
 	if !clean(name, 128, false) || !clean(version, 120, true) || !clean(windows.Key, 1024, false) ||
-		!clean(windows.Publisher, 255, true) || !clean(windows.Edition, 120, true) || !clean(windows.Release, 120, true) {
+		!clean(windows.InstallationType, 120, true) || !clean(windows.Publisher, 255, true) || !clean(windows.Edition, 120, true) || !clean(windows.Release, 120, true) {
 		return component{}, errors.New("inventory field is malformed or exceeds the report bounds")
 	}
 	return component{Key: key, Manager: "win-reg", Name: name, Version: version, Architecture: "all", Windows: windows}, nil

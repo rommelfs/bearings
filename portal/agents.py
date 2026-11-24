@@ -449,6 +449,9 @@ def process_one(device_id, report_id):
                         raise ValidationError(
                             "Release Windows version ownership before changing product identity"
                         )
+                if c.installation_id and value["manager"] == "win-reg":
+                    # Mapping/freshness may change without a version change.
+                    watched_products.add(c.installation.product_id)
                 c.windows = value.get("windows", {})
                 c.manifest = value.get("manifest", {})
                 for field in ("name", "manager", "architecture", "version"):
@@ -506,11 +509,23 @@ def process_one(device_id, report_id):
                     and package_scope(c.name, data["scope"])
                     and c.missing_since is None
                 ]
+                ProductWatch.objects.filter(
+                    product_id__in=[
+                        c.installation.product_id
+                        for c in previous.values()
+                        if c.pk in missing and c.installation_id
+                    ]
+                ).update(requested=True)
                 AgentComponent.objects.filter(pk__in=missing).update(missing_since=row.observed_at)
             if "host" in data:
                 device.reported_network = data["host"]
                 device.network_observed_at = row.observed_at
-            device.os = data["os"]
+            if data["os"]["id"] == "windows":
+                from .windows_updates import merge_os
+
+                device.os = merge_os(device.os, data["os"], row.observed_at)
+            else:
+                device.os = data["os"]
             runtime = {s["name"]: s for s in device.services}
             for value in data["services"]:
                 runtime[value["name"]] = {**value, "observed_at": row.observed_at.isoformat()}

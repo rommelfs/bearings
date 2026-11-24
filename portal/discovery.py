@@ -79,7 +79,32 @@ def version_status(version, entry):
     return None
 
 
-def evaluate(watch, installation, payload):
+def evaluation_inputs(watch, installation, payload, *, windows=None):
+    from .windows_cves import context
+
+    if windows is None:
+        windows = context(installation)
+    inputs = [
+        digest(payload),
+        watch.vendor,
+        watch.product_key,
+        installation.product.identifier,
+        installation.version,
+        installation.build,
+        installation.edition,
+    ]
+    if windows is not None:
+        inputs.append(windows)
+    return inputs
+
+
+def evaluate(watch, installation, payload, *, windows=None):
+    from . import windows_cves
+
+    if windows is None:
+        windows = windows_cves.context(installation)
+    if windows is not None:
+        return windows_cves.evaluate(watch, installation, payload, windows)
     prefix = f"Public product index {watch.vendor}/{watch.product_key}; explicit local product mapping. "
     if payload.get("cveMetadata", {}).get("state") == "REJECTED":
         return "unknown", prefix + "CVE was rejected; reconcile the existing review."
@@ -138,10 +163,22 @@ def sync_watch(pk, *, due=False):
                         asset__organization=watch.product.organization,
                         asset__source__organization=watch.product.organization,
                         asset__lifecycle="active",
-                    ).select_related("asset__organization", "product")
+                    )
+                    .select_related(
+                        "asset__organization",
+                        "product",
+                        "agent_component__device__asset",
+                        "agent_component__device__source",
+                        "agent_component__device__organization",
+                        "agent_component__last_report",
+                    )
+                    .defer("agent_component__last_report__body")
                 )
                 if len(installations) * len(records) > 10000:
                     raise ConnectorError("Product snapshot exceeds 10000 installation/CVE evaluations")
+                from .windows_cves import context
+
+                windows_contexts = {i.pk: context(i) for i in installations}
                 changed = 0
                 seen = set()
                 for identifier, payload in records:
@@ -159,7 +196,8 @@ def sync_watch(pk, *, due=False):
                     for index, installation in enumerate(installations):
                         if index % 100 == 0:
                             development_heartbeat()
-                        result, explanation = evaluate(watch, installation, payload)
+                        windows = windows_contexts[installation.pk]
+                        result, explanation = evaluate(watch, installation, payload, windows=windows)
                         finding = (
                             Finding.objects.filter(installation=installation, record=record)
                             .order_by("pk")
@@ -179,17 +217,7 @@ def sync_watch(pk, *, due=False):
                             finding.applicability, finding.explanation = result, explanation
                             finding.evaluated_at = now
                             finding.save(update_fields=["applicability", "explanation", "evaluated_at"])
-                        inputs = digest(
-                            [
-                                revision.content_hash,
-                                watch.vendor,
-                                watch.product_key,
-                                installation.product.identifier,
-                                installation.version,
-                                installation.build,
-                                installation.edition,
-                            ]
-                        )
+                        inputs = digest(evaluation_inputs(watch, installation, payload, windows=windows))
                         match, new = DiscoveryMatch.objects.get_or_create(
                             finding=finding,
                             defaults={
@@ -217,6 +245,7 @@ def sync_watch(pk, *, due=False):
                                         "product_identifier": installation.product.identifier,
                                         "result": result,
                                         "explanation": explanation,
+                                        "windows": windows,
                                     }
                                 },
                             )

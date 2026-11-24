@@ -68,10 +68,11 @@ func collectOS(access uint32) (component, error) {
 	}
 	name, nameErr := stringValue(key, "ProductName", false)
 	edition, editionErr := stringValue(key, "EditionID", true)
+	installationType, installationErr := stringValue(key, "InstallationType", true)
 	release, releaseErr := stringValue(key, "DisplayVersion", true)
 	build, buildErr := stringValue(key, "CurrentBuildNumber", false)
 	revision, revisionType, revisionErr := key.GetIntegerValue("UBR")
-	if nameErr != nil || editionErr != nil || releaseErr != nil || buildErr != nil ||
+	if nameErr != nil || editionErr != nil || installationErr != nil || releaseErr != nil || buildErr != nil ||
 		!digits.MatchString(build) || revisionErr != nil || revisionType != registry.DWORD {
 		return component{}, errors.New("Windows product name, edition, release or build metadata is invalid")
 	}
@@ -79,7 +80,7 @@ func collectOS(access uint32) (component, error) {
 		return component{}, errors.New("Windows OS registry changed during collection; retry the report")
 	}
 	return newComponent("win-reg:os:all", name, build+"."+strconv.FormatUint(revision, 10),
-		evidence{Kind: "os", Key: osKey, View: "native", Publisher: "Microsoft", Edition: edition, Release: release})
+		evidence{InstallationType: installationType, Kind: "os", Key: osKey, View: "native", Publisher: "Microsoft", Edition: edition, Release: release})
 }
 
 func collectProgram(path, view string, access uint32) (component, error) {
@@ -190,6 +191,8 @@ func collect() (*report, error) {
 		OS:         operatingSystem{ID: "windows", Version: os.Version, Architecture: arch, Kernel: os.Version, KernelScope: "host", RebootHint: "unknown"},
 		Components: components, Services: []struct{}{},
 	}
-	_, err = reportBytes(value)
+	value.OS.WindowsUpdate = collectUpdates()
+	value.OS.RebootHint = value.OS.WindowsUpdate.Reboot
+	err = fitWindowsUpdates(value)
 	return value, err
 }

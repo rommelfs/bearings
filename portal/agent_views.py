@@ -1,5 +1,6 @@
 """Machine endpoints accept only signed HTTPS requests; management uses normal scoped sessions/CSRF."""
 
+import json
 import uuid
 from django import forms
 from django.contrib import messages
@@ -374,12 +375,23 @@ def center(request, slug):
         if query:
             qs = qs.filter(name__icontains=query)
         components = Paginator(qs, 50).get_page(request.GET.get("page"))
+        from .windows_cves import resolve
+
+        report_os = {}
+        for component in components:
+            if component.manager == "win-reg" and component.last_report.device_id == selected.pk:
+                if component.last_report_id not in report_os:
+                    report_os[component.last_report_id] = json.loads(bytes(component.last_report.body))["os"]
+                component.windows_mapping = resolve(component, report_os[component.last_report_id])
         installations = list(
             Installation.objects.filter(asset=selected.asset, product__organization=org)
             .select_related("product")
             .order_by("product__name")[:250]
         )
         last_report = selected.reports.order_by("-sequence").first()
+        from .windows_updates import presentation
+
+        selected.windows_update_view = presentation(selected)
     from .timelines import report_receipts
 
     response = private(
