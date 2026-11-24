@@ -2,6 +2,10 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Publication readiness — 2026-11-24
+
+Implemented exact outer one-to-one match-PK correlation and reused visible finding organization/installation/asset/source facts instead of three redundant inner joins. This addresses the existing fe1c836b PostgreSQL full-suite pagination statement-timeout blocker before publication. Keep every input/freshness/vendor-proof predicate, saved analyst override, 5-second statement limit and bounded hydration/query budgets. Source/tenant/asset/installation mutation coverage and 88 focused PostgreSQL tests pass; full branch CI remains the merge gate. See docs/validation.md.
+
 ## Windows Update increment — 2026-11-24
 
 Implemented bounded, embedded Windows PowerShell/WUA cache-only installed/pending software-update identities, KBs, hidden flags, separate restart/cache-age evidence, explicit errors/partial/truncation/timeouts and optional-payload fallback. Signed receiver validates scope/identity/counts/dates and retains last complete observations across failures or older clients; host/client pages show historical and escaped evidence. No online scan, download, install, policy changes, inferred CVE fixes or complete CBS/MSI/driver history. Rule v2 retains OS update facts and corrects Windows arm64/x86 keys. Native WUA/PowerShell/Task Scheduler pilot and per-product Hotpatch/LTSC/ESU rules remain open. See docs/integrations/windows-agent.md and docs/user-guide/windows-update-installation.de.md.

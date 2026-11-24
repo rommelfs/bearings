@@ -184,6 +184,31 @@ class QueueTests(DistroTests):
                 type(obj).objects.filter(pk=obj.pk).update(**{field: original})
                 self.assertEqual(self.bucket(), "action")
 
+    def test_correlated_proof_still_checks_the_exact_outer_installation_tenant_and_source(self):
+        finding = self.prepare()
+        match = finding.distro_match
+        from .models import AgentComponent, AgentDevice, Asset, Installation
+
+        changes = [
+            (AgentDevice, match.component.device_id, "organization_id", self.b.pk),
+            (AgentDevice, match.component.device_id, "asset_id", self.other.pk),
+            (AgentDevice, match.component.device_id, "source_id", self.sb.pk),
+            (AgentComponent, match.component_id, "installation_id", self.installation.pk),
+            (Installation, finding.installation_id, "asset_id", self.other.pk),
+            (Asset, finding.installation.asset_id, "source_id", self.sb.pk),
+        ]
+        for model, pk, field, value in changes:
+            obj = model.objects.get(pk=pk)
+            original = getattr(obj, field)
+            # The fixture's manual installation is distinct from the projected package.
+            if value == original:
+                continue
+            with self.subTest(model=model.__name__, field=field):
+                model.objects.filter(pk=pk).update(**{field: value})
+                self.assertEqual(self.bucket(), "pending")
+                model.objects.filter(pk=pk).update(**{field: original})
+                self.assertEqual(self.bucket(), "action")
+
     def test_presence_only_is_vendor_clarification_not_an_affected_version(self):
         self.prepare()
         match = DistroMatch.objects.get()

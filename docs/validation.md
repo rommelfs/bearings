@@ -2504,3 +2504,24 @@ actual Windows pilot. Pending update counts are local-cache observations, not
 patch-compliance verdicts. Per-product Hotpatch/LTSC/ESU fixes remain unresolved.
 A further signed-agent/fleet/package/Windows/CVE regression run passes **126 tests**. The existing baseline whole-suite PostgreSQL pagination timeout described above is also present in GitHub run 45393075642 and is not hidden or weakened by this increment. Publication/merge has now been
 explicitly requested by the user; production deployment is not performed here.
+
+
+## Publish readiness: review-queue proof correlation — 2026-11-24
+
+The original branch CI PostgreSQL failure is confirmed in
+https://github.com/rommelfs/bearings/actions/runs/45393075642 (same pagination test,
+503/statement timeout). Before merging, reduce the correlated current-proof query
+by using the outer finding's exact one-to-one match PK and its already scoped
+organization/installation/asset/source fields. This removes three redundant
+inner joins while preserving the proof predicates, human overrides, generated
+JSON facts, five-second SQL timeout and pagination/query budgets. New mutation
+coverage checks exact tenant, asset, source and installation correlation. The
+PostgreSQL queue/pagination/query-bound/host/focus/Ubuntu regression run passes
+**88 tests**; full-branch CI is required before merge.
+
+Actual Windows package generation from clean commit `3efe116` succeeds for x64,
+ARM64 and x86 with a synthetic HTTPS origin. SHA256SUMS validates every generated
+artifact; the corresponding source ZIP includes the exact embedded `updates.ps1`.
+Linux amd64/ARM64 reference packages also build locally, enabling the seven
+previously skipped real-client HTTPS tests for the next full PostgreSQL run.
+These packages are build-validation artifacts, not production deployments.

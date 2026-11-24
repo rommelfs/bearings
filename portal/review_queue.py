@@ -45,11 +45,14 @@ def classified(reviews):
             saved_ubuntu_cve=KT("queue_proof__ubuntu_cve"),
         )
         .filter(
-            finding_id=OuterRef("pk"),
-            component__device__organization_id=F("finding__organization_id"),
-            component__device__asset_id=F("finding__installation__asset_id"),
-            component__device__source_id=F("finding__installation__asset__source_id"),
-            component__installation_id=F("finding__installation_id"),
+            # The outer one-to-one join already fixes the finding identity.
+            # Correlate its exact match PK and visible installation/source facts
+            # instead of rejoining finding/installation/asset inside this proof.
+            pk=OuterRef("distro_match__pk"),
+            component__device__organization_id=OuterRef("organization_id"),
+            component__device__asset_id=OuterRef("installation__asset_id"),
+            component__device__source_id=OuterRef("installation__asset__source_id"),
+            component__installation_id=OuterRef("installation_id"),
             queue_proof__evaluator_version=distro_results.VERSION,
             queue_proof__schema="bearings.package-check.v2",
             saved_version=F("component__version"),
