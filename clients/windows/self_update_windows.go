@@ -21,6 +21,23 @@ import (
 // FileRenameInfoEx atomically replaces even an executing destination on supported
 // Windows/NTFS. Never fall back to removing or moving the old task target first.
 func replaceExecutable(from, to string) error {
+	// Image teardown and endpoint scanners can briefly retain incompatible handles
+	// after a successful startup probe. Retry only transient sharing/access errors;
+	// every attempt remains one atomic rename and never removes the task target.
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		err := renameExecutable(from, to)
+		if err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) || (!errors.Is(err, windows.ERROR_SHARING_VIOLATION) && !errors.Is(err, windows.ERROR_ACCESS_DENIED) && !errors.Is(err, windows.ERROR_LOCK_VIOLATION)) {
+			return err
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func renameExecutable(from, to string) error {
 	name, err := windows.UTF16FromString(to)
 	if err != nil {
 		return err
@@ -131,7 +148,7 @@ func installRelease(target string, executable []byte, expected clientBuildInfo, 
 		}
 	}()
 	if err := replaceExecutable(candidate, target); err != nil {
-		return errors.New("Windows could not atomically replace the client; previous executable retained")
+		return fmt.Errorf("Windows could not atomically replace the client; previous executable retained: %w", err)
 	}
 	err = probeExecutable(target, expected)
 	if err == nil {
