@@ -515,7 +515,7 @@
       },
       {
         "title": "Default to highest source priority with sortable scoped review lists",
-        "body": "Implemented in PR #124: machine indicators default to current highest source priority before pagination, with sortable machine/company/evaluation/priority/evidence headings; cases and retained records have sort controls. Preserve filters and stable pagination; no current positive evidence remains unestablished. Separate slow source refresh from durable writes in the PostgreSQL development Compose profile without weakening source locks or failure retention. Restore Python 3.8 installer test grammar compatibility. Regression checks and full GitHub SQLite/PostgreSQL, actual Python 3.8 and real bundled stack matrix must pass before merge. No live deployment."
+        "body": "Implemented in PR #124: machine indicators default to current highest source priority before pagination, with sortable machine/company/evaluation/priority/evidence headings; cases and retained records have sort controls. Preserve filters and stable pagination; no current positive evidence remains unestablished. Separate slow source refresh from durable writes in the PostgreSQL development Compose profile without weakening source locks or failure retention. Restore Python 3.8 installer test grammar compatibility. Regression checks and full GitHub SQLite/PostgreSQL, actual Python 3.8 and real bundled stack matrix must pass before merge. No live deployment. Real bundled smoke confirms device/VM writes and lost-ack recovery. Native SSO-link CI checks now run only in SSO-enabled variants where the adapter is mounted; general smoke remains unconditional."
       }
     ]
   }

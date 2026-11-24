@@ -82,3 +82,9 @@ case Critical-first/ascending priority and alphabetical family order, and retain
 record priority ordering with category/scope preserved. Wrapped column headings
 have a continuous click target and support keyboard activation. The full local
 suite passed 1,042 tests (66 skipped); CI supplies PostgreSQL and real-stack results.
+
+The real bundled smoke now confirms device/VM worker writes and lost-ack recovery.
+It subsequently exposed an unrelated SSO check running in non-SSO matrix variants,
+where the SSO adapter intentionally is not mounted. That check is restricted to
+SSO-enabled variants; all general import/write/recovery checks still run everywhere.
+The native runtime continues to test linking against its actual disposable database.

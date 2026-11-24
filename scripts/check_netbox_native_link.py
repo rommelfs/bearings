@@ -8,6 +8,9 @@ prefix = """
 import os,sys
 assert os.environ.get('DB_HOST') == 'netbox-db'
 assert os.environ.get('BEARINGS_NETBOX_BROWSER_URL','').startswith('https://localhost:')
+if os.environ.get('BEARINGS_SSO_LAB') != '1':
+    print('Native NetBox SSO link check not applicable: this lab variant has SSO disabled.')
+    sys.exit(0)
 import bearings_oidc
 sys.modules['oidc']=bearings_oidc
 """

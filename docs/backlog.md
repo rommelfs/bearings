@@ -747,3 +747,7 @@ separation for the PostgreSQL Compose lab, preserving source locks and failure s
 and restored Python 3.8 installer-test grammar compatibility. Regression tests cover
 sorting, filter links, stale evaluation and worker scheduling. Full PostgreSQL,
 Python 3.8 and bundled integration validation are required in CI before PR #124 merges.
+
+The integration rerun confirmed real device/VM writes and recovery. Corrected the
+native SSO-link test's matrix scope: it runs in SSO variants with the real adapter;
+general HTTPS/import/write checks remain unconditional in every variant.
