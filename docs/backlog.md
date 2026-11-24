@@ -755,3 +755,7 @@ general HTTPS/import/write checks remain unconditional in every variant.
 PostgreSQL performance follow-up: batch temporary JIT/planning/timeout settings
 into three read/apply/restore round trips. Preserve prior/nested settings and error
 rollback; retain the existing overview/list query budgets and evidence checks.
+
+## Host-first organization view — 2026-11-24
+
+Implemented the approved host overview with stronger reading text, scoped current version/issue priorities, application-discovery/evaluation gaps, exact vendor-fix counts, freshness, search/sort/page controls and expandable retained administration/inventory. Preserve original host context through asset/evidence navigation. Keep missing/stale proof and repository update availability explicit. Bounded queries/hydration and next-request analyst revocation are tested; no migrations, writes or operational deployments. Actual repository candidate/update/entitlement collection remains planned. See [host overview and update steps](user-guide/host-overview.md).
