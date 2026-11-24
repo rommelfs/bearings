@@ -2407,12 +2407,16 @@ Native GUI and Task Scheduler execution still require a Windows endpoint.
 
 The inventory client menu links to Linux, Windows, shared rollout keys and
 Linux application version profiles. The 59-case PostgreSQL 17 portal run
-passed with one conditional skip. It covers administrator scope, denial of
+passed with one conditional skip. The full Django run passed 1,064 of 1,069
+cases with five conditional skips. It covers administrator scope, denial of
 cross-company access, the one-time rollout result and old Linux form
 submissions. Neither platform download page creates keys.
 
-The Windows setup verifies the stored task definition separately from the
-report receipt and displays Task Scheduler's diagnostic on creation failures.
+The generated UTF-16 task XML validates against Microsoft's published Task
+Scheduler 1.3 schema. The previous template failed validation on schema
+version and trigger element order. The Windows setup verifies the stored task
+definition separately from the report receipt and displays Task Scheduler's
+diagnostic on creation failures.
 Portable Go race tests exercised UTF-16 task queries and refusal of disabled
 or changed tasks. Go vet and test cross-compilation passed for x64, ARM64 and
 x86. Actual registration and execution of a task on Windows remain to be

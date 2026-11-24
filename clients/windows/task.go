@@ -17,10 +17,10 @@ func taskXML(sid, program, directory string, start time.Time) string {
 		return out.String()
 	}
 	return `<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+<Task version="1.3" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
 <RegistrationInfo><Description>Send Windows machine inventory to Bearings every six hours.</Description></RegistrationInfo>
-<Triggers><TimeTrigger><Repetition><Interval>PT6H</Interval></Repetition><StartBoundary>` +
-		start.Format("2006-01-02T15:04:05") + `</StartBoundary><Enabled>true</Enabled></TimeTrigger></Triggers>
+<Triggers><TimeTrigger><Enabled>true</Enabled><StartBoundary>` +
+		start.Format("2006-01-02T15:04:05") + `</StartBoundary><Repetition><Interval>PT6H</Interval></Repetition></TimeTrigger></Triggers>
 <Principals><Principal id="Reporter"><UserId>` + escape(sid) + `</UserId>
 <LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
 <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>

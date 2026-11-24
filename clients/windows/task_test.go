@@ -16,6 +16,11 @@ func TestTaskScheduleUsesCurrentInteractiveAccount(t *testing.T) {
 	const program = directory + `\bearings-windows.exe`
 	start := time.Date(2026, 11, 24, 9, 30, 0, 0, time.UTC)
 	raw := taskXML(sid, program, directory, start)
+	// Trigger children follow the order required by the published Task Scheduler schema.
+	const trigger = "<TimeTrigger><Enabled>true</Enabled><StartBoundary>2026-11-24T09:30:00</StartBoundary><Repetition><Interval>PT6H</Interval></Repetition></TimeTrigger>"
+	if !strings.Contains(raw, trigger) || !strings.Contains(raw, `<Task version="1.3"`) {
+		t.Fatal("task XML no longer matches the scheduler schema version or trigger order")
+	}
 	var task struct {
 		XMLName   xml.Name
 		Interval  string `xml:"Triggers>TimeTrigger>Repetition>Interval"`
