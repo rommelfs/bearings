@@ -48,7 +48,7 @@ func renameExecutable(from, to string) error {
 	}
 	handle, err := windows.CreateFile(source, windows.DELETE|windows.SYNCHRONIZE, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE, nil, windows.OPEN_EXISTING, windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
 	if err != nil {
-		return err
+		return fmt.Errorf("open staged executable for rename: %w", err)
 	}
 	defer windows.CloseHandle(handle)
 	type renameInfo struct {
@@ -64,7 +64,10 @@ func renameExecutable(from, to string) error {
 	info.Flags = windows.FILE_RENAME_REPLACE_IF_EXISTS | windows.FILE_RENAME_POSIX_SEMANTICS
 	info.FileNameLength = uint32((len(name) - 1) * 2)
 	copy(unsafe.Slice((*uint16)(unsafe.Pointer(&data[offset])), len(name)-1), name[:len(name)-1])
-	return windows.SetFileInformationByHandle(handle, windows.FileRenameInfoEx, &data[0], uint32(length))
+	if err := windows.SetFileInformationByHandle(handle, windows.FileRenameInfoEx, &data[0], uint32(length)); err != nil {
+		return fmt.Errorf("rename executable to %q: %w", to, err)
+	}
+	return nil
 }
 
 func stagedExecutable(dir string, data []byte) (string, error) {

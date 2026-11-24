@@ -103,6 +103,26 @@ func TestSelfUpdateNativeRoundTrip(t *testing.T) {
 			t.Fatalf("synthetic self-update: %v\n%s", err, raw)
 		}
 	}
+	// A post-swap state failure restores the complete previous executable.
+	// Target remains running in this test during the separate atomic-replacement exercise below.
+	if err := os.WriteFile(program, old, 0600); err != nil {
+		t.Fatal(err)
+	}
+	saves := 0
+	err = installRelease(program, candidate, next, func() error { saves++; return errors.New("synthetic state failure") })
+	restored, readErr := os.ReadFile(program)
+	if err == nil || readErr != nil || saves != 1 || !bytes.Equal(restored, old) {
+		t.Fatalf("failed update did not roll back: %v, %v", err, readErr)
+	}
+	wrong := next
+	wrong.Sequence++
+	if err := installRelease(program, candidate, wrong, func() error { t.Fatal("saved unverified candidate"); return nil }); err == nil {
+		t.Fatal("accepted wrong startup identity")
+	}
+	restored, _ = os.ReadFile(program)
+	if !bytes.Equal(restored, old) {
+		t.Fatal("probe failure modified installed executable")
+	}
 	runUpdate()
 	installed, err := os.ReadFile(program)
 	if err != nil || !bytes.Equal(installed, candidate) {
@@ -134,26 +154,7 @@ func TestSelfUpdateNativeRoundTrip(t *testing.T) {
 		t.Fatal("disable preference was not persisted")
 	}
 	s.close()
-	// A post-swap state failure restores the complete previous executable.
-	// Target remains running in this test during the separate atomic-replacement exercise below.
-	if err := os.WriteFile(program, old, 0600); err != nil {
-		t.Fatal(err)
-	}
-	saves := 0
-	err = installRelease(program, candidate, next, func() error { saves++; return errors.New("synthetic state failure") })
-	restored, readErr := os.ReadFile(program)
-	if err == nil || readErr != nil || saves != 1 || !bytes.Equal(restored, old) {
-		t.Fatalf("failed update did not roll back: %v, %v", err, readErr)
-	}
-	wrong := next
-	wrong.Sequence++
-	if err := installRelease(program, candidate, wrong, func() error { t.Fatal("saved unverified candidate"); return nil }); err == nil {
-		t.Fatal("accepted wrong startup identity")
-	}
-	restored, _ = os.ReadFile(program)
-	if !bytes.Equal(restored, old) {
-		t.Fatal("probe failure modified installed executable")
-	}
+
 }
 
 func TestSelfUpdateHoldingProcess(t *testing.T) {
