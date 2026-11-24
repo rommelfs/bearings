@@ -20,7 +20,9 @@ Group priority and issue-list ordering both use the highest recorded task priori
 
 Issue filters visibly identify organization, software group, asset, attention, type, deadline and searches. Individual chips remove the relevant filter and reset pagination; removing an organization also removes its dependent group/product/asset constraints. The full filter form is available under **Search and filter issues**, while active filters remain visible. Software-group/product constraints are submitted again when applying another filter; the label stays visible even with no results.
 
-Opening issue evidence carries the filtered list URL. The issue, ownership editor and action form retain it across validation and successful saves. Review-list links retain search/category/severity when opening a guided case or original evidence; guided step navigation, assessment saves and the guided risk-link save retain the return path. Review-category navigation retains severity, and organization pagination retains category.
+Opening issue evidence carries the filtered list URL. The issue, ownership editor and action form retain it across validation and successful saves. Review-list links, including CVSS, vendor-priority and missing-score badges, retain search/category/severity/pagination when opening a guided case or original evidence; guided step navigation, assessment saves and the guided risk-link save retain the return path. Review-category navigation retains severity, and organization pagination retains category.
+
+Ratings opened from a guided case or an evidence page keep the original validated list destination instead of nesting return URLs. Direct case links without list context remain direct.
 
 Return destinations are limited to local issue/review/intelligence lists and known query keys. They grant no access: every destination rechecks current organization/evidence authorization. Arbitrary external redirects and nested return destinations are rejected.
 
@@ -45,3 +47,5 @@ Validated locally on 2026-11-23:
 - Ruff and JavaScript syntax checks passed.
 - Browser checks at **390 × 844** and **1440 × 1000**: no page-level horizontal overflow; version-rule field switching, group-filter submission and list/detail return paths verified on synthetic local fixtures. Screenshots retained as local review artifacts.
 - PostgreSQL validation was not run because Docker Desktop was manually paused. No production migration, deployment or live-record edits were performed.
+
+CVSS badge follow-up validated on 2026-11-24: **109 relevant Django tests passed, 1 skipped** on SQLite, including score/vendor/missing-score badge click-throughs, evidence anchors, original-filter return, repeated badge clicks and rejected external return targets. Frozen dependency sync, local migrations, Django checks, migration-drift check and Ruff passed. A local browser round trip on synthetic Log4j data returned to the exact same category/search/severity/page URL both directly and through a guided case. No live records or deployment were changed.

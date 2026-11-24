@@ -157,6 +157,75 @@ class UsabilityPathsTests(Fixture):
         self.assertEqual(parse_qs(urlsplit(response.url).query)["return_to"], [target])
         self.assertEqual(parse_qs(urlsplit(response.url).query)["step"], ["risk"])
 
+    def badge_links(self, response):
+        return [
+            unescape(link)
+            for link in re.findall(
+                r'<a class="severity-badge[^\"]*" href="([^\"]+)"', response.content.decode()
+            )
+        ]
+
+    def test_rating_badges_keep_filters_and_evidence_anchor_through_return(self):
+        finding = self.vulnerability("critical", "10001").finding
+        score_payload = finding.record.payload
+        variants = [
+            (score_payload, "critical", 1),
+            (
+                {
+                    **score_payload,
+                    "bearings_distro": {
+                        "schema": "bearings.distro-oval.v1",
+                        "severity": "high",
+                        "feed": "ubuntu:24.04",
+                    },
+                },
+                "high",
+                2,
+            ),
+            ({}, "unknown", 1),
+        ]
+        for payload, severity, expected_badges in variants:
+            with self.subTest(severity=severity):
+                finding.record.payload = payload
+                finding.record.save()
+                target = (
+                    reverse("home")
+                    + "?"
+                    + urlencode({"state": "action", "q": "Example", "severity": severity, "review_page": 1})
+                )
+                response = self.client.get(target)
+                links = self.badge_links(response)
+                self.assertEqual(len(links), expected_badges)
+                for link in links:
+                    parsed = urlsplit(link)
+                    self.assertEqual(parsed.fragment, f"evidence-{finding.pk}")
+                    self.assertEqual(parse_qs(parsed.query)["finding"], [str(finding.pk)])
+                    self.assertEqual(parse_qs(parsed.query)["return_to"], [target])
+                    detail = self.client.get(link)
+                    self.assertContains(detail, f'id="evidence-{finding.pk}"')
+                    self.assertContains(detail, f'href="{escape(target)}">← Back to filtered list')
+                    # Clicking the rating again must not nest the evidence URL in return_to.
+                    for repeated in self.badge_links(detail):
+                        self.assertEqual(parse_qs(urlsplit(repeated).query)["return_to"], [target])
+
+    def test_guided_rating_badge_preserves_original_list_instead_of_guide_url(self):
+        finding = self.vulnerability("critical", "10001").finding
+        target = reverse("home") + "?state=action&q=Example&severity=critical"
+        response = self.client.get(
+            self.url("case-guide", pk=finding.pk), {"step": "evidence", "return_to": target}
+        )
+        links = self.badge_links(response)
+        self.assertEqual(len(links), 1)
+        self.assertEqual(parse_qs(urlsplit(links[0]).query)["return_to"], [target])
+        self.assertContains(self.client.get(links[0]), escape(target))
+        direct = self.client.get(self.url("case-guide", pk=finding.pk), {"step": "evidence"})
+        self.assertNotIn("return_to", parse_qs(urlsplit(self.badge_links(direct)[0]).query))
+        unsafe = self.client.get(
+            self.url("case-guide", pk=finding.pk),
+            {"step": "evidence", "return_to": "https://evil.invalid/reviews/"},
+        )
+        self.assertNotIn("return_to", parse_qs(urlsplit(self.badge_links(unsafe)[0]).query))
+
     def test_assigned_addresses_appear_in_issue_and_guide_without_foreign_assignments(self):
         self.asset.object_type = "virtualization.virtualmachine"
         self.asset.save()
