@@ -516,6 +516,10 @@
       {
         "title": "Default to highest source priority with sortable scoped review lists",
         "body": "Implemented in PR #124: machine indicators default to current highest source priority before pagination, with sortable machine/company/evaluation/priority/evidence headings; cases and retained records have sort controls. Preserve filters and stable pagination; no current positive evidence remains unestablished. Separate slow source refresh from durable writes in the PostgreSQL development Compose profile without weakening source locks or failure retention. Restore Python 3.8 installer test grammar compatibility. Regression checks and full GitHub SQLite/PostgreSQL, actual Python 3.8 and real bundled stack matrix must pass before merge. No live deployment. Real bundled smoke confirms device/VM writes and lost-ack recovery. Native SSO-link CI checks now run only in SSO-enabled variants where the adapter is mounted; general smoke remains unconditional. PostgreSQL follow-up batches temporary overview database settings into three round trips, retaining restoration/error semantics and the original performance budgets."
+      },
+      {
+        "title": "Deliver host-first organization overview with stronger reading text",
+        "body": "Implemented the approved host overview: current scoped version evidence and explicit asset-issue priorities, separate saved/manual assessments, application watch/version/freshness gaps with bounded product examples, deduplicated packages with exact vendor-fixed version evidence, report freshness, accessible sortable paginated/filterable lists and preserved host return context. Administration/full retained inventory remains expandable. Adopt stronger local-system reading text with Raleway branding/headings. No schema/configuration/notification/client-enrollment change. Local full and focused tests plus synthetic browser verification; PostgreSQL/CI results on the PR. Real repository candidate availability, overall update backlog and entitlement collection remain planned. Native update/restart instructions: docs/user-guide/host-overview.md."
       }
     ]
   }

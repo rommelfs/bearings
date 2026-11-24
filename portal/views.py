@@ -57,6 +57,7 @@ from .inventory_presentation import (
     decorate_addresses,
     additional_software_filter,
 )
+from .access import analyst_read_snapshot
 from .pagination import object_page
 from .models import (
     AgentDevice,
@@ -278,6 +279,7 @@ def home(request):
 
 
 @login_required
+@analyst_read_snapshot
 def detail(request, slug):
     from .models import OrganizationConfiguration
 
@@ -296,7 +298,7 @@ def detail(request, slug):
         )
     )
     inventory_query = request.GET.get("inventory_q", "").strip()[:128]
-    inventory_assets = top_level_assets(org.assets.all())
+    inventory_assets = top_level_assets(org.assets.filter(source__organization=org))
     if inventory_query:
         inventory_assets = inventory_assets.filter(name__icontains=inventory_query)
     extra_software = additional_software_filter()
@@ -381,6 +383,18 @@ def detail(request, slug):
         elif asset.os_preview:
             installed_os = asset.os_preview[0]
             asset.overview_os = " ".join(filter(None, (installed_os.product.name, installed_os.version)))
+    from .host_overview import overview as host_overview
+    from .overview_queries import overview_queries
+    from django.db import OperationalError
+    from django.http import HttpResponseBadRequest
+
+    try:
+        with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
+            host_context = host_overview(request, org)
+    except ValueError:
+        return HttpResponseBadRequest("Unsupported host overview filter or sorting.")
+    except OperationalError:
+        host_context = {"host_overview_unavailable": True}
     return render(
         request,
         "portal/detail.html",
@@ -407,6 +421,7 @@ def detail(request, slug):
             "missing_review_form": MissingReviewForm(),
             "inventory_page": inventory_page,
             "inventory_query": inventory_query,
+            **host_context,
         },
     )
 

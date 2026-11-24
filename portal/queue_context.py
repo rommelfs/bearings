@@ -24,6 +24,12 @@ KEYS = {
     "severity",
     "sort",
     "direction",
+    "host_q",
+    "host_filter",
+    "inventory_q",
+    "inventory_page",
+    "contact_page",
+    "scope_page",
 }
 
 
@@ -39,7 +45,7 @@ def return_url(request):
         return ""
     allowed = {reverse("issues"), reverse("home")}
     if target.path not in allowed and not re.fullmatch(
-        r"/organizations/[a-zA-Z0-9_-]+/intelligence/", target.path
+        r"/organizations/[a-zA-Z0-9_-]+/(?:intelligence/)?", target.path
     ):
         return ""
     params = [(key, val[:180]) for key, val in parse_qsl(target.query) if key in KEYS]

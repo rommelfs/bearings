@@ -57,7 +57,7 @@ def ratio(numerator, denominator):
     }
 
 
-def posture(user, org_ids=None, *, shared_only=False):
+def posture(user, org_ids=None, *, shared_only=False, include_totals=True):
     """One mutually exclusive priority per evaluated machine; explicit unknown coverage."""
     from .circl import findings_for
 
@@ -122,6 +122,8 @@ def posture(user, org_ids=None, *, shared_only=False):
             ).exclude(analyst_applicability="not_affected")
         ),
     )
+    if not include_totals:
+        return {"machines": machines}
     result = {}
     for row in (
         machines.order_by()
