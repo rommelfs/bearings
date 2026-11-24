@@ -22,6 +22,8 @@ KEYS = {
     "review_page",
     "org_page",
     "severity",
+    "sort",
+    "direction",
 }
 
 

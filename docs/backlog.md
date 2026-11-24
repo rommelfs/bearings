@@ -736,3 +736,14 @@ Implemented a compact infrastructure summary with three visible priorities and e
 ### Rating badge return context — 2026-11-24
 
 Fixed the remaining CVSS/vendor-priority/missing-score badge entry path from filtered reviews. Badge links preserve list filters and pagination, keep the evidence anchor, and retain the validated original list destination through guided/evidence views without nesting return URLs. Direct case links remain direct; external return destinations remain rejected. Synthetic regression tests cover clicking badges and the filtered return path. No schema, permissions, live records or deployment changes.
+
+### Source-priority sorting and CI reliability — 2026-11-24
+
+Implemented highest-source-priority default sorting in machine indicators, sortable
+machine/company/evaluation/priority/evidence headings, case sort controls and retained
+record column sorting. Ordering precedes pagination; sort/page links retain scope;
+unknown or stale machine priority remains unestablished. Added source refresh worker
+separation for the PostgreSQL Compose lab, preserving source locks and failure state,
+and restored Python 3.8 installer-test grammar compatibility. Regression tests cover
+sorting, filter links, stale evaluation and worker scheduling. Full PostgreSQL,
+Python 3.8 and bundled integration validation are required in CI before PR #124 merges.

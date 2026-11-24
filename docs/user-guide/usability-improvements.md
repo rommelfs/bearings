@@ -49,3 +49,30 @@ Validated locally on 2026-11-23:
 - PostgreSQL validation was not run because Docker Desktop was manually paused. No production migration, deployment or live-record edits were performed.
 
 CVSS badge follow-up validated on 2026-11-24: **109 relevant Django tests passed, 1 skipped** on SQLite, including score/vendor/missing-score badge click-throughs, evidence anchors, original-filter return, repeated badge clicks and rejected external return targets. Frozen dependency sync, local migrations, Django checks, migration-drift check and Ruff passed. A local browser round trip on synthetic Log4j data returned to the exact same category/search/severity/page URL both directly and through a guided case. No live records or deployment were changed.
+
+## Default source-priority sorting — 2026-11-24
+
+Machine indicators now default to the highest source priority descending (Critical,
+High, Medium, Low, None, Unknown), computed from current positive distribution
+version evidence within the permitted organization scope. Missing/stale evaluation
+or no current positive decision stays **Not established** and sorts last; manual
+associations never supply a confirmed machine priority. This changes ordering,
+not the evidence, counts or assessment rules.
+
+Machine, company, evaluation coverage, source priority and version-evidence columns
+have clickable sort headings with direction arrows and accessible `aria-sort`.
+Selecting a heading changes direction; selecting another starts alphabetical/numeric
+ascending, or highest-first for priority. Ordering runs before pagination with stable
+tie breakers. Filter scope survives heading and page changes. Software follow-up
+cases have equivalent sort controls for company, software, platform, package manager,
+machine and identifier counts. Retained evidence records expose sortable columns,
+keeping their existing highest-priority default. Category changes retain sorting.
+Unknown source priority is not a local risk score or a confirmed applicability decision.
+
+The development Compose profile now runs slow inventory/catalog/feed refreshes in a
+separate `source-worker`, so a public catalog request cannot hold up the durable
+write queue. Per-source database locks, tenant checks and retained failure state
+remain enforced. Restart/update all services with the development starter. Native
+production scheduling is unchanged. The installer test suite uses Python 3.8-compatible
+context managers and includes a grammar regression guard; actual 3.8 and real-stack
+validation run in GitHub Actions. Local Docker Desktop remains paused.

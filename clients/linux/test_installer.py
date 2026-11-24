@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Unprivileged installer boundaries. Privileged flow is exercised in a disposable container."""
 
+import ast
+from contextlib import ExitStack
 import hashlib
 import importlib.util
 import os
@@ -19,15 +21,23 @@ SPEC.loader.exec_module(installer)
 
 
 class InstallerTests(unittest.TestCase):
+    def test_sources_keep_python38_grammar_compatibility(self):
+        for filename in ("install.py", "test_installer.py"):
+            with self.subTest(filename=filename):
+                ast.parse(Path(__file__).with_name(filename).read_text(), feature_version=8)
+
     def test_recovery_gate_resumes_only_after_pending_transaction_was_restored(self):
         for remains in (False, True):
-            with (
-                self.subTest(pending_remains=remains),
-                patch.object(installer, "regular", side_effect=[True, True, remains]),
-                patch.object(installer, "read_update_json", return_value={"active": True}),
-                patch.object(installer, "systemctl") as systemctl,
-                patch.object(installer, "update_state", return_value=Path("/synthetic/pending.json")),
-            ):
+            with ExitStack() as contexts:
+                contexts.enter_context(self.subTest(pending_remains=remains))
+                contexts.enter_context(patch.object(installer, "regular", side_effect=[True, True, remains]))
+                contexts.enter_context(
+                    patch.object(installer, "read_update_json", return_value={"active": True})
+                )
+                systemctl = contexts.enter_context(patch.object(installer, "systemctl"))
+                contexts.enter_context(
+                    patch.object(installer, "update_state", return_value=Path("/synthetic/pending.json"))
+                )
                 installer.prepare_recovery_gate()
                 self.assertEqual(
                     systemctl.call_args_list[0].args, ("start", "bearings-linux-update-recover-boot.service")
@@ -198,10 +208,9 @@ class InstallerTests(unittest.TestCase):
             command.assert_not_called()
 
     def test_updater_self_copy_uses_only_the_executing_script_not_sudo_input_reads(self):
-        with (
-            patch.object(installer, "source") as source,
-            patch.object(installer, "run", return_value=b"script") as run,
-        ):
+        with ExitStack() as contexts:
+            source = contexts.enter_context(patch.object(installer, "source"))
+            run = contexts.enter_context(patch.object(installer, "run", return_value=b"script"))
             self.assertEqual(installer.running_installer_source(), b"script")
         source.assert_not_called()
         self.assertEqual(
@@ -218,10 +227,9 @@ class InstallerTests(unittest.TestCase):
             "https://example.invalid/path",
             "https://example.invalid/?token=x",
         ):
-            with (
-                patch.object(installer, "lookup_account") as account,
-                self.assertRaises(installer.InstallError),
-            ):
+            with ExitStack() as contexts:
+                account = contexts.enter_context(patch.object(installer, "lookup_account"))
+                contexts.enter_context(self.assertRaises(installer.InstallError))
                 installer.configure_updates(origin)
             account.assert_not_called()
 
@@ -232,11 +240,10 @@ class InstallerTests(unittest.TestCase):
             (True, False, True, True),
             (False, False, True, False),
         ):
-            with (
-                self.subTest(option=option, automation=automation, tty=tty),
-                patch.object(installer.sys.stdin, "isatty", return_value=tty),
-                patch("builtins.input") as prompt,
-            ):
+            with ExitStack() as contexts:
+                contexts.enter_context(self.subTest(option=option, automation=automation, tty=tty))
+                contexts.enter_context(patch.object(installer.sys.stdin, "isatty", return_value=tty))
+                prompt = contexts.enter_context(patch("builtins.input"))
                 self.assertEqual(installer.installation_updates(option, automation), expected)
                 prompt.assert_not_called()
 
@@ -249,30 +256,27 @@ class InstallerTests(unittest.TestCase):
             (["nein"], False),
             (["bad", "no"], False),
         ):
-            with (
-                self.subTest(answers=answers),
-                patch.object(installer.sys.stdin, "isatty", return_value=True),
-                patch("builtins.input", side_effect=answers),
-            ):
+            with ExitStack() as contexts:
+                contexts.enter_context(self.subTest(answers=answers))
+                contexts.enter_context(patch.object(installer.sys.stdin, "isatty", return_value=True))
+                contexts.enter_context(patch("builtins.input", side_effect=answers))
                 self.assertEqual(installer.installation_updates(None), expected)
-        with (
-            patch.object(installer.sys.stdin, "isatty", return_value=True),
-            patch("builtins.input", side_effect=EOFError),
-            self.assertRaises(installer.InstallError),
-        ):
+        with ExitStack() as contexts:
+            contexts.enter_context(patch.object(installer.sys.stdin, "isatty", return_value=True))
+            contexts.enter_context(patch("builtins.input", side_effect=EOFError))
+            contexts.enter_context(self.assertRaises(installer.InstallError))
             installer.installation_updates(None)
 
     def test_unregistered_update_waits_without_download_or_registration(self):
         config = {"schema": "bearings.client-update.v1", "enabled": True, "server": "https://example.invalid"}
-        with (
-            patch.object(installer, "recover_update", return_value=False),
-            patch.object(installer, "read_update_json", return_value=config),
-            patch.object(installer, "lookup_account", return_value=SimpleNamespace()),
-            patch.object(installer, "check_state"),
-            patch.object(installer, "enrolled", return_value=False),
-            patch.object(installer, "download") as download,
-            patch.object(installer, "update_status") as status,
-        ):
+        with ExitStack() as contexts:
+            contexts.enter_context(patch.object(installer, "recover_update", return_value=False))
+            contexts.enter_context(patch.object(installer, "read_update_json", return_value=config))
+            contexts.enter_context(patch.object(installer, "lookup_account", return_value=SimpleNamespace()))
+            contexts.enter_context(patch.object(installer, "check_state"))
+            contexts.enter_context(patch.object(installer, "enrolled", return_value=False))
+            download = contexts.enter_context(patch.object(installer, "download"))
+            status = contexts.enter_context(patch.object(installer, "update_status"))
             installer.automatic_update()
         download.assert_not_called()
         self.assertEqual(status.call_args.kwargs["result"], "awaiting_enrollment")

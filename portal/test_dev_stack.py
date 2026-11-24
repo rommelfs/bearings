@@ -267,7 +267,7 @@ class StarterPrerequisiteTests(TestCase):
                 restart = next(
                     i
                     for i, command in enumerate(commands)
-                    if command[-4:] == ["restart", "web", "worker", "national-worker"]
+                    if command[-5:] == ["restart", "web", "worker", "source-worker", "national-worker"]
                 )
                 migration = next(
                     i
@@ -280,7 +280,7 @@ class StarterPrerequisiteTests(TestCase):
                 self.assertIn("--no-deps", waited)
                 self.assertEqual(
                     waited[waited.index("--no-deps") + 1 :],
-                    ["web", "worker", "national-worker"] + (["bearings-tls"] if sso else []),
+                    ["web", "worker", "source-worker", "national-worker"] + (["bearings-tls"] if sso else []),
                 )
                 self.assertFalse(any("--build" in command for command in commands))
 

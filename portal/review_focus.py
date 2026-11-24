@@ -8,9 +8,9 @@ from datetime import timedelta
 from urllib.parse import urlencode
 from django.conf import settings
 from django.core import signing
-from django.db.models import Case, CharField, Count, Exists, F, Min, OuterRef, Q, Value, When
+from django.db.models import Case, CharField, Count, Exists, F, Min, OuterRef, Q, Subquery, Value, When
 from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Cast, Coalesce, Concat, Lower
+from django.db.models.functions import Cast, Coalesce, Concat, Lower, Substr
 from django.urls import reverse
 from django.utils import timezone
 from .access import organizations_for
@@ -97,7 +97,20 @@ def posture(user, org_ids=None, *, shared_only=False):
             & versions
         )
     devices = devices.filter(feed_scope) if settings.DISTRO_CVE_ENABLED else devices.none()
+    from .presentation import SEVERITY_ORDER
+
+    priority = (
+        automatic.annotate(
+            rank=Case(
+                *[When(record__source_severity=key, then=Value(i)) for i, key in enumerate(SEVERITY_ORDER)],
+                default=Value(len(SEVERITY_ORDER)),
+            )
+        )
+        .order_by("rank")
+        .values("rank")[:1]
+    )
     machines = machines.annotate(
+        source_priority=Case(When(Exists(devices), then=Subquery(priority)), default=Value(None)),
         evaluated=Exists(devices),
         partial=Exists(devices.filter(distro_summary__package_state="partial")),
         version_match=Exists(automatic),
@@ -196,7 +209,7 @@ def case_scope(reviews):
     )
 
 
-def cases(reviews, number, *, filters=None, base_url=None):
+def cases(reviews, number, *, filters=None, base_url=None, ordering=None):
     from django.core.paginator import Paginator
     from .presentation import SEVERITY_ORDER
 
@@ -221,7 +234,14 @@ def cases(reviews, number, *, filters=None, base_url=None):
                 )
             ),
         )
-        .order_by("priority", "organization_id", "family", "platform", "manager", "case_kind")
+        .annotate(
+            family_sort=Case(
+                When(family__startswith="source:", then=Substr("family", 8)),
+                default=F("name"),
+                output_field=CharField(),
+            )
+        )
+        .order_by(*([ordering] if ordering is not None else ["priority"]), *CASE_FIELDS)
     )
     page = Paginator(grouped, 25).get_page(number)
     for row in page:

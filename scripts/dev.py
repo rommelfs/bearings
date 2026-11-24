@@ -468,8 +468,10 @@ def main():
                     "scope_company_admin",
                 ]
             )
-        run(runtime_base + ["restart", "web", "worker", "national-worker"])
-        runtime_services = ["web", "worker", "national-worker"] + (["bearings-tls"] if sso else [])
+        run(runtime_base + ["restart", "web", "worker", "source-worker", "national-worker"])
+        runtime_services = ["web", "worker", "source-worker", "national-worker"] + (
+            ["bearings-tls"] if sso else []
+        )
         run(
             runtime_base
             + ["up", "-d", "--wait", "--wait-timeout", str(args.timeout), "--no-deps", *runtime_services]
