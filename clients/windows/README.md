@@ -1,52 +1,55 @@
-# Bearings Windows reference client
+# Bearings Windows client
 
-SPDX: AGPL-3.0-or-later. [Source](https://github.com/rommelfs/bearings), [license](../../LICENSE), [receiver and coverage contract](../../docs/integrations/windows-agent.md).
+SPDX: AGPL-3.0-or-later. [Source](https://github.com/rommelfs/bearings), [license](../../LICENSE), [receiver and coverage](../../docs/integrations/windows-agent.md).
 
-The client sends the OS build including UBR, reported product name, edition and display release, and machine-installed software from the Windows uninstall registry views. Periodic reporting uses existing Bearings enrollment, Ed25519 HTTP signatures and verified HTTPS. Setup requires **Windows 10 version 1709 or later (or a compatible Windows Server release), Python 3.12+, uv, a reviewed checkout with its frozen `uv.lock`, and an existing Bearings asset**. Use native ARM64 Python on ARM64 Windows so the reporting scope is consistent. Distribute the Python source and its locked dependencies through your approved channel. Native Windows acceptance is pending. The proposed [Windows CI patch](windows-ci.patch) requires workflow write permission to activate.
+## Install and enroll
 
-Open PowerShell from the reviewed checkout under the Windows account that will run scheduled reports. Use an unprivileged account with read access to the machine registry and exclusive write access to its local state and checkout, apart from trusted administrators.
+Ask your administrator for the ZIP that matches **System type** in **Settings → System → About**. Use **x64** for 64-bit Intel or AMD Windows, **ARM64** for ARM Windows, and **x86** for 32-bit Windows. Windows 10 version 1709 or later, or a compatible Windows Server release, is required. Each ZIP contains a standalone console executable with its Go runtime. The endpoint uses Windows system libraries, the registry, DPAPI and its certificate store.
 
-Prepare the server with migration `0073_windows_inventory` before enrolling
-the client. See the [native server upgrade from `6acb4c8`](../../docs/operations/ubuntu24.md#windows-inventory-upgrade-from-6acb4c8).
+Compare the ZIP's SHA-256 with the supplied `SHA256SUMS`. The reference packages are unsigned. Extract `bearings-windows.exe` into a permanent directory writable only by the reporting account and trusted administrators. Run it as the ordinary Windows account that will send reports, with read access to the machine registry. The server needs migration `0073_windows_inventory` ([native server upgrade](../../docs/operations/ubuntu24.md#windows-inventory-upgrade-from-6acb4c8)).
 
-```powershell
-uv sync --frozen
-uv run --frozen python clients/windows/bearings_windows.py collect
-uv run --frozen python clients/windows/bearings_windows.py init
-```
-
-`collect` prints local inventory only; review it as confidential. `init` prints the public key and enrollment flag, never the private key. Keep the source checkout, Python environment and its parent paths writable only by the reporting account and trusted administrators. Do not initialize reusable Windows images.
-
-In your company's **Linux / Windows inventory reports**, paste that public key, select the **existing Windows asset**, and create a one-use registration code. The form requires a company administrator or platform superuser. Do not select new-host registration for this reference. Back in PowerShell:
+Open PowerShell in the directory containing the EXE:
 
 ```powershell
-uv run --frozen python clients/windows/bearings_windows.py enroll --code
-uv run --frozen python clients/windows/bearings_windows.py report
-uv run --frozen python clients/windows/bearings_windows.py status
-uv run --frozen python clients/windows/bearings_windows.py watch --interval 21600
+.\bearings-windows.exe --version
+.\bearings-windows.exe init
 ```
 
-Paste the code into the hidden prompt in an interactive PowerShell console. Keep codes out of arguments, environment variables, screenshots and logs. For a private approved CA, append `--ca-file C:\Approved\bearings-ca.pem` to `enroll --code`, including when retrying the same code after a certificate error. The client adds the CA to default trust and verifies HTTPS against the operator-configured origin in the grant.
-
-`report` collects once and attempts delivery. `watch` runs in the foreground every six hours by default. For automatic reporting via Windows Task Scheduler, create a task and use these settings:
-
-- Run under the **same Windows account and profile** used for enrollment. For an interactive pilot, select **Run only when user is logged on** and leave **Run with highest privileges** unchecked.
-- Set a daily trigger that repeats every six hours for one day. Enable starting after a missed run and select **Do not start a new instance** for overlapping runs.
-- Set **Program/script** to the absolute path of the checkout’s `.venv\Scripts\python.exe`. Set **Add arguments** to `"C:\path\to\bearings\clients\windows\bearings_windows.py" report`, replacing the example with the absolute script path. If you chose a state directory during enrollment, append the same absolute `--state-dir`.
-- Run the task manually to check its result, then run `status` from PowerShell under the same account and verify that the report was applied. Task Scheduler and unattended account profiles still need native acceptance.
-
-State defaults to `%LOCALAPPDATA%\Bearings\Windows`. Key, enrollment request, counters, queued report bytes and latest receipt are encrypted together with user-scoped Windows DPAPI. An exclusive Windows file lock serializes processes; encrypted state is flushed then atomically replaced. Updates must retain this directory and Windows profile. Never clear/copy state to repair connectivity or clone devices. An administrator or compromised reporting account remains trusted; DPAPI is not TPM attestation or protection against state rollback by that account.
-
-Use `flush` to retry retained reports. During an outage, automatic cycles continue saving complete samples locally, up to 64 reports, with limits of 5,000 components and 1 MB per report. At capacity, delivery must make progress before a new sample can be saved. Each receipt must match the exact UUID, sequence and SHA-256 before the queued bytes are removed. `pending` means the server has durably accepted the report. Use `status` for its processing result and the portal for receipt history and ownership review. Watch reports errors without raw exception details and retries on the next interval.
-
-The registration code expires after 30 minutes and the device credential after 90 days. If enrollment failed and the original code is unusable, check the grant and device in the portal before starting again. For controlled replacement, ask the administrator to cancel any pending grant or revoke the existing device as applicable, then initialize a fresh key in a new private state directory. Keep the old state for review if it contains pending reports.
-
-Missing versions are empty/unknown. This is not a list of every installed file: per-user software, unloaded user profiles, MSIX/Appx/Store packages, portable programs, WSL, driver inventory, hotfix/KB enumeration, repository candidates, runtime state and Microsoft CVE/KB applicability are **not implemented**. No `Win32_Product` query, installer consistency/repair invocation, package execution, network scanning, uninstallation, software update or NetBox mutation is performed by collection/reporting.
-
-Local acceptance on a Windows test endpoint (no report delivery):
+In the company's **Linux / Windows inventory reports** page, a company administrator or platform superuser approves this public key for an **existing asset** and creates a one-use registration code. Enter it at the hidden interactive prompt:
 
 ```powershell
-uv run --frozen python -m unittest discover -s clients/windows -p test_client.py
+.\bearings-windows.exe enroll --code
+.\bearings-windows.exe report
+.\bearings-windows.exe status
 ```
 
-The separate Django Windows tests use synthetic registry fixtures and the real independent server signature verifier. Passing them on macOS/Linux does not validate Windows registry, DPAPI or scheduling behavior.
+The grant contains the administrator-configured HTTPS origin. For a private approved CA, append `--ca-file C:\Approved\bearings-ca.pem` to enrollment. You can provide this file when retrying the same code after a certificate error. Keep codes out of arguments, logs and screenshots. The code expires after 30 minutes and the device credential after 90 days. If a code becomes unusable, have the administrator inspect the grant/device before canceling or revoking it as applicable. For a reviewed replacement, initialize a fresh key in a new private state directory and retain any prior queued reports for review.
+
+`collect` prints local inventory only. Handle its output as confidential. `status` reports the latest acknowledged observation. `pending` means the server accepted it for processing. Check for `applied` before scheduling regular reports.
+
+## Automatic reporting
+
+`watch` sends a report at startup and runs in the foreground, repeating every six hours by default. For regular reporting via Windows Task Scheduler:
+
+- Run under the **same account and profile** as enrollment. For an interactive pilot, select **Run only when user is logged on** and leave **Run with highest privileges** unchecked.
+- Set a daily trigger that repeats every six hours for one day. Enable starting after a missed run and select **Do not start a new instance** for overlaps.
+- Set **Program/script** to the absolute path of the extracted EXE and **Add arguments** to `report`. If you chose a private `--state-dir`, include the same absolute path as for enrollment.
+- Run the task manually, then use `status` to verify that Bearings applied the report.
+
+## State, coverage and validation
+
+The default state is `%LOCALAPPDATA%\Bearings\Windows`. The same account can reuse the existing Python client's DPAPI state, key, sequence counter and queued report bytes. Stop the previous reporting task before switching its executable and retain the same state path. Keep the state local and private. It is protected with user-scoped DPAPI, an exclusive file lock and atomic replacement. Keep the original profile and directory when updating.
+
+`flush` retries existing reports. During an outage, collection keeps saving complete samples up to 64 queued reports, with a 5,000-component and 1 MB limit per report. The client removes a queued observation only after the server acknowledges its exact UUID, sequence and SHA-256. Each report covers the Windows build and additional software registered in machine uninstall registry views. Per-user, Store, portable, hotfix and KB inventory, and automatic Microsoft CVE applicability, are outside this scope.
+
+Linux cross-builds verify the three executable targets, with portable tests for signatures, HTTPS delivery and state compatibility. Native DPAPI, registry, locking and Task Scheduler acceptance require a Windows test endpoint. A [proposed Windows CI job](windows-ci.patch) is available for workflow-authorized activation.
+
+## Build from reviewed source
+
+On the build machine, use Python 3.12+ and Go 1.24+ from a clean reviewed checkout:
+
+```sh
+python3 scripts/build_windows_client.py --go /path/to/go
+```
+
+This writes architecture-specific EXEs and ZIPs, `SHA256SUMS` and a matching source ZIP into `.local/windows-client`. Distribute the source ZIP with the binary packages. For a native developer test, run `go test ./...` from `clients/windows` on Windows. The Python source remains available as a compatibility reference.

@@ -88,6 +88,15 @@ class WindowsAgentTests(Fixture):
     relax = test_agents.AgentTests.relax
     send = test_agents.AgentTests.send
 
+    def test_portal_explains_standalone_windows_client_setup(self):
+        self.login(self.admin)
+        downloads = self.client.get("/downloads/linux/?organization=alpha")
+        self.assertContains(downloads, r".\bearings-windows.exe init")
+        self.assertContains(downloads, r".\bearings-windows.exe enroll --code")
+        self.assertContains(downloads, r".\bearings-windows.exe watch")
+        center = self.client.get(self.url("agent-center"))
+        self.assertContains(center, r".\bearings-windows.exe init")
+
     def test_collector_and_own_signature_verified_by_independent_receiver(self):
         self.enroll()
         data = observation()

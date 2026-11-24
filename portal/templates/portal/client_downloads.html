@@ -20,11 +20,10 @@
 </section>
 <section id="windows-client" class="client-downloads">
 <h2>Set up the Bearings Windows client</h2>
-<p>Use a reviewed Bearings checkout with Python 3.12+ and uv. Open PowerShell as the account that will send reports.</p>
-<pre>uv sync --frozen
-uv run --frozen python clients/windows/bearings_windows.py init</pre>
+<p>Ask your administrator for the Bearings ZIP for your Windows system type (x64, ARM64 or x86). Extract it and open PowerShell in that directory as the account that will send reports.</p>
+<pre>.\bearings-windows.exe init</pre>
 <p>Give the public key to your company administrator and ask for a one-use code for an existing asset.</p>
-<pre>uv run --frozen python clients/windows/bearings_windows.py enroll --code
-uv run --frozen python clients/windows/bearings_windows.py watch</pre>
+<pre>.\bearings-windows.exe enroll --code
+.\bearings-windows.exe watch</pre>
 <p>Paste the code into the hidden prompt. Keep the watch process open for six-hour reporting, or configure Task Scheduler under the same account to run the client's <code>report</code> command.</p>
 </section>{% endblock %}

@@ -2313,3 +2313,22 @@ the scoped host overview, and that missing Windows CVE evaluation remains
 visible as a coverage gap. See the
 [native Ubuntu upgrade steps](operations/ubuntu24.md#windows-inventory-upgrade-from-6acb4c8)
 and [Windows client setup](../clients/windows/README.md).
+
+### Standalone Windows packages
+
+Go 1.27.4 cross-builds the client with CGO disabled for Windows x64, ARM64
+and x86. The endpoint uses the bundled Go runtime and Windows system libraries.
+Portable Go tests passed with the race detector, including an independent
+RFC 9421 signature vector, verified loopback HTTPS, exact outbox receipts,
+enrollment retry and compatibility with the previous Python state format.
+Go vet passed for the build host and all three Windows targets. The native
+registry, DPAPI and competing-process lock test programs compiled for all
+three architectures. Execution on native Windows and Task Scheduler acceptance
+remain pending.
+
+PostgreSQL migration 0073, frozen sync, Django system and migration consistency
+checks, Ruff and 24 focused receiver and portal cases passed on the Cloud
+Linux host. The server continues to accept the same observation and HTTP
+signature profiles. The release archives include checksums and redistribution
+notices. Corresponding Go source and vendored modules ship in a separate
+source archive. Authenticode signing remains pending.
