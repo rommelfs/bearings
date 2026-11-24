@@ -10,7 +10,7 @@ sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt</pre
 sudo python3 bearings-install.py --server '{{ origin }}' --bootstrap-prompt --lxc-compatible</pre></details>
 <h3>2. Check that reporting has started</h3>
 <pre>sudo systemctl --no-pager --full status bearings-linux.service</pre>
-<p>After successful registration, periodic reporting starts automatically. Check the device under your company’s <strong>Linux inventory reports</strong>.</p>
+<p>After successful registration, periodic reporting starts automatically. Check the device under your company’s <strong>Linux / Windows inventory reports</strong>.</p>
 <details><summary>Automated rollout with a secret manager</summary><p>Run as root. First have your secret manager provision a root-readable file at <code>/run/secrets/bearings-rollout-key</code> (permissions 0600). This path is an example: adapt it to your deployment. The following block downloads the installer, then reads the key from that file through standard input:</p>
 <pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py &amp;&amp;
 python3 bearings-install.py --server '{{ origin }}' --bootstrap-stdin &lt; /run/secrets/bearings-rollout-key</pre>

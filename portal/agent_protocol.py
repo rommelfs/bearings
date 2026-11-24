@@ -1,4 +1,4 @@
-"""Strict Linux observation contract and RFC 9421/9530 verification; no session authentication."""
+"""Strict endpoint observation contract and RFC 9421/9530 verification; no session authentication."""
 
 import base64
 import hashlib
@@ -142,7 +142,7 @@ def text(value, length, pattern=None):
 
 def package_scope(name, scope):
     return (
-        scope == "system-packages"
+        scope in {"system-packages", "windows-machine"}
         or scope == "nginx-packages"
         and (name == "nginx" or name.startswith(("nginx-", "libnginx-mod-")))
     )
@@ -172,7 +172,14 @@ def report_data(data):
     if not observed or timezone.is_naive(observed) or observed > timezone.now() + timedelta(minutes=5):
         raise ValueError("Invalid observation time")
     if (
-        data["scope"] not in ("system-packages", "nginx-packages", "selected-packages", "configured-binaries")
+        data["scope"]
+        not in (
+            "system-packages",
+            "nginx-packages",
+            "selected-packages",
+            "configured-binaries",
+            "windows-machine",
+        )
         or type(data["complete"]) is not bool
     ):
         raise ValueError("Invalid coverage")
@@ -187,6 +194,11 @@ def report_data(data):
         text(data["os"][field], 120)
     if data["os"]["reboot_hint"] not in ("present", "not_observed", "unknown"):
         raise ValueError("Invalid reboot hint")
+    windows = data["scope"] == "windows-machine"
+    if windows != (data["os"]["id"] == "windows"):
+        raise ValueError("Windows OS and machine scope must agree")
+    if windows and (data.get("applications") or data["services"]):
+        raise ValueError("Windows inventory does not assert application probes or runtime coverage")
     if "host" in data:
         host_claim(data["host"])
     applications = data.get("applications", [])
@@ -269,6 +281,13 @@ def report_data(data):
     for c in components:
         if not isinstance(c, dict):
             raise ValueError("Invalid component")
+        if windows:
+            validate_windows_component(c)
+            if c["key"] in keys:
+                raise ValueError("Duplicate Windows registration")
+            keys.add(c["key"])
+            managers.add(c["manager"])
+            continue
         binary = c.get("manager") == "binary"
         fields = ("key", "manager", "name", "version", "architecture")
         if not binary and "source" in c:
@@ -314,6 +333,15 @@ def report_data(data):
             raise ValueError("Out-of-scope package")
         keys.add(c["key"])
         managers.add(c["manager"])
+    if windows and sum(c["windows"]["kind"] == "os" for c in components) != 1:
+        raise ValueError("Windows snapshot requires exactly one OS observation")
+    if windows:
+        operating_system = next(c for c in components if c["windows"]["kind"] == "os")
+        if (
+            operating_system["version"] != data["os"]["version"]
+            or data["os"]["kernel"] != data["os"]["version"]
+        ):
+            raise ValueError("Windows OS build observations must agree")
     if len(managers) != 1:
         raise ValueError("One package database per snapshot")
     if not isinstance(data["services"], list) or len(data["services"]) > 1:
@@ -358,3 +386,43 @@ def host_claim(value):
             raise ValueError("Duplicate or noncanonical address declaration")
         seen.add((entry["interface"], str(address)))
     return value
+
+
+def validate_windows_component(c):
+    """Machine registry locations identify observations, never confirmed CVE products."""
+    exact(c, ("key", "manager", "name", "version", "architecture", "windows"))
+    if c["manager"] != "win-reg" or c["architecture"] != "all":
+        raise ValueError("Unsupported Windows collector")
+    text(c["name"], 128)
+    if c["version"] != "":
+        text(c["version"], 120)
+    evidence = c["windows"]
+    exact(evidence, ("kind", "registry_key", "view", "publisher", "edition", "release"))
+    for field, length in (("publisher", 255), ("edition", 120), ("release", 120)):
+        if evidence[field] != "":
+            text(evidence[field], length)
+    text(evidence["registry_key"], 1024)
+    if evidence["kind"] == "os":
+        expected = "win-reg:os:all"
+        if (
+            evidence["view"] != "native"
+            or evidence["registry_key"] != r"SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+            or not re.fullmatch(r"[0-9]+\.[0-9]+", c["version"])
+        ):
+            raise ValueError("Invalid Windows OS evidence")
+    elif evidence["kind"] == "program":
+        prefix = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\"
+        path = evidence["registry_key"]
+        if (
+            evidence["view"] not in {"32", "64"}
+            or not path.startswith(prefix)
+            or not path[len(prefix) :]
+            or "\\" in path[len(prefix) :]
+        ):
+            raise ValueError("Use a machine uninstall registration in an explicit registry view")
+        identity = hashlib.sha256((evidence["view"] + ":" + path.casefold()).encode()).hexdigest()
+        expected = "win-reg:" + identity + ":all"
+    else:
+        raise ValueError("Unsupported Windows observation kind")
+    if c["key"] != expected:
+        raise ValueError("Windows identity differs from registry evidence")

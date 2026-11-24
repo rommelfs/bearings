@@ -16,6 +16,8 @@ RHEL = {"8", "9"}
 
 
 def unsupported_reason(os):
+    if os.get("id") == "windows":
+        return "Windows inventory is recorded; automatic Microsoft CVE/KB applicability is not implemented."
     if os.get("id") == "rhel" and os.get("version", "").split(".")[0] == "10":
         return (
             "RHEL 10 requires Red Hat CSAF/VEX data, which Bearings does not yet evaluate. "

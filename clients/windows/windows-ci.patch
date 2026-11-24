@@ -1,0 +1,25 @@
+diff --git a/.github/workflows/checks.yml b/.github/workflows/checks.yml
+index 6fc99a8..8ee5965 100644
+--- a/.github/workflows/checks.yml
++++ b/.github/workflows/checks.yml
+@@ -57,6 +57,20 @@ jobs:
+       - run: uv run python manage.py makemigrations --check --dry-run
+       - run: uv run python manage.py test
+       - run: uv run python manage.py collectstatic --noinput
++  windows-client:
++    runs-on: windows-2025
++    permissions:
++      contents: read
++    steps:
++      - uses: actions/checkout@v4
++      - uses: astral-sh/setup-uv@v6
++        with:
++          version: "0.12.23"
++          python-version: "3.12"
++          enable-cache: true
++      - run: uv sync --frozen
++      - name: Native DPAPI, identity persistence, locking and local registry acceptance
++        run: uv run python -m unittest discover -s clients/windows -p test_client.py
+   dependency-audit:
+     runs-on: ubuntu-latest
+     steps:

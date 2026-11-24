@@ -2,6 +2,10 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Windows inventory increment — 2026-11-24
+
+- **Deliver Windows OS and machine software inventory client**: Implemented existing-asset authenticated enrollment, signed HTTPS reporting/status, DPAPI-encrypted durable state/outbox, OS build/UBR/edition/release and 32/64-bit machine uninstall registry observations. Separate software/OS projection retains unknown versions, missing evidence and human ownership. Migration 0073; synthetic receiver tests and native Windows CI checks supplied. Real Windows/Task Scheduler and fleet acceptance remain pending. Microsoft CVE/KB applicability, per-user/Store/portable inventory, signed packaging/downloads and Windows fleet bootstrap remain planned. See [Windows integration](integrations/windows-agent.md).
+
 ## Implementation update — 2026-10-20
 
 The first lifecycle/RT/notification/Plum increments and bounded company snapshot federation are implemented. Their operational/scalability follow-ups remain open.

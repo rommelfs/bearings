@@ -2,7 +2,7 @@
 
 A native, dependency-free Go client for **outbound authenticated inventory observations**. SPDX: AGPL-3.0-or-later; see the repository [license](../../LICENSE). This is a bounded Linux reference implementation, not a patch installer, remote shell, complete endpoint scanner or proof that a compromised machine is truthful.
 
-The receiver, permissions, threat model, limits and validation are documented in [Linux observations](../../docs/integrations/linux-agent.md). Windows, TPM, mTLS, automatic credential renewal, signed release packages and fleet-scale ingest acceptance are not implemented by this reference.
+The receiver, permissions, threat model, limits and validation are documented in [Linux observations](../../docs/integrations/linux-agent.md). A separate [Windows reference](../windows/README.md) now implements OS/build and machine software reporting; native Windows acceptance remains pending. TPM, mTLS, automatic credential renewal, signed release packages and fleet-scale ingest acceptance are not implemented by this reference.
 
 ## Recommended: central download and installer
 

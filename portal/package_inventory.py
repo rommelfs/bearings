@@ -13,6 +13,17 @@ MAX_AUTO_PACKAGES = 5000
 
 def identity(component, os):
     manager = component.manager
+    if manager == "win-reg" and os.get("id") == "windows":
+        # Registration identity is stable across version changes, scoped to its
+        # exact location/view. No vendor CPE or executable architecture inferred.
+        return {
+            "product": "pkg:generic/windows-registration/" + component.key.split(":")[1],
+            "name": component.name,
+            "manager": manager,
+            "distribution": "windows",
+            "release": os.get("version", ""),
+            "namespace_basis": "machine registry declaration; CVE applicability unknown",
+        }
     if manager == "manifest":
         from .manifest_inventory import product_identifier
 
@@ -78,7 +89,7 @@ def project(device):
         device.components.filter(
             installation__isnull=True,
             inventory_excluded=False,
-            manager__in=["dpkg", "rpm"],
+            manager__in=["dpkg", "rpm", "win-reg"],
             missing_since__isnull=True,
             observed_at__gte=timezone.now() - timedelta(hours=12),
         )
@@ -132,6 +143,7 @@ def project(device):
                 asset_id=device.asset_id,
                 product=products[(c.package_identity["name"], c.package_identity["product"])],
                 version=c.version,
+                is_operating_system=c.windows.get("kind") == "os",
             )
             for c in selected
         ],

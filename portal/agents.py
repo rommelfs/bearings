@@ -415,6 +415,9 @@ def process_one(device_id, report_id):
                     raise ValidationError(
                         "Release application version ownership before changing its probe identity"
                     )
+                if c.installation_id and value["manager"] == "win-reg" and c.name != value["name"]:
+                    raise ValidationError("Release Windows version ownership before changing product name")
+                c.windows = value.get("windows", {})
                 c.manifest = value.get("manifest", {})
                 for field in ("name", "manager", "architecture", "version"):
                     setattr(c, field, value[field])
@@ -451,6 +454,7 @@ def process_one(device_id, report_id):
                     "missing_since",
                     "last_report",
                     "binary",
+                    "windows",
                     "manifest",
                     "package_identity",
                     "package_source",
@@ -479,7 +483,7 @@ def process_one(device_id, report_id):
             for value in data["services"]:
                 runtime[value["name"]] = {**value, "observed_at": row.observed_at.isoformat()}
             device.services = list(runtime.values())
-            if data["complete"] and data["scope"] == "system-packages":
+            if data["complete"] and data["scope"] in {"system-packages", "windows-machine"}:
                 device.last_complete_at = row.observed_at
             device.last_observed_at = row.observed_at
             device.applied_sequence = row.sequence
@@ -605,6 +609,8 @@ def bind(actor, org, component_id, installation_id=None, create=False):
             from .manifest_inventory import product_identifier
 
             identifier = product_identifier(component)
+        elif component.manager == "win-reg":
+            identifier = component.package_identity["product"]
         elif component.manager == "binary":
             identifier = (
                 f"pkg:generic/{quote(component.name, safe='')}?arch={quote(component.architecture, safe='')}"
@@ -617,7 +623,12 @@ def bind(actor, org, component_id, installation_id=None, create=False):
         product, _ = Product.objects.get_or_create(
             organization=org, name=component.name, identifier=identifier
         )
-        installation = Installation.objects.create(asset=device.asset, product=product, version="")
+        installation = Installation.objects.create(
+            asset=device.asset,
+            product=product,
+            version="",
+            is_operating_system=component.windows.get("kind") == "os",
+        )
     else:
         installation = (
             Installation.objects.select_for_update(of=("self",))

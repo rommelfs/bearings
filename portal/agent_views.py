@@ -217,7 +217,7 @@ class EnrollmentForm(forms.Form):
     )
     public_key = forms.CharField(
         max_length=44,
-        help_text="Paste the public key printed by bearings-linux init. Never paste a private key.",
+        help_text="Paste the public key printed by the Linux or Windows client init command. Never paste a private key.",
     )
     acknowledged = forms.BooleanField(
         label="I authorize this device to report observations for this asset. Software version ownership is assigned separately."
