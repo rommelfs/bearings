@@ -106,7 +106,7 @@ def map_data(user):
     for item in [*points, *unlocated]:
         item.update(
             company_url=reverse("organization", args=[item["slug"]]),
-            reviews_url=reverse("circl-findings") + "?organization=" + item["slug"],
+            reviews_url=reverse("circl-findings") + "?view=records&organization=" + item["slug"],
             issues_url=reverse("issues") + "?organization=" + item["slug"] + "&state=map-open",
             location_url=reverse("circl-map-location", args=[item["slug"]])
             if item.pop("location_editable")

@@ -728,3 +728,30 @@ The same increment replaces the default raw retained-review list with action/man
 ## Machine-based orientation — 2026-11-23
 
 - **Replace association-count dashboards with machine proportions and scoped follow-up cases**: Implemented mutually exclusive highest-priority machine cohorts and explicit version-match/evaluation-coverage denominators, partial/unknown coverage and exact cohort drill-down. Company cards fold raw review totals; national indicators emphasize percentages. What needs attention defaults to one machine with bounded product teasers, preserving grouped actions as an alternate view. Group software-family cases by organization, explicit source/product identity, platform, manager and evidence category; retain exact scoped record drill-down and human decisions. Add forward-only machine percentage history with gaps for legacy/missing observations and zero denominators. No opaque risk score, inferred MISP affectedness, duplicate cleanup or automatic workflow closure. Source trust/runtime/applicability and national population completeness remain explicit limits. See [national overview](user-guide/circl-overview.md) and [infrastructure overview](user-guide/infrastructure-overview.md).
+
+## Simplify infrastructure review — 2026-11-23
+
+Implemented a compact infrastructure summary with three visible priorities and expandable evidence/diagnostics. Standardized review labels and inventory-count scopes, aligned group/list priority ordering, and preserved visible product/group/search filters through case/action/guided review navigation. Assigned IPs are consistently available in issue and guide views with scoped bounded loading. Product research hides irrelevant version fields; loading placeholders wait for a failure before offering Retry; reviewed timestamps share the explicit display timezone. Company-map drill-down now opens exact records and compact inventory explicitly labels unknown versions. Browser verification uses synthetic local data. Production deployment, production latency and PostgreSQL checks with an available local instance remain separate. See [implementation and limits](user-guide/usability-improvements.md).
+
+### Rating badge return context — 2026-11-24
+
+Fixed the remaining CVSS/vendor-priority/missing-score badge entry path from filtered reviews. Badge links preserve list filters and pagination, keep the evidence anchor, and retain the validated original list destination through guided/evidence views without nesting return URLs. Direct case links remain direct; external return destinations remain rejected. Synthetic regression tests cover clicking badges and the filtered return path. No schema, permissions, live records or deployment changes.
+
+### Source-priority sorting and CI reliability — 2026-11-24
+
+Implemented highest-source-priority default sorting in machine indicators, sortable
+machine/company/evaluation/priority/evidence headings, case sort controls and retained
+record column sorting. Ordering precedes pagination; sort/page links retain scope;
+unknown or stale machine priority remains unestablished. Added source refresh worker
+separation for the PostgreSQL Compose lab, preserving source locks and failure state,
+and restored Python 3.8 installer-test grammar compatibility. Regression tests cover
+sorting, filter links, stale evaluation and worker scheduling. Full PostgreSQL,
+Python 3.8 and bundled integration validation are required in CI before PR #124 merges.
+
+The integration rerun confirmed real device/VM writes and recovery. Corrected the
+native SSO-link test's matrix scope: it runs in SSO variants with the real adapter;
+general HTTPS/import/write checks remain unconditional in every variant.
+
+PostgreSQL performance follow-up: batch temporary JIT/planning/timeout settings
+into three read/apply/restore round trips. Preserve prior/nested settings and error
+rollback; retain the existing overview/list query budgets and evidence checks.

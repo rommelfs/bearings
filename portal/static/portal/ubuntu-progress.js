@@ -13,7 +13,12 @@
     text(target, value);
   };
   const automatic = node => node.querySelector("[data-lookup-auto]").checked && (!globalRefresh || globalRefresh.checked);
-  const date = (value, node) => value ? new Intl.DateTimeFormat("en-GB", {year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: node.dataset.timezone || "Europe/Berlin", timeZoneName: "short"}).format(new Date(value)) : null;
+  const date = (value, node) => {
+    if (!value) return null;
+    const parts = new Intl.DateTimeFormat("en-GB", {year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23", timeZone: node.dataset.timezone || "Europe/Berlin", timeZoneName: "short"}).formatToParts(new Date(value));
+    const p = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.timeZoneName}`;
+  };
   const panelRequests = new Map();
   async function refreshPanel(node, evaluation, target) {
     const panel = [...document.querySelectorAll("[data-evaluation-panel]")].find(el => el.dataset.device === node.dataset.device);

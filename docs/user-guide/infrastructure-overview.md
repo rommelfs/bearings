@@ -1,6 +1,6 @@
 # Infrastructure overview and automatic product setup
 
-After signing in, Bearings opens **Infrastructure overview** (`/`). Company users see their permitted companies; CIRCL analysts see companies allowed by current operator visibility or ordinary memberships. The brand link and the first navigation item return here. **Vulnerability review** remains available at `/reviews/` with its existing evidence, severity filters and assessment workflow.
+After signing in, Bearings opens **Infrastructure overview** (`/infrastructure/`). Company users see their permitted companies; CIRCL analysts see companies allowed by current operator visibility or ordinary memberships. The brand link and the first navigation item return here. **Vulnerability review** remains available at `/reviews/` with its existing evidence, severity filters and assessment workflow.
 
 ## Read the company state
 
@@ -418,3 +418,7 @@ error. Queue optimization and NetBox source import are independent operations.
 Company overview cards now emphasize machine-based match and evaluation-coverage proportions, partial evaluations and missing coverage. Technical installation/review counters remain collapsed. The links open exactly the corresponding permitted machine cohorts. A separate company software-case route supports ordinary members under current evidence policy, without granting access to national pages.
 
 **What needs attention?** defaults to one card per active machine with a compact reason, highest current source-priority match where established, and up to three product teasers. Overdue recorded work is ordered first, followed by version evidence/saved affected assessments, operational issues, missing current evaluation and application applicability. Only explicitly recorded lifecycle/exposure issues or vulnerability issues with a deadline/next action count as operational work; passive vendor clarification alone does not manufacture a repair task. An unsupported/unreported machine remains a coverage follow-up, not an automatically vulnerable machine. Click the machine for detail. The **Grouped actions** toggle preserves the former view, organization filter and pagination. Neither view creates or assigns tasks.
+
+## Compact review workflow
+
+The company card now shows three primary next steps and folds detailed reasons, network/evidence previews and monitoring limitations. Filter chips and case return paths preserve your selected work. See [usability improvements](usability-improvements.md) for the implemented behavior and validation limits.

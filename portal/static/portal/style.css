@@ -2011,3 +2011,45 @@ h2.icon-heading > .ui-icon { width: 24px; height: 24px; flex-basis: 24px; color:
 .ubuntu-lookup-progress [hidden] { display: none !important; }
 .review-state-counts { display: flex; flex-wrap: wrap; gap: .7rem 1.3rem; margin: 1rem 0; }
 .evaluation-metrics { border-left: 3px solid var(--brand); padding-left: 1rem; margin: 1rem 0; }
+
+/* Keep overview decisions visible and technical explanations available on demand. */
+.overview-company .national-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin: 1rem 0; }
+.overview-company .national-metrics p { margin: .45rem 0 0; font-size: .85rem; line-height: 1.45; }
+.overview-company .national-metrics strong { font-size: 1.65rem; }
+.overview-company .muted, .overview-server .muted, .indicator-definitions, .overview-metrics small { font-size: .85rem; line-height: 1.55; }
+.indicator-definitions, .overview-coverage-notes { margin: .75rem 0; }
+.indicator-definitions > summary, .overview-coverage-notes > summary, .overview-review-preview > summary { color: var(--brand); font-weight: 600; }
+.overview-next-steps { margin: 1rem 0; }
+.next-step-list > li { padding: .7rem 0 .7rem .25rem; }
+.next-step-list details { margin: .5rem 0; }
+.overview-priority > .cards { display: grid; grid-template-columns: 1fr; gap: .75rem; }
+.overview-server { padding: 1rem 1.25rem; }
+.overview-server h3 { margin: .25rem 0; }
+.overview-server p { margin: .55rem 0; }
+.overview-server details { margin: .55rem 0; }
+.active-filters { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+.filter-chip { display: inline-block; border: 1px solid var(--line); border-radius: 1.25rem; padding: .4rem .75rem; background: #edf3f6; overflow-wrap: anywhere; }
+.filter-chip:hover, .filter-chip:focus-visible { outline: 2px solid var(--brand); }
+.grouped-action-row { margin: .65rem 0; padding: 1rem 1.25rem; }
+.grouped-action-row h2 { font-size: 1.2rem; margin: .35rem 0; }
+.grouped-action-row p { margin: .4rem 0; }
+.research-fields [hidden] { display: none !important; }
+@media (max-width: 450px) {
+  .overview-metrics { grid-template-columns: 1fr; }
+  .overview-metrics span { font-size: .9rem; }
+  .overview-server { padding: 1rem; }
+  .next-step-route { display: grid; gap: .4rem; }
+}
+.overview-company { container-type: inline-size; }
+@container (min-width: 52rem) {
+  .overview-company .national-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 450px) {
+  .overview-company .national-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .overview-company .national-metrics > a { padding: .75rem; }
+  .overview-company .national-metrics p { font-size: .8rem; }
+}
+
+/* Make wrapped sort headings a continuous, keyboard-accessible target. */
+th .table-sort{display:flex;align-items:center;gap:.35rem;min-height:2.75rem}
+th .table-sort span{flex-shrink:0}

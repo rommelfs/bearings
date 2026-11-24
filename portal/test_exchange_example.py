@@ -1,4 +1,7 @@
 import copy
+import re
+from html import unescape
+from urllib.parse import parse_qs, urlsplit
 from django.urls import reverse
 import io
 import uuid
@@ -145,7 +148,15 @@ class ExchangeExampleTests(Fixture):
         home = self.client.get(reverse("home"))
         for text in [CVE, "High", "8.1", BUILD, "Manual assessment", "confidential email", "No exploitation"]:
             self.assertContains(home, text)
-        self.assertContains(home, f"?finding={finding.pk}#finding-{finding.pk}")
+        links = [urlsplit(unescape(link)) for link in re.findall(r'href="([^"]+)"', home.content.decode())]
+        self.assertTrue(
+            any(
+                link.fragment == f"finding-{finding.pk}"
+                and parse_qs(link.query).get("finding") == [str(finding.pk)]
+                and parse_qs(link.query).get("return_to") == [reverse("home")]
+                for link in links
+            )
+        )
         detail = self.client.get(self.url("intelligence", finding.organization), {"finding": finding.pk})
         self.assertContains(detail, "Possible consequences")
         self.assertContains(detail, "Source severity: High")

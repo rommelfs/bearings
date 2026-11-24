@@ -57,6 +57,12 @@ def case(request, slug, pk):
     if step not in keys:
         raise Http404
     decorate_finding(finding)
+    from .inventory_presentation import decorate_addresses, host_network_summary
+
+    decorate_addresses([finding.installation.asset])
+    network = host_network_summary(finding.installation.asset)
+    for key in ("addresses", "dns_names", "assigned_address_count", "addresses_truncated"):
+        finding.asset_context[key] = network[key]
     links = list(visible_links(request.user, org).filter(finding=finding, withdrawn_at__isnull=True))
     for link in links:
         link.needs_review = any(link_state(link).values())

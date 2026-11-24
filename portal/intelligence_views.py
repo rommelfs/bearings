@@ -227,7 +227,11 @@ def create_risk_link(request, slug, pk):
                 if guided:
                     from django.urls import reverse
 
-                    return redirect(reverse("case-guide", args=[slug, pk]) + "?step=action")
+                    from .queue_context import with_return
+
+                    return redirect(
+                        with_return(request, reverse("case-guide", args=[slug, pk]) + "?step=action")
+                    )
                 return redirect("intelligence", slug=slug)
     else:
         try:

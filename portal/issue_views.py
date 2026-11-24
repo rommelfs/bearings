@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 from . import issues
 from .access import (
@@ -27,6 +28,8 @@ from .issue_forms import IssueForm, RiskForm
 from .models import Asset, AssetIssue, IssueRiskLink, Membership
 from .presentation import vulnerability_summary
 from .views import organization
+from .queue_context import with_return
+from .inventory_presentation import decorate_addresses, host_network_summary
 
 
 def scoped(request, slug, pk):
@@ -35,7 +38,12 @@ def scoped(request, slug, pk):
 
 
 def decorate(issue):
+    if not hasattr(issue.asset, "address_preview"):
+        decorate_addresses([issue.asset])
     issue.facts = asset_context(issue.asset, workspace=True)
+    network = host_network_summary(issue.asset)
+    for key in ("addresses", "dns_names", "assigned_address_count", "addresses_truncated"):
+        issue.facts[key] = network[key]
     issue.source_summary = vulnerability_summary(issue.finding.record.payload) if issue.finding_id else None
     return issue
 
@@ -49,6 +57,7 @@ def board(request):
     if org_id:
         org = get_object_or_404(orgs, slug=org_id)
         base = base.filter(organization=org)
+    group_label = ""
     representative = request.GET.get("group_issue", "")
     if representative:
         import uuid
@@ -63,6 +72,7 @@ def board(request):
             kind=group.kind,
             installation__product_id=group.installation.product_id if group.installation_id else None,
         )
+        group_label = group.installation.product.name if group.installation_id else group.title
         if not group.finding_id:
             base = base.filter(title=group.title)
     product_id = request.GET.get("product", "")
@@ -70,6 +80,10 @@ def board(request):
         if not product_id.isdigit() or len(product_id) > 10:
             raise Http404
         base = base.filter(installation__product_id=int(product_id))
+        if not group_label:
+            group_label = (
+                base.values_list("installation__product__name", flat=True).first() or "Selected product"
+            )
     asset = None
     if request.GET.get("asset"):
         import uuid
@@ -146,16 +160,14 @@ def board(request):
             | Q(inventory_text__icontains=query)
             | Q(contract_reference__icontains=query)
         )
-    base = base.annotate(
-        deadline_order=Coalesce("action_due", "event_date"),
-        priority_order=Case(
-            When(priority="critical", then=Value(0)),
-            When(priority="high", then=Value(1)),
-            When(priority="review", then=Value(2)),
-            default=Value(3),
-            output_field=IntegerField(),
-        ),
+    priority_order = Case(
+        When(Q(priority="critical") | Q(finding__record__source_severity="critical"), then=Value(0)),
+        When(Q(priority="high") | Q(finding__record__source_severity="high"), then=Value(1)),
+        When(priority="review", then=Value(2)),
+        default=Value(3),
+        output_field=IntegerField(),
     )
+    base = base.annotate(deadline_order=Coalesce("action_due", "event_date"), priority_order=priority_order)
     today = timezone.localdate()
     counts = base.aggregate(
         total=Count("pk"),
@@ -180,14 +192,44 @@ def board(request):
         key_source=AssetIssue.objects.filter(organization__in=orgs.filter(slug=org_id) if org_id else orgs)
         .annotate(
             deadline_order=Coalesce("action_due", "event_date"),
-            priority_order=base.query.annotations["priority_order"],
+            priority_order=priority_order,
         )
         .order_by("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk"),
     )
+    decorate_addresses([issue.asset for issue in page])
     for issue in page:
         decorate(issue)
     filters = request.GET.copy()
     filters.pop("page", None)
+    active_filters = []
+
+    def chip(label, *keys):
+        remaining = filters.copy()
+        for key in keys:
+            remaining.pop(key, None)
+        active_filters.append({"label": label, "url": "?" + remaining.urlencode()})
+
+    if org_id:
+        chip(f"Organization: {org.name}", "organization", "group_issue", "product", "asset")
+    if representative or product_id:
+        chip(f"Software group: {group_label}", "product", "group_issue")
+    if asset:
+        chip(f"Machine: {asset.name}", "asset")
+    if attention:
+        chip(f"Attention: {attention}", "attention")
+    if kind:
+        chip(f"Issue type: {dict(AssetIssue.KINDS)[kind]}", "kind", "group_issue")
+    if state != "active":
+        chip(
+            f"Status: {dict(closed='Closed / accepted', all='All states').get(state, 'Open non-CVE issues')}",
+            "state",
+        )
+    if timing:
+        chip(f"Deadline: {timing}", "timing")
+    if query:
+        chip(f"Search: {query}", "q")
+    if company_query:
+        chip(f"Company search: {company_query}", "company_q")
     return render(
         request,
         "portal/issues.html",
@@ -200,11 +242,15 @@ def board(request):
             "state": state,
             "query": query,
             "organization_filter": org_id,
+            "org": org if org_id else None,
             "counts": counts,
             "timing": timing,
             "filters": filters.urlencode(),
             "asset_filter": asset,
             "attention": attention,
+            "group_filter": representative,
+            "product_filter": product_id,
+            "active_filters": active_filters,
         },
     )
 
@@ -285,7 +331,7 @@ def edit(request, slug, pk):
             reason = values.pop("reason")
             issue = issues.save_issue(request.user, issue, values, reason)
             messages.success(request, "Review recorded. Earlier evidence and history were retained.")
-            return redirect("issue", slug=slug, pk=pk)
+            return redirect(with_return(request, reverse("issue", args=[slug, pk])))
         except ValidationError as exc:
             form.add_error(None, exc)
     return render(
@@ -309,7 +355,7 @@ def add_risk(request, slug, pk):
             messages.error(request, "; ".join(exc.messages))
     else:
         messages.error(request, "Choose an available scenario and provide a reason.")
-    return redirect("issue", slug=slug, pk=pk)
+    return redirect(with_return(request, reverse("issue", args=[slug, pk])))
 
 
 @login_required
@@ -319,7 +365,7 @@ def withdraw_risk(request, slug, pk, link_pk):
     require(issues.editable(request.user, issue))
     link = get_object_or_404(IssueRiskLink, pk=link_pk, issue=issue)
     issues.withdraw_risk(request.user, link, request.POST.get("reason", "")[:4001])
-    return redirect("issue", slug=slug, pk=pk)
+    return redirect(with_return(request, reverse("issue", args=[slug, pk])))
 
 
 @login_required

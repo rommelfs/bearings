@@ -77,7 +77,7 @@ def host_network_summary(asset):
         url = address.source_url
         entry = next((item for item in context["addresses"] if url and item["url"] == url), None)
         if entry is None:
-            entry = {"prefix": str(parsed), "url": url, "primary": False}
+            entry = {"address": str(parsed.ip), "prefix": str(parsed), "url": url, "primary": False}
             context["addresses"].append(entry)
         entry.update(
             workspace_url=reverse("asset", args=[asset.organization.slug, address.pk]),

@@ -16,7 +16,10 @@ def deployment(request):
 
     showcase = request.user.is_authenticated and DemoDataset.objects.filter(state="active").exists()
     switch = view_switch(request, selected, operator)
+    from .queue_context import return_url
+
     return {
+        "queue_return_url": return_url(request),
         **workspace(
             request,
             show_examples=showcase,

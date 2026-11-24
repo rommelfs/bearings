@@ -3,7 +3,7 @@
 from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.db import OperationalError
-from django.db.models import Count
+from django.db.models import Case, Count, Value, When
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -16,6 +16,7 @@ from .overview_queries import overview_queries, bounded_list, read_snapshot
 from .national_snapshots import PendingSnapshot
 from .presentation import severity_first
 from .pagination import object_page
+from .table_sort import TableSort
 from django.urls import reverse
 
 
@@ -150,13 +151,33 @@ def _finding_response(request, org=None):
             "organization": organization_filter,
             "assessment": "all",
         }
-        page = review_focus.cases(scoped, request.GET.get("page"), filters=filters, base_url=request.path)
+        try:
+            sorting = TableSort(
+                request,
+                [
+                    ("priority", "Highest source priority", "priority", True),
+                    ("company", "Company", "company", False),
+                    ("software", "Software family", "family_sort", False),
+                    ("platform", "Platform", "platform", False),
+                    ("manager", "Package manager", "manager", False),
+                    ("machines", "Machines", "machines", False),
+                    ("identifiers", "Identifiers", "identifiers", False),
+                ],
+            )
+        except ValueError:
+            return private_response(
+                render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+            )
+        page = review_focus.cases(
+            scoped, request.GET.get("page"), filters=filters, base_url=request.path, ordering=sorting.order
+        )
         return private_response(
             render(
                 request,
                 "portal/review_cases.html",
                 {
                     "page": page,
+                    **sorting.context(page),
                     "category": category,
                     "bucket": bucket,
                     "record": record,
@@ -186,6 +207,22 @@ def _finding_response(request, org=None):
     counts["all"] = sum(counts.values())
     if assessment != "all":
         qs = qs.filter(queue_bucket=assessment)
+    try:
+        sorting = TableSort(
+            request,
+            [
+                ("record", "Vulnerability / evidence", "record__external_id", False),
+                ("asset", "Company / asset", "installation__asset__name", False),
+                ("installation", "Installation", "installation__product__name", False),
+                ("priority", "Source priority", "source_severity_order", True),
+                ("assessment", "Automatic package assessment / next step", "queue_bucket", False),
+                ("decision", "Saved analyst decision", "analyst_applicability", False),
+            ],
+        )
+    except ValueError:
+        return private_response(
+            render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+        )
     page = object_page(
         severity_first(
             qs.select_related(
@@ -197,7 +234,7 @@ def _finding_response(request, org=None):
                 "distro_match__advisory__feed",
                 "distro_match__ubuntu_status",
             )
-        ),
+        ).order_by(sorting.order, "-evaluated_at", "pk"),
         25,
         request.GET.get("page"),
         count=counts[assessment],
@@ -217,6 +254,7 @@ def _finding_response(request, org=None):
                 "organization_filter": organization_filter,
                 "assessment": assessment,
                 "case_token": token,
+                **sorting.context(page),
                 "back_url": reverse("organization", args=[org.slug]) if org else reverse("circl-overview"),
                 "assessment_options": [(key, label, counts[key]) for key, label in BUCKETS],
                 "retained_total": counts["all"],
@@ -358,13 +396,51 @@ def machine_records(request, slug=None):
         return private_response(
             render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
         )
+    try:
+        sorting = TableSort(
+            request,
+            [
+                ("machine", "Machine", "name", False),
+                ("company", "Company", "organization__name", False),
+                ("evaluation", "Distribution-package evaluation", "evaluation_order", False),
+                ("priority", "Highest source priority", "source_priority", True),
+                ("evidence", "Current version evidence", "current_positive", False),
+            ],
+        )
+    except ValueError:
+        return private_response(
+            render(request, "portal/circl_findings.html", {"invalid_filter": True}, status=400)
+        )
     page = Paginator(
         scope.filter(**filters[focus])
+        .annotate(
+            current_positive=Case(
+                When(evaluated=True, version_match=True, then=Value(True)), default=Value(False)
+            ),
+            evaluation_order=Case(
+                When(evaluated=True, partial=False, then=Value(0)),
+                When(evaluated=True, then=Value(1)),
+                default=Value(2),
+            ),
+        )
         .select_related("organization")
         .defer("upstream_data")
-        .order_by("organization__name", "name", "pk"),
+        .order_by(sorting.order, "organization__name", "name", "pk"),
         25,
     ).get_page(request.GET.get("page"))
+    from .presentation import SEVERITY_ORDER
+
+    for machine in page:
+        rank = machine.source_priority
+        machine.priority_label = (
+            SEVERITY_ORDER[rank].title()
+            if rank is not None and rank < len(SEVERITY_ORDER)
+            else "Not established"
+        )
     return private_response(
-        render(request, "portal/machine_indicators.html", {"page": page, "focus": focus, "org": org})
+        render(
+            request,
+            "portal/machine_indicators.html",
+            {"page": page, "focus": focus, "org": org, **sorting.context(page)},
+        )
     )

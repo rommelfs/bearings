@@ -4,7 +4,7 @@
   if (!refresh) return;
   if (document.querySelector("[data-ubuntu-progress]")) {
     const label = document.querySelector("[data-overview-refresh-label]");
-    if (label) label.textContent = "Refresh lookup counters every 10 seconds (other totals: reload page)";
+    if (label) label.textContent = "Live lookup counters · every 10 seconds";
     return;
   }
   setInterval(() => {

@@ -141,5 +141,5 @@ class OverviewNextStepsTests(Fixture):
         state = response.context["companies"][0]
         self.assertEqual(state["package_errors"], 13)
         self.assertEqual(state["device_examples_shown"], 3)
-        self.assertLessEqual(len(state["next_steps"]), 5)
+        self.assertLessEqual(len(state["next_steps"]), 3)
         self.assertLessEqual(len(large), len(small) + 1)

@@ -127,29 +127,27 @@ def main():
             Path("/tmp/bearings-worker-heartbeat").touch()
             call_command("process_notifications", limit=5)
             Path("/tmp/bearings-worker-heartbeat").touch()
-            from django.core.management import CommandError
+            time.sleep(5)
+    elif mode == "source-worker":
+        from django.core.management import CommandError
 
-            try:
-                call_command("sync_netbox", all=True, due=True)
-            except CommandError:
-                # Per-source failure is already persisted; other imports and writes keep running.
-                pass
-            Path("/tmp/bearings-worker-heartbeat").touch()
-            try:
-                call_command("sync_mosp", all=True, due=True)
-            except CommandError:
-                pass
-            Path("/tmp/bearings-worker-heartbeat").touch()
-            try:
-                call_command("sync_vulnerabilities", due=True, limit=2)
-            except CommandError:
-                pass
-            Path("/tmp/bearings-worker-heartbeat").touch()
-            try:
-                call_command("sync_misp", all=True, due=True, limit=1)
-            except CommandError:
-                pass
-            Path("/tmp/bearings-worker-heartbeat").touch()
+        # Slow public catalog/feed reads must not delay durable inventory writes.
+        # This Compose profile uses PostgreSQL; source locks and existing access
+        # checks still serialize imports with writes on the authoritative source.
+        while True:
+            Path("/tmp/bearings-source-heartbeat").touch()
+            for name, parameters in [
+                ("sync_netbox", {"all": True, "due": True}),
+                ("sync_mosp", {"all": True, "due": True}),
+                ("sync_vulnerabilities", {"due": True, "limit": 2}),
+                ("sync_misp", {"all": True, "due": True, "limit": 1}),
+            ]:
+                try:
+                    call_command(name, **parameters)
+                except CommandError:
+                    # Per-source failure is retained; other sources keep running.
+                    pass
+                Path("/tmp/bearings-source-heartbeat").touch()
             time.sleep(5)
     else:
         raise ValueError("Unknown stack entrypoint")

@@ -677,12 +677,20 @@ def finding_review(request, slug, pk):
     if request.GET.get("return") == "guide":
         from django.urls import reverse
 
-        return redirect(reverse("case-guide", args=[slug, pk]) + "?step=risk")
+        from .queue_context import with_return
+
+        return redirect(with_return(request, reverse("case-guide", args=[slug, pk]) + "?step=risk"))
     if request.GET.get("return") == "intelligence":
         from django.urls import reverse
 
+        from .queue_context import with_return
+
         return redirect(
-            reverse("intelligence", kwargs={"slug": slug}) + f"?finding={finding.pk}#finding-{finding.pk}"
+            with_return(
+                request,
+                reverse("intelligence", kwargs={"slug": slug})
+                + f"?finding={finding.pk}#finding-{finding.pk}",
+            )
         )
     return redirect("organization", slug=slug)
 

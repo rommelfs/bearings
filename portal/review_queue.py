@@ -11,10 +11,10 @@ from .distro_projection import ComparableJSON
 
 
 BUCKETS = (
-    ("action", "Affected versions & manual reviews"),
+    ("action", "Version matches & cases to assess"),
     ("unresolved", "Vendor clarification needed"),
     ("pending", "Awaiting current evaluation"),
-    ("cleared", "Fixed / not affected / assessed"),
+    ("cleared", "Fixed or not affected"),
     ("all", "All retained open reviews"),
 )
 
