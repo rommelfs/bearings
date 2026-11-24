@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -93,6 +92,10 @@ func TestSelfUpdateNativeRoundTrip(t *testing.T) {
 	s.state.Counter = 79
 	s.state.Queue = []string{"retained-exact-synthetic-report-bytes"}
 	before := s.state
+	beforeJSON, err := json.Marshal(before)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err = s.save(); err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +162,8 @@ func TestSelfUpdateNativeRoundTrip(t *testing.T) {
 	}
 	after := s.state
 	after.Update = nil
-	if !reflect.DeepEqual(before, after) {
+	afterJSON, marshalErr := json.Marshal(after)
+	if marshalErr != nil || !bytes.Equal(beforeJSON, afterJSON) {
 		t.Fatal("self-update changed enrollment, device key, counter or exact outbox bytes")
 	}
 	s.close()
