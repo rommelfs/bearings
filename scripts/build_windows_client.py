@@ -9,6 +9,10 @@ import re
 import shutil
 import subprocess
 import tempfile
+import base64
+import json
+import stat
+import time
 from urllib.parse import urlsplit
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
@@ -39,7 +43,7 @@ def build_server(value):
     return "https://" + parsed.netloc.lower()
 
 
-def build(compiler, output, server=""):
+def build(compiler, output, server="", *, signing_key=None, release_sequence=None, previous_manifest=None):
     server = build_server(server) if server else ""
     version = command(compiler, "version")
     if not version.startswith("go version go"):
@@ -61,6 +65,52 @@ def build(compiler, output, server=""):
 
     env = {**os.environ, "GOTOOLCHAIN": "local", "CGO_ENABLED": "0", "GOWORK": "off", "GOFLAGS": ""}
     go_root = Path(command(compiler, "env", "GOROOT", env=env))
+    private = None
+    sequence = 0
+    if signing_key is not None:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+        key_path = Path(signing_key).absolute()
+        if key_path.resolve().is_relative_to(ROOT.resolve()) or not server:
+            raise ValueError("Keep the signing key outside Git and supply the approved HTTPS origin")
+        fd = os.open(key_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as file:
+            info = os.fstat(file.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_mode & 0o077
+                or info.st_uid != os.geteuid()
+                or info.st_size > 128
+            ):
+                raise ValueError("Use a publisher-owned private regular signing key with mode 0600")
+            seed = base64.b64decode(file.read().strip(), validate=True)
+        if len(seed) != 32:
+            raise ValueError("Invalid release signing key")
+        private = Ed25519PrivateKey.from_private_bytes(seed)
+        public = base64.b64encode(private.public_key().public_bytes_raw()).decode("ascii")
+        sequence = int(time.time()) if release_sequence is None else release_sequence
+        if previous_manifest is not None:
+            if previous_manifest.stat().st_size > 65536:
+                raise ValueError("Previous Windows manifest exceeds limit")
+            envelope = json.loads(previous_manifest.read_bytes())
+            payload = base64.b64decode(envelope["payload"], validate=True)
+            private.public_key().verify(base64.b64decode(envelope["signature"], validate=True), payload)
+            previous = json.loads(payload)
+            if (
+                envelope["schema"] != "bearings.windows-release-envelope.v1"
+                or previous["schema"] != "bearings.windows-release.v1"
+                or previous["origin"] != server
+                or type(previous["sequence"]) is not int
+                or previous["sequence"] < 1
+            ):
+                raise ValueError("Previous Windows release does not match the publisher")
+            if release_sequence is None:
+                sequence = max(sequence, previous["sequence"] + 1)
+            elif sequence <= previous["sequence"]:
+                raise ValueError("Release sequence must increase")
+        if not 1 <= sequence <= 2**63 - 1:
+            raise ValueError("Invalid release sequence")
+        ldflags += f" -X main.releasePublicKey={public} -X main.releaseSequence={sequence} -X main.releaseCommit={revision}"
     metadata = {
         "LICENSE": (ROOT / "LICENSE").read_bytes(),
         "README.md": (CLIENT / "README.md").read_bytes(),
@@ -70,7 +120,7 @@ def build(compiler, output, server=""):
             "Corresponding source: bearings-windows-source.zip (distributed alongside this ZIP).\n"
             f"Build the extracted source for the target Windows GOARCH with CGO_ENABLED=0 "
             f"go build -mod=vendor -trimpath -buildvcs=false -ldflags '{ldflags}' .\n"
-            "This is an unsigned reference build. SHA256SUMS provides checksums.\n"
+            "No Authenticode signature. Signed update metadata is provided for publisher-key builds. SHA256SUMS provides checksums.\n"
         ).encode(),
         "licenses/Go-LICENSE": (go_root / "LICENSE").read_bytes(),
     }
@@ -108,6 +158,7 @@ def build(compiler, output, server=""):
                 "scripts/build_windows_client.py": Path(__file__).read_bytes(),
             },
         )
+        release_assets = {}
         for arch, label in ARCHITECTURES.items():
             binary = artifacts / f"bearings-windows-{label}.exe"
             subprocess.run(
@@ -131,6 +182,34 @@ def build(compiler, output, server=""):
                 artifacts / f"bearings-windows-{label}.zip",
                 {**metadata, **licenses, "bearings-windows.exe": binary.read_bytes()},
             )
+            package = artifacts / f"bearings-windows-{label}.zip"
+            release_assets[arch] = {
+                "name": package.name,
+                "size": package.stat().st_size,
+                "sha256": hashlib.sha256(package.read_bytes()).hexdigest(),
+                "exe_size": binary.stat().st_size,
+                "exe_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+            }
+        if private is not None:
+            payload = json.dumps(
+                {
+                    "schema": "bearings.windows-release.v1",
+                    "origin": server,
+                    "version": revision,
+                    "sequence": sequence,
+                    "assets": release_assets,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+            envelope = {
+                "schema": "bearings.windows-release-envelope.v1",
+                "payload": base64.b64encode(payload).decode("ascii"),
+                "signature": base64.b64encode(private.sign(payload)).decode("ascii"),
+            }
+            (artifacts / "update.json").write_text(
+                json.dumps(envelope, sort_keys=True, separators=(",", ":")) + "\n", encoding="ascii"
+            )
         checksums = [
             f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}"
             for path in sorted(artifacts.iterdir())
@@ -145,12 +224,30 @@ def main():
     parser.add_argument("--go", default="go")
     parser.add_argument("--output", type=Path, default=ROOT / ".local/windows-client")
     parser.add_argument("--server", default="", help="Approved Bearings HTTPS origin embedded in every EXE")
+    parser.add_argument(
+        "--signing-key", type=Path, help="Private publisher seed outside the repository (base64, mode 0600)"
+    )
+    parser.add_argument(
+        "--release-sequence",
+        type=int,
+        help="Monotonic release sequence; defaults to build time in UTC seconds",
+    )
+    parser.add_argument(
+        "--previous-manifest", type=Path, help="Verify the preceding release and advance its sequence"
+    )
     args = parser.parse_args()
     compiler = shutil.which(args.go)
     if compiler is None:
         parser.error("Supply a Go compiler with --go")
     try:
-        build(str(Path(compiler).resolve()), args.output, args.server)
+        build(
+            str(Path(compiler).resolve()),
+            args.output,
+            args.server,
+            signing_key=args.signing_key,
+            release_sequence=args.release_sequence,
+            previous_manifest=args.previous_manifest,
+        )
     except (ValueError, subprocess.CalledProcessError) as exc:
         parser.error(str(exc))
 

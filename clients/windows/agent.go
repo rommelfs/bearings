@@ -47,6 +47,7 @@ type pendingEnrollment struct {
 
 // State retains the Python reference's DPAPI JSON format and exact outbox bytes.
 type state struct {
+	Update    *clientUpdateState `json:"client_update,omitempty"`
 	Seed      []byte             `json:"seed"`
 	Counter   int64              `json:"counter"`
 	Queue     []string           `json:"queue"`

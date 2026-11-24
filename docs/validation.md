@@ -2540,3 +2540,36 @@ large-extra-field/large-link regression and the Windows/CVE/continuous-review ru
 pass **51 tests**. Repository Ruff lint/format and diff checks pass. GitHub CI is
 required for the final commit as well; the preceding full-run result is recorded
 here without claiming native Windows acceptance or a production deployment.
+
+## Windows automatic client updates — 2026-11-24
+
+Portable Go race tests and Linux/Windows vet pass. The native suite cross-compiles
+for Windows x64, ARM64 and x86. Four synthetic publisher tests use real Ed25519
+signatures and ZIPs with a fake compiler; 26 native deployment boundary tests
+pass. The Windows server regression suite passes 26 tests (two optional client
+checks skipped); Django checks/migration consistency and repository Ruff checks
+pass. This change adds no database migration.
+
+The Windows Server 2025 synthetic workflow passes on runtime commit
+`f410979ee6d298179f337b641f7c18f60b8565bb`: real signed local HTTPS activation,
+command forwarding through the unchanged bootstrap, complete serialized DPAPI
+state/key/counter/exact outbox preservation, state-save rollback with and without
+a prior activation, and activation while the bootstrap is demonstrably still
+running. Native Windows vet also passes. See the
+[Windows job](https://github.com/rommelfs/bearings/actions/runs/45434755464/job/138589418397).
+
+Real signed x64/ARM64/x86 packages from that clean commit are built with a
+synthetic HTTPS origin and a private synthetic key outside Git. Their Ed25519
+signature, increasing sequence over the preceding release, ZIP/executable sizes
+and SHA-256 digests, all SHA256SUMS entries and exact corresponding updater/task
+source are independently checked. The source ZIP contains no private seed. These
+fixtures are not production packages. The final PR regression gates still apply.
+
+The task/shortcut entry is an unchanged stable bootstrap; only immutable version
+files and a signed activation record change automatically. Refreshing the
+bootstrap runtime or changing its trust key requires reviewed manual replacement.
+Windows tests exposed that direct overwrite of a live image was unsuitable; the
+final implementation never overwrites a running executable. WUA/registry
+collection, application-control policies and actual fleet tasks remain outside
+these synthetic tests and require an authorized Windows pilot. No production
+actions were performed.

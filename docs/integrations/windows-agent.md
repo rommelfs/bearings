@@ -24,7 +24,7 @@ No remote commands, installer operations, scans or arbitrary destinations. HTTPS
 
 ## Validation and rollout boundary
 
-Migration **0073** retains Windows component evidence and **0074** retains compatibility with previously issued Windows single-asset enrollment codes; apply it before restarting web/worker. The Windows EXEs bundle the Go runtime. The Python reference remains available for compatibility. Synthetic tests exercise registry views, Unicode/unknown versions, real signature admission, automatic OS/software projection, changes/missing retention, revocation, schema refusal, enrollment retry, explicit CA recovery, exact receipts, offline sampling and durable outbox behavior. A proposed native Windows CI job in [windows-ci.patch](../../clients/windows/windows-ci.patch) runs DPAPI tamper detection, state persistence/corruption refusal, concurrent locking and actual local registry collection, without printing/uploading inventory. That patch is supplied, not applied or executed: the current GitHub OAuth access lacks workflow permission. Apply through a workflow-authorized operator before relying on Windows CI.
+Migration **0073** retains Windows component evidence and **0074** retains compatibility with previously issued Windows single-asset enrollment codes; apply it before restarting web/worker. The Windows EXEs bundle the Go runtime. The Python reference remains available for compatibility. Synthetic tests exercise registry views, Unicode/unknown versions, real signature admission, automatic OS/software projection, changes/missing retention, revocation, schema refusal, enrollment retry, explicit CA recovery, exact receipts, offline sampling and durable outbox behavior. The Windows updater workflow now runs synthetic DPAPI/locking, signed local HTTPS activation and command-forwarding tests. The retained legacy `windows-ci.patch` also proposes real local registry collection; that collector test is not run by the synthetic workflow. Actual WUA/registry/task behavior still requires an authorized Windows pilot. See [validation](../validation.md).
 
 The user reported `Report status: applied` from the Windows client, confirming one successfully processed real Windows report. Execution of the corrected Task Scheduler definition on real Windows remains pending. Endpoint ACL/account/profile behavior, independent Windows 11/Server/ARM64 installations and fleet acceptance remain **unvalidated** until exercised on those targets. Architecture-specific unsigned EXEs and ZIPs are built from reviewed source. The portal's `/downloads/windows/` guide supports operator-approved ZIP downloads, with checksums and matching source. The setup window reports the latest inventory receipt separately from the six-hour Task Scheduler task. Task setup verifies the stored definition for the same interactive account, reuses a matching task and displays a Windows diagnostic when task creation fails. Existing tasks with different settings or a disabled schedule are left for review in Task Scheduler. Authenticode signing and a Windows service remain planned. This is a reviewable first reference, not a fleet deployment acceptance claim.
 
@@ -82,3 +82,15 @@ Synthetic PostgreSQL admission/retention/rendering and Go tests/cross-compilatio
 validate the contract. Native WUA COM/PowerShell collection and corrected Task
 Scheduler execution still need a real Windows pilot. See the
 [installation/upgrade guide](../user-guide/windows-update-installation.md).
+
+## Signed client self-updates
+
+Operator publisher builds include a pinned Ed25519 release key and automatically
+check the enrolled HTTPS origin after report attempts. Fixed bounded downloads,
+signed archive/executable digests, increasing release sequences, architecture and
+offline build probes precede immutable release staging and atomic signed
+activation. The stable entry executable verifies and forwards to the active version. Update status
+is local and separate from inventory/task receipts. Registration and outbox bytes
+are retained, including on update failure. Older installed EXEs need one manual
+bootstrap. This does not install Windows/application patches. See the
+[operations contract](../operations/windows-client-updates.md).

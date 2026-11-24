@@ -175,6 +175,7 @@ class NativeDeploymentTests(unittest.TestCase):
                 patch.object(native, "APPS", apps),
                 patch.object(native, "CLIENT_RELEASES", releases),
                 patch.object(native, "directory", side_effect=lambda path, **_: path.mkdir(exist_ok=True)),
+                patch.object(native, "windows_release_key", return_value=(Path("/synthetic/key"), None)),
                 patch.object(native, "client_compiler", return_value="/synthetic/go"),
                 patch.object(native, "run", side_effect=run),
                 patch.object(
@@ -186,6 +187,31 @@ class NativeDeploymentTests(unittest.TestCase):
                     native.prepare_clients()
             publish.assert_not_called()
             self.assertEqual(list(releases.iterdir()), [])
+
+    def test_windows_release_key_is_stable_private_and_never_recreated_for_signed_releases(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            config, release = root / "config", root / "release"
+            release.mkdir()
+            current = f'BEARINGS_WINDOWS_CLIENT_DIR="{release}"\n'
+            with (
+                patch.object(native, "CONFIG", config),
+                patch.object(native, "directory", side_effect=lambda path: path.mkdir(exist_ok=True)),
+                patch.object(native, "protected_read", side_effect=Path.read_text),
+            ):
+                key, previous = native.windows_release_key(current)
+                original = key.read_bytes()
+                self.assertIsNone(previous)
+                self.assertEqual(key.stat().st_mode & 0o777, 0o600)
+                self.assertEqual(native.windows_release_key(current), (key, None))
+                self.assertEqual(key.read_bytes(), original)
+                manifest = release / "update.json"
+                manifest.write_text("synthetic signed release")
+                self.assertEqual(native.windows_release_key(current), (key, manifest))
+                key.unlink()
+                with self.assertRaisesRegex(ValueError, "restore its protected backup"):
+                    native.windows_release_key(current)
+                self.assertFalse(key.exists())
 
     def test_mail_environment_preserves_keys_and_quotes_bracket_relay_and_subject(self):
         before = 'DJANGO_SECRET_KEY=retained-secret\nOTHER="retained value"\nSMTP_HOST=old\n'

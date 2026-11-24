@@ -99,7 +99,8 @@ class WindowsAgentTests(Fixture):
         self.assertContains(downloads, r".\bearings-windows.exe watch")
         self.assertContains(downloads, "Rollout to several computers")
         self.assertContains(downloads, "Windows Task Scheduler")
-        self.assertContains(downloads, "Update an enrolled client")
+        self.assertContains(downloads, "Automatic client updates")
+        self.assertContains(downloads, "Existing older clients need one manual bootstrap upgrade")
         self.assertContains(downloads, "Register and enable reports")
         self.assertContains(downloads, "Windows downloads are currently unavailable")
         self.assertNotContains(downloads, "/downloads/windows/bearings-windows-x64.zip")
@@ -254,6 +255,34 @@ class WindowsAgentTests(Fixture):
             (root / source).symlink_to(root / "outside.zip")
             self.assertNotContains(self.client.get(base), f'href="{base}{artifact}"')
             self.assertEqual(self.client.get(base + "bearings-windows-arm64.zip").status_code, 404)
+
+    def test_signed_update_manifest_requires_complete_immutable_checksummed_release(self):
+        from portal.client_downloads import WINDOWS_ARTIFACTS
+
+        base = "/downloads/windows/"
+        with TemporaryDirectory() as directory, override_settings(WINDOWS_CLIENT_DOWNLOAD_DIR=directory):
+            root = Path(directory)
+            contents = {name: b"synthetic package" for name in WINDOWS_ARTIFACTS if name != "SHA256SUMS"}
+            contents["update.json"] = b'{"synthetic":"signed envelope"}'
+            for name, body in contents.items():
+                (root / name).write_bytes(body)
+                (root / name).chmod(0o644)
+            sums = "".join(f"{hashlib.sha256(body).hexdigest()}  {name}\n" for name, body in contents.items())
+            (root / "SHA256SUMS").write_text(sums)
+            (root / "SHA256SUMS").chmod(0o644)
+            response = self.client.get(base + "update.json")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["Content-Type"], "application/json")
+            self.assertEqual(response["Cache-Control"], "no-store")
+            self.assertEqual(b"".join(response.streaming_content), contents["update.json"])
+            (root / "update.json").write_bytes(b"tampered")
+            self.assertEqual(self.client.get(base + "update.json").status_code, 404)
+            (root / "update.json").write_bytes(contents["update.json"])
+            (root / "update.json").chmod(0o666)
+            self.assertEqual(self.client.get(base + "update.json").status_code, 404)
+            (root / "update.json").chmod(0o644)
+            (root / "bearings-windows-source.zip").unlink()
+            self.assertEqual(self.client.get(base + "update.json").status_code, 404)
 
     def test_collector_and_own_signature_verified_by_independent_receiver(self):
         self.enroll()

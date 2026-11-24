@@ -126,15 +126,23 @@ func scheduleReporter() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	matches, queryErr := t.query()
+	if queryErr == nil {
+		if !matches {
+			return "", fmt.Errorf("task %q already exists with different settings or is disabled. Review it in Task Scheduler", t.name)
+		}
+		// The original task entry remains the bootstrap after automatic activation.
+		// Accept an already verified task without comparing it with the newer active
+		// version's different bytes. Never overwrite an existing entry executable.
+		if info, err := os.Stat(t.program); err == nil && info.Mode().IsRegular() && rejectReparse(t.program) == nil {
+			return t.name, nil
+		}
+	}
 	if err := installForTask(t.program); err != nil {
 		return "", err
 	}
-	matches, queryErr := t.query()
-	if queryErr == nil {
-		if matches {
-			return t.name, nil
-		}
-		return "", fmt.Errorf("task %q already exists with different settings or is disabled. Review it in Task Scheduler", t.name)
+	if queryErr == nil && matches {
+		return t.name, nil
 	}
 	file, err := os.CreateTemp(filepath.Dir(t.program), ".bearings-task-*.xml")
 	if err != nil {

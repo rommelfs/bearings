@@ -6,7 +6,7 @@ SPDX: AGPL-3.0-or-later. [Source](https://github.com/rommelfs/bearings), [licens
 
 Open `/downloads/windows/` on your Bearings server. Choose the ZIP that matches **System type** in **Settings → System → About**. Use **x64** for 64-bit Intel or AMD Windows, **ARM64** for ARM Windows, and **x86** for 32-bit Windows. The native Bearings publisher prepares the Windows and Linux packages together. If the server has no download links, ask your administrator to run the [client publisher](../../docs/operations/ubuntu24.md#client-downloads). Windows 10 version 1709 or later, or a compatible Windows Server release, is required. Each ZIP contains a standalone console executable with its Go runtime. The endpoint uses Windows system libraries, the registry, DPAPI and its certificate store.
 
-Compare the ZIP's SHA-256 with the supplied `SHA256SUMS`. The reference packages are unsigned. Extract `bearings-windows.exe` into a permanent directory writable only by the reporting account and trusted administrators. Run it as the ordinary Windows account that will send reports, with read access to the machine registry. The server needs migrations `0073_windows_inventory` and `0074_windows_code_enrollment`. The server-built EXE contains the approved HTTPS origin.
+Compare the ZIP's SHA-256 with the supplied `SHA256SUMS`. The packages have no Authenticode signature; publisher-key builds include signed release metadata for subsequent client updates. Extract `bearings-windows.exe` into a permanent directory writable only by the reporting account and trusted administrators. Run it as the ordinary Windows account that will send reports, with read access to the machine registry. The server needs migrations `0073_windows_inventory` and `0074_windows_code_enrollment`. The server-built EXE contains the approved HTTPS origin.
 
 ```powershell
 Get-FileHash .\bearings-windows-x64.zip -Algorithm SHA256
@@ -72,15 +72,31 @@ For signed-out operation, validate the task with the intended account’s loaded
 
 ## Update an enrolled client
 
-The client does not update itself automatically. The scheduled task only submits
-inventory reports. Server-side `prepare-clients` rebuilds and publishes downloads;
-updating an enrolled computer still requires replacing its EXE as described below.
+New operator-built clients automatically check for signed releases after report
+attempts. The normal six-hour task activates an immutable versioned executable. Its
+existing entry path starts that verified version on the next invocation. A foreground `watch` restarts with
+the new executable. Errors are separate from report delivery. The same account,
+profile, registration, device key and pending reports are preserved.
 
-1. Download and verify the new ZIP for the same architecture. Extract it into a staging folder and check the staged EXE with `--version`.
-2. Pause the scheduled task and let active reports finish. Stop foreground `watch` if used. Keep a copy of the old EXE and replace it in `%LOCALAPPDATA%\Programs\Bearings`. If the earlier setup copied the executable but could not create a task, replace that copy as well, then choose **Enable automatic reports**.
-3. Keep the account, profile and state directory so the enrollment and pending reports carry over. Run `report` and `status` and confirm the new report is applied before re-enabling the schedule.
+**One-time bootstrap:** clients installed before self-update support need one
+manual EXE replacement. Download and verify the matching ZIP, pause the task,
+finish active reports and stop `watch`. Retain the old executable and replace
+`%LOCALAPPDATA%\Programs\Bearings\bearings-windows.exe` (or your custom task path).
+Keep the DPAPI state, do not enroll again, resume the task and verify an applied
+report. Replace any earlier setup copy too if its task creation had failed.
 
-For binary rollback, use the prior compatible EXE with the current state directory.
+```powershell
+.\bearings-windows.exe update --auto-update=status
+.\bearings-windows.exe update
+```
+
+Automatic checks are enabled by default for signed publisher builds. Use
+`update --auto-update=disable` or `enable` for a persistent local preference.
+A forced `update` still checks when disabled. Checks use the enrolled server,
+embedded public key, verified HTTPS, signed hashes and increasing release
+sequences. Developer builds without a publisher key do not update themselves.
+See [automatic Windows client updates](../../docs/operations/windows-client-updates.md)
+for key backup, publication, startup checks, rollback and failure handling.
 
 ## State, coverage and validation
 
@@ -88,7 +104,7 @@ The default state is `%LOCALAPPDATA%\Bearings\Windows`. The same account can reu
 
 `flush` retries existing reports. During an outage, collection keeps saving complete samples up to 64 queued reports, with a 5,000-component and 1 MB limit per report. The client removes a queued observation only after the server acknowledges its exact UUID, sequence and SHA-256. Each report covers the Windows build and additional software registered in machine uninstall registry views. The new Go client additionally reads installed/pending software update identities and KB identifiers from the local WUA cache, a separate cache-age hint and WUA restart status. This uses the fixed embedded helper through built-in Windows PowerShell 5.1 without an online scan, download, installation, policy change or execution-policy bypass. Failures/partial results are explicit and do not block registry reporting; old clients remain accepted. Per-user, Store, portable and complete CBS/MSI/hotfix history, driver updates and full Microsoft CVE/KB compliance remain outside this scope. See [Windows Update evidence](../../docs/integrations/windows-agent.md#windows-update-cache-inventory) and the [installation and upgrade guide](../../docs/user-guide/windows-update-installation.md).
 
-Linux cross-builds verify the three executable targets, with portable tests for signatures, HTTPS delivery and state compatibility. Native window rendering, DPAPI, registry, locking and Task Scheduler acceptance require a Windows test endpoint. A [proposed Windows CI job](windows-ci.patch) is available for workflow-authorized activation.
+Linux cross-builds verify the three executable targets, with portable tests for signatures, HTTPS delivery and state compatibility. Synthetic Windows CI verifies DPAPI, locking, signed activation and command forwarding. Native window rendering, registry/WUA and actual Task Scheduler acceptance require an authorized Windows pilot. Synthetic native updater tests avoid registry/WUA enumeration. Native validation status is recorded in [validation](../../docs/validation.md).
 
 ## Build from reviewed source
 
@@ -98,4 +114,4 @@ On the build machine, use Python 3.12+ and Go 1.24+ from a clean reviewed checko
 python3 scripts/build_windows_client.py --go /path/to/go --server https://bearings.example
 ```
 
-This writes architecture-specific EXEs and ZIPs, `SHA256SUMS` and a matching source ZIP into `.local/windows-client`. Distribute the source ZIP with the binary packages. For a native developer test, run `go test ./...` from `clients/windows` on Windows. The Python source remains available as a compatibility reference.
+This writes architecture-specific EXEs and ZIPs, `SHA256SUMS` and a matching source ZIP into `.local/windows-client`. Distribute the source ZIP with the binary packages. For synthetic native updater tests, run `go test -run "TestSelfUpdate|TestNativeProtectedStateAndLock" ./...` from `clients/windows` on Windows. The full suite also includes a live local registry/WUA collector test; run that only on an authorized pilot. The Python source remains available as a compatibility reference.

@@ -59,12 +59,15 @@
     <li>Run the task manually. Under the reporting account, confirm that <code>status</code> shows the new report as <code>applied</code>. For signed-out operation, validate the task with that account’s profile and DPAPI access before rolling it out.</li>
   </ol>
   </details>
-  <h2 id="update">Update an enrolled client</h2>
+  <h2 id="update">Automatic client updates</h2>
+  <p>New publisher builds automatically check for signed Bearings client releases after report attempts. The normal six-hour task activates a new verified version when available. Its existing entry path starts that version. The next run uses that version; registration and pending reports stay intact. This updates Bearings, not Windows or other applications.</p>
+  <p>Use <code>update --auto-update=status</code> for local update status, <code>update</code> to check now, or <code>update --auto-update=disable</code> / <code>enable</code> to change the local preference. Report status and client update status are separate.</p>
+  <p><strong>Existing older clients need one manual bootstrap upgrade:</strong></p>
   <ol>
     <li>Download and verify the new ZIP for the same architecture and extract it into a staging folder. Run the staged EXE with <code>--version</code>.</li>
     <li>Pause the task and let any active report finish. Stop any foreground <code>watch</code>. Keep a copy of the old EXE, then replace it in <code>%LOCALAPPDATA%\Programs\Bearings</code>. If setup previously copied the EXE but failed to create the task, update that copy and choose <strong>Enable automatic reports</strong>.</li>
     <li>Keep the reporting account, profile and state directory. The default state is <code>%LOCALAPPDATA%\Bearings\Windows</code>. Updating the executable preserves the enrollment and queued reports, including state from the Python reference client. Device credentials expire after 90 days. Ask your administrator to review expired credentials.</li>
-    <li>Run <code>report</code> and <code>status</code> with the replacement and confirm the new report was applied. Re-enable the schedule and run it once. For binary rollback, use the prior compatible EXE with the current state directory.</li>
+    <li>Run <code>report</code> and <code>status</code> with the replacement and confirm the new report was applied. Re-enable the schedule and run it once. For later automatic updates, preserve the publisher signing key on the server. Investigate update errors separately; never delete enrollment state to retry.</li>
   </ol>
 </section>
 {% endblock %}

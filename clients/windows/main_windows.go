@@ -27,6 +27,7 @@ func defaultStateDir() (string, error) {
 func output(value any) error { return json.NewEncoder(os.Stdout).Encode(value) }
 
 func reportNow(s *store) (*receipt, error) {
+	defer s.automaticUpdate()
 	if err := s.state.ready(); err != nil {
 		return nil, err
 	}
@@ -49,8 +50,16 @@ func reportNow(s *store) (*receipt, error) {
 	return flush(&s.state, s.save)
 }
 
-func watch(dir string, seconds int) {
+func watch(dir string, seconds int) error {
+	resumed, err := waitUpdateParent()
+	if err != nil {
+		return err
+	}
+	if resumed {
+		time.Sleep(time.Duration(seconds) * time.Second)
+	}
 	for {
+		updated := false
 		err := func() error {
 			s, err := openStore(dir, false)
 			if err != nil {
@@ -58,6 +67,7 @@ func watch(dir string, seconds int) {
 			}
 			defer s.close()
 			result, err := reportNow(s)
+			updated = s.updated
 			if err != nil {
 				return err
 			}
@@ -65,6 +75,9 @@ func watch(dir string, seconds int) {
 		}()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error()+". Retry next interval.")
+		}
+		if updated {
+			return restartWatcher()
 		}
 		time.Sleep(time.Duration(seconds) * time.Second)
 	}
@@ -86,16 +99,19 @@ func consoleCode() (string, error) {
 
 func run(args []string) error {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
-		fmt.Println("Bearings Windows " + version + "\nUsage: bearings-windows.exe <setup|init|enroll|collect|report|flush|status|watch> [options]\nUse <command> --help to list options.")
+		fmt.Println("Bearings Windows " + version + "\nUsage: bearings-windows.exe <setup|init|enroll|collect|report|flush|status|watch|update> [options]\nUse <command> --help to list options.")
 		return nil
 	}
 	if args[0] == "--version" {
 		fmt.Println("Bearings Windows " + version)
 		return nil
 	}
+	if args[0] == "--update-info" {
+		return outputBuildInfo()
+	}
 	command := args[0]
 	switch command {
-	case "init", "enroll", "collect", "report", "flush", "status", "watch":
+	case "init", "enroll", "collect", "report", "flush", "status", "watch", "update":
 	default:
 		return errors.New("unknown command; use --help")
 	}
@@ -104,6 +120,7 @@ func run(args []string) error {
 	options.SetOutput(os.Stdout)
 	dir := options.String("state-dir", "", "Private Windows state directory")
 	ca := options.String("ca-file", "", "Approved CA in PEM format (enroll only)")
+	autoUpdate := options.String("auto-update", "", "update only: enable, disable or status (empty checks now)")
 	code := options.Bool("code", false, "Read an enrollment code from the hidden prompt")
 	interval := options.Int("interval", 21600, "Seconds between watch reports (600–86400)")
 	for _, arg := range args[1:] {
@@ -115,7 +132,7 @@ func run(args []string) error {
 	if err := parseOptions(options, args[1:]); err != nil {
 		return err
 	}
-	if options.NArg() != 0 || (command != "enroll" && (*code || *ca != "")) || *interval < 600 || *interval > 86400 {
+	if (command != "update" && *autoUpdate != "") || options.NArg() != 0 || (command != "enroll" && (*code || *ca != "")) || *interval < 600 || *interval > 86400 {
 		return errors.New("invalid command options; use <command> --help")
 	}
 	if command == "collect" {
@@ -133,8 +150,7 @@ func run(args []string) error {
 		*dir = path
 	}
 	if command == "watch" {
-		watch(*dir, *interval)
-		return nil
+		return watch(*dir, *interval)
 	}
 	s, err := openStore(*dir, command == "init" || command == "enroll")
 	if err != nil {
@@ -142,6 +158,8 @@ func run(args []string) error {
 	}
 	defer s.close()
 	switch command {
+	case "update":
+		return updatePreference(s, *autoUpdate)
 	case "init":
 		return output(map[string]any{"public_key": s.state.publicKey(), "enrolled": s.state.DeviceID != ""})
 	case "enroll":
@@ -200,6 +218,14 @@ func parseOptions(options *flag.FlagSet, args []string) error {
 }
 
 func main() {
+	forwarded, code, err := forwardClient(os.Args[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if forwarded {
+		os.Exit(code)
+	}
 	if len(os.Args) == 1 || (len(os.Args) == 2 && os.Args[1] == "setup") {
 		if err := setupGUI(); err != nil {
 			uiError(0, err.Error())
