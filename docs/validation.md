@@ -2525,3 +2525,18 @@ artifact; the corresponding source ZIP includes the exact embedded `updates.ps1`
 Linux amd64/ARM64 reference packages also build locally, enabling the seven
 previously skipped real-client HTTPS tests for the next full PostgreSQL run.
 These packages are build-validation artifacts, not production deployments.
+
+
+## Final vendor-evidence bounds before merge — 2026-11-24
+
+The complete local PostgreSQL run after proof correlation passes **1,091 tests,
+five skipped, no failures**, with the Linux HTTPS client tests enabled. Before
+merge, rule v3 additionally bounds manufacturer URLs to 2,048 characters and
+limits repeated explanations to ten matching rule samples containing only the
+actually evaluated fields. Full original advisories remain retained once as
+source evidence. Explicit empty/zero interval bounds are rejected as malformed;
+unused ordering metadata cannot amplify exact-version explanations. A synthetic
+large-extra-field/large-link regression and the Windows/CVE/continuous-review run
+pass **51 tests**. Repository Ruff lint/format and diff checks pass. GitHub CI is
+required for the final commit as well; the preceding full-run result is recorded
+here without claiming native Windows acceptance or a production deployment.

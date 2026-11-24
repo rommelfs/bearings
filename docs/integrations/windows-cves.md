@@ -8,7 +8,7 @@ deployment, notification, patching or merge is part of this change.
 
 The existing Windows registration identity (`pkg:generic/windows-registration/…`)
 and installation remain unchanged. The vulnerability worker's existing product
-enrollment uses `windows-vendor-rules/v2` only when every active installation of
+enrollment uses `windows-vendor-rules/v3` only when every active installation of
 that product has one unambiguous, current mapping. It inspects at most 101
 installations and refuses automatic enrollment above 100. It never adopts a
 manual installation by name, changes an existing watch or re-enables a pause.
@@ -128,3 +128,7 @@ schema variations need independent acceptance. Missing index results do not prov
 absence of vulnerabilities. No schema migration is introduced by this increment.
 
 The Windows Update increment now supplies cached KB/update identities, pending software updates, restart evidence and a cache-age hint. Rule v2 retains this evidence in OS evaluation snapshots and uses native Windows architecture keys `arm64`/`x86`. It still does not infer servicing channels or fixed CVEs from KB presence. See [Windows Update evidence](windows-agent.md#windows-update-cache-inventory).
+
+Manufacturer URLs are bounded to 2,048 characters without controls. Explanations contain only the evaluated version-rule fields and at most ten matching rule samples, with the total match count. Arbitrary extra CNA fields cannot be amplified into every installation review; the full original advisory remains retained separately.
+
+Rule v3 rejects explicitly malformed interval bounds (including empty/zero values) instead of treating them as absent; exact-version rules do not need an ordering type. Unknown extra fields are retained only in the original advisory, not in repeated explanations.

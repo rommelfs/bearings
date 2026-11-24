@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 from django.core.exceptions import ObjectDoesNotExist
 
 # Bump RULE whenever mapping or evaluation semantics change: it is part of saved inputs.
-RULE = "windows-vendor-rules/v2"
+RULE = "windows-vendor-rules/v3"
 WINDOWS_RELEASES = "https://learn.microsoft.com/en-us/windows/release-health/"
 HOTPATCH = "https://learn.microsoft.com/en-us/windows/deployment/windows-autopatch/manage/windows-autopatch-hotpatch-updates"
 ESU = "https://learn.microsoft.com/en-us/windows/whats-new/enable-extended-security-updates"
@@ -329,7 +329,12 @@ def vendor_reference(cna, vendor):
         return ""
     for ref in refs:
         url = ref.get("url") if isinstance(ref, dict) else None
-        if not isinstance(url, str):
+        if (
+            not isinstance(url, str)
+            or len(url) > 2048
+            or url != url.strip()
+            or any(ord(c) < 32 or ord(c) == 127 for c in url)
+        ):
             continue
         try:
             parsed = urlsplit(url)
@@ -380,7 +385,8 @@ def evaluate(watch, installation, payload, mapping):
     affected = cna.get("affected", [])
     if not isinstance(affected, list):
         return "unknown", prefix + "Unsupported affected-product evidence."
-    statuses, proofs, unsupported = [], [], False
+    statuses, proofs, unsupported = set(), [], False
+    matched_rules = 0
     for item in affected:
         if not isinstance(item, dict):
             unsupported = True
@@ -424,26 +430,32 @@ def evaluate(watch, installation, payload, mapping):
             unsupported = True
             continue
         for entry in versions:
-            if not isinstance(entry, dict) or entry.get("status") not in {
-                "affected",
-                "unaffected",
-                "unknown",
-            }:
+            if (
+                not isinstance(entry, dict)
+                or not isinstance(entry.get("status"), str)
+                or entry["status"]
+                not in {
+                    "affected",
+                    "unaffected",
+                    "unknown",
+                }
+            ):
                 unsupported = True
                 continue
             low = numeric(entry.get("version"), widths)
-            upper = entry.get("lessThan") or entry.get("lessThanOrEqual")
-            high = numeric(upper, widths) if upper else low
+            has_upper = "lessThan" in entry or "lessThanOrEqual" in entry
+            upper = entry.get("lessThan", entry.get("lessThanOrEqual"))
+            high = numeric(upper, widths) if has_upper else low
             if (
                 entry.get("changes")
                 or low is None
                 or high is None
                 or low > high
-                or entry.get("lessThan")
-                and entry.get("lessThanOrEqual")
-                or upper
-                and entry.get("versionType") not in {"custom", "semver"}
-                or upper
+                or "lessThan" in entry
+                and "lessThanOrEqual" in entry
+                or has_upper
+                and entry.get("versionType") not in ("custom", "semver")
+                or has_upper
                 and entry.get("versionType") == "semver"
                 and (len(entry["version"].split(".")) != 3 or len(upper.split(".")) != 3)
             ):
@@ -458,16 +470,26 @@ def evaluate(watch, installation, payload, mapping):
                 continue
             matches = (
                 observed == low
-                if not upper
+                if not has_upper
                 else low <= observed and (observed < high if entry.get("lessThan") else observed <= high)
             )
             if matches:
-                statuses.append(entry["status"])
-                proofs.append(json.dumps(entry, sort_keys=True))
+                statuses.add(entry["status"])
+                matched_rules += 1
+                if len(proofs) < 10:
+                    proof = {"version": entry["version"], "status": entry["status"]}
+                    if has_upper:
+                        proof["lessThan" if "lessThan" in entry else "lessThanOrEqual"] = upper
+                        proof["versionType"] = entry["versionType"]
+                    proofs.append(json.dumps(proof, sort_keys=True))
     if not unsupported and set(statuses) == {"affected"}:
-        return "potential", prefix + "Affected-version rule: " + "; ".join(
-            proofs
-        ) + ". Local applicability requires review."
+        return "potential", (
+            prefix
+            + "Affected-version rule: "
+            + "; ".join(proofs)
+            + f". {matched_rules} matching rules; at most ten shown; full advisory retained. "
+            + "Local applicability requires review."
+        )
     return (
         "unknown",
         prefix

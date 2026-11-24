@@ -2,6 +2,10 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Vendor evidence bounds — 2026-11-24
+
+Rule v3 bounds manufacturer URLs and repeated rule samples, preserves original source advisories and rejects malformed explicit intervals. The final Windows/CVE regression run passes 51 tests; CI validates the published head before merge.
+
 ## Publication readiness — 2026-11-24
 
 Implemented exact outer one-to-one match-PK correlation and reused visible finding organization/installation/asset/source facts instead of three redundant inner joins. This addresses the existing fe1c836b PostgreSQL full-suite pagination statement-timeout blocker before publication. Keep every input/freshness/vendor-proof predicate, saved analyst override, 5-second statement limit and bounded hydration/query budgets. Source/tenant/asset/installation mutation coverage and 88 focused PostgreSQL tests pass; full branch CI remains the merge gate. See docs/validation.md.

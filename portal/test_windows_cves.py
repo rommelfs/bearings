@@ -156,6 +156,33 @@ class WindowsRules(SimpleTestCase):
             with self.assertRaises(ValueError):
                 agent_protocol.validate_windows_component(changed)
 
+    def test_manufacturer_evidence_cannot_amplify_untrusted_extra_fields_or_links(self):
+        c = SimpleNamespace(
+            name="Microsoft Edge",
+            version="130.0.1.0",
+            windows={"kind": "program", "publisher": "Microsoft Corporation"},
+        )
+        mapping = windows.resolve(c, {})
+        watch = SimpleNamespace(vendor="microsoft", product_key="edge_chromium")
+        installed = SimpleNamespace(version=c.version, build="", edition="")
+        payload = advisory(mapping["cpe"])
+        versions = payload["containers"]["cna"]["affected"][0]["versions"]
+        versions[0]["untrusted_optional_text"] = "UNTRUSTED" * 60000
+        versions *= 15
+        result, explanation = windows.evaluate(watch, installed, payload, mapping)
+        self.assertEqual(result, "potential")
+        self.assertLess(len(explanation), 10000)
+        self.assertNotIn("UNTRUSTED", explanation)
+        self.assertIn("15 matching rules", explanation)
+        exact = {"version": c.version, "status": "affected", "versionType": "UNTRUSTED" * 60000}
+        payload["containers"]["cna"]["affected"][0]["versions"] = [exact]
+        result, explanation = windows.evaluate(watch, installed, payload, mapping)
+        self.assertEqual(result, "potential")
+        self.assertLess(len(explanation), 10000)
+        self.assertNotIn("UNTRUSTED", explanation)
+        payload["containers"]["cna"]["references"] = [{"url": "https://msrc.microsoft.com/" + "x" * 3000}]
+        self.assertEqual(windows.evaluate(watch, installed, payload, mapping)[0], "unknown")
+
 
 class WindowsDiscovery(Fixture):
     legacy_manual_projection = False
@@ -257,6 +284,9 @@ class WindowsDiscovery(Fixture):
             variants.append(p)
         for rule in (
             {"changes": [{"at": "130.0.1.0", "status": "unaffected"}]},
+            {"version": "130.0.1.0", "lessThan": 0},
+            {"version": "130.0.1.0", "lessThan": ""},
+            {"status": {}},
             {"versionType": "maven"},
             {"versionType": "semver"},  # Four-part browser versions are not SemVer.
             {"version": "*"},
