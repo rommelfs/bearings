@@ -60,7 +60,7 @@
   </ol>
   </details>
   <h2 id="update">Automatic client updates</h2>
-  <p>New publisher builds automatically check for signed Bearings client releases after report attempts. The normal six-hour task replaces its EXE when a newer verified release is available. The next run uses that version; registration and pending reports stay intact. This updates Bearings, not Windows or other applications.</p>
+  <p>New publisher builds automatically check for signed Bearings client releases after report attempts. The normal six-hour task activates a new verified version when available. Its existing entry path starts that version. The next run uses that version; registration and pending reports stay intact. This updates Bearings, not Windows or other applications.</p>
   <p>Use <code>update --auto-update=status</code> for local update status, <code>update</code> to check now, or <code>update --auto-update=disable</code> / <code>enable</code> to change the local preference. Report status and client update status are separate.</p>
   <p><strong>Existing older clients need one manual bootstrap upgrade:</strong></p>
   <ol>

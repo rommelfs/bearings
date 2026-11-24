@@ -41,6 +41,7 @@ type releaseAsset struct {
 	EXESize   int64  `json:"exe_size"`
 }
 type clientRelease struct {
+	envelope []byte
 	Schema   string                  `json:"schema"`
 	Origin   string                  `json:"origin"`
 	Version  string                  `json:"version"`
@@ -116,6 +117,7 @@ func verifyRelease(raw []byte, key ed25519.PublicKey, server, architecture strin
 	if _, ok := result.Assets[architecture]; !ok {
 		return result, invalid
 	}
+	result.envelope = append([]byte(nil), raw...)
 	return result, nil
 }
 func releaseExecutable(raw []byte, asset releaseAsset, architecture string) ([]byte, error) {

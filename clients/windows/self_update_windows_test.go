@@ -6,8 +6,10 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"golang.org/x/sys/windows"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,7 +27,7 @@ func buildSyntheticClient(t *testing.T, path string, info clientBuildInfo) []byt
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	flags := "-X main.defaultServer=" + info.Origin + " -X main.releasePublicKey=" + info.Key + " -X main.releaseCommit=" + info.Version + " -X main.releaseSequence=" + strconv.FormatInt(info.Sequence, 10)
+	flags := "-X main.version=" + info.Version[:12] + " -X main.defaultServer=" + info.Origin + " -X main.releasePublicKey=" + info.Key + " -X main.releaseCommit=" + info.Version + " -X main.releaseSequence=" + strconv.FormatInt(info.Sequence, 10)
 	cmd := exec.CommandContext(ctx, "go", "build", "-trimpath", "-ldflags", flags, "-o", path, ".")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build synthetic client: %v\n%s", err, output)
@@ -73,6 +75,7 @@ func TestSelfUpdateNativeRoundTrip(t *testing.T) {
 	asset.EXESize = int64(len(candidate))
 	asset.EXESHA256 = digest(candidate)
 	value.Assets[runtime.GOARCH] = asset
+	value.envelope = signedRelease(t, value, key)
 	ca := filepath.Join(dir, "ca.pem")
 	if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600); err != nil {
 		t.Fatal(err)
@@ -109,14 +112,14 @@ func TestSelfUpdateNativeRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	saves := 0
-	err = installRelease(program, candidate, next, func() error { saves++; return errors.New("synthetic state failure") })
+	err = installRelease(program, candidate, value, next, func() error { saves++; return errors.New("synthetic state failure") })
 	restored, readErr := os.ReadFile(program)
 	if err == nil || readErr != nil || saves != 1 || !bytes.Equal(restored, old) {
 		t.Fatalf("failed update did not roll back: %v, %v", err, readErr)
 	}
 	wrong := next
 	wrong.Sequence++
-	if err := installRelease(program, candidate, wrong, func() error { t.Fatal("saved unverified candidate"); return nil }); err == nil {
+	if err := installRelease(program, candidate, value, wrong, func() error { t.Fatal("saved unverified candidate"); return nil }); err == nil {
 		t.Fatal("accepted wrong startup identity")
 	}
 	restored, _ = os.ReadFile(program)
@@ -125,8 +128,27 @@ func TestSelfUpdateNativeRoundTrip(t *testing.T) {
 	}
 	runUpdate()
 	installed, err := os.ReadFile(program)
-	if err != nil || !bytes.Equal(installed, candidate) {
-		t.Fatalf("installed executable mismatch: %v", err)
+	if err != nil || !bytes.Equal(installed, old) {
+		t.Fatalf("stable bootstrap executable was overwritten: %v", err)
+	}
+	active, err := activeProgram(dir, info)
+	if err != nil || active == "" {
+		t.Fatalf("new executable was not activated: %v", err)
+	}
+	activated, err := os.ReadFile(active)
+	if err != nil || !bytes.Equal(activated, candidate) {
+		t.Fatal("activated executable mismatch")
+	}
+	cmd := exec.Command(program, "update", "--state-dir", stateDir, "--auto-update=status")
+	raw, err := cmd.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var local struct {
+		Build clientBuildInfo `json:"client_build"`
+	}
+	if json.Unmarshal(raw, &local) != nil || local.Build != next {
+		t.Fatal("stable bootstrap did not start the activated client")
 	}
 	s, err = openStore(stateDir, false)
 	if err != nil {
@@ -144,6 +166,17 @@ func TestSelfUpdateNativeRoundTrip(t *testing.T) {
 	runUpdate()
 	if downloads != 1 {
 		t.Fatal("downloaded installed release again")
+	}
+	previousActivation, err := os.ReadFile(filepath.Join(dir, activationName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := installRelease(program, candidate, value, next, func() error { return errors.New("synthetic save failure with existing activation") }); err == nil {
+		t.Fatal("ignored activation save failure")
+	}
+	afterActivation, err := os.ReadFile(filepath.Join(dir, activationName))
+	if err != nil || !bytes.Equal(afterActivation, previousActivation) {
+		t.Fatal("prior signed activation was not restored")
 	}
 	runUpdate("--auto-update=disable")
 	s, err = openStore(stateDir, false)
@@ -165,12 +198,14 @@ func TestSelfUpdateHoldingProcess(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("ready"), 0600); err != nil {
 		os.Exit(3)
 	}
-	select {}
+	for {
+		time.Sleep(time.Second)
+	}
 }
 
-func TestSelfUpdateExecutingTarget(t *testing.T) {
+func TestSelfUpdateActivationWhileBootstrapRuns(t *testing.T) {
 	dir := t.TempDir()
-	target := filepath.Join(dir, "executing.exe")
+	target := filepath.Join(dir, "bootstrap.exe")
 	raw, err := os.ReadFile(os.Args[0])
 	if err != nil {
 		t.Fatal(err)
@@ -193,21 +228,35 @@ func TestSelfUpdateExecutingTarget(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("synthetic holding process did not start")
+			t.Fatal("synthetic bootstrap did not start")
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	replacement := append(append([]byte(nil), raw...), []byte("synthetic PE overlay")...)
-	staged, err := stagedExecutable(dir, replacement)
+	handle, err := windows.OpenProcess(windows.SYNCHRONIZE, false, uint32(cmd.Process.Pid))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(staged)
-	if err := replaceExecutable(staged, target); err != nil {
-		t.Fatalf("atomic replacement of executing image: %v", err)
+	defer windows.CloseHandle(handle)
+	if result, err := windows.WaitForSingleObject(handle, 0); err != nil || result != uint32(windows.WAIT_TIMEOUT) {
+		t.Fatal("bootstrap exited before activation")
+	}
+	record := filepath.Join(dir, activationName)
+	if err := atomicControlFile(record, []byte("old synthetic activation")); err != nil {
+		t.Fatal(err)
+	}
+	expected := []byte("new synthetic activation")
+	if err := atomicControlFile(record, expected); err != nil {
+		t.Fatal(err)
+	}
+	actual, err := os.ReadFile(record)
+	if err != nil || !bytes.Equal(actual, expected) {
+		t.Fatal("activation was not switched atomically")
 	}
 	installed, err := os.ReadFile(target)
-	if err != nil || !bytes.Equal(installed, replacement) {
-		t.Fatal("executing target was not replaced")
+	if err != nil || !bytes.Equal(installed, raw) {
+		t.Fatal("running bootstrap was modified")
+	}
+	if result, err := windows.WaitForSingleObject(handle, 0); err != nil || result != uint32(windows.WAIT_TIMEOUT) {
+		t.Fatal("bootstrap did not survive activation")
 	}
 }

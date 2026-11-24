@@ -2,13 +2,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -17,15 +20,40 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Directory-relative POSIX rename atomically replaces an executing destination on supported
-// Windows/NTFS. Never fall back to removing or moving the old task target first.
-func replaceExecutable(from, to string) error {
-	// Image teardown and endpoint scanners can briefly retain incompatible handles
-	// after a successful startup probe. Retry only transient sharing/access errors;
-	// every attempt remains one atomic rename and never removes the task target.
+var versionedName = regexp.MustCompile(`^bearings-windows-release-[1-9][0-9]{0,18}-[0-9a-f]{64}\.exe$`)
+
+const activationName = ".bearings-windows-current.json"
+
+func atomicControlFile(name string, raw []byte) error {
+	if rejectReparse(name) != nil {
+		return errors.New("client activation path contains a link")
+	}
+	file, err := os.CreateTemp(filepath.Dir(name), ".bearings-activation-")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(file.Name())
+	_, err = file.Write(raw)
+	if err == nil {
+		err = file.Sync()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
+	}
+	from, err := windows.UTF16PtrFromString(file.Name())
+	if err != nil {
+		return err
+	}
+	to, err := windows.UTF16PtrFromString(name)
+	if err != nil {
+		return err
+	}
 	deadline := time.Now().Add(3 * time.Second)
 	for {
-		err := renameExecutable(from, to)
+		err = windows.MoveFileEx(from, to, windows.MOVEFILE_REPLACE_EXISTING|windows.MOVEFILE_WRITE_THROUGH)
 		if err == nil {
 			return nil
 		}
@@ -36,19 +64,83 @@ func replaceExecutable(from, to string) error {
 	}
 }
 
-func renameExecutable(from, to string) error {
-	if !strings.EqualFold(filepath.Dir(from), filepath.Dir(to)) {
-		return errors.New("client replacement must stay in its program directory")
+func versionedProgram(dir string, release clientRelease, architecture string) string {
+	return filepath.Join(dir, "bearings-windows-release-"+strconv.FormatInt(release.Sequence, 10)+"-"+release.Assets[architecture].EXESHA256+".exe")
+}
+
+func readActivation(dir string, info clientBuildInfo) (clientRelease, error) {
+	var empty clientRelease
+	name := filepath.Join(dir, activationName)
+	if rejectReparse(name) != nil {
+		return empty, errors.New("invalid client activation path")
 	}
-	// Go's directory-relative Windows implementation uses NtSetInformationFile
-	// with FileRenameInformationEx/POSIX flags. Binding the directory avoids the
-	// Win32 full-path conversion (including short-name aliases of the running EXE).
-	root, err := os.OpenRoot(filepath.Dir(to))
+	raw, err := readBounded(name, maxRelease)
 	if err != nil {
-		return err
+		return empty, err
 	}
-	defer root.Close()
-	return root.Rename(filepath.Base(from), filepath.Base(to))
+	key, err := base64.StdEncoding.Strict().DecodeString(info.Key)
+	if err != nil {
+		return empty, errors.New("invalid embedded publisher key")
+	}
+	return verifyRelease(raw, key, info.Origin, info.Architecture)
+}
+
+func activeProgram(dir string, info clientBuildInfo) (string, error) {
+	release, err := readActivation(dir, info)
+	if err != nil {
+		return "", err
+	}
+	if release.Sequence <= info.Sequence {
+		return "", nil
+	}
+	program := versionedProgram(dir, release, info.Architecture)
+	if rejectReparse(program) != nil {
+		return "", errors.New("active client executable contains a link")
+	}
+	asset := release.Assets[info.Architecture]
+	raw, err := readBounded(program, asset.EXESize)
+	if err != nil || int64(len(raw)) != asset.EXESize || digest(raw) != asset.EXESHA256 {
+		return "", errors.New("active client executable is missing or has an invalid digest")
+	}
+	return program, nil
+}
+
+func forwardClient(args []string) (bool, int, error) {
+	if len(args) > 0 && args[0] == "--update-info" {
+		return false, 0, nil
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return false, 0, err
+	}
+	if buildInfo().Key == "" {
+		return false, 0, nil
+	}
+	program, err := activeProgram(filepath.Dir(executable), buildInfo())
+	if errors.Is(err, os.ErrNotExist) {
+		return false, 0, nil
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Client activation: "+err.Error()+". Using bundled client.")
+		return false, 0, nil
+	}
+	if program == "" {
+		return false, 0, nil
+	}
+	if len(args) == 0 || (len(args) == 1 && args[0] == "setup") {
+		hidePrivateConsole()
+	}
+	command := exec.Command(program, args...)
+	command.Stdin = os.Stdin
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	if err := command.Run(); err != nil {
+		if exit, ok := err.(*exec.ExitError); ok {
+			return true, exit.ExitCode(), nil
+		}
+		return true, 1, errors.New("could not start the activated Windows client")
+	}
+	return true, 0, nil
 }
 
 func stagedExecutable(dir string, data []byte) (string, error) {
@@ -103,93 +195,118 @@ func probeExecutable(name string, expected clientBuildInfo) error {
 	return nil
 }
 
-// Run the rename outside the process whose executable is being replaced. Some
-// Windows image/resource handles reject self-replacement even with POSIX flags.
-func workerReplace(worker, from, to string, expectedHash string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	command := exec.CommandContext(ctx, worker, "--replace-client", from, to)
-	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
-	command.WaitDelay = 2 * time.Second
-	var output boundedOutput
-	output.limit = 16384
-	command.Stdout = &output
-	command.Stderr = &output
-	err := command.Run()
-	installed, readErr := readBounded(to, maxUpdateArchive)
-	if readErr == nil && digest(installed) == expectedHash {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("Windows replacement worker failed: %s", strings.TrimSpace(string(output.data)))
-	}
-	return errors.New("Windows replacement did not install the expected executable")
-}
-
-func runReplacementWorker(args []string) error {
-	if len(args) != 2 {
-		return errors.New("invalid replacement worker arguments")
-	}
-	executable, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	for _, name := range args {
-		if !filepath.IsAbs(name) || !strings.EqualFold(filepath.Dir(name), filepath.Dir(executable)) || rejectReparse(name) != nil {
-			return errors.New("replacement worker paths must stay in its program directory without links")
-		}
-	}
-	return replaceExecutable(args[0], args[1])
-}
-
-func installRelease(target string, executable []byte, expected clientBuildInfo, save func() error) error {
+// Executables are immutable versioned files. Only a small signed activation
+// record is replaced atomically; a running Windows image is never overwritten.
+func installRelease(target string, executable []byte, release clientRelease, expected clientBuildInfo, save func() error) error {
 	if rejectReparse(target) != nil {
 		return errors.New("client program path must be free of links and junctions")
 	}
+	key, keyErr := base64.StdEncoding.Strict().DecodeString(expected.Key)
+	verified, verifyErr := verifyRelease(release.envelope, key, expected.Origin, expected.Architecture)
+	if keyErr != nil || verifyErr != nil || verified.Sequence != expected.Sequence || verified.Version != expected.Version || verified.Assets[expected.Architecture].EXESHA256 != digest(executable) || verified.Assets[expected.Architecture].EXESize != int64(len(executable)) {
+		return errors.New("release activation is not bound to the verified executable")
+	}
+	release = verified
 	dir := filepath.Dir(target)
-	previous, err := readBounded(target, maxUpdateArchive)
-	if err != nil {
-		return errors.New("could not retain the previous executable")
+	activation := filepath.Join(dir, activationName)
+	if rejectReparse(activation) != nil {
+		return errors.New("invalid activation path")
 	}
-	candidate, err := stagedExecutable(dir, executable)
-	if err != nil {
-		return err
+	previous, err := readBounded(activation, maxRelease)
+	existed := err == nil
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return errors.New("could not retain previous client activation")
 	}
-	defer os.Remove(candidate)
-	if err := probeExecutable(candidate, expected); err != nil {
-		return err
+	program := versionedProgram(dir, release, expected.Architecture)
+	if rejectReparse(program) != nil {
+		return errors.New("invalid versioned executable path")
 	}
-	backup, err := stagedExecutable(dir, previous)
-	if err != nil {
-		return err
-	}
-	// Keep a backup on unsuccessful rollback; remove it only after confirmed recovery.
-	removeBackup := true
-	defer func() {
-		if removeBackup {
-			os.Remove(backup)
-		}
-	}()
-	worker, err := stagedExecutable(dir, executable)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(worker)
-	err = workerReplace(worker, candidate, target, digest(executable))
+	existing, err := readBounded(program, maxUpdateArchive)
 	if err == nil {
-		err = probeExecutable(target, expected)
-	}
-	if err == nil {
-		err = save()
-	}
-	if err != nil {
-		if rollbackErr := workerReplace(worker, backup, target, digest(previous)); rollbackErr != nil {
-			removeBackup = false
-			return fmt.Errorf("client update failed; rollback failed; retained executable backup: %s", backup)
+		if !bytes.Equal(existing, executable) {
+			return errors.New("an immutable release file has different contents")
 		}
-		return fmt.Errorf("client update failed; previous executable restored: %w", err)
+	} else if errors.Is(err, os.ErrNotExist) {
+		staged, err := stagedExecutable(dir, executable)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(staged)
+		if err := probeExecutable(staged, expected); err != nil {
+			return err
+		}
+		from, err := windows.UTF16PtrFromString(staged)
+		if err != nil {
+			return err
+		}
+		to, err := windows.UTF16PtrFromString(program)
+		if err != nil {
+			return err
+		}
+		if err := windows.MoveFileEx(from, to, windows.MOVEFILE_WRITE_THROUGH); err != nil {
+			return errors.New("could not retain the verified immutable client release")
+		}
+	} else {
+		return errors.New("versioned client file is not accessible")
 	}
+	if err := probeExecutable(program, expected); err != nil {
+		return err
+	}
+	if len(release.envelope) == 0 {
+		return errors.New("signed activation metadata is missing")
+	}
+	backup := activation + ".previous"
+	if existed {
+		if err := atomicControlFile(backup, previous); err != nil {
+			return errors.New("could not retain previous signed activation")
+		}
+	}
+	if err := atomicControlFile(activation, release.envelope); err != nil {
+		return errors.New("could not activate the verified client; prior activation retained")
+	}
+	if err := save(); err != nil {
+		var rollbackErr error
+		if existed {
+			from, fromErr := windows.UTF16PtrFromString(backup)
+			to, toErr := windows.UTF16PtrFromString(activation)
+			if fromErr != nil || toErr != nil {
+				rollbackErr = errors.New("invalid activation backup path")
+			} else {
+				rollbackErr = windows.MoveFileEx(from, to, windows.MOVEFILE_REPLACE_EXISTING|windows.MOVEFILE_WRITE_THROUGH)
+			}
+		} else {
+			rollbackErr = os.Remove(activation)
+		}
+		if rollbackErr != nil {
+			return errors.New("client state save failed; activation rollback failed; verified release retained for recovery")
+		}
+		return errors.New("client state save failed; previous activation restored")
+	}
+	cleanupReleases(dir, program, previous, expected)
 	return nil
+}
+
+func cleanupReleases(dir, current string, previous []byte, info clientBuildInfo) {
+	keep := map[string]bool{filepath.Base(current): true}
+	key, err := base64.StdEncoding.Strict().DecodeString(info.Key)
+	if err == nil {
+		if release, err := verifyRelease(previous, key, info.Origin, info.Architecture); err == nil {
+			keep[filepath.Base(versionedProgram(dir, release, info.Architecture))] = true
+		}
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if !keep[name] && versionedName.MatchString(name) && entry.Type().IsRegular() {
+			path := filepath.Join(dir, name)
+			if rejectReparse(path) == nil {
+				os.Remove(path)
+			} // Windows retains an image still in use.
+		}
+	}
 }
 
 func (s *store) checkAutoUpdate(force bool) error {
@@ -221,7 +338,7 @@ func (s *store) checkAutoUpdate(force bool) error {
 	if err != nil || rejectReparse(target) != nil {
 		return fail(errors.New("invalid client executable path"))
 	}
-	lockPath := target + ".update.lock"
+	lockPath := filepath.Join(filepath.Dir(target), ".bearings-update.lock")
 	if rejectReparse(lockPath) != nil {
 		return fail(errors.New("invalid client update lock path"))
 	}
@@ -234,8 +351,11 @@ func (s *store) checkAutoUpdate(force bool) error {
 	if windows.LockFileEx(windows.Handle(lock.Fd()), windows.LOCKFILE_EXCLUSIVE_LOCK|windows.LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, &offset) != nil {
 		return fail(errors.New("another client update is already running"))
 	}
-	if probeExecutable(target, info) != nil {
-		return fail(errors.New("client executable changed; restart the installed client before updating again"))
+	if active, err := readActivation(filepath.Dir(target), info); err == nil && active.Sequence > update.Sequence {
+		// A crash may commit activation before the protected metadata save. Its signed
+		// sequence remains the rollback floor even in an older still-open GUI process.
+		update.Sequence = active.Sequence
+		update.Version = active.Version
 	}
 	client, err := transport(s.state.CAFile)
 	if err != nil {
@@ -263,7 +383,7 @@ func (s *store) checkAutoUpdate(force bool) error {
 	expected.Version = release.Version
 	expected.Sequence = release.Sequence
 	previous := *update
-	err = installRelease(target, executable, expected, func() error {
+	err = installRelease(target, executable, release, expected, func() error {
 		update.Status = "updated"
 		update.Version = release.Version
 		update.Sequence = release.Sequence
@@ -291,6 +411,11 @@ func restartWatcher() error {
 	executable, err := os.Executable()
 	if err != nil {
 		return err
+	}
+	if active, err := activeProgram(filepath.Dir(executable), buildInfo()); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	} else if active != "" {
+		executable = active
 	}
 	command := exec.Command(executable, os.Args[1:]...)
 	command.Env = append(os.Environ(), "BEARINGS_UPDATE_PARENT_PID="+strconv.Itoa(os.Getpid()))

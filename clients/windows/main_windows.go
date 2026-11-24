@@ -106,9 +106,6 @@ func run(args []string) error {
 		fmt.Println("Bearings Windows " + version)
 		return nil
 	}
-	if args[0] == "--replace-client" {
-		return runReplacementWorker(args[1:])
-	}
 	if args[0] == "--update-info" {
 		return outputBuildInfo()
 	}
@@ -221,6 +218,14 @@ func parseOptions(options *flag.FlagSet, args []string) error {
 }
 
 func main() {
+	forwarded, code, err := forwardClient(os.Args[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if forwarded {
+		os.Exit(code)
+	}
 	if len(os.Args) == 1 || (len(os.Args) == 2 && os.Args[1] == "setup") {
 		if err := setupGUI(); err != nil {
 			uiError(0, err.Error())

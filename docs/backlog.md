@@ -4,7 +4,7 @@ Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHu
 
 ## Automatic Windows client updates — 2026-11-24
 
-Implemented signed release manifests with a stable protected publisher key, same-origin HTTPS/pinned-key verification, increasing sequences, bounded ZIP/PE validation and startup identity probes. Report attempts trigger an independent update check; the existing task uses the updated executable next time and `watch` restarts. Atomic replacement and rollback preserve DPAPI enrollment/outbox; local update status and enable/disable remain separate. Older clients require one manual bootstrap. Synthetic portable, publisher, server and native Windows tests are included; see [validation](validation.md) for executed checks and native limitations. No Windows/application patches or production deployment. See [operations](operations/windows-client-updates.md).
+Implemented signed release manifests with a stable protected publisher key, same-origin HTTPS/pinned-key verification, increasing sequences, bounded ZIP/PE validation and startup identity probes. Report attempts trigger an independent update check; the existing task uses the updated executable next time and `watch` restarts. Immutable version files, an unchanged verifying bootstrap entry, atomic signed activation and rollback preserve DPAPI enrollment/outbox; local update status and enable/disable remain separate. Older clients require one manual bootstrap. Synthetic portable, publisher, server and native Windows tests are included; see [validation](validation.md) for executed checks and native limitations. No Windows/application patches or production deployment. See [operations](operations/windows-client-updates.md).
 
 ## Documentation language — 2026-11-24
 

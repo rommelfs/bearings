@@ -73,8 +73,8 @@ For signed-out operation, validate the task with the intended account’s loaded
 ## Update an enrolled client
 
 New operator-built clients automatically check for signed releases after report
-attempts. The normal six-hour task installs updates at its existing executable
-path; the next invocation uses the new version. A foreground `watch` restarts with
+attempts. The normal six-hour task activates an immutable versioned executable. Its
+existing entry path starts that verified version on the next invocation. A foreground `watch` restarts with
 the new executable. Errors are separate from report delivery. The same account,
 profile, registration, device key and pending reports are preserved.
 
@@ -108,7 +108,7 @@ Linux cross-builds verify the three executable targets, with portable tests for 
 
 ## Build from reviewed source
 
-On the build machine, use Python 3.12+ and Go 1.25+ from a clean reviewed checkout:
+On the build machine, use Python 3.12+ and Go 1.24+ from a clean reviewed checkout:
 
 ```sh
 python3 scripts/build_windows_client.py --go /path/to/go --server https://bearings.example

@@ -2,8 +2,10 @@
 
 Operator-built Windows clients check for a signed Bearings client release after
 an inventory report attempt. Checks run at most once an hour; the normal Windows
-task reports every six hours while its account is signed in. The update replaces
-the executable at the existing task path. The next invocation uses the new client.
+task reports every six hours while its account is signed in. The update activates
+an immutable versioned executable in the private program
+directory. The existing task entry path verifies its signed activation record
+and starts that version. The next invocation uses the new client.
 Foreground `watch` starts the new executable and resumes after its normal interval.
 An open setup window keeps running its loaded version until closed and reopened.
 
@@ -39,8 +41,8 @@ replacement to work around the error. Rotation requires a separately reviewed
 bootstrap of clients with the new public key.
 
 Publication verifies the previous signed manifest with that same key and origin.
-The new sequence exceeds both the current build time in UTC seconds and the
-preceding sequence as necessary. This handles a clock moving backwards. Build
+The new sequence is at least the current build time in UTC seconds and exceeds
+the preceding sequence as necessary. This handles a clock moving backwards. Build
 failures leave active download pointers unchanged. A server rollback to an older
 release is visible to clients as `server_older`; it never downgrades a client.
 
@@ -102,16 +104,33 @@ publish executable code; protect that key accordingly. Initial ZIP verification
 uses the administrator's trusted HTTPS download and checksum review. These
 packages do not have Authenticode signatures.
 
-Replacement uses Go 1.25+ directory-relative Windows rename with
-`FileRenameInformationEx` replace-existing/POSIX semantics on the same volume. A separate verified copy performs the rename so the running client does not
-replace its own process image. It does not first remove or rename the task target. A separate
-program lock prevents simultaneous updates through different state directories.
-Symlinks and junctions are rejected. A synchronized backup supports restoration
-if the installed startup probe or state save fails. If restoration also fails,
-the status identifies the retained backup for administrator recovery. A crash
-after replacement still leaves the new executable's embedded sequence as the
-rollback floor. Old temporary files after a crash may be removed only when no
-update is running.
+The original executable remains a stable bootstrap. Each update stages and
+synchronizes a separate `bearings-windows-release-<sequence>-<sha256>.exe`, checks
+its offline build identity, then atomically switches
+`.bearings-windows-current.json` using Windows `MoveFileEx` with write-through.
+This avoids overwriting a running Windows process image. The bootstrap verifies
+the activation signature, origin and executable digest before forwarding the
+original command, input/output and exit status. It performs no network request
+or registry/WUA collection during forwarding. `--update-info` deliberately probes
+the specific file without forwarding; `--version` shows the effective client.
+
+A directory-wide update lock prevents concurrent activation through different
+profiles or executable versions. Links/junctions are rejected. The prior signed
+activation is synchronized to `.bearings-windows-current.json.previous` before
+switching. A failed protected-state save restores that record; the initial
+bootstrap remains usable if there was no prior activation. If restoration fails,
+the previous record and validated executable remain available for administrator
+recovery. The signed active sequence also provides the rollback floor when a
+crash commits activation before its DPAPI metadata save. Partially staged files
+are never activated. Missing/corrupt active files produce a visible fallback to
+the bundled client, whose normal report attempt can retry the update.
+
+The current and previous activated releases are retained. Cleanup only attempts
+to remove older generated release files; Windows keeps images that are still in
+use. Keep the original task/shortcut entry path rather than pointing it at a
+generated release filename. The stable bootstrap itself is retained: replacing
+its trust key or refreshing its bootstrap runtime requires a reviewed manual
+replacement. Application/client versions used for reporting update automatically.
 
 An unwritable program directory, unsupported filesystem/Windows operation,
 application control, unavailable server, bad signature/hash, wrong architecture
@@ -123,10 +142,10 @@ Functional regressions after a successful startup probe still need operator
 review. An intentional rollback must be reviewed and republished with a higher
 sequence and compatible state; never erase DPAPI state or its rollback record.
 
-Native synthetic tests exercise real executable replacement while an image is
-running, HTTPS signed-release installation, DPAPI/outbox preservation and rollback
-on state-save failure. A Windows pilot is still needed for the target fleet's
-NTFS/application-control behavior and its actual reporting task. Relevant API
-semantics are documented by Microsoft in
-[FILE_RENAME_INFO](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info)
-and [FILE_RENAME_INFORMATION](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information).
+Native synthetic tests exercise activation while a bootstrap stays running,
+real HTTPS signed-release installation and command forwarding, DPAPI/outbox
+preservation, and rollback with and without a prior activation on state-save
+failure. A Windows pilot is still needed for the target fleet's
+NTFS/application-control behavior and its actual reporting task. The atomic
+metadata switch uses Microsoft
+[MoveFileEx](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw).

@@ -37,7 +37,7 @@ func updateFixture(t *testing.T) (clientRelease, ed25519.PrivateKey, []byte) {
 		assets[arch] = releaseAsset{"bearings-windows-" + a.label + ".zip", digest(raw), int64(len(raw)), digest(image), int64(len(image))}
 	}
 	key := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{19}, 32))
-	return clientRelease{"bearings.windows-release.v1", "https://bearings.example.invalid", strings.Repeat("a", 40), 101, assets}, key, raw
+	return clientRelease{nil, "bearings.windows-release.v1", "https://bearings.example.invalid", strings.Repeat("a", 40), 101, assets}, key, raw
 }
 func zipFixture(t *testing.T, files map[string][]byte) []byte {
 	t.Helper()
