@@ -1,0 +1,4 @@
+<nav class="client-platform-links" aria-label="Inventory client platforms">
+  <a class="button" href="{{ linux_url|default:'' }}{% if not linux_url %}{% url 'linux-client-downloads' %}{% endif %}"{% if platform == 'linux' %} aria-current="page"{% endif %}>Linux</a>
+  <a class="button" href="{% url 'windows-client-downloads' %}"{% if platform == 'windows' %} aria-current="page"{% endif %}>Windows</a>
+</nav>

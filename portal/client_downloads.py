@@ -4,13 +4,17 @@ import hashlib
 import os
 from pathlib import Path
 import stat
+from urllib.parse import urlencode
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404
 from django.shortcuts import render
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 from django.views.decorators.cache import never_cache
 from .access import organizations_for, require
 from . import agent_fleet_views
+from .agent_enrollment_codes import trusted_origin
 
 ARTIFACTS = {
     "install.py": 128 * 1024,
@@ -66,18 +70,31 @@ def _complete_release(opener, files):
     return True
 
 
-def page_context(request):
+def _rollout_organizations(request):
     organizations = organizations_for(request.user)
     if not request.user.is_authenticated or not request.user.is_active:
         organizations = organizations.none()
     elif not request.user.is_superuser:
         organizations = organizations.filter(membership__user=request.user, membership__role="admin")
+    return organizations.order_by("name", "pk")
+
+
+def page_context(request):
     return {
         "ready": _complete_release(open_artifact, ARTIFACTS),
         "origin": settings.PUBLIC_BASE_URL or request.build_absolute_uri("/").rstrip("/"),
-        "rollout_organizations": organizations.order_by("name", "pk"),
+        "rollout_organizations": _rollout_organizations(request),
         "downloads_page": True,
     }
+
+
+@require_GET
+def platforms(request):
+    linux_url = reverse("linux-client-downloads")
+    slug = request.GET.get("organization")
+    if slug and _rollout_organizations(request).filter(slug=slug).exists():
+        linux_url += "?" + urlencode({"organization": slug})
+    return render(request, "portal/client_platforms.html", {"linux_url": linux_url})
 
 
 @never_cache
@@ -107,10 +124,22 @@ def _open_windows(name):
 @never_cache
 @require_GET
 def windows(request):
+    ready = _complete_release(_open_windows, WINDOWS_ARTIFACTS)
+    try:
+        server = trusted_origin()
+    except (ValidationError, ValueError):
+        server = request.build_absolute_uri("/").rstrip("/") if request.is_secure() else ""
+    commands = []
+    if ready and server:
+        for architecture, _, filename in WINDOWS_PACKAGES:
+            url = (server + reverse("windows-client-artifact", args=[filename])).replace("'", "''")
+            commands.append((architecture, f"Invoke-WebRequest -Uri '{url}' -OutFile '{filename}'"))
+        manifest = (server + reverse("windows-client-artifact", args=["SHA256SUMS"])).replace("'", "''")
+        commands.append(("SHA256SUMS", f"Invoke-WebRequest -Uri '{manifest}' -OutFile 'SHA256SUMS'"))
     return render(
         request,
         "portal/windows_client_downloads.html",
-        {"ready": _complete_release(_open_windows, WINDOWS_ARTIFACTS), "packages": WINDOWS_PACKAGES},
+        {"ready": ready, "packages": WINDOWS_PACKAGES, "download_commands": commands},
     )
 
 

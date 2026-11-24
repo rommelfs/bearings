@@ -3,6 +3,7 @@
 {% block title %}Windows client · Bearings{% endblock %}
 {% block content %}
 <section class="client-downloads" aria-labelledby="windows-client">
+  {% include "portal/_client_platform_links.html" with platform="windows" %}
   <h1 id="windows-client" class="icon-heading">{% ui_icon "clients" %}Bearings Windows client</h1>
   <p>Send the Windows build and machine-installed software inventory to Bearings. The executable includes its runtime and runs under an ordinary Windows account. The server must have the Windows inventory migration 0073.</p>
   <nav aria-label="Windows client guide">
@@ -17,6 +18,13 @@
     {% endfor %}
   </ul>
   <p><a href="{% url 'windows-client-artifact' 'SHA256SUMS' %}">SHA-256 checksums</a> · <a href="{% url 'windows-client-artifact' 'bearings-windows-source.zip' %}">Corresponding source and license</a></p>
+  {% if download_commands %}
+  <details><summary>Download from this Bearings server in PowerShell</summary>
+    {% for architecture, command in download_commands %}
+    <p>{{ architecture }}</p><pre><code>{{ command }}</code></pre>
+    {% endfor %}
+  </details>
+  {% endif %}
   {% else %}
   <p>Windows downloads are currently unavailable on this server. Ask your Bearings administrator for the approved ZIP and SHA-256 checksum. Use x64 for 64-bit Intel or AMD, ARM64 for Windows on ARM, or x86 for 32-bit Windows.</p>
   {% endif %}
@@ -24,6 +32,12 @@
   <pre><code>Get-FileHash .\bearings-windows-x64.zip -Algorithm SHA256</code></pre>
   <p>For ARM64 or x86, substitute the filename you downloaded.</p>
   <h2 id="install">Install and enroll</h2>
+  <ol>
+    <li>Extract the ZIP and double-click <strong>bearings-windows.exe</strong> under the account that will send reports. The setup window opens and displays this device’s public key.</li>
+    <li>Copy the public key. In <strong>Linux / Windows inventory reports</strong>, have a company administrator approve it for this existing asset. Paste the one-time code into the setup window and choose <strong>Enroll and send first report</strong>.</li>
+    <li>Choose <strong>Check status</strong> until the report shows <code>applied</code>. Choose <strong>Enable automatic reports</strong> and confirm. The client copies itself to <code>%LOCALAPPDATA%\Programs\Bearings</code> and registers a task for the same account.</li>
+  </ol>
+  <details><summary>PowerShell setup and reporting commands</summary>
   <ol>
     <li>Extract the ZIP into a permanent directory writable only by the reporting account and trusted administrators. Open PowerShell in that directory under the Windows account that will send the reports.
       <pre><code>.\bearings-windows.exe --version
@@ -36,10 +50,13 @@
     </li>
     <li><code>pending</code> means the server accepted the report for processing. Check <code>status</code> again until that report shows <code>applied</code>. If you use an approved private CA, add <code>--ca-file C:\Approved\bearings-ca.pem</code> to the enrollment command.</li>
   </ol>
+  </details>
   <h2 id="rollout">Rollout to several computers</h2>
   <p>Pilot one existing asset first. Use your organization’s software distribution tool to copy the approved EXE to the other computers. Generate a fresh key on each device under its reporting account, approve its existing asset individually, and verify its first report before enabling its schedule.</p>
   <p>Keep registration codes out of rollout scripts, command lines and logs. Keep device state local to its original account and device. This enrollment process supports existing assets and a separate approval for each device.</p>
   <h2 id="periodic">Start periodically</h2>
+  <p>The setup window creates a task named <strong>Bearings Windows Inventory</strong> followed by an account-specific suffix. It runs every six hours while that account is signed in. Pause any earlier Bearings task before switching to the new one. Use Task Scheduler to confirm the first run.</p>
+  <details><summary>Foreground reporting and manual Task Scheduler setup</summary>
   <p>For a foreground run, use <code>watch</code>. It reports at startup and every six hours while the process is open.</p>
   <pre><code>.\bearings-windows.exe watch --interval 21600</code></pre>
   <p>For daily operation, create a task in <strong>Windows Task Scheduler</strong>:</p>
@@ -49,6 +66,7 @@
     <li>Use the absolute path to <code>bearings-windows.exe</code> as <strong>Program/script</strong> and <code>report</code> as <strong>Add arguments</strong>. If enrollment used a custom <code>--state-dir</code>, append the same absolute directory in quotes.</li>
     <li>Run the task manually. Under the reporting account, confirm that <code>status</code> shows the new report as <code>applied</code>. For signed-out operation, validate the task with that account’s profile and DPAPI access before rolling it out.</li>
   </ol>
+  </details>
   <h2 id="update">Update an enrolled client</h2>
   <ol>
     <li>Download and verify the new ZIP for the same architecture and extract it into a staging folder. Run the staged EXE with <code>--version</code>.</li>

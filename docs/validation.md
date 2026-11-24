@@ -2344,3 +2344,19 @@ PostgreSQL cases passed across Windows, fleet, workspace and inventory status;
 migration, frozen sync, Django checks and Ruff passed. A separate local Django
 request check compared all five downloads against the actual built Windows
 packages and manifest byte for byte.
+
+### Platform selection and Windows setup window
+
+Inventory clients links directly to Linux and Windows and the Windows guide
+renders PowerShell commands for the configured HTTPS download origin when its
+approved release is available. All 40 targeted PostgreSQL cases for Windows,
+Linux rollout, navigation and inventory passed. Frozen dependency sync,
+migration, Django consistency and Ruff checks passed.
+
+The Windows client setup window enrolls an existing asset, checks its first
+report and offers explicit installation of a task that runs every six hours
+as the signed-in account. The portable Go race suite verifies the generated
+task XML, including the interactive logon principal, least privilege, missed
+runs and no overlap. Windows tests cross-compiled and Go vet passed on all
+three architectures. Native window rendering, registration in the actual
+Task Scheduler and an unattended run remain target acceptance work.

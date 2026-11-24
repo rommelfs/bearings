@@ -14,6 +14,21 @@ Get-FileHash .\bearings-windows-x64.zip -Algorithm SHA256
 
 Substitute the ZIP you downloaded if using ARM64 or x86.
 
+### Setup window
+
+Double-click `bearings-windows.exe` under your Windows reporting account. Choose
+**Copy public key** and have a company administrator approve the existing asset.
+Paste the one-time code in the masked field, enter an optional approved PEM
+file path, and choose **Enroll and send first report**. Use **Check status** to
+confirm the report was applied. Choose **Enable automatic reports** and confirm.
+This copies the EXE to `%LOCALAPPDATA%\Programs\Bearings` and creates a task
+named **Bearings Windows Inventory** with an account-specific suffix. The task
+runs every six hours while that account is signed in. Pause any earlier
+Bearings schedule before enabling the new one. Windows policy can restrict
+task creation.
+
+### PowerShell setup
+
 Open PowerShell in the directory containing the EXE:
 
 ```powershell
@@ -62,7 +77,7 @@ The default state is `%LOCALAPPDATA%\Bearings\Windows`. The same account can reu
 
 `flush` retries existing reports. During an outage, collection keeps saving complete samples up to 64 queued reports, with a 5,000-component and 1 MB limit per report. The client removes a queued observation only after the server acknowledges its exact UUID, sequence and SHA-256. Each report covers the Windows build and additional software registered in machine uninstall registry views. Per-user, Store, portable, hotfix and KB inventory, and automatic Microsoft CVE applicability, are outside this scope.
 
-Linux cross-builds verify the three executable targets, with portable tests for signatures, HTTPS delivery and state compatibility. Native DPAPI, registry, locking and Task Scheduler acceptance require a Windows test endpoint. A [proposed Windows CI job](windows-ci.patch) is available for workflow-authorized activation.
+Linux cross-builds verify the three executable targets, with portable tests for signatures, HTTPS delivery and state compatibility. Native window rendering, DPAPI, registry, locking and Task Scheduler acceptance require a Windows test endpoint. A [proposed Windows CI job](windows-ci.patch) is available for workflow-authorized activation.
 
 ## Build from reviewed source
 

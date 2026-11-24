@@ -16,6 +16,14 @@ import (
 
 var version = "development"
 
+func defaultStateDir() (string, error) {
+	base := os.Getenv("LOCALAPPDATA")
+	if base == "" {
+		return "", errors.New("load your Windows user profile or specify a private --state-dir")
+	}
+	return filepath.Join(base, "Bearings", "Windows"), nil
+}
+
 func output(value any) error { return json.NewEncoder(os.Stdout).Encode(value) }
 
 func reportNow(s *store) (*receipt, error) {
@@ -78,7 +86,7 @@ func consoleGrant() (grant, error) {
 
 func run(args []string) error {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
-		fmt.Println("Bearings Windows " + version + "\nUsage: bearings-windows.exe <init|enroll|collect|report|flush|status|watch> [options]\nUse <command> --help to list options.")
+		fmt.Println("Bearings Windows " + version + "\nUsage: bearings-windows.exe <setup|init|enroll|collect|report|flush|status|watch> [options]\nUse <command> --help to list options.")
 		return nil
 	}
 	if args[0] == "--version" {
@@ -118,11 +126,11 @@ func run(args []string) error {
 		return output(value)
 	}
 	if *dir == "" {
-		base := os.Getenv("LOCALAPPDATA")
-		if base == "" {
-			return errors.New("load your Windows user profile or specify a private --state-dir")
+		path, err := defaultStateDir()
+		if err != nil {
+			return err
 		}
-		*dir = filepath.Join(base, "Bearings", "Windows")
+		*dir = path
 	}
 	if command == "watch" {
 		watch(*dir, *interval)
@@ -188,6 +196,13 @@ func parseOptions(options *flag.FlagSet, args []string) error {
 }
 
 func main() {
+	if len(os.Args) == 1 || (len(os.Args) == 2 && os.Args[1] == "setup") {
+		if err := setupGUI(); err != nil {
+			uiError(0, err.Error())
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

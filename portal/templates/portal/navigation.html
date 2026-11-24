@@ -1,5 +1,10 @@
 {% load ui_icons %}
 {% for group in navigation_groups %}
 {% if group.collapsible %}<details class="nav-group nav-disclosure"{% if group.active %} open{% endif %}><summary>{{ group.label }}</summary>{% else %}<div class="nav-group"><p class="nav-group-label">{{ group.label }}</p>{% endif %}
-{% for item in group.items %}<a class="workspace-link area-{{ item.key }}{% if item.active %} is-active{% endif %}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{% ui_icon item.key %}<span class="nav-label">{{ item.label }}</span></a>{% endfor %}
+{% for item in group.items %}<a class="workspace-link area-{{ item.key }}{% if item.active %} is-active{% endif %}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{% ui_icon item.key %}<span class="nav-label">{{ item.label }}</span></a>{% if item.key == 'clients' %}
+<div class="nav-client-platforms" aria-label="Inventory client platforms">
+<a href="{% url 'linux-client-downloads' %}"{% if request.resolver_match.url_name == 'linux-client-downloads' %} aria-current="page"{% endif %}>Linux</a>
+<a href="{% url 'windows-client-downloads' %}"{% if request.resolver_match.url_name == 'windows-client-downloads' %} aria-current="page"{% endif %}>Windows</a>
+</div>
+{% endif %}{% endfor %}
 {% if group.collapsible %}</details>{% else %}</div>{% endif %}{% endfor %}

@@ -99,6 +99,7 @@ class WindowsAgentTests(Fixture):
         self.assertContains(downloads, "Rollout to several computers")
         self.assertContains(downloads, "Windows Task Scheduler")
         self.assertContains(downloads, "Update an enrolled client")
+        self.assertContains(downloads, "Enable automatic reports")
         self.assertContains(downloads, "Windows downloads are currently unavailable")
         self.assertNotContains(downloads, "/downloads/windows/bearings-windows-x64.zip")
         self.assertContains(
@@ -107,6 +108,9 @@ class WindowsAgentTests(Fixture):
         center = self.client.get(self.url("agent-center"))
         self.assertContains(center, r".\bearings-windows.exe init")
         self.assertContains(center, 'href="/downloads/windows/"')
+        platforms = self.client.get("/downloads/?organization=alpha")
+        self.assertContains(platforms, 'href="/downloads/linux/?organization=alpha"')
+        self.assertContains(platforms, 'href="/downloads/windows/"')
 
     def test_windows_downloads_require_complete_release_and_matching_checksum(self):
         base = "/downloads/windows/"
@@ -126,6 +130,10 @@ class WindowsAgentTests(Fixture):
             (root / "SHA256SUMS").chmod(0o644)
 
             self.assertContains(self.client.get(base), f'href="{base}{artifact}"')
+            with override_settings(PUBLIC_BASE_URL="https://bearings.test"):
+                page = self.client.get(base)
+                self.assertContains(page, "Download from this Bearings server in PowerShell")
+                self.assertContains(page, f"https://bearings.test{base}{artifact}")
             for name, body in content.items():
                 response = self.client.get(base + name)
                 self.assertEqual(response.status_code, 200)

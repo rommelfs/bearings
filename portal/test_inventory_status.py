@@ -116,7 +116,7 @@ class InventoryStatusTests(Fixture):
         inventory = next(g for g in groups if g["label"] == "Inventory")
         clients = next(item for item in inventory["items"] if item["key"] == "clients")
         self.assertTrue(clients["active"])
-        self.assertEqual(clients["url"], reverse("linux-client-downloads") + "?organization=" + self.a.slug)
+        self.assertEqual(clients["url"], reverse("client-platforms") + "?organization=" + self.a.slug)
         self.assertNotIn("Administration", [g["label"] for g in groups])
         self.assertEqual(
             [g["label"] for g in groups if not g["collapsible"]],

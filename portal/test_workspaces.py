@@ -143,7 +143,7 @@ class WorkspaceTests(Fixture):
         self.assertNotIn("research", items)
         self.assertEqual(items["inventory"]["url"], reverse("organization", args=["circl"]))
         self.assertEqual(items["review"]["url"], reverse("intelligence", args=["circl"]))
-        self.assertEqual(items["clients"]["url"], reverse("linux-client-downloads") + "?organization=circl")
+        self.assertEqual(items["clients"]["url"], reverse("client-platforms") + "?organization=circl")
         self.assertEqual(items["discovery"]["url"], reverse("discovery") + "?organization=circl")
         directory = os.environ.get("BEARINGS_WORKSPACE_UI_DIR")
         if directory:
