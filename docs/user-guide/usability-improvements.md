@@ -76,3 +76,9 @@ remain enforced. Restart/update all services with the development starter. Nativ
 production scheduling is unchanged. The installer test suite uses Python 3.8-compatible
 context managers and includes a grammar regression guard; actual 3.8 and real-stack
 validation run in GitHub Actions. Local Docker Desktop remains paused.
+
+Browser validation on synthetic local data confirmed machine-name ascending/descending,
+case Critical-first/ascending priority and alphabetical family order, and retained
+record priority ordering with category/scope preserved. Wrapped column headings
+have a continuous click target and support keyboard activation. The full local
+suite passed 1,042 tests (66 skipped); CI supplies PostgreSQL and real-stack results.

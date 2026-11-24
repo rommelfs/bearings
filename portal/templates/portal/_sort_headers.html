@@ -1,1 +1,1 @@
-{% for header in sort_headers %}<th scope="col" aria-sort="{{ header.aria_sort }}"><a href="{{ header.url }}">{{ header.label }} <span aria-hidden="true">{{ header.arrow }}</span></a></th>{% endfor %}
+{% for header in sort_headers %}<th scope="col" aria-sort="{{ header.aria_sort }}"><a class="table-sort" href="{{ header.url }}">{{ header.label }} <span aria-hidden="true">{{ header.arrow }}</span></a></th>{% endfor %}

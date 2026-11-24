@@ -404,7 +404,7 @@ def machine_records(request, slug=None):
                 ("company", "Company", "organization__name", False),
                 ("evaluation", "Distribution-package evaluation", "evaluation_order", False),
                 ("priority", "Highest source priority", "source_priority", True),
-                ("evidence", "Current version evidence", "version_match", False),
+                ("evidence", "Current version evidence", "current_positive", False),
             ],
         )
     except ValueError:
@@ -414,11 +414,14 @@ def machine_records(request, slug=None):
     page = Paginator(
         scope.filter(**filters[focus])
         .annotate(
+            current_positive=Case(
+                When(evaluated=True, version_match=True, then=Value(True)), default=Value(False)
+            ),
             evaluation_order=Case(
                 When(evaluated=True, partial=False, then=Value(0)),
                 When(evaluated=True, then=Value(1)),
                 default=Value(2),
-            )
+            ),
         )
         .select_related("organization")
         .defer("upstream_data")

@@ -2049,3 +2049,7 @@ h2.icon-heading > .ui-icon { width: 24px; height: 24px; flex-basis: 24px; color:
   .overview-company .national-metrics > a { padding: .75rem; }
   .overview-company .national-metrics p { font-size: .8rem; }
 }
+
+/* Make wrapped sort headings a continuous, keyboard-accessible target. */
+th .table-sort{display:flex;align-items:center;gap:.35rem;min-height:2.75rem}
+th .table-sort span{flex-shrink:0}
