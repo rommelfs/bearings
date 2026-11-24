@@ -119,7 +119,7 @@ Use a reviewed/pinned source revision and retain the private environment/databas
 ### Windows inventory upgrade from `6acb4c8`
 
 Use the reviewed Windows inventory revision that includes `6acb4c8`. The
-upgrade adds migration `0073_windows_inventory` and retains the host overview.
+upgrade applies migrations `0073` and `0074` and retains the host overview.
 The frozen dependencies and native service configuration match `6acb4c8`.
 
 After verifying the backup, run the following as root from the existing
@@ -149,7 +149,7 @@ systemctl is-active bearings-web bearings-worker bearings-national
 Confirm the public HTTPS portal opens and the company's **Linux / Windows
 inventory reports** page is available. Enrollment uses the approved HTTPS
 origin in `BEARINGS_PUBLIC_URL`. Follow the [Windows client guide](../../clients/windows/README.md)
-for setup, existing-asset enrollment and periodic reports.
+for setup, registration with the shared rollout key and periodic reports.
 
 
 ### LXC: 502 with systemd `226/NAMESPACE`
