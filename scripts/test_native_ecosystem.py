@@ -108,6 +108,79 @@ class NativeDeploymentTests(unittest.TestCase):
             self.assertEqual(list(releases.iterdir()), [kept])
             self.assertEqual((kept / "kept").read_text(), "original")
 
+    def test_combined_client_publish_switches_both_paths_and_preserves_prior_release(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            apps, releases, config = (root / path for path in ("apps", "releases", "config"))
+            old = releases / "old"
+            old.mkdir(parents=True)
+            env = root / "bearings.env"
+            current = (
+                "DJANGO_SECRET_KEY=synthetic-retained-key\n"
+                f"BEARINGS_LINUX_CLIENT_DIR={old}\nBEARINGS_WINDOWS_CLIENT_DIR={old}\n"
+            )
+            env.write_text(current)
+            builds = []
+
+            def run(args, **kwargs):
+                if str(args[0]) == "git":
+                    return SimpleNamespace(stdout="")
+                self.assertEqual(env.read_text(), current)
+                self.assertNotEqual(args[0], "systemctl")
+                builds.append(Path(args[1]).name)
+                target = args[-1]
+                target.mkdir()
+                output = target / "SHA256SUMS"
+                output.write_text("synthetic manifest")
+                output.chmod(0o600)
+
+            with (
+                patch.object(native, "APPS", apps),
+                patch.object(native, "CLIENT_RELEASES", releases),
+                patch.object(native, "CONFIG", config),
+                patch.object(native, "BEARINGS_ENV", env),
+                patch.object(native, "protected_read", side_effect=Path.read_text),
+                patch.object(native, "directory", side_effect=lambda path, **_: path.mkdir(exist_ok=True)),
+                patch.object(native, "client_compiler", return_value="/synthetic/go"),
+                patch.object(native, "run", side_effect=run),
+            ):
+                native.prepare_clients(restart=False)
+
+            self.assertEqual(builds, ["build_linux_client.py", "build_windows_client.py"])
+            self.assertTrue(old.is_dir())
+            self.assertEqual((config / "bearings-before-client-builds.env").read_text(), current)
+            published = next(path for path in releases.iterdir() if path != old)
+            self.assertIn(f'BEARINGS_LINUX_CLIENT_DIR="{published / "linux"}"', env.read_text())
+            self.assertIn(f'BEARINGS_WINDOWS_CLIENT_DIR="{published / "windows"}"', env.read_text())
+            self.assertIn("DJANGO_SECRET_KEY=synthetic-retained-key", env.read_text())
+            self.assertEqual((published / "windows/SHA256SUMS").stat().st_mode & 0o777, 0o644)
+
+    def test_failed_windows_build_keeps_both_environment_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            apps, releases = root / "apps", root / "releases"
+
+            def run(args, **kwargs):
+                if str(args[0]) == "git":
+                    return SimpleNamespace(stdout="")
+                if Path(args[1]).name == "build_linux_client.py":
+                    args[-1].mkdir()
+                    return SimpleNamespace(stdout="")
+                raise subprocess.CalledProcessError(1, ["synthetic-windows-build"])
+
+            with (
+                patch.object(native, "APPS", apps),
+                patch.object(native, "CLIENT_RELEASES", releases),
+                patch.object(native, "directory", side_effect=lambda path, **_: path.mkdir(exist_ok=True)),
+                patch.object(native, "client_compiler", return_value="/synthetic/go"),
+                patch.object(native, "run", side_effect=run),
+                patch.object(native, "write") as publish,
+            ):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    native.prepare_clients()
+            publish.assert_not_called()
+            self.assertEqual(list(releases.iterdir()), [])
+
     def test_mail_environment_preserves_keys_and_quotes_bracket_relay_and_subject(self):
         before = 'DJANGO_SECRET_KEY=retained-secret\nOTHER="retained value"\nSMTP_HOST=old\n'
         result = native.merge_environment(

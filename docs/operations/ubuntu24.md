@@ -16,7 +16,7 @@ git rev-parse HEAD
 bash deploy/ubuntu24/install.sh
 ```
 
-Record/review that source revision; the development branch moves. The helper installs Python 3.12, pinned uv, frozen production dependencies, PostgreSQL, Nginx and Certbot. It creates the dedicated non-login `bearings` account/database role/database, root-owned mode-0600 `/etc/bearings/bearings.env` with a newly generated random secret, `/var/lib/bearings` private state and public static/client directories. It runs committed migrations, static collection and deploy checks, then enables web/worker/national services. Dependencies/source remain root-owned; the application can write only its state/runtime directories.
+Record/review that source revision; the development branch moves. The helper installs Python 3.12, pinned uv, frozen production dependencies, PostgreSQL, Nginx and Certbot. It creates the dedicated non-login `bearings` account/database role/database, root-owned mode-0600 `/etc/bearings/bearings.env` with a newly generated random secret, `/var/lib/bearings` private state and public static/client directories. It runs committed migrations, static collection and deploy checks, prepares both client downloads, then enables web/worker/national services. Dependencies/source remain root-owned; the application can write only its state/runtime directories.
 
 PostgreSQL uses the local Unix socket and peer authentication as the dedicated OS/database user. There is no shared/default database password and no public database listener is configured. Do not silently change peer authentication to `trust`. If using a remote database instead, configure a separate scoped role/verified TLS and review the connection/secret setup explicitly.
 
@@ -84,26 +84,36 @@ Before customers, configure/accept SSO/MFA and local recovery policies using [SS
 
 ## Client downloads
 
-The public Linux client page is `/downloads/linux/`. Build reviewed artifacts on a trusted build machine with Go 1.24+ and `scripts/build_linux_client.py`; publish the complete output into `/var/www/bearings/clients` with root-owned directories 0755 and public artifact modes 0644 (executables may be 0755). Production has no implicit source build or unsigned external auto-download. The application can read but not replace that directory; fixed artifact names/checksums/source/license remain required. The generated checksums are not independent code signatures. No compiler is required on monitored clients. See [client/roll-out guide](../integrations/linux-rollout.md).
+The native installer prepares both download pages, `/downloads/linux/` and
+`/downloads/windows/`. On the existing Ubuntu server, use the same publisher
+to refresh both clients from the clean, reviewed checkout:
 
-### Windows client
+```sh
+cd /opt/bearings
+python3 deploy/ubuntu24/ecosystem.py prepare-clients
+```
 
-The public guide is `/downloads/windows/`. It explains setup, per-device
-enrollment, rollout, periodic reports and updates even before an operator
-publishes a release. To enable the download links:
+The command uses a checksum-pinned Go compiler, builds Linux amd64/arm64
+and Windows x64/ARM64/x86 packages, and prepares the checksums and corresponding
+source. Build egress includes `go.dev` and its Go archive host, plus
+`proxy.golang.org` and `sum.golang.org` for locked Windows module dependencies.
+The command switches both paths together in the protected Bearings environment
+after both builds finish and restarts the web service. Prior release directories
+are retained. The earlier `prepare-linux-client` command is an alias for the
+same publisher. For a maintenance window with an explicit service start,
+use `prepare-clients --no-restart`.
 
-1. Use the [Windows client build instructions](../../clients/windows/README.md#build-from-reviewed-source) or obtain matching reviewed artifacts. Verify the ZIP hashes against the build's `SHA256SUMS` before copying them to the server.
-2. Create a new root-owned release directory under `/var/www/bearings/windows-client/` with mode `0755`. Copy the x64, ARM64 and x86 ZIPs, `bearings-windows-source.zip` and the matching `SHA256SUMS` from the same build. Use root ownership and mode `0644` on the files. Keep the release directory and its parents writable only by trusted administrators.
-3. Set `BEARINGS_WINDOWS_CLIENT_DIR` in the protected `/etc/bearings/bearings.env` to the absolute release directory and restart `bearings-web`. Open the page over the approved HTTPS origin, download a ZIP, and compare its SHA-256 against the manifest.
-4. For the next release, populate a new directory, switch the setting and restart the web service. Keep the prior release available for rollback. Only allowlisted files are served, and their hashes are checked before delivery. Windows packages are unsigned reference builds.
-
-Leaving the setting empty keeps downloads disabled and the instructions
-available. Publish through the normal operator approval process. Enrollment
-continues to use individual, key-bound codes for existing assets.
+The managed release contains all the ZIPs, checksums and source. It is writable
+only by the operator. The portal serves allowlisted files and checks the
+corresponding SHA-256 value before serving each package. Windows packages are
+unsigned reference builds. Package publishing is separate from approving,
+enrolling and updating individual devices. See the
+[Linux rollout guide](../integrations/linux-rollout.md) and
+[Windows setup guide](../../clients/windows/README.md).
 
 ## Updates and recovery
 
-Use a reviewed/pinned source revision and retain the private environment/database/state. Before upgrading take/verify backups, then stop `bearings-web`, `bearings-worker` and `bearings-national`; fetch/check out the reviewed revision as root. Sync the frozen production extra using `/opt/bearings-tools/bin/uv sync --frozen --no-dev --extra production --python /usr/bin/python3.12`, run the management helper's migrate/collectstatic/check commands, reconcile changed unit/proxy templates and restart/check the three services. Do not use the first-install helper for upgrades and do not run developer seed/bootstrap/volume-reset commands on this server. Review pending external writes before worker reactivation after restore or failed/uncertain remote requests; preserve original source IDs and native recovery rules.
+Use a reviewed/pinned source revision and retain the private environment/database/state. Before upgrading take/verify backups, then stop `bearings-web`, `bearings-worker` and `bearings-national`; fetch/check out the reviewed revision as root. Sync the frozen production extra using `/opt/bearings-tools/bin/uv sync --frozen --no-dev --extra production --python /usr/bin/python3.12`, run the management helper's migrate/collectstatic/check commands, run `python3 deploy/ubuntu24/ecosystem.py prepare-clients --no-restart`, reconcile changed unit/proxy templates and restart/check the three services. Do not use the first-install helper for upgrades and do not run developer seed/bootstrap/volume-reset commands on this server. Review pending external writes before worker reactivation after restore or failed/uncertain remote requests; preserve original source IDs and native recovery rules.
 
 ### Windows inventory upgrade from `6acb4c8`
 
@@ -130,6 +140,7 @@ git switch --detach "$reviewed"
 ./deploy/ubuntu24/manage.py migrate --noinput </dev/null
 ./deploy/ubuntu24/manage.py collectstatic --noinput </dev/null
 ./deploy/ubuntu24/manage.py check </dev/null
+python3 deploy/ubuntu24/ecosystem.py prepare-clients --no-restart
 systemctl start bearings-web bearings-worker bearings-national
 systemctl is-active bearings-web bearings-worker bearings-national
 ```

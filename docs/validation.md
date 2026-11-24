@@ -2360,3 +2360,12 @@ task XML, including the interactive logon principal, least privilege, missed
 runs and no overlap. Windows tests cross-compiled and Go vet passed on all
 three architectures. Native window rendering, registration in the actual
 Task Scheduler and an unattended run remain target acceptance work.
+
+### Combined native client publication
+
+The Ubuntu publisher invokes both build scripts with the checksum-pinned
+compiler and updates both download paths through one protected environment
+write. The native first installer and documented reviewed upgrade call the
+same publisher. The operator tests cover a complete publication, a failed
+Windows build after Linux succeeds, retention of the older release and the
+no-restart maintenance path.

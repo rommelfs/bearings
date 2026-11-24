@@ -56,6 +56,7 @@ PY
 /opt/bearings/deploy/ubuntu24/manage.py migrate --noinput
 /opt/bearings/deploy/ubuntu24/manage.py collectstatic --noinput
 /opt/bearings/deploy/ubuntu24/manage.py check --deploy --fail-level WARNING
+python3 deploy/ubuntu24/ecosystem.py prepare-clients --no-restart
 for service in web worker national; do
     install -m 0644 "deploy/ubuntu24/bearings-${service}.service" /etc/systemd/system/
 done

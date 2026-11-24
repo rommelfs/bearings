@@ -62,12 +62,7 @@ def run(args, *, input=None, capture=False, cwd=None, env=None):
     )
 
 
-def prepare_linux_client():
-    """Build immutable public artifacts without changing inventory or device identities."""
-    if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
-        raise ValueError(
-            "Publish only a clean reviewed checkout; keep downloaded installers outside the repository"
-        )
+def client_compiler():
     arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(platform.machine())
     if not arch:
         raise ValueError("Native client builder supports amd64/arm64 Linux hosts")
@@ -104,42 +99,81 @@ def prepare_linux_client():
     compiler = target / "bin/go"
     if run([compiler, "version"], capture=True).stdout.strip() != f"go version go{GO_VERSION} linux/{arch}":
         raise ValueError("Compiler version/architecture mismatch")
-    releases = CLIENT_RELEASES
-    directory(releases, mode=0o755)
-    release = Path(tempfile.mkdtemp(prefix="linux-", dir=releases))
+    return compiler
+
+
+def prepare_clients(*, restart=True):
+    """Build both release sets before switching their environment pointers together."""
+    if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
+        raise ValueError(
+            "Publish only a clean reviewed checkout; keep downloaded installers outside the repository"
+        )
+    directory(APPS, mode=0o755)
+    compiler = client_compiler()
+    directory(CLIENT_RELEASES, mode=0o755)
+    release = Path(tempfile.mkdtemp(prefix="clients-", dir=CLIENT_RELEASES))
     try:
         with tempfile.TemporaryDirectory(dir=APPS) as cache:
-            run(
-                [
-                    sys.executable,
-                    ROOT / "scripts/build_linux_client.py",
-                    "--go",
-                    compiler,
-                    "--output",
-                    release,
-                ],
-                cwd=ROOT,
-                env={
-                    "GOCACHE": str(Path(cache) / "cache"),
-                    "GOPATH": str(Path(cache) / "path"),
-                    "GOTELEMETRY": "off",
+            build_env = {
+                **{
+                    name: os.environ[name]
+                    for name in ("HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy", "SSL_CERT_FILE")
+                    if name in os.environ
                 },
-            )
-        # The existing public endpoint verifies every served file against the manifest.
+                "GOCACHE": str(Path(cache) / "cache"),
+                "GOPATH": str(Path(cache) / "path"),
+                "GOENV": "off",
+                "GOTELEMETRY": "off",
+                "GOPROXY": "https://proxy.golang.org",
+                "GOSUMDB": "sum.golang.org",
+            }
+            for target in ("linux", "windows"):
+                run(
+                    [
+                        sys.executable,
+                        ROOT / f"scripts/build_{target}_client.py",
+                        "--go",
+                        compiler,
+                        "--output",
+                        release / target,
+                    ],
+                    cwd=ROOT,
+                    env=build_env,
+                )
+        for path in (release / "linux", release / "windows"):
+            path.chmod(0o755)
+        for path in (release / "windows").iterdir():
+            path.chmod(0o644)
         release.chmod(0o755)
-        env_path = BEARINGS_ENV
-        current = protected_read(env_path)
-        backup = CONFIG / "bearings-before-linux-client.env"
+        current = protected_read(BEARINGS_ENV)
+        updated = merge_environment(
+            current,
+            {
+                "BEARINGS_LINUX_CLIENT_DIR": str(release / "linux"),
+                "BEARINGS_WINDOWS_CLIENT_DIR": str(release / "windows"),
+            },
+        )
+        directory(CONFIG)
+        backup = CONFIG / "bearings-before-client-builds.env"
         if not backup.exists():
             write(backup, current)
-        write(env_path, merge_environment(current, {"BEARINGS_LINUX_CLIENT_DIR": str(release)}))
+        write(BEARINGS_ENV, updated)
     except Exception:
         shutil.rmtree(release)
         raise
-    run(["systemctl", "restart", "bearings-web"])
-    print(
-        "Linux amd64/arm64 artifacts published at https://bearings.circl.lu/downloads/linux/; no device installed, enrolled or inventory changed."
-    )
+    if restart:
+        try:
+            run(["systemctl", "restart", "bearings-web"])
+        except subprocess.CalledProcessError:
+            write(BEARINGS_ENV, current)
+            run(["systemctl", "restart", "bearings-web"])
+            raise
+    print("Linux and Windows downloads prepared for /downloads/linux/ and /downloads/windows/.")
+
+
+def prepare_linux_client():
+    """Compatibility entry point for existing operator automation."""
+    prepare_clients()
 
 
 def protected_read(path):
@@ -1196,10 +1230,12 @@ def main():
     )
     sub.add_parser("activate")
     sub.add_parser("credentials")
-    sub.add_parser(
-        "prepare-linux-client",
-        help="Build and publish reviewed amd64/arm64 client artifacts using a checksum-pinned Go compiler",
+    client_build = sub.add_parser(
+        "prepare-clients",
+        aliases=["prepare-linux-client"],
+        help="Build and publish reviewed Linux and Windows client artifacts",
     )
+    client_build.add_argument("--no-restart", action="store_true", help="Leave web restart to the upgrade")
     mail = sub.add_parser("configure-mail", help="Stage the approved CIRCL relay without enabling delivery")
     mail.add_argument(
         "--allow-self-signed",
@@ -1283,6 +1319,9 @@ def main():
     # A single operator operation at a time, including management and activation.
     descriptor = os.open("/etc/bearings/ecosystem.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    if args.action in {"prepare-clients", "prepare-linux-client"}:
+        prepare_clients(restart=not args.no_restart)
+        return
     if args.action == "install":
         state = initialize(args)
         if state.get("activated"):
@@ -1292,8 +1331,6 @@ def main():
     state = json.loads(protected_read(CONFIG / "state.json"))
     if args.action == "activate":
         activate(state)
-    elif args.action == "prepare-linux-client":
-        prepare_linux_client()
     elif args.action == "configure-mail":
         configure_mail(allow_self_signed=args.allow_self_signed)
     elif args.action == "manage-circl-inventory":
