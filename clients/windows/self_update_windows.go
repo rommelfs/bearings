@@ -13,12 +13,11 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-// FileRenameInfoEx atomically replaces even an executing destination on supported
+// Directory-relative POSIX rename atomically replaces an executing destination on supported
 // Windows/NTFS. Never fall back to removing or moving the old task target first.
 func replaceExecutable(from, to string) error {
 	// Image teardown and endpoint scanners can briefly retain incompatible handles
@@ -38,38 +37,18 @@ func replaceExecutable(from, to string) error {
 }
 
 func renameExecutable(from, to string) error {
-	name, err := windows.UTF16FromString(to)
+	if !strings.EqualFold(filepath.Dir(from), filepath.Dir(to)) {
+		return errors.New("client replacement must stay in its program directory")
+	}
+	// Go's directory-relative Windows implementation uses NtSetInformationFile
+	// with FileRenameInformationEx/POSIX flags. Binding the directory avoids the
+	// Win32 full-path conversion (including short-name aliases of the running EXE).
+	root, err := os.OpenRoot(filepath.Dir(to))
 	if err != nil {
 		return err
 	}
-	source, err := windows.UTF16PtrFromString(from)
-	if err != nil {
-		return err
-	}
-	handle, err := windows.CreateFile(source, windows.DELETE|windows.SYNCHRONIZE, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE, nil, windows.OPEN_EXISTING, windows.FILE_FLAG_OPEN_REPARSE_POINT, 0)
-	if err != nil {
-		return fmt.Errorf("open staged executable for rename: %w", err)
-	}
-	defer windows.CloseHandle(handle)
-	type renameInfo struct {
-		Flags          uint32
-		RootDirectory  windows.Handle
-		FileNameLength uint32
-		FileName       [1]uint16
-	}
-	offset := unsafe.Offsetof(renameInfo{}.FileName)
-	// The Win32 wrapper consumes a NUL-terminated FileName even though
-	// FileNameLength excludes that terminator. Keep it inside the allocated buffer.
-	length := offset + uintptr(len(name)*2)
-	data := make([]byte, length)
-	info := (*renameInfo)(unsafe.Pointer(&data[0]))
-	info.Flags = windows.FILE_RENAME_REPLACE_IF_EXISTS | windows.FILE_RENAME_POSIX_SEMANTICS
-	info.FileNameLength = uint32((len(name) - 1) * 2)
-	copy(unsafe.Slice((*uint16)(unsafe.Pointer(&data[offset])), len(name)), name)
-	if err := windows.SetFileInformationByHandle(handle, windows.FileRenameInfoEx, &data[0], uint32(length)); err != nil {
-		return fmt.Errorf("rename executable to %q: %w", to, err)
-	}
-	return nil
+	defer root.Close()
+	return root.Rename(filepath.Base(from), filepath.Base(to))
 }
 
 func stagedExecutable(dir string, data []byte) (string, error) {

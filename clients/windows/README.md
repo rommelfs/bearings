@@ -108,7 +108,7 @@ Linux cross-builds verify the three executable targets, with portable tests for 
 
 ## Build from reviewed source
 
-On the build machine, use Python 3.12+ and Go 1.24+ from a clean reviewed checkout:
+On the build machine, use Python 3.12+ and Go 1.25+ from a clean reviewed checkout:
 
 ```sh
 python3 scripts/build_windows_client.py --go /path/to/go --server https://bearings.example
