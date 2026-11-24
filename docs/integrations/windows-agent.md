@@ -81,4 +81,4 @@ Microsoft API references:
 Synthetic PostgreSQL admission/retention/rendering and Go tests/cross-compilation
 validate the contract. Native WUA COM/PowerShell collection and corrected Task
 Scheduler execution still need a real Windows pilot. See the
-[German installation/upgrade guide](../user-guide/windows-update-installation.de.md).
+[installation/upgrade guide](../user-guide/windows-update-installation.md).
