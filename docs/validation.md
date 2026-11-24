@@ -2550,11 +2550,26 @@ pass. The Windows server regression suite passes 26 tests (two optional client
 checks skipped); Django checks/migration consistency and repository Ruff checks
 pass. This change adds no database migration.
 
-The new Windows workflow runs synthetic tests only: activation while a bootstrap remains running,
-signed local HTTPS upgrade and forwarding, offline executable probes, DPAPI/key/
-counter/exact outbox preservation and rollback on state-save failure. Native
-execution is pending at this checkpoint; cross-compilation does not establish
-Windows runtime behavior. WUA/registry enumeration and actual fleet tasks remain
-outside these synthetic tests and need an authorized Windows pilot. Real signed
-three-architecture artifact build and published CI results are recorded below
-when completed. No production actions were performed.
+The Windows Server 2025 synthetic workflow passes on runtime commit
+`f410979ee6d298179f337b641f7c18f60b8565bb`: real signed local HTTPS activation,
+command forwarding through the unchanged bootstrap, complete serialized DPAPI
+state/key/counter/exact outbox preservation, state-save rollback with and without
+a prior activation, and activation while the bootstrap is demonstrably still
+running. Native Windows vet also passes. See the
+[Windows job](https://github.com/rommelfs/bearings/actions/runs/45434755464/job/138589418397).
+
+Real signed x64/ARM64/x86 packages from that clean commit are built with a
+synthetic HTTPS origin and a private synthetic key outside Git. Their Ed25519
+signature, increasing sequence over the preceding release, ZIP/executable sizes
+and SHA-256 digests, all SHA256SUMS entries and exact corresponding updater/task
+source are independently checked. The source ZIP contains no private seed. These
+fixtures are not production packages. The final PR regression gates still apply.
+
+The task/shortcut entry is an unchanged stable bootstrap; only immutable version
+files and a signed activation record change automatically. Refreshing the
+bootstrap runtime or changing its trust key requires reviewed manual replacement.
+Windows tests exposed that direct overwrite of a live image was unsuitable; the
+final implementation never overwrites a running executable. WUA/registry
+collection, application-control policies and actual fleet tasks remain outside
+these synthetic tests and require an authorized Windows pilot. No production
+actions were performed.
