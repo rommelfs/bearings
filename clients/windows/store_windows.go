@@ -60,9 +60,10 @@ func rejectReparse(path string) error {
 }
 
 type store struct {
-	dir   string
-	lock  *os.File
-	state state
+	updated bool
+	dir     string
+	lock    *os.File
+	state   state
 }
 
 func openStore(dir string, initialize bool) (*store, error) {

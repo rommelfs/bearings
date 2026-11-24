@@ -157,18 +157,33 @@ func (w *setupWindow) operation(action uintptr, code string) (string, error) {
 		}
 		return "Report status: " + r.Status + ". If pending, use Check status.", nil
 	case checkReport:
+		updateStatus := "Client updates: enabled."
+		if s.state.Update != nil {
+			if s.state.Update.Status != "" {
+				updateStatus = "Client updates: " + s.state.Update.Status + "."
+			}
+			if s.state.Update.Disabled {
+				updateStatus = "Client updates: disabled."
+			}
+			if s.state.Update.Error != "" {
+				updateStatus += " " + s.state.Update.Error
+			}
+		}
+		if buildInfo().Key == "" {
+			updateStatus = "Client updates: this build has no release trust anchor."
+		}
 		taskStatus := "Automatic reports: Windows task could not be verified."
 		if task, err := currentReporterTask(); err == nil {
 			taskStatus = task.status()
 		}
 		if err := s.state.ready(); err != nil {
-			return taskStatus + "\r\nReport status: " + err.Error(), nil
+			return updateStatus + "\r\n" + taskStatus + "\r\nReport status: " + err.Error(), nil
 		}
 		r, err := status(&s.state)
 		if err != nil {
-			return taskStatus + "\r\nReport status: " + err.Error(), nil
+			return updateStatus + "\r\n" + taskStatus + "\r\nReport status: " + err.Error(), nil
 		}
-		return taskStatus + "\r\nReport status: " + r.Status + ".", nil
+		return updateStatus + "\r\n" + taskStatus + "\r\nReport status: " + r.Status + ".", nil
 	case enableSchedule:
 		if err := s.state.ready(); err != nil {
 			return "", err
@@ -200,7 +215,7 @@ func (w *setupWindow) event(hwnd uintptr, message uint32, word, param uintptr) u
 		if action >= enrollKey && action <= enableSchedule && !w.busy {
 			if action == enableSchedule {
 				answer, _, _ := messageBox.Call(hwnd,
-					uintptr(unsafe.Pointer(utf16Text("Install a copy in your Windows profile and create a task that sends inventory every six hours while you are signed in?"))),
+					uintptr(unsafe.Pointer(utf16Text("Install a copy in your Windows profile and create a task that sends inventory and checks signed Bearings client updates every six hours while you are signed in?"))),
 					uintptr(unsafe.Pointer(utf16Text("Enable Bearings reports"))), 0x124) // Yes/No with No as default
 				if answer != 6 {
 					return 0

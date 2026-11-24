@@ -6,6 +6,7 @@ certificates and a healthy local IdP; it preserves existing Bearings environment
 """
 
 import argparse
+import base64
 import fcntl
 import hashlib
 import json
@@ -111,6 +112,28 @@ def client_server(current):
     return values[0]
 
 
+def windows_release_key(current):
+    """One stable operator trust anchor; losing it requires recovery, never rotation."""
+    directory(CONFIG)
+    key = CONFIG / "windows-release.key"
+    previous = re.findall(r"(?m)^BEARINGS_WINDOWS_CLIENT_DIR=(.*)$", current)
+    values = shlex.split(previous[0]) if len(previous) == 1 else []
+    manifest = Path(values[0]) / "update.json" if len(values) == 1 else None
+    if key.exists() or key.is_symlink():
+        seed = base64.b64decode(protected_read(key).strip(), validate=True)
+        if len(seed) != 32:
+            raise ValueError("Invalid Windows release key; restore the protected backup")
+    else:
+        if manifest is not None and manifest.exists():
+            raise ValueError("Windows release key missing; restore its protected backup before publishing")
+        fd = os.open(key, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "w") as stream:
+            stream.write(base64.b64encode(secrets.token_bytes(32)).decode("ascii") + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    return key, manifest if manifest is not None and manifest.exists() else None
+
+
 def prepare_clients(*, restart=True):
     """Build both release sets before switching their environment pointers together."""
     if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
@@ -140,10 +163,13 @@ def prepare_clients(*, restart=True):
                 server_args = []
                 if target == "windows":
                     server = client_server(protected_read(BEARINGS_ENV))
-                    server_args = ["--server", server]
+                    key, previous = windows_release_key(protected_read(BEARINGS_ENV))
+                    server_args = ["--server", server, "--signing-key", key]
+                    if previous is not None:
+                        server_args += ["--previous-manifest", previous]
                 run(
                     [
-                        sys.executable,
+                        ROOT / ".venv/bin/python" if target == "windows" else sys.executable,
                         ROOT / f"scripts/build_{target}_client.py",
                         "--go",
                         compiler,

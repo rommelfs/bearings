@@ -46,9 +46,11 @@ public HTTPS pages and an authorized host view.
 ## Download and set up the Windows client
 
 The server rebuilds and publishes client downloads when `prepare-clients` runs
-during its upgrade. Existing Windows installations do **not** update themselves:
-the client has no automatic self-updater, and its scheduled task only submits
-reports. Follow the replacement procedure below to upgrade an enrolled client.
+during its upgrade. New signed publisher builds update the Bearings executable automatically after
+report attempts. Older installed clients need **one manual bootstrap replacement**
+below; they cannot install the updater themselves. Later releases are checked by
+the same six-hour reporting task. See [automatic Windows client updates](../operations/windows-client-updates.md)
+for signing-key backup, status, retry and recovery.
 
 1. Open `/downloads/windows/` on the upgraded Bearings server. Download the ZIP
    for **x64**, **ARM64** or **x86**, and compare its SHA-256 with `SHA256SUMS`.

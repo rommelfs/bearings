@@ -274,6 +274,10 @@
       {
         "title": "Keep documentation and user guides in English",
         "body": "Implemented the repository-wide English documentation policy in AGENTS.md. Translate the Windows Update installation guide to English at a language-neutral path, retain an English notice at the legacy URL and update references. Relative links, identical installation command blocks and backlog JSON are validated; no runtime behavior or deployment changes."
+      },
+      {
+        "title": "Deliver signed automatic Windows client updates",
+        "body": "Implemented same-origin HTTPS Ed25519 signed release metadata with pinned public key, increasing release sequences, bounded ZIP/executable digests and PE architecture, offline startup identity probes, atomic Windows replacement, rollback on probe/state-save failure, separate update status and persistent local enable/disable. The existing scheduled report checks updates after report attempts; watch restarts the updated executable. Device registration, DPAPI key/counter and exact queued report bytes are preserved. Native publisher retains a protected release signing key outside Git and verifies the previous manifest before incrementing its sequence. Existing older clients need one manual bootstrap replacement. Synthetic portable/publisher/server tests and native synthetic executable/DPAPI tests are included; native execution and fleet pilot status are recorded in docs/validation.md. No Windows/application patches, production actions or Authenticode signature. See docs/operations/windows-client-updates.md."
       }
     ]
   },

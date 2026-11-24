@@ -2540,3 +2540,21 @@ large-extra-field/large-link regression and the Windows/CVE/continuous-review ru
 pass **51 tests**. Repository Ruff lint/format and diff checks pass. GitHub CI is
 required for the final commit as well; the preceding full-run result is recorded
 here without claiming native Windows acceptance or a production deployment.
+
+## Windows automatic client updates — 2026-11-24
+
+Portable Go race tests and Linux/Windows vet pass. The native suite cross-compiles
+for Windows x64, ARM64 and x86. Four synthetic publisher tests use real Ed25519
+signatures and ZIPs with a fake compiler; 26 native deployment boundary tests
+pass. The Windows server regression suite passes 18 tests (two optional client
+checks skipped); Django checks/migration consistency and repository Ruff checks
+pass. This change adds no database migration.
+
+The new Windows workflow runs synthetic tests only: actual running-image atomic
+replacement, signed local HTTPS upgrade, offline executable probes, DPAPI/key/
+counter/exact outbox preservation and rollback on state-save failure. Native
+execution is pending at this checkpoint; cross-compilation does not establish
+Windows runtime behavior. WUA/registry enumeration and actual fleet tasks remain
+outside these synthetic tests and need an authorized Windows pilot. Real signed
+three-architecture artifact build and published CI results are recorded below
+when completed. No production actions were performed.

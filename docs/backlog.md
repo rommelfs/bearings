@@ -2,6 +2,10 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Automatic Windows client updates — 2026-11-24
+
+Implemented signed release manifests with a stable protected publisher key, same-origin HTTPS/pinned-key verification, increasing sequences, bounded ZIP/PE validation and startup identity probes. Report attempts trigger an independent update check; the existing task uses the updated executable next time and `watch` restarts. Atomic replacement and rollback preserve DPAPI enrollment/outbox; local update status and enable/disable remain separate. Older clients require one manual bootstrap. Synthetic portable, publisher, server and native Windows tests are included; see [validation](validation.md) for executed checks and native limitations. No Windows/application patches or production deployment. See [operations](operations/windows-client-updates.md).
+
 ## Documentation language — 2026-11-24
 
 Documentation and user guides are always maintained in English, regardless of the chat language. Translate the Windows Update installation guide, use its language-neutral path and retain an English legacy-link notice. Installation commands and runtime behavior are unchanged; all guide links and command blocks were checked.

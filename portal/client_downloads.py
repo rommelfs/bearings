@@ -162,6 +162,18 @@ def windows(request):
 
 @require_GET
 def windows_artifact(request, name):
+    if name == "update.json":
+        if not _complete_release(_open_windows, WINDOWS_ARTIFACTS):
+            raise Http404
+
+        def open_update(filename):
+            return _open(
+                filename, settings.WINDOWS_CLIENT_DOWNLOAD_DIR, {**WINDOWS_ARTIFACTS, "update.json": 65536}
+            )
+
+        response = _download(open_update, name)
+        response["Content-Type"] = "application/json"
+        return response
     if name not in WINDOWS_ARTIFACTS or not _complete_release(_open_windows, WINDOWS_ARTIFACTS):
         raise Http404
     return _download(_open_windows, name)

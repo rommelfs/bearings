@@ -82,3 +82,14 @@ Synthetic PostgreSQL admission/retention/rendering and Go tests/cross-compilatio
 validate the contract. Native WUA COM/PowerShell collection and corrected Task
 Scheduler execution still need a real Windows pilot. See the
 [installation/upgrade guide](../user-guide/windows-update-installation.md).
+
+## Signed client self-updates
+
+Operator publisher builds include a pinned Ed25519 release key and automatically
+check the enrolled HTTPS origin after report attempts. Fixed bounded downloads,
+signed archive/executable digests, increasing release sequences, architecture and
+offline build probes precede atomic Windows executable replacement. Update status
+is local and separate from inventory/task receipts. Registration and outbox bytes
+are retained, including on update failure. Older installed EXEs need one manual
+bootstrap. This does not install Windows/application patches. See the
+[operations contract](../operations/windows-client-updates.md).

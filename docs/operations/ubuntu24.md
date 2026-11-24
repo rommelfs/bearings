@@ -84,6 +84,13 @@ Before customers, configure/accept SSO/MFA and local recovery policies using [SS
 
 ## Client downloads
 
+Windows publisher builds now include automatic client updates. Back up
+`/etc/bearings/ecosystem/windows-release.key` after its first creation; preserve it
+across server rebuilds. Older installed Windows EXEs require one manual bootstrap
+upgrade; subsequent signed releases install after report attempts at the existing
+task path. See [Windows client updates](windows-client-updates.md) for the signing
+trust model, publication, local controls and recovery.
+
 The native installer prepares both download pages, `/downloads/linux/` and
 `/downloads/windows/`. On the existing Ubuntu server, use the same publisher
 to refresh both clients from the clean, reviewed checkout:
@@ -106,9 +113,11 @@ use `prepare-clients --no-restart`.
 
 The managed release contains all the ZIPs, checksums and source. It is writable
 only by the operator. The portal serves allowlisted files and checks the
-corresponding SHA-256 value before serving each package. Windows packages are
-unsigned reference builds. Package publishing is separate from approving,
-enrolling and updating individual devices. See the
+corresponding SHA-256 value before serving each package. Windows packages have no
+Authenticode signature; signed release metadata authenticates subsequent client
+updates. Publisher-key Windows clients install newer releases after report
+attempts; older clients need a one-time bootstrap. Device enrollment remains a
+separate authorized operation. See the
 [Linux rollout guide](../integrations/linux-rollout.md) and
 [Windows setup guide](../../clients/windows/README.md).
 
