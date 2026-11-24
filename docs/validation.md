@@ -2402,3 +2402,18 @@ pagination. Portable Go race tests verified TLS bootstrap, exact enrollment
 retry and keeping the rollout bearer out of persisted state. Go vet and
 native cross-compiled test programs passed for all three Windows targets.
 Native GUI and Task Scheduler execution still require a Windows endpoint.
+
+### Inventory client navigation and Windows task status
+
+The inventory client menu links to Linux, Windows, shared rollout keys and
+Linux application version profiles. The 59-case PostgreSQL 17 portal run
+passed with one conditional skip. It covers administrator scope, denial of
+cross-company access, the one-time rollout result and old Linux form
+submissions. Neither platform download page creates keys.
+
+The Windows setup verifies the stored task definition separately from the
+report receipt and displays Task Scheduler's diagnostic on creation failures.
+Portable Go race tests exercised UTF-16 task queries and refusal of disabled
+or changed tasks. Go vet and test cross-compilation passed for x64, ARM64 and
+x86. Actual registration and execution of a task on Windows remain to be
+verified on a Windows endpoint.

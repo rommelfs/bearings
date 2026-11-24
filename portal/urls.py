@@ -40,6 +40,15 @@ from . import (
 urlpatterns = [
     path("account/workspaces/", workspace_views.center, name="workspace-switch"),
     path("downloads/", client_downloads.platforms, name="client-platforms"),
+    path(
+        "downloads/rollout/", client_downloads.administration, {"section": "rollouts"}, name="client-rollouts"
+    ),
+    path(
+        "downloads/profiles/",
+        client_downloads.administration,
+        {"section": "profiles"},
+        name="client-profiles",
+    ),
     path("downloads/linux/", client_downloads.index, name="linux-client-downloads"),
     path("downloads/linux/<str:name>", client_downloads.artifact, name="linux-client-artifact"),
     path("downloads/windows/", client_downloads.windows, name="windows-client-downloads"),

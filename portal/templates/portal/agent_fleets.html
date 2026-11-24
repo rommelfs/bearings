@@ -1,1 +1,6 @@
-{% extends 'portal/base.html' %}{% block content %}{% include 'portal/_agent_fleets.html' %}{% endblock %}
+{% extends 'portal/base.html' %}
+{% block title %}Rollout keys · Bearings{% endblock %}
+{% block content %}
+{% include 'portal/_client_platform_links.html' with platform="rollouts" %}
+{% include 'portal/_agent_fleets.html' %}
+{% endblock %}

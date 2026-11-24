@@ -93,8 +93,8 @@ class WindowsAgentTests(Fixture):
     def test_portal_explains_standalone_windows_client_setup(self):
         self.login(self.admin)
         downloads = self.client.get("/downloads/windows/")
-        self.assertContains(downloads, "Get a rollout key")
-        self.assertContains(downloads, f'href="{self.url("agent-fleets")}?platform=windows"')
+        self.assertContains(downloads, "Rollout keys")
+        self.assertContains(downloads, 'href="/downloads/rollout/"')
         self.assertContains(downloads, r".\bearings-windows.exe enroll --code")
         self.assertContains(downloads, r".\bearings-windows.exe watch")
         self.assertContains(downloads, "Rollout to several computers")
@@ -104,35 +104,41 @@ class WindowsAgentTests(Fixture):
         self.assertContains(downloads, "Windows downloads are currently unavailable")
         self.assertNotContains(downloads, "/downloads/windows/bearings-windows-x64.zip")
         self.assertContains(
-            self.client.get("/downloads/linux/?organization=alpha"), 'href="/downloads/windows/"'
+            self.client.get("/downloads/linux/?organization=alpha"),
+            'href="/downloads/windows/?organization=alpha"',
         )
         center = self.client.get(self.url("agent-center"))
         self.assertNotContains(center, "Create a Windows registration code")
         self.assertContains(center, 'href="/downloads/windows/"')
         platforms = self.client.get("/downloads/?organization=alpha")
         self.assertContains(platforms, 'href="/downloads/linux/?organization=alpha"')
-        self.assertContains(platforms, 'href="/downloads/windows/"')
+        self.assertContains(platforms, 'href="/downloads/windows/?organization=alpha"')
+        self.assertContains(platforms, 'href="/downloads/rollout/?organization=alpha"')
+        self.assertContains(platforms, 'href="/downloads/profiles/?organization=alpha"')
 
-    def test_download_rollout_entry_is_scoped_and_opens_shared_rollouts(self):
+    def test_download_administration_entries_are_scoped(self):
         self.login(self.reader)
-        path = "/downloads/windows/"
-        page = self.client.get(path)
-        self.assertNotContains(page, f'href="{self.url("agent-fleets")}?platform=windows"')
-        self.assertEqual(
-            self.client.get(path, {"setup": "windows", "organization": self.a.slug}).status_code, 404
-        )
+        for path in ("/downloads/rollout/", "/downloads/profiles/"):
+            self.assertContains(self.client.get(path), "Ask your company administrator")
+            self.assertEqual(self.client.get(path, {"organization": self.a.slug}).status_code, 404)
         self.login(self.admin)
+        self.assertRedirects(self.client.get("/downloads/profiles/"), self.url("application-profiles"))
         self.assertEqual(
-            self.client.get(path, {"setup": "windows", "organization": self.b.slug}).status_code, 404
+            self.client.get("/downloads/rollout/", {"organization": self.b.slug}).status_code, 404
         )
         self.login(self.platform)
-        page = self.client.get(path)
-        self.assertContains(page, 'name="organization" required')
-        result = self.client.get(path, {"setup": "windows", "organization": self.a.slug}, follow=True)
-        self.assertEqual(result.redirect_chain, [(self.url("agent-fleets") + "?platform=windows", 302)])
+        path = "/downloads/rollout/"
+        self.assertContains(self.client.get(path), 'name="organization" required')
+        result = self.client.get(path, {"organization": self.a.slug}, follow=True)
+        self.assertEqual(result.redirect_chain, [(self.url("agent-fleets"), 302)])
         self.assertContains(result, "Create limited rollout key")
+        self.assertNotContains(result, "Install the Bearings Linux client")
         self.assertNotContains(result, "Existing Windows asset")
         self.assertFalse(AgentEnrollment.objects.exists())
+        self.assertRedirects(
+            self.client.get("/downloads/windows/", {"setup": "windows", "organization": self.a.slug}),
+            self.url("agent-fleets"),
+        )
 
     @override_settings(PUBLIC_BASE_URL="https://testserver")
     def test_windows_code_binds_first_signing_key_and_rejects_other_devices(self):

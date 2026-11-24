@@ -157,11 +157,18 @@ func (w *setupWindow) operation(action uintptr, code string) (string, error) {
 		}
 		return "Report status: " + r.Status + ". If pending, use Check status.", nil
 	case checkReport:
+		taskStatus := "Automatic reports: Windows task could not be verified."
+		if task, err := currentReporterTask(); err == nil {
+			taskStatus = task.status()
+		}
+		if err := s.state.ready(); err != nil {
+			return taskStatus + "\r\nReport status: " + err.Error(), nil
+		}
 		r, err := status(&s.state)
 		if err != nil {
-			return "", err
+			return taskStatus + "\r\nReport status: " + err.Error(), nil
 		}
-		return "Report status: " + r.Status + ".", nil
+		return taskStatus + "\r\nReport status: " + r.Status + ".", nil
 	case enableSchedule:
 		if err := s.state.ready(); err != nil {
 			return "", err

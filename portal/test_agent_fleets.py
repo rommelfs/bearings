@@ -232,9 +232,10 @@ class FleetDependencyTests(Fixture):
             "acknowledged": "on",
         }
 
-    def test_managed_vm_only_offers_configured_types_on_both_pages(self):
-        for path in ("/organizations/alpha/agents/fleet/", "/downloads/linux/?organization=alpha"):
-            response = self.client.get(path)
+    def test_managed_vm_rollout_offers_only_configured_types(self):
+        path = self.url("agent-fleets")
+        for entry in (path, "/downloads/rollout/?organization=alpha"):
+            response = self.client.get(entry, follow=True)
             choices = dict(response.context["form"].fields["virtualization_type"].choices)
             self.assertEqual(set(choices), {"", "lxc", "vmware"})
             self.assertContains(response, "data-rollout-virtualization")

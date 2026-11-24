@@ -59,6 +59,8 @@ ROUTES = {
     "applications": {"applications", "application", "source-reference", "sso-settings", "workspace-switch"},
     "clients": {
         "client-platforms",
+        "client-rollouts",
+        "client-profiles",
         "linux-client-downloads",
         "windows-client-downloads",
         "agent-fleets",
@@ -129,7 +131,7 @@ def workspace(request, *, show_examples=False, company=None, national=False):
     if national:
         sections = [
             ("National operations", ["national", "research", "followups"], False),
-            ("Organizations & evidence", ["inventory", "review", "risks", "exposure"], False),
+            ("Organizations & evidence", ["inventory", "clients", "review", "risks", "exposure"], False),
             ("Response", ["notifications", "response"], False),
             ("Integrations", ["applications", "misp", "companies"], True),
         ]

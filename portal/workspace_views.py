@@ -41,6 +41,10 @@ def view_switch(request, selected, operator):
         "notifications",
         "plum",
         "linux-client-downloads",
+        "windows-client-downloads",
+        "client-platforms",
+        "client-rollouts",
+        "client-profiles",
     }
     selector = (match.kwargs.get("slug") if match else None) or (
         request.GET.get("organization", "") if route in scoped_queries else ""

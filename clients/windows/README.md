@@ -24,8 +24,8 @@ that runs every six hours while the account is signed in. The Windows hostname
 is a self-reported label. Browsing reports and checking receipts stay in the
 organization’s inventory workspace.
 
-Use **Get a rollout key** on `/downloads/windows/` if your administrator has
-not already issued one. A rollout key authorizes a limited number of new hosts
+Open **Inventory clients → Rollout keys** if your administrator has not
+already issued a key. The same key works for Linux and Windows. A rollout key authorizes a limited number of new hosts
 and determines their inventory mode. Windows verifies HTTPS using the system
 certificate store. For a signed-out schedule, use the manual setup and verify
 that the reporting account can access its Windows profile and DPAPI state.
@@ -45,13 +45,21 @@ Keep codes out of arguments, logs and screenshots. The device credential
 expires after 90 days. The administrator can review an expired credential
 or cancel an unused grant in Bearings.
 
-`collect` prints local inventory only. Handle its output as confidential. `status` reports the latest acknowledged observation. `pending` means the server accepted it for processing. Check for `applied` before scheduling regular reports.
+`collect` prints local inventory only. Handle its output as confidential. `status` reports the latest acknowledged observation. `pending` means the server accepted it for processing. Check for `applied` to confirm the first report reached inventory.
 
 ## Roll out to several computers
 
 Pilot one Windows host first. Copy the reviewed EXE to the other devices using your software distribution tool. Each device uses the authorized rollout key and its reporting account to register a new host. Confirm its first applied report in Bearings. Keep the rollout key out of scripts, logs and reusable images, and keep device state on the original device.
 
 ## Automatic reporting
+
+In the setup window, **Check status** shows the Windows task and the latest
+report separately. If enrollment succeeded but the task could not be created,
+choose **Enable automatic reports** to retry under the same account. The
+client accepts an existing matching task and displays the Windows error when
+creation fails. If the task has different settings or is disabled, review it
+in **Task Scheduler** under **Task Scheduler Library**. Its name starts with
+**Bearings Windows Inventory**. Check **Last Run Result** after running it.
 
 `watch` sends a report at startup and runs in the foreground, repeating every six hours by default. For regular reporting via Windows Task Scheduler:
 
@@ -65,7 +73,7 @@ For signed-out operation, validate the task with the intended account’s loaded
 ## Update an enrolled client
 
 1. Download and verify the new ZIP for the same architecture. Extract it into a staging folder and check the staged EXE with `--version`.
-2. Pause the scheduled task and let active reports finish. Stop foreground `watch` if used. Keep a copy of the old EXE and replace the program in its existing location.
+2. Pause the scheduled task and let active reports finish. Stop foreground `watch` if used. Keep a copy of the old EXE and replace it in `%LOCALAPPDATA%\Programs\Bearings`. If the earlier setup copied the executable but could not create a task, replace that copy as well, then choose **Enable automatic reports**.
 3. Keep the account, profile and state directory so the enrollment and pending reports carry over. Run `report` and `status` and confirm the new report is applied before re-enabling the schedule.
 
 For binary rollback, use the prior compatible EXE with the current state directory.

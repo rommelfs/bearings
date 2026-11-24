@@ -63,10 +63,9 @@ class FleetForm(forms.Form):
 @never_cache
 @sensitive_variables()
 @require_http_methods(["GET", "POST"])
-def center(request, slug, *, downloads_page=False):
+def center(request, slug):
     org = get_object_or_404(organizations_for(request.user), slug=slug)
     require(agents.administrator(request.user, org))
-    windows_rollout = not downloads_page and request.GET.get("platform") == "windows"
     source = InventorySource.objects.select_related("instance").filter(organization=org).first()
     form = FleetForm(request.POST if request.POST.get("action") == "create" else None, source=source)
     token = None
@@ -78,17 +77,6 @@ def center(request, slug, *, downloads_page=False):
                 raise Http404 from None
             fleet = get_object_or_404(AgentFleet, pk=pk, organization=org)
             agent_fleets.revoke(request.user, org, fleet.pk)
-            if downloads_page:
-                from django.urls import reverse
-                from urllib.parse import urlencode
-
-                return redirect(
-                    reverse("linux-client-downloads") + "?" + urlencode({"organization": org.slug})
-                )
-            if windows_rollout:
-                from django.urls import reverse
-
-                return redirect(reverse("agent-fleets", args=[org.slug]) + "?platform=windows")
             return redirect("agent-fleets", slug=org.slug)
         require(request.POST.get("action") == "create")
         if form.is_valid():
@@ -100,22 +88,15 @@ def center(request, slug, *, downloads_page=False):
                 form.add_error(None, "Configure the company's inventory source first")
             except ValidationError as error:
                 form.add_error(None, error)
-    extra = {}
-    if downloads_page:
-        from .client_downloads import page_context
-
-        extra = page_context(request)
     return private_response(
         render(
             request,
-            "portal/client_downloads.html" if downloads_page else "portal/agent_fleets.html",
+            "portal/agent_fleets.html",
             {
-                **extra,
                 "origin": settings.PUBLIC_BASE_URL,
                 "org": org,
                 "form": form,
                 "fleet_token": token,
-                "windows_rollout": windows_rollout,
                 "fleets": AgentFleet.objects.filter(organization=org).order_by("-created_at")[:50],
             },
         )

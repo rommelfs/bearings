@@ -179,10 +179,11 @@ both current Python and Python 3.8. The bundled-stack CI runs this regression.
 
 ### Finding the client download
 
-In the signed-in workspace use **Inventory → Linux clients** (also in the mobile
-workspace menu). The direct page is `/downloads/linux/`; download, report and fleet
-routes now keep this item active. The download page starts with **Download Linux
-installer** and **Set up a rollout key** when a complete build is published.
+Open **Inventory clients → Linux** or go directly to `/downloads/linux/`.
+The download page provides **Download Linux installer** when a complete build
+is published. Use **Inventory clients → Rollout keys** for shared Linux and
+Windows registration and **Inventory clients → Profiles** for the Linux
+application version profile editor.
 
 The public website also links **Linux client** in its header, and its client-section
 button opens the download page instead of registration in all four locales.

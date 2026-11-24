@@ -112,11 +112,17 @@ class EnrollmentCodeTests(Fixture):
 
 @override_settings(PUBLIC_BASE_URL="https://testserver")
 class DownloadRolloutTests(Fixture):
-    path = "/downloads/linux/"
+    path = "/downloads/rollout/"
+    legacy_path = "/downloads/linux/"
 
-    def create(self, organization="alpha", client=None):
+    def setUp(self):
+        self.endpoint = self.url("agent-fleets")
+
+    def create(self, organization="alpha", client=None, legacy=False):
         return (client or self.client).post(
-            self.path,
+            self.legacy_path
+            if legacy
+            else self.url("agent-fleets", self.b if organization == "beta" else self.a),
             {
                 "organization": organization,
                 "action": "create",
@@ -129,20 +135,23 @@ class DownloadRolloutTests(Fixture):
         )
 
     def test_public_page_contains_login_but_no_private_rollouts(self):
-        self.assertContains(self.client.get(self.path), "Sign in to create a rollout key")
-        self.assertEqual(self.create().status_code, 403)
+        self.assertContains(self.client.get(self.legacy_path), "Rollout keys")
+        self.assertEqual(self.client.get(self.path).status_code, 302)
+        self.assertEqual(self.create(legacy=True).status_code, 403)
 
     def test_admin_creates_once_and_reload_does_not_recover_secret(self):
         from .models import AgentFleet
 
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get(self.path), "Create limited rollout key")
+        self.assertRedirects(self.client.get(self.path), self.endpoint)
+        self.assertContains(self.client.get(self.endpoint), "Create limited rollout key")
+        self.assertNotContains(self.client.get(self.legacy_path), "Create limited rollout key")
         response = self.create()
         self.assertEqual(response.status_code, 200)
         token = response.context["fleet_token"]
         self.assertTrue(token)
         self.assertContains(response, token)
-        self.assertContains(response, 'action="#rollout-result"')
+        self.assertContains(response, f'action="{self.endpoint}#rollout-result"')
         self.assertContains(response, 'id="rollout-key" readonly')
         html = response.content.decode()
         self.assertLess(html.index("Create limited rollout key"), html.index('id="rollout-result"'))
@@ -151,11 +160,9 @@ class DownloadRolloutTests(Fixture):
         fleet = AgentFleet.objects.get()
         self.assertEqual(fleet.organization_id, self.a.pk)
         self.assertNotEqual(fleet.token_hash, token.split(".", 1)[1])
-        self.assertNotContains(self.client.get(self.path), token)
-        response = self.client.post(
-            self.path, {"action": "revoke", "organization": "alpha", "fleet": fleet.pk}
-        )
-        self.assertRedirects(response, self.path + "?organization=alpha")
+        self.assertNotContains(self.client.get(self.endpoint), token)
+        response = self.client.post(self.endpoint, {"action": "revoke", "fleet": fleet.pk})
+        self.assertRedirects(response, self.endpoint)
         fleet.refresh_from_db()
         self.assertFalse(fleet.enabled)
 
@@ -164,7 +171,8 @@ class DownloadRolloutTests(Fixture):
 
         for user in (self.admin, self.reader, self.editor, self.analyst):
             self.client.force_login(user)
-            self.assertEqual(self.create("beta").status_code, 403)
+            self.assertEqual(self.create("beta", legacy=True).status_code, 403)
+            self.assertEqual(self.client.get(self.path + "?organization=beta").status_code, 404)
             if user != self.admin:
                 self.assertNotContains(self.client.get(self.path), "Create limited rollout key")
                 self.assertEqual(self.create().status_code, 403)
@@ -174,9 +182,11 @@ class DownloadRolloutTests(Fixture):
         from django.test import Client
 
         self.client.force_login(self.platform)
-        self.assertContains(self.client.get(self.path), "Show rollout controls")
+        self.assertContains(self.client.get(self.path), 'name="organization" required')
         self.assertNotContains(self.client.get(self.path), "Create limited rollout key")
-        self.assertContains(self.client.get(self.path + "?organization=beta"), "Create limited rollout key")
+        self.assertRedirects(
+            self.client.get(self.path + "?organization=beta"), self.url("agent-fleets", self.b)
+        )
         strict = Client(enforce_csrf_checks=True)
         strict.force_login(self.admin)
         self.assertEqual(self.create(client=strict).status_code, 403)
@@ -186,9 +196,8 @@ class DownloadRolloutTests(Fixture):
 
         self.client.force_login(self.admin)
         response = self.client.post(
-            self.path,
+            self.endpoint,
             {
-                "organization": "alpha",
                 "action": "create",
                 "name": "",
                 "new_asset_kind": "server",
@@ -199,3 +208,11 @@ class DownloadRolloutTests(Fixture):
         self.assertContains(response, "No rollout key created")
         self.assertContains(response, 'role="alert"')
         self.assertFalse(AgentFleet.objects.exists())
+
+    def test_legacy_linux_post_preserves_the_one_time_result(self):
+        self.client.force_login(self.admin)
+        response = self.create(legacy=True)
+        self.assertContains(response, "Copy the rollout key now")
+        self.assertContains(response, "Windows download and setup")
+        self.assertTemplateUsed(response, "portal/agent_fleets.html")
+        self.assertContains(response, f'action="{self.endpoint}#rollout-result"')

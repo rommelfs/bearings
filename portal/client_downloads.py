@@ -4,8 +4,8 @@ import hashlib
 import os
 from pathlib import Path
 import stat
-from urllib.parse import urlencode
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -79,37 +79,47 @@ def _rollout_organizations(request):
     return organizations.order_by("name", "pk")
 
 
-def page_context(request):
-    return {
-        "ready": _complete_release(open_artifact, ARTIFACTS),
-        "origin": settings.PUBLIC_BASE_URL or request.build_absolute_uri("/").rstrip("/"),
-        "rollout_organizations": _rollout_organizations(request),
-        "downloads_page": True,
-    }
-
-
 @require_GET
 def platforms(request):
-    linux_url = reverse("linux-client-downloads")
+    return render(request, "portal/client_platforms.html")
+
+
+@login_required
+@never_cache
+@require_GET
+def administration(request, section):
+    organizations = _rollout_organizations(request)
     slug = request.GET.get("organization")
-    if slug and _rollout_organizations(request).filter(slug=slug).exists():
-        linux_url += "?" + urlencode({"organization": slug})
-    return render(request, "portal/client_platforms.html", {"linux_url": linux_url})
+    route = "agent-fleets" if section == "rollouts" else "application-profiles"
+    if slug:
+        return redirect(route, slug=get_object_or_404(organizations, slug=slug).slug)
+    candidates = list(organizations[:2])
+    if len(candidates) == 1:
+        return redirect(route, slug=candidates[0].slug)
+    return render(
+        request,
+        "portal/client_administration.html",
+        {"section": section, "organizations": organizations},
+    )
 
 
 @never_cache
 @require_http_methods(["GET", "POST"])
 def index(request):
-    context = page_context(request)
-    slug = request.POST.get("organization") if request.method == "POST" else request.GET.get("organization")
     if request.method == "POST":
+        # Old Linux download forms can still be submitted after a server upgrade.
+        slug = request.POST.get("organization")
         require(request.user.is_authenticated and bool(slug))
-    if not slug and context["rollout_organizations"].count() == 1:
-        slug = context["rollout_organizations"].first().slug
-    if slug:
-        require(context["rollout_organizations"].filter(slug=slug).exists())
-        return agent_fleet_views.center(request, slug, downloads_page=True)
-    return render(request, "portal/client_downloads.html", context)
+        require(_rollout_organizations(request).filter(slug=slug).exists())
+        return agent_fleet_views.center(request, slug)
+    return render(
+        request,
+        "portal/client_downloads.html",
+        {
+            "ready": _complete_release(open_artifact, ARTIFACTS),
+            "origin": settings.PUBLIC_BASE_URL or request.build_absolute_uri("/").rstrip("/"),
+        },
+    )
 
 
 @require_GET
@@ -124,10 +134,9 @@ def _open_windows(name):
 @never_cache
 @require_GET
 def windows(request):
-    enrollment_orgs = _rollout_organizations(request)
     if request.GET.get("setup") == "windows":
-        org = get_object_or_404(enrollment_orgs, slug=request.GET.get("organization", ""))
-        return redirect(reverse("agent-fleets", args=[org.slug]) + "?platform=windows")
+        org = get_object_or_404(_rollout_organizations(request), slug=request.GET.get("organization", ""))
+        return redirect("agent-fleets", slug=org.slug)
     ready = _complete_release(_open_windows, WINDOWS_ARTIFACTS)
     try:
         server = trusted_origin()
@@ -147,7 +156,6 @@ def windows(request):
             "ready": ready,
             "packages": WINDOWS_PACKAGES,
             "download_commands": commands,
-            "enrollment_orgs": list(enrollment_orgs),
         },
     )
 

@@ -2,16 +2,12 @@
 <section class="client-downloads">
 {% include "portal/_client_platform_links.html" with platform="linux" %}
 <h1 class="icon-heading">{% ui_icon "clients" %}Install the Bearings Linux client</h1>
-{% if ready %}<p class="actions"><a class="button primary" href="{% url 'linux-client-artifact' 'install.py' %}">{% ui_icon "download" %}Download Linux installer</a><a class="button" href="#rollout-setup">Set up a rollout key</a></p>{% endif %}
+{% if ready %}<p class="actions"><a class="button primary" href="{% url 'linux-client-artifact' 'install.py' %}">{% ui_icon "download" %}Download Linux installer</a></p>{% endif %}
 <p>Download directly on your Linux server. You need Python 3.8+, systemd and sudo; no Go compiler is needed on the monitored machine. Trust this installation's HTTPS certificate first.</p>
-<h2 id="rollout-setup">Your organization’s rollout key</h2>
-{% if rollout_organizations %}<form method="get"><label>Organization <select name="organization">{% for company in rollout_organizations %}<option value="{{ company.slug }}"{% if company.pk == org.pk %} selected{% endif %}>{{ company.name }} · {{ company.slug }} · #{{ company.pk }}</option>{% endfor %}</select></label><button>Show rollout controls</button></form>
-{% if org %}{% include 'portal/_agent_fleets.html' %}{% else %}<p>Select an organization to create a rollout key or manage its existing rollouts.</p>{% endif %}
-{% elif request.user.is_authenticated %}<p>A company administrator must create your rollout key. Your account has no organization administrator access.</p>
-{% else %}<p><a href="{% url 'login' %}?next={% url 'linux-client-downloads' %}">Sign in to create a rollout key</a>, or ask your company administrator for one.</p>{% endif %}
-<p>Existing keys cannot be displayed again: only their hashes are stored. A new key is shown here once after creation. Creating another key does not revoke previous rollouts.</p>
 {% if ready %}
-{% if not fleet_token %}<h2>Install and register</h2><p>Create a rollout key above, or obtain one from your company administrator.</p>{% include 'portal/_linux_install_commands.html' %}{% endif %}<details class="client-single-host"><summary>Single-host enrollment (advanced)</summary><h2>Approve one existing or managed host</h2><ol><li>Download the installer over verified HTTPS:<pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py</pre></li>
+<h2 id="rollout-setup">Install and register</h2>
+<p>Open <a href="{% url 'client-rollouts' %}{% if request.GET.organization %}?organization={{ request.GET.organization|urlencode }}{% endif %}">Rollout keys</a> to create a key, or obtain one from your company administrator.</p>
+{% include 'portal/_linux_install_commands.html' %}<details class="client-single-host"><summary>Single-host enrollment (advanced)</summary><h2>Approve one existing or managed host</h2><ol><li>Download the installer over verified HTTPS:<pre>curl --fail --show-error --proto '=https' '{{ origin }}/downloads/linux/install.py' -o bearings-install.py</pre></li>
 <li>Review it, then install:<pre>sudo python3 bearings-install.py --server '{{ origin }}'</pre>The installer downloads the matching architecture, checks the manifest, creates the dedicated account and shows its public key.</li>
 <li>In your company's <strong>Linux / Windows inventory reports</strong>, paste that public key and approve the existing/new host. Copy the one-use registration code.</li>
 <li>On the server:<pre>sudo python3 bearings-install.py enroll --code</pre>Paste the code at the hidden prompt. No registration files need to cross your SSH connection.</li></ol></details>
