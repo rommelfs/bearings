@@ -67,7 +67,7 @@ class Registry:
 
 
 def observation():
-    with patch.object(client.platform, "machine", return_value="AMD64"):
+    with patch.object(client, "native_architecture", return_value="x86_64"):
         return client.collect(Registry())
 
 
@@ -130,6 +130,7 @@ class WindowsAgentTests(Fixture):
             lambda d: d.update(scope="system-packages"),
             lambda d: d["os"].update(id="ubuntu"),
             lambda d: d["os"].update(version="10.0"),
+            lambda d: d["os"].update(reboot_hint="not_observed"),
             lambda d: d["components"][0].update(key="win-reg:guessed:all"),
             lambda d: d["components"][0]["windows"].update(view="user"),
             lambda d: d["components"].append(deepcopy(d["components"][0])),
@@ -241,17 +242,77 @@ class WindowsAgentTests(Fixture):
 
     def test_incomplete_registry_access_fails_collection_without_partial_report(self):
         registry = Registry()
-        with patch.object(registry, "OpenKey", side_effect=PermissionError("denied")):
+        with (
+            patch.object(client, "native_architecture", return_value="x86_64"),
+            patch.object(registry, "OpenKey", side_effect=PermissionError("denied")),
+        ):
             with self.assertRaises(PermissionError):
                 client.collect(registry)
-        with patch.object(client, "origin", wraps=client.origin):
-            for endpoint in (
-                "http://example.com",
-                "https://user:pass@example.com",
-                "https://example.com/path",
-            ):
-                with self.assertRaises(ValueError):
-                    client.origin(endpoint)
+        for endpoint in (
+            "http://example.com",
+            "https://user:pass@example.com",
+            "https://example.com/path",
+        ):
+            with self.assertRaises(ValueError):
+                client.origin(endpoint)
+        self.assertEqual(client.origin("https://Example.COM:443/"), "https://example.com")
+
+    def test_registry_changes_detected_before_returning_complete_scope(self):
+        registry = Registry()
+        enumerate_key = registry.EnumKey
+
+        def add_registration(key, index):
+            item = enumerate_key(key, index)
+            key.append("Concurrent registration")
+            return item
+
+        with (
+            patch.object(client, "native_architecture", return_value="x86_64"),
+            patch.object(registry, "EnumKey", side_effect=add_registration),
+            self.assertRaisesRegex(ValueError, "registry changed"),
+        ):
+            client.collect(registry)
+
+    def test_periodic_reports_keep_complete_samples_when_https_is_offline(self):
+        self.enroll()
+        samples = [observation(), observation()]
+        store = MemoryStore(
+            self.key.private_bytes_raw(),
+            device_id=str(self.device.pk),
+            expires_at=(timezone.now() + timedelta(days=1)).isoformat(),
+        )
+        with (
+            patch.object(client, "collect", side_effect=samples),
+            patch.object(client, "send", side_effect=OSError("offline")),
+        ):
+            for sequence in (1, 2):
+                with self.assertRaises(OSError):
+                    client.report_now(store)
+                self.assertEqual(len(store.saved["queue"]), sequence)
+                self.assertEqual(json.loads(store.saved["queue"][-1])["sequence"], sequence)
+
+    def test_changed_publisher_preserves_version_until_explicit_ownership_review(self):
+        self.enroll()
+        data = observation()
+        response = self.send(data)
+        agents.process_one(self.device.pk, response.json()["report_id"])
+        original = self.device.components.get(name="Example Tools (64-bit)")
+        os_component = self.device.components.get(key="win-reg:os:all")
+        agents.detach(self.admin, self.a, os_component.pk)
+        with self.assertRaisesMessage(agents.ValidationError, "matching operating-system classification"):
+            agents.bind(self.admin, self.a, os_component.pk, self.installation.pk)
+        self.relax()
+        data = observation()
+        data["sequence"] = 2
+        switched = next(c for c in data["components"] if c["key"] == original.key)
+        switched["windows"]["publisher"] = "Different publisher"
+        switched["version"] = "5.0"
+        response = self.send(data)
+        self.assertEqual(response.status_code, 202)
+        agents.process_pending()
+        self.assertEqual(AgentReport.objects.get(pk=data["report_id"]).status, "rejected")
+        original.refresh_from_db()
+        self.assertEqual(original.installation.version, "2.1")
 
 
 @override_settings(ALLOWED_HOSTS=["127.0.0.1", "testserver"], DEBUG=False)
@@ -305,3 +366,5 @@ class WindowsTransportTests(TransactionTestCase):
             client.enroll(store, value, None)
         self.assertIn("pending", store.saved)
         self.assertNotIn("device_id", store.saved)
+        result = client.enroll(store, value, self.ca)
+        self.assertEqual(result["asset_id"], str(self.asset.pk))

@@ -11,7 +11,6 @@ import http.client
 import json
 import os
 from pathlib import Path
-import platform
 import re
 import ssl
 import sys
@@ -23,9 +22,16 @@ import uuid
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 MAX_BODY = 1_000_000
+MAX_QUEUE = 64
+# A queued ASCII JSON body is escaped again inside the protected state JSON.
+MAX_STATE = 2 * MAX_BODY * MAX_QUEUE + MAX_BODY
 TAG = "bearings.agent.v1"
 UNINSTALL = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
 OS_KEY = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+
+
+class ClientError(ValueError):
+    """An error message safe to show without disclosing host inventory or credentials."""
 
 
 def packed(value):
@@ -34,9 +40,9 @@ def packed(value):
 
 def clean(value, maximum, allow_empty=False):
     if not isinstance(value, str) or len(value) > maximum or (not value and not allow_empty):
-        raise ValueError("Inventory field missing or exceeds contract")
-    if any(ord(c) < 32 or ord(c) == 127 for c in value):
-        raise ValueError("Inventory field contains control characters")
+        raise ClientError("Inventory field missing, malformed or exceeds limits")
+    if any(ord(c) < 32 or ord(c) == 127 or 0xD800 <= ord(c) <= 0xDFFF for c in value):
+        raise ClientError("Inventory field contains invalid characters")
     return value
 
 
@@ -51,14 +57,36 @@ def component(key, name, version, arch, evidence):
     )
 
 
+def native_architecture():
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    detect = getattr(kernel, "IsWow64Process2", None)
+    if detect is None:
+        raise ClientError("Windows 10 version 1709 or later is required")
+    detect.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.USHORT), ctypes.POINTER(wintypes.USHORT)]
+    detect.restype = wintypes.BOOL
+    kernel.GetCurrentProcess.argtypes = []
+    kernel.GetCurrentProcess.restype = wintypes.HANDLE
+    process, native = wintypes.USHORT(), wintypes.USHORT()
+    if not detect(kernel.GetCurrentProcess(), ctypes.byref(process), ctypes.byref(native)):
+        raise ClientError("Windows native architecture could not be read")
+    arch = {0x8664: "x86_64", 0xAA64: "arm64", 0x014C: "x86"}.get(native.value)
+    if arch is None or (arch == "arm64" and process.value):
+        raise ClientError("Use native Python on a supported Windows architecture")
+    return arch
+
+
+def unchanged(reg, key, original):
+    if reg.QueryInfoKey(key) != original:
+        raise ClientError("Inventory registry changed during collection; retry the complete report")
+
+
 def collect(reg=None):
     if reg is None:
         import winreg as reg
-    arch = {"amd64": "x86_64", "arm64": "arm64", "x86": "x86"}.get(platform.machine().lower())
-    if arch is None:
-        raise ValueError("Unsupported Windows architecture")
-    access = reg.KEY_READ | reg.KEY_WOW64_64KEY
+    arch = native_architecture()
+    access = reg.KEY_READ | (0 if arch == "x86" else reg.KEY_WOW64_64KEY)
     with reg.OpenKey(reg.HKEY_LOCAL_MACHINE, OS_KEY, 0, access) as key:
+        original = reg.QueryInfoKey(key)
 
         def value(name, default=None):
             try:
@@ -72,8 +100,14 @@ def collect(reg=None):
         edition = value("EditionID", "")
         release = value("DisplayVersion", "")
         build, revision = value("CurrentBuildNumber"), value("UBR")
-        if not isinstance(build, str) or not build.isdigit() or type(revision) is not int or revision < 0:
-            raise ValueError("Windows build/UBR unavailable")
+        unchanged(reg, key, original)
+        if (
+            not isinstance(build, str)
+            or not re.fullmatch(r"[0-9]+", build)
+            or type(revision) is not int
+            or revision < 0
+        ):
+            raise ClientError("Windows build/UBR unavailable")
         build = build + "." + str(revision)
     os_data = dict(
         id="windows",
@@ -108,13 +142,15 @@ def collect(reg=None):
         except FileNotFoundError:
             continue  # An absent uninstall database is a valid empty scope.
         with root as root:
-            count = reg.QueryInfoKey(root)[0]
+            original = reg.QueryInfoKey(root)
+            count = original[0]
             if count > 5000:
                 raise ValueError("Registry inventory exceeds 5000 entries")
             for index in range(count):
                 subkey = reg.EnumKey(root, index)
                 path = UNINSTALL + "\\" + subkey
                 with reg.OpenKey(reg.HKEY_LOCAL_MACHINE, path, 0, reg.KEY_READ | flag) as key:
+                    entry = reg.QueryInfoKey(key)
 
                     def optional(field):
                         try:
@@ -123,10 +159,12 @@ def collect(reg=None):
                             return ""
 
                     name = optional("DisplayName")
-                    if not name:
+                    if name == "":
+                        unchanged(reg, key, entry)
                         continue
                     version = optional("DisplayVersion")
                     publisher = clean(optional("Publisher"), 255, True)
+                    unchanged(reg, key, entry)
                     clean(path, 1024)
                     identity = hashlib.sha256((view + ":" + path.casefold()).encode()).hexdigest()
                     components.append(
@@ -147,6 +185,7 @@ def collect(reg=None):
                     )
                     if len(components) > 5000:
                         raise ValueError("Inventory exceeds 5000 components; nothing sent")
+            unchanged(reg, root, original)
     result = dict(
         schema=TAG,
         report_id=str(uuid.uuid4()),
@@ -168,16 +207,18 @@ def origin(value):
     if (
         u.scheme != "https"
         or not u.hostname
-        or u.username
-        or u.password
+        or u.username is not None
+        or u.password is not None
         or u.path not in ("", "/")
         or u.query
         or u.fragment
-        or any(c.isspace() for c in value)
+        or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in value)
     ):
         raise ValueError("Use a trusted HTTPS origin without credentials or paths")
-    _ = u.port
-    return "https://" + u.netloc.lower()
+    port = u.port
+    hostname = u.hostname.encode("idna").decode().lower()
+    authority = f"[{hostname}]" if ":" in hostname else hostname
+    return "https://" + authority + (f":{port}" if port not in (None, 443) else "")
 
 
 def headers(key, identity, server, path, body):
@@ -191,7 +232,7 @@ def headers(key, identity, server, path, body):
     values = {
         "@method": "POST",
         "@path": path,
-        "@authority": urlsplit(server).netloc.lower(),
+        "@authority": urlsplit(origin(server)).netloc,
         "content-digest": digest,
         "content-type": "application/json",
         "x-bearings-key": identity,
@@ -226,10 +267,13 @@ def send(state, path, body, identity=None, bearer=None):
         response = connection.getresponse()
         raw = response.read(65537)
         if response.status not in (200, 202):
-            raise ValueError(f"Server refused request (HTTP {response.status}); local input retained")
+            raise ClientError(f"Server refused request (HTTP {response.status}); local input retained")
         if len(raw) > 65536 or response.getheader("Content-Type", "").split(";")[0] != "application/json":
             raise ValueError("Invalid server response")
-        return json.loads(raw)
+        result = json.loads(raw)
+        if not isinstance(result, dict):
+            raise ClientError("Invalid server response")
+        return result
     finally:
         connection.close()
 
@@ -287,13 +331,11 @@ class Store:
         self.lock = os.fdopen(os.open(self.path / "lock", os.O_RDWR | os.O_CREAT, 0o600), "r+b")
         try:
             self.lock.seek(0)
-            self.lock.write(b"0")
-            self.lock.flush()
-            self.lock.seek(0)
+            # Windows byte-range locks may extend beyond the current file size.
             msvcrt.locking(self.lock.fileno(), msvcrt.LK_NBLCK, 1)
             state_file = self.path / "state.dpapi"
             if state_file.exists():
-                if state_file.stat().st_size > 70_000_000:
+                if state_file.stat().st_size > MAX_STATE:
                     raise ValueError("State exceeds size limit")
                 self.data = json.loads(protect(state_file.read_bytes(), decrypt=True))
             elif self.initialize:
@@ -312,6 +354,8 @@ class Store:
 
     def save(self):
         raw = protect(packed(self.data))
+        if len(raw) > MAX_STATE:
+            raise ClientError("Protected state exceeds size limit")
         fd, name = tempfile.mkstemp(prefix=".bearings-", dir=self.path)
         try:
             with os.fdopen(fd, "wb") as stream:
@@ -342,7 +386,8 @@ def enroll(store, grant, ca_file):
     if s.get("device_id"):
         raise ValueError("Already enrolled; revoke and review replacement explicitly")
     if (
-        grant["schema"] != "bearings.agent.grant.v1"
+        not isinstance(grant, dict)
+        or grant["schema"] != "bearings.agent.grant.v1"
         or grant["public_key"] != public(s)
         or not valid_uuid(grant["asset_id"])
         or grant.get("register_host")
@@ -364,6 +409,10 @@ def enroll(store, grant, ca_file):
                 identity=identity, body=dict(schema="bearings.agent.enroll.v1", request_id=str(uuid.uuid4()))
             ),
         )
+        store.save()
+    elif ca_file:
+        # Retry the same request with an explicitly supplied CA after a trust failure.
+        s["ca_file"] = str(Path(ca_file).resolve())
         store.save()
     result = send(s, "/api/v1/agent/enroll/", packed(s["pending"]["body"]), identity, token)
     if (
@@ -387,7 +436,7 @@ def ready(state):
 def enqueue(store, report):
     s = store.data
     ready(s)
-    if len(s["queue"]) >= 64 or s["counter"] >= 2**63 - 2:
+    if len(s["queue"]) >= MAX_QUEUE or s["counter"] >= 2**63 - 2:
         raise ValueError("Outbox full or sequence exhausted; retained input requires review")
     report["sequence"] = s["counter"] + 1
     body = packed(report)
@@ -404,7 +453,7 @@ def receipt(result, report_id):
         or result.get("report_id") != report_id
         or result.get("status") not in {"pending", "applied", "rejected", "superseded"}
     ):
-        raise ValueError("Invalid receipt; local input retained")
+        raise ClientError("Invalid receipt; local input retained")
 
 
 def flush(store):
@@ -417,18 +466,51 @@ def flush(store):
         result = send(s, "/api/v1/agent/reports/", body)
         receipt(result, report["report_id"])
         if (
-            result.get("sequence") != report["sequence"]
+            type(result.get("sequence")) is not int
+            or result["sequence"] != report["sequence"]
             or result.get("body_sha256") != hashlib.sha256(body).hexdigest()
         ):
-            raise ValueError("Receipt does not acknowledge exact queued report")
+            raise ClientError("Receipt does not acknowledge the exact queued report")
         s["receipt"] = result
         s["queue"].pop(0)
         store.save()
         if result["status"] == "rejected":
-            raise ValueError("Report rejected; inspect retained receipt")
+            raise ClientError(
+                "Report rejected during processing; check status and the device's report history"
+            )
         if s["queue"]:
             time.sleep(11)  # Respect the receiver's device admission interval.
     return result or {"state": "outbox_empty"}
+
+
+def report_now(store):
+    ready(store.data)
+    if len(store.data["queue"]) >= MAX_QUEUE:
+        flush(store)
+        time.sleep(11)
+    try:
+        report = collect()
+    except (OSError, ValueError):
+        # A new collection failure must not prevent delivery of a previous complete report.
+        flush(store)
+        raise
+    enqueue(store, report)
+    return flush(store)
+
+
+def error_message(exc):
+    if isinstance(exc, ClientError):
+        return str(exc)
+    if isinstance(exc, ssl.SSLError):
+        return "HTTPS verification or handshake failed; check the approved endpoint and certificate trust"
+    if isinstance(exc, PermissionError):
+        return "Access denied; check the reporting account's registry and state permissions"
+    if isinstance(exc, (OSError, http.client.HTTPException)):
+        return "Local I/O or HTTPS transport failed; check the state lock, disk and connectivity"
+    return "Operation failed; check enrollment and retained local state"
+
+
+CLIENT_ERRORS = (OSError, ValueError, KeyError, TypeError, AttributeError, http.client.HTTPException)
 
 
 def main():
@@ -436,9 +518,7 @@ def main():
     parser.add_argument(
         "command", choices=["init", "enroll", "collect", "report", "flush", "status", "watch"]
     )
-    parser.add_argument(
-        "--state-dir", default=str(Path(os.environ.get("LOCALAPPDATA", ".")) / "Bearings" / "Windows")
-    )
+    parser.add_argument("--state-dir", type=Path)
     parser.add_argument(
         "--code", action="store_true", help="Hidden prompt for an existing-asset registration code"
     )
@@ -446,66 +526,74 @@ def main():
     parser.add_argument("--interval", type=int, default=21600, help="Watch interval in seconds (minimum 600)")
     args = parser.parse_args()
     if sys.platform != "win32":
-        raise ValueError("Run this client on the Windows endpoint")
+        raise ClientError("Run this client on the Windows endpoint")
     if args.command == "collect":
         print(json.dumps(collect(), ensure_ascii=True, indent=2))
         return
     if args.interval < 600:
-        raise ValueError("Minimum reporting interval is 600 seconds")
+        raise ClientError("Minimum reporting interval is 600 seconds")
+    if args.state_dir is None:
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if not local_app_data:
+            raise ClientError("Load the reporting account's profile or specify its private state directory")
+        args.state_dir = Path(local_app_data) / "Bearings" / "Windows"
     if args.command == "watch":
         while True:
             try:
                 with Store(args.state_dir) as store:
-                    flush(store)
-                    enqueue(store, collect())
-                    print(json.dumps(flush(store)), flush=True)
-            except (OSError, ValueError, KeyError, ssl.SSLError, http.client.HTTPException):
-                print(
-                    "Inventory cycle failed; last-known state retained; retry next interval",
-                    file=sys.stderr,
-                    flush=True,
-                )
+                    print(json.dumps(report_now(store)), flush=True)
+            except CLIENT_ERRORS as exc:
+                print(f"{error_message(exc)}. Retry next interval.", file=sys.stderr, flush=True)
             time.sleep(args.interval)
     with Store(args.state_dir, initialize=args.command == "init") as store:
         if args.command == "init":
             result = {"public_key": public(store.data), "enrolled": bool(store.data.get("device_id"))}
         elif args.command == "enroll":
             import getpass
+            import warnings
 
             if not args.code:
                 raise ValueError("Use enroll --code and the hidden registration-code prompt")
-            code = getpass.getpass("Registration code: ").strip()
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", getpass.GetPassWarning)
+                try:
+                    code = getpass.getpass("Registration code: ").strip()
+                except (getpass.GetPassWarning, EOFError):
+                    raise ClientError(
+                        "Enrollment requires an interactive console with hidden input"
+                    ) from None
             if not code.startswith("bearings-enroll-v1.") or len(code) > 16000:
                 raise ValueError("Invalid registration code")
             raw = code.split(".", 1)[1]
             grant = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
             result = enroll(store, grant, args.ca_file)
         elif args.command == "report":
-            flush(store)
-            enqueue(store, collect())
-            result = flush(store)
+            result = report_now(store)
         elif args.command == "flush":
             result = flush(store)
         else:
             ready(store.data)
-            report_id = store.data.get("receipt", {}).get("report_id")
-            if not report_id:
-                raise ValueError("No previous receipt")
+            saved = store.data.get("receipt")
+            if not saved:
+                raise ClientError("No previous receipt")
+            report_id = saved["report_id"]
             result = send(
                 store.data,
                 "/api/v1/agent/status/",
                 packed(dict(schema="bearings.agent.status.v1", report_id=report_id)),
             )
             receipt(result, report_id)
+            if (
+                result.get("sequence") != saved["sequence"]
+                or result.get("body_sha256") != saved["body_sha256"]
+            ):
+                raise ClientError("Status receipt differs from the acknowledged report")
         print(json.dumps(result))
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, ValueError, KeyError, ssl.SSLError, http.client.HTTPException):
-        print(
-            "Operation failed; check enrollment, permissions, HTTPS trust and retained local state",
-            file=sys.stderr,
-        )
+    except CLIENT_ERRORS as exc:
+        print(error_message(exc), file=sys.stderr)
         sys.exit(1)

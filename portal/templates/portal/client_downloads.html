@@ -17,4 +17,14 @@
 <p><a href="{% url 'linux-client-artifact' 'install.py' %}">Installer</a> · <a href="{% url 'linux-client-artifact' 'SHA256SUMS' %}">Checksums</a> · <a href="{% url 'linux-client-artifact' 'bearings-linux-source.tar.gz' %}">Corresponding source</a> · <a href="{% url 'linux-client-artifact' 'LICENSE' %}">License</a></p>
 <p>Updates use the same install command. Device keys and queued observations remain. Files are operator-built reference artifacts; checksums are not release signatures. Custom CA trust is supported with <code>--ca-file</code>; certificate verification is always required.</p>
 {% else %}<p>The operator has not published a complete client build yet. Build with <code>python3 scripts/build_linux_client.py</code> and configure the approved artifact directory before distributing clients.</p>{% endif %}
+</section>
+<section id="windows-client" class="client-downloads">
+<h2>Set up the Bearings Windows client</h2>
+<p>Use a reviewed Bearings checkout with Python 3.12+ and uv. Open PowerShell as the account that will send reports.</p>
+<pre>uv sync --frozen
+uv run --frozen python clients/windows/bearings_windows.py init</pre>
+<p>Give the public key to your company administrator and ask for a one-use code for an existing asset.</p>
+<pre>uv run --frozen python clients/windows/bearings_windows.py enroll --code
+uv run --frozen python clients/windows/bearings_windows.py watch</pre>
+<p>Paste the code into the hidden prompt. Keep the watch process open for six-hour reporting, or configure Task Scheduler under the same account to run the client's <code>report</code> command.</p>
 </section>{% endblock %}

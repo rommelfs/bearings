@@ -2,6 +2,7 @@
 """Native Windows acceptance checks; no network, enrollment or service changes."""
 
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -32,6 +33,23 @@ class NativeWindowsTests(unittest.TestCase):
                 with self.assertRaises(OSError):
                     with client.Store(path):
                         self.fail("Concurrent state lock acquired")
+                probe = """
+import sys
+from bearings_windows import Store
+
+try:
+    with Store(sys.argv[1]):
+        sys.exit(2)
+except OSError:
+    sys.exit(0)
+"""
+                result = subprocess.run(
+                    [sys.executable, "-c", probe, str(path)],
+                    cwd=Path(client.__file__).parent,
+                    timeout=30,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, "A second process must fail to lock the state")
             with client.Store(path, initialize=True) as store:
                 self.assertEqual(client.public(store.data), public)
                 self.assertEqual(store.data["counter"], 42)

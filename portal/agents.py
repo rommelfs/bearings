@@ -415,8 +415,15 @@ def process_one(device_id, report_id):
                     raise ValidationError(
                         "Release application version ownership before changing its probe identity"
                     )
-                if c.installation_id and value["manager"] == "win-reg" and c.name != value["name"]:
-                    raise ValidationError("Release Windows version ownership before changing product name")
+                if c.installation_id and value["manager"] == "win-reg":
+                    old_publisher = c.windows.get("publisher", "")
+                    publisher = value["windows"]["publisher"]
+                    if c.name != value["name"] or (
+                        old_publisher and publisher and old_publisher.casefold() != publisher.casefold()
+                    ):
+                        raise ValidationError(
+                            "Release Windows version ownership before changing product identity"
+                        )
                 c.windows = value.get("windows", {})
                 c.manifest = value.get("manifest", {})
                 for field in ("name", "manager", "architecture", "version"):
@@ -644,6 +651,10 @@ def bind(actor, org, component_id, installation_id=None, create=False):
 
         if not compatible(installation.product, component):
             raise ValidationError("Choose the corresponding product for this application probe")
+    if component.manager == "win-reg" and installation.is_operating_system != (
+        component.windows["kind"] == "os"
+    ):
+        raise ValidationError("Choose an installation with the matching operating-system classification")
     old = installation.version
     component.installation = installation
     component.automatic_installation = False

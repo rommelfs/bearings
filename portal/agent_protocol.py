@@ -133,7 +133,7 @@ def text(value, length, pattern=None):
     if (
         not isinstance(value, str)
         or not 1 <= len(value) <= length
-        or any(ord(c) < 32 or ord(c) == 127 for c in value)
+        or any(ord(c) < 32 or ord(c) == 127 or 0xD800 <= ord(c) <= 0xDFFF for c in value)
     ):
         raise ValueError("Invalid text")
     if pattern and not re.fullmatch(pattern, value):
@@ -197,8 +197,15 @@ def report_data(data):
     windows = data["scope"] == "windows-machine"
     if windows != (data["os"]["id"] == "windows"):
         raise ValueError("Windows OS and machine scope must agree")
-    if windows and (data.get("applications") or data["services"]):
-        raise ValueError("Windows inventory does not assert application probes or runtime coverage")
+    if windows and (
+        "host" in data
+        or data.get("applications")
+        or data["services"]
+        or data["os"]["architecture"] not in ("x86", "x86_64", "arm64")
+        or data["os"].get("kernel_scope") != "host"
+        or data["os"]["reboot_hint"] != "unknown"
+    ):
+        raise ValueError("Windows inventory only covers the machine OS build and registry")
     if "host" in data:
         host_claim(data["host"])
     applications = data.get("applications", [])
@@ -414,10 +421,12 @@ def validate_windows_component(c):
         prefix = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\"
         path = evidence["registry_key"]
         if (
-            evidence["view"] not in {"32", "64"}
+            evidence["view"] not in ("32", "64")
             or not path.startswith(prefix)
             or not path[len(prefix) :]
             or "\\" in path[len(prefix) :]
+            or evidence["edition"] != ""
+            or evidence["release"] != ""
         ):
             raise ValueError("Use a machine uninstall registration in an explicit registry view")
         identity = hashlib.sha256((evidence["view"] + ":" + path.casefold()).encode()).hexdigest()
