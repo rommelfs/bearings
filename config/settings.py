@@ -240,6 +240,7 @@ if SERVICE_MAIL_TRANSPORT == "smtp" and (not EMAIL_HOST or not (EMAIL_USE_TLS or
 LINUX_CLIENT_DOWNLOAD_DIR = os.getenv(
     "BEARINGS_LINUX_CLIENT_DIR", str(BASE_DIR / ".local/linux-client") if DEBUG else ""
 )
+WINDOWS_CLIENT_DOWNLOAD_DIR = os.getenv("BEARINGS_WINDOWS_CLIENT_DIR", "")
 
 DISTRO_CVE_ENABLED = os.getenv("BEARINGS_DISTRO_CVE_ENABLED", "1") == "1"
 

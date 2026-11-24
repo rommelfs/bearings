@@ -4,6 +4,8 @@ import base64
 from copy import deepcopy
 import hashlib
 import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import uuid
 from unittest.mock import patch
 from datetime import timedelta
@@ -90,12 +92,55 @@ class WindowsAgentTests(Fixture):
 
     def test_portal_explains_standalone_windows_client_setup(self):
         self.login(self.admin)
-        downloads = self.client.get("/downloads/linux/?organization=alpha")
+        downloads = self.client.get("/downloads/windows/")
         self.assertContains(downloads, r".\bearings-windows.exe init")
         self.assertContains(downloads, r".\bearings-windows.exe enroll --code")
         self.assertContains(downloads, r".\bearings-windows.exe watch")
+        self.assertContains(downloads, "Rollout to several computers")
+        self.assertContains(downloads, "Windows Task Scheduler")
+        self.assertContains(downloads, "Update an enrolled client")
+        self.assertContains(downloads, "Windows downloads are currently unavailable")
+        self.assertNotContains(downloads, "/downloads/windows/bearings-windows-x64.zip")
+        self.assertContains(
+            self.client.get("/downloads/linux/?organization=alpha"), 'href="/downloads/windows/"'
+        )
         center = self.client.get(self.url("agent-center"))
         self.assertContains(center, r".\bearings-windows.exe init")
+        self.assertContains(center, 'href="/downloads/windows/"')
+
+    def test_windows_downloads_require_complete_release_and_matching_checksum(self):
+        base = "/downloads/windows/"
+        artifact = "bearings-windows-x64.zip"
+        source = "bearings-windows-source.zip"
+        filenames = (artifact, "bearings-windows-arm64.zip", "bearings-windows-x86.zip", source)
+        with TemporaryDirectory() as directory, override_settings(WINDOWS_CLIENT_DOWNLOAD_DIR=directory):
+            root = Path(directory)
+            content = {name: f"Synthetic fixture for {name}".encode() for name in filenames}
+            for name, body in content.items():
+                (root / name).write_bytes(body)
+                (root / name).chmod(0o644)
+            manifest = "".join(
+                f"{hashlib.sha256(body).hexdigest()}  {name}\n" for name, body in content.items()
+            )
+            (root / "SHA256SUMS").write_text(manifest, encoding="ascii")
+            (root / "SHA256SUMS").chmod(0o644)
+
+            self.assertContains(self.client.get(base), f'href="{base}{artifact}"')
+            for name, body in content.items():
+                response = self.client.get(base + name)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response["Content-Disposition"], f'attachment; filename="{name}"')
+                self.assertEqual(response["Cache-Control"], "no-store")
+                self.assertEqual(b"".join(response.streaming_content), body)
+            self.assertEqual(self.client.get(base + "README.md").status_code, 404)
+            self.assertEqual(self.client.get(base + "bearings-windows-x64.exe").status_code, 404)
+
+            (root / artifact).write_bytes(b"changed")
+            self.assertEqual(self.client.get(base + artifact).status_code, 404)
+            (root / source).rename(root / "outside.zip")
+            (root / source).symlink_to(root / "outside.zip")
+            self.assertNotContains(self.client.get(base), f'href="{base}{artifact}"')
+            self.assertEqual(self.client.get(base + "bearings-windows-arm64.zip").status_code, 404)
 
     def test_collector_and_own_signature_verified_by_independent_receiver(self):
         self.enroll()

@@ -19,11 +19,5 @@
 {% else %}<p>The operator has not published a complete client build yet. Build with <code>python3 scripts/build_linux_client.py</code> and configure the approved artifact directory before distributing clients.</p>{% endif %}
 </section>
 <section id="windows-client" class="client-downloads">
-<h2>Set up the Bearings Windows client</h2>
-<p>Ask your administrator for the Bearings ZIP for your Windows system type (x64, ARM64 or x86). Extract it and open PowerShell in that directory as the account that will send reports.</p>
-<pre>.\bearings-windows.exe init</pre>
-<p>Give the public key to your company administrator and ask for a one-use code for an existing asset.</p>
-<pre>.\bearings-windows.exe enroll --code
-.\bearings-windows.exe watch</pre>
-<p>Paste the code into the hidden prompt. Keep the watch process open for six-hour reporting, or configure Task Scheduler under the same account to run the client's <code>report</code> command.</p>
+<p><a href="{% url 'windows-client-downloads' %}">Windows client downloads and setup →</a></p>
 </section>{% endblock %}

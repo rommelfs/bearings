@@ -16,7 +16,7 @@ AREAS = {
     "overview": ("Infrastructure overview", "overview", ""),
     "start": ("Start here", "getting-started", ""),
     "inventory": ("Inventory & organizations", "inventory", "inventory"),
-    "clients": ("Linux clients", "linux-client-downloads", "inventory"),
+    "clients": ("Inventory clients", "linux-client-downloads", "inventory"),
     "review": ("Vulnerability review", "home", "assess"),
     "discovery": ("Automatic CVE discovery", "discovery", "assess"),
     "risks": ("Company risk register", "risk-register", "assess"),
@@ -57,7 +57,13 @@ ROUTES = {
     "discovery": {"discovery", "discovery-configure", "discovery-refresh", "installation-version"},
     "start": {"getting-started"},
     "applications": {"applications", "application", "source-reference", "sso-settings", "workspace-switch"},
-    "clients": {"linux-client-downloads", "agent-fleets", "agent-center", "application-profiles"},
+    "clients": {
+        "linux-client-downloads",
+        "windows-client-downloads",
+        "agent-fleets",
+        "agent-center",
+        "application-profiles",
+    },
     "inventory": {
         "inventory",
         "organization-machines",

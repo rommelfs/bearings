@@ -2332,3 +2332,15 @@ Linux host. The server continues to accept the same observation and HTTP
 signature profiles. The release archives include checksums and redistribution
 notices. Corresponding Go source and vendored modules ship in a separate
 source archive. Authenticode signing remains pending.
+
+### Windows download and rollout guide
+
+The portal guide at `/downloads/windows/` covers installation, per-device
+rollout, scheduled reporting and client updates. Windows ZIPs and matching
+source are served when the operator configures a complete reviewed release.
+The tests cover the instructions-only fallback, fixed filenames, missing or
+symlinked source, checksum mismatch and attachment headers. All 40 focused
+PostgreSQL cases passed across Windows, fleet, workspace and inventory status;
+migration, frozen sync, Django checks and Ruff passed. A separate local Django
+request check compared all five downloads against the actual built Windows
+packages and manifest byte for byte.

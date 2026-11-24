@@ -4,9 +4,15 @@ SPDX: AGPL-3.0-or-later. [Source](https://github.com/rommelfs/bearings), [licens
 
 ## Install and enroll
 
-Ask your administrator for the ZIP that matches **System type** in **Settings → System → About**. Use **x64** for 64-bit Intel or AMD Windows, **ARM64** for ARM Windows, and **x86** for 32-bit Windows. Windows 10 version 1709 or later, or a compatible Windows Server release, is required. Each ZIP contains a standalone console executable with its Go runtime. The endpoint uses Windows system libraries, the registry, DPAPI and its certificate store.
+Open `/downloads/windows/` on your Bearings server. Choose the ZIP that matches **System type** in **Settings → System → About**. Use **x64** for 64-bit Intel or AMD Windows, **ARM64** for ARM Windows, and **x86** for 32-bit Windows. If the server has no download links, obtain the approved ZIP and checksum from your administrator. Windows 10 version 1709 or later, or a compatible Windows Server release, is required. Each ZIP contains a standalone console executable with its Go runtime. The endpoint uses Windows system libraries, the registry, DPAPI and its certificate store.
 
 Compare the ZIP's SHA-256 with the supplied `SHA256SUMS`. The reference packages are unsigned. Extract `bearings-windows.exe` into a permanent directory writable only by the reporting account and trusted administrators. Run it as the ordinary Windows account that will send reports, with read access to the machine registry. The server needs migration `0073_windows_inventory` ([native server upgrade](../../docs/operations/ubuntu24.md#windows-inventory-upgrade-from-6acb4c8)).
+
+```powershell
+Get-FileHash .\bearings-windows-x64.zip -Algorithm SHA256
+```
+
+Substitute the ZIP you downloaded if using ARM64 or x86.
 
 Open PowerShell in the directory containing the EXE:
 
@@ -27,6 +33,10 @@ The grant contains the administrator-configured HTTPS origin. For a private appr
 
 `collect` prints local inventory only. Handle its output as confidential. `status` reports the latest acknowledged observation. `pending` means the server accepted it for processing. Check for `applied` before scheduling regular reports.
 
+## Roll out to several computers
+
+Pilot one existing asset first. Copy only the reviewed program to the other devices using your organization’s software distribution tool. On each device, use its reporting account to generate a fresh key, obtain approval and a separate one-use code for its existing asset, and confirm the first applied report before enabling periodic runs. Keep device state on the original device and codes out of scripts and logs.
+
 ## Automatic reporting
 
 `watch` sends a report at startup and runs in the foreground, repeating every six hours by default. For regular reporting via Windows Task Scheduler:
@@ -35,6 +45,16 @@ The grant contains the administrator-configured HTTPS origin. For a private appr
 - Set a daily trigger that repeats every six hours for one day. Enable starting after a missed run and select **Do not start a new instance** for overlaps.
 - Set **Program/script** to the absolute path of the extracted EXE and **Add arguments** to `report`. If you chose a private `--state-dir`, include the same absolute path as for enrollment.
 - Run the task manually, then use `status` to verify that Bearings applied the report.
+
+For signed-out operation, validate the task with the intended account’s loaded profile and DPAPI access before rolling it out.
+
+## Update an enrolled client
+
+1. Download and verify the new ZIP for the same architecture. Extract it into a staging folder and check the staged EXE with `--version`.
+2. Pause the scheduled task and let active reports finish. Stop foreground `watch` if used. Keep a copy of the old EXE and replace the program in its existing location.
+3. Keep the account, profile and state directory so the enrollment and pending reports carry over. Run `report` and `status` and confirm the new report is applied before re-enabling the schedule.
+
+For binary rollback, use the prior compatible EXE with the current state directory.
 
 ## State, coverage and validation
 

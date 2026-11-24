@@ -86,6 +86,21 @@ Before customers, configure/accept SSO/MFA and local recovery policies using [SS
 
 The public Linux client page is `/downloads/linux/`. Build reviewed artifacts on a trusted build machine with Go 1.24+ and `scripts/build_linux_client.py`; publish the complete output into `/var/www/bearings/clients` with root-owned directories 0755 and public artifact modes 0644 (executables may be 0755). Production has no implicit source build or unsigned external auto-download. The application can read but not replace that directory; fixed artifact names/checksums/source/license remain required. The generated checksums are not independent code signatures. No compiler is required on monitored clients. See [client/roll-out guide](../integrations/linux-rollout.md).
 
+### Windows client
+
+The public guide is `/downloads/windows/`. It explains setup, per-device
+enrollment, rollout, periodic reports and updates even before an operator
+publishes a release. To enable the download links:
+
+1. Use the [Windows client build instructions](../../clients/windows/README.md#build-from-reviewed-source) or obtain matching reviewed artifacts. Verify the ZIP hashes against the build's `SHA256SUMS` before copying them to the server.
+2. Create a new root-owned release directory under `/var/www/bearings/windows-client/` with mode `0755`. Copy the x64, ARM64 and x86 ZIPs, `bearings-windows-source.zip` and the matching `SHA256SUMS` from the same build. Use root ownership and mode `0644` on the files. Keep the release directory and its parents writable only by trusted administrators.
+3. Set `BEARINGS_WINDOWS_CLIENT_DIR` in the protected `/etc/bearings/bearings.env` to the absolute release directory and restart `bearings-web`. Open the page over the approved HTTPS origin, download a ZIP, and compare its SHA-256 against the manifest.
+4. For the next release, populate a new directory, switch the setting and restart the web service. Keep the prior release available for rollback. Only allowlisted files are served, and their hashes are checked before delivery. Windows packages are unsigned reference builds.
+
+Leaving the setting empty keeps downloads disabled and the instructions
+available. Publish through the normal operator approval process. Enrollment
+continues to use individual, key-bound codes for existing assets.
+
 ## Updates and recovery
 
 Use a reviewed/pinned source revision and retain the private environment/database/state. Before upgrading take/verify backups, then stop `bearings-web`, `bearings-worker` and `bearings-national`; fetch/check out the reviewed revision as root. Sync the frozen production extra using `/opt/bearings-tools/bin/uv sync --frozen --no-dev --extra production --python /usr/bin/python3.12`, run the management helper's migrate/collectstatic/check commands, reconcile changed unit/proxy templates and restart/check the three services. Do not use the first-install helper for upgrades and do not run developer seed/bootstrap/volume-reset commands on this server. Review pending external writes before worker reactivation after restore or failed/uncertain remote requests; preserve original source IDs and native recovery rules.
