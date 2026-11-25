@@ -290,6 +290,7 @@ urlpatterns = [
         name="risk-link-evidence",
     ),
     path("reviews/", finding_views.home, name="home"),
+    path("reviews/evidence/<int:pk>/", finding_views.review_evidence, name="review-evidence"),
     path(
         "organizations/<slug:slug>/contacts/<int:pk>/edit/",
         company_scope_views.edit_contact,

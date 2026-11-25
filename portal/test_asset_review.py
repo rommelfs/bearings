@@ -11,7 +11,7 @@ from .test_exchange_example import evidence
 from .asset_context import asset_context
 from .connectors.http import ConnectorError
 from .inventory import refresh_inventory
-from .models import FindingHistory, SourceRecord
+from .models import FindingHistory, Installation, SourceRecord
 from .services import persist_lookup
 
 
@@ -162,6 +162,35 @@ class AssetReviewTests(Fixture):
         self.assertEqual(
             self.client.get(reverse("home"), {"severity": "critical"}).context["review_page"][0].pk, first.pk
         )
+
+    def test_cases_keep_distinct_installations_and_filter_out_restricted_evidence(self):
+        identifier = self.finding.record.external_id
+        duplicate = persist_lookup(
+            self.admin, self.installation, "fixture://another-source", identifier.lower(), {}
+        )
+        duplicate.analyst_applicability = "not_affected"
+        duplicate.save(update_fields=["analyst_applicability"])
+        self.finding.analyst_applicability = "affected"
+        self.finding.save(update_fields=["analyst_applicability"])
+        other = Installation.objects.create(
+            asset=self.asset, product=self.installation.product, version="2.0"
+        )
+        other_finding = persist_lookup(self.admin, other, "fixture://another-source", identifier, {})
+        hidden = persist_lookup(self.admin, self.installation, "fixture://restricted-source", identifier, {})
+        SourceRecord.objects.filter(pk=hidden.record_id).update(shareable=False)
+
+        self.login(self.admin)
+        response = self.client.get(reverse("home"), {"state": "all", "review_page": "999999999999"})
+        self.assertEqual(
+            [item.pk for item in response.context["review_page"]], [self.finding.pk, other_finding.pk]
+        )
+        self.assertContains(response, "Compare 2 evidence records")
+        self.assertContains(response, "Conflicting saved assessments")
+        self.assertEqual(response.context["review_total"], 2)
+        detail = self.client.get(reverse("review-evidence", args=[self.finding.pk]))
+        self.assertEqual({row["pk"] for row in detail.context["page"]}, {self.finding.pk, duplicate.pk})
+        self.assertNotContains(detail, "fixture://restricted-source")
+        self.assertEqual(self.client.get(reverse("review-evidence", args=[hidden.pk])).status_code, 404)
 
     def test_current_visibility_applies_to_search_counts_details_and_evidence(self):
         self.finding.record.shareable = False

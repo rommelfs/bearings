@@ -2605,3 +2605,19 @@ attention machine list. Both responses preserve full scoped counters, current
 evidence and unknown coverage. The attention result is still paginated and
 reports a numeric Server-Timing header. See
 [fixture, results and post-update verification](performance/scoped-overview-and-attention.md).
+
+## Grouped cases in Vulnerability review
+
+The synthetic queue regression supplies 31 authorized records for the same CVE
+and installation. One action case appears, with an evidence comparison showing
+25 records on the first evidence page and six on the second. Differing package
+results retain their original status. Additional regressions cover mixed-case
+CVE identifiers, a distinct installation, conflicting saved assessments,
+restricted evidence counts, denied direct evidence links and case pagination.
+The grouping is read-only and requires no migration or client package.
+
+A loopback PostgreSQL 17 fixture with 10,000 current synthetic package proofs
+for one installation and CVE produced one case in four HTTP 200 responses
+(0.53–0.94 s via Django's test client). The comparison exposed all 400 evidence
+pages of 25 records. Chromium verified the case count, comparison pagination
+and return navigation. The fixture did not use production records.

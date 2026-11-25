@@ -154,7 +154,15 @@ vendor version condition includes the installed version, affected/fixed bound
 and native comparison. The tabs separately expose **Vendor clarification
 needed**, **Awaiting current evaluation**, **Fixed / not affected / assessed**
 and **All retained open reviews**. Severity counts apply to the selected tab
-and search, before pagination. Counts are CVE–installation review records.
+and search, before pagination. Each case groups the visible open records for one
+normalized CVE and one concrete software installation. Other identifiers are
+grouped only within the same source record. The case takes the first applicable
+category in this order: actionable, vendor clarification, awaiting evaluation,
+and fixed or not affected. The source severity of the selected record controls
+the case's severity filter. **Compare evidence records** shows each visible
+source, current package result, saved assessment, and workflow with links to its
+full record. Different review categories and conflicting saved assessments are
+flagged on the case.
 
 An updated package with a proven vendor fix leaves the default queue after
 automatic reevaluation. Its review history and analyst assessment remain.

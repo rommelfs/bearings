@@ -1,22 +1,12 @@
 """Finding queues, vulnerability lookup and review actions."""
 
-from collections import Counter
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import (
-    Case,
-    Count,
-    Exists,
-    IntegerField,
-    OuterRef,
-    Q,
-    TextField,
-    Value,
-    When,
-)
+from django.core.paginator import Paginator
+from django.db.models import Exists, OuterRef, Q, TextField
 from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .access import (
@@ -46,9 +36,11 @@ from .models import (
     Installation,
     Membership,
 )
-from .overview_queries import bounded_list
-from .pagination import object_page
-from .presentation import ACTIVE_REVIEWS, decorate_finding
+from .overview_queries import bounded_list, read_snapshot
+from .presentation import ACTIVE_REVIEWS, SEVERITY_ORDER, decorate_finding, severity_first
+from .queue_context import return_url
+from .review_cases import case_identity, case_page
+from .review_queue import BUCKETS, classified
 from .services import (
     lookup_for_installation,
     transition_finding,
@@ -57,6 +49,7 @@ from .services import (
 
 @login_required
 @analyst_read_snapshot
+@read_snapshot()
 @bounded_list
 def home(request):
     org_page = company_cards(
@@ -67,26 +60,9 @@ def home(request):
         audit(request.user, None, "operator.review_queue")
     query = request.GET.get("q", "")[:160].strip()
     severity = request.GET.get("severity", "").lower()
-    severity_choices = ["critical", "high", "medium", "low", "none", "unknown"]
-    if severity not in severity_choices:
+    if severity not in SEVERITY_ORDER:
         severity = ""
-    reviews = (
-        visible_findings_for(request.user)
-        .filter(status__in=ACTIVE_REVIEWS)
-        .annotate(
-            severity_order=Case(
-                *[When(record__source_severity=key, then=Value(i)) for i, key in enumerate(severity_choices)],
-                default=Value(5),
-                output_field=IntegerField(),
-            ),
-            review_order=Case(
-                When(installation__asset__criticality="high", then=Value(0)),
-                default=Value(1),
-                output_field=IntegerField(),
-            ),
-        )
-        .order_by("severity_order", "review_order", "-evaluated_at", "pk")
-    )
+    reviews = visible_findings_for(request.user).filter(status__in=ACTIVE_REVIEWS)
     if query:
         reviews = reviews.annotate(
             inventory_text=Cast("installation__asset__upstream_data", TextField()),
@@ -106,42 +82,12 @@ def home(request):
         )
     from .distro_verdicts import decorate_package_verdict
     from .inventory_presentation import host_network_summary
-    from .review_queue import BUCKETS, classified
 
-    reviews = classified(reviews)
     bucket = request.GET.get("state", "action")
     if bucket not in dict(BUCKETS):
         bucket = "action"
-    bucket_counts = Counter()
-    counts = Counter()
-    for row in (
-        reviews.order_by().values("queue_bucket", "record__source_severity").annotate(total=Count("pk"))
-    ):
-        bucket_counts[row["queue_bucket"]] += row["total"]
-        if bucket == "all" or bucket == row["queue_bucket"]:
-            counts[row["record__source_severity"]] += row["total"]
-    queue_states = [
-        {
-            "key": key,
-            "label": label,
-            "count": sum(bucket_counts.values()) if key == "all" else bucket_counts.get(key, 0),
-        }
-        for key, label in BUCKETS
-    ]
-    if bucket != "all":
-        reviews = reviews.filter(queue_bucket=bucket)
-    reviews = reviews.select_related("distro_match__component__device", "distro_match__advisory__feed")
-    severity_counts = [
-        {"key": key, "label": key.title(), "count": counts.get(key, 0)} for key in severity_choices
-    ]
-    review_total = sum(counts.values())
-    if severity:
-        reviews = reviews.filter(record__source_severity=severity)
-    review_page = object_page(
-        reviews,
-        25,
-        request.GET.get("review_page"),
-        count=counts.get(severity, 0) if severity else review_total,
+    review_page, queue_states, severity_counts, review_total = case_page(
+        reviews, request.GET.get("review_page"), bucket, severity
     )
     audit_organizations(request.user, [finding.organization for finding in review_page])
     operator = request.user.is_superuser or is_analyst(request.user)
@@ -181,6 +127,64 @@ def home(request):
             "queue_state": bucket,
             "queue_heading": dict(BUCKETS)[bucket],
             "review_total": review_total,
+        },
+    )
+
+
+@login_required
+@analyst_read_snapshot
+@read_snapshot()
+@bounded_list
+def review_evidence(request, pk):
+    visible = case_identity(visible_findings_for(request.user)).filter(status__in=ACTIVE_REVIEWS)
+    finding = get_object_or_404(visible, pk=pk)
+    evidence = severity_first(
+        classified(
+            visible.filter(
+                organization_id=finding.organization_id,
+                installation_id=finding.installation_id,
+                case_identifier=finding.case_identifier,
+            )
+        )
+    ).values(
+        "pk",
+        "record__source",
+        "record__source_severity",
+        "rule",
+        "queue_bucket",
+        "package_current",
+        "distro_match__pk",
+        "distro_match__queue_proof__verdict",
+        "analyst_applicability",
+        "status",
+    )
+    page = Paginator(evidence, 25).get_page(request.GET.get("page"))
+    audit_organizations(request.user, [finding.organization])
+    labels = dict(BUCKETS)
+    verdicts = {
+        "affected": "Affected version",
+        "fixed": "Includes vendor fix",
+        "not_matched": "Vendor rule does not match",
+    }
+    rows = list(page)
+    for row in rows:
+        row["category"] = labels[row["queue_bucket"]]
+        if row["package_current"]:
+            row["result"] = verdicts.get(
+                row["distro_match__queue_proof__verdict"], "Vendor clarification needed"
+            )
+        elif row["distro_match__pk"]:
+            row["result"] = "Current package evaluation pending"
+        else:
+            row["result"] = "—"
+    page.object_list = rows
+    return render(
+        request,
+        "portal/review_evidence.html",
+        {
+            "finding": finding,
+            "page": page,
+            "return_url": return_url(request) or reverse("home"),
         },
     )
 

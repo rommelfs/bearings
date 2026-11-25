@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import timedelta
 from django.utils import timezone
 from django.db import connection
+from django.urls import reverse
 from django.test.utils import CaptureQueriesContext
 from . import agents, distro_cves, distro_oval
 from .models import DistroFeed, DistroMatch, Finding
@@ -266,7 +267,7 @@ class QueueTests(DistroTests):
         self.assertContains(response, "includes the vendor fix")
         save_browser_evidence("queue-needrestart-fixed", response)
 
-    def test_status_counts_precede_pagination_and_restricted_records_are_hidden(self):
+    def test_cases_group_before_pagination_and_evidence_keeps_distinct_results(self):
         finding = self.prepare()
         for i in range(30):
             extra = copy.copy(finding)
@@ -280,19 +281,25 @@ class QueueTests(DistroTests):
             match.snapshot["package_check"]["verdict"] = "unresolved"
             match.save()
         with CaptureQueriesContext(connection) as queries:
-            response = self.client.get("/reviews/?state=unresolved")
+            response = self.client.get("/reviews/")
         # Includes constant session/policy checks and bounded-list PostgreSQL guards.
         self.assertLessEqual(len(queries), 42)
-        self.assertEqual(response.context["review_total"], 30)
-        self.assertEqual(len(response.context["review_page"]), 25)
-        self.assertEqual(self.client.get("/reviews/").context["review_total"], 1)
-        with CaptureQueriesContext(connection) as short_queries:
-            second = self.client.get("/reviews/?state=unresolved&review_page=2")
-        self.assertEqual(len(second.context["review_page"]), 5)
-        self.assertLessEqual(len(queries), len(short_queries) + 1)
+        self.assertEqual(response.context["review_total"], 1)
+        self.assertEqual([item.pk for item in response.context["review_page"]], [finding.pk])
+        self.assertContains(response, "Compare 31 evidence records")
+        self.assertContains(response, "Different review categories")
+        self.assertEqual(self.client.get("/reviews/?state=unresolved").context["review_total"], 0)
+        url = reverse("review-evidence", args=[finding.pk])
+        detail = self.client.get(url)
+        self.assertContains(detail, "Affected version")
+        self.assertContains(detail, "Vendor clarification needed")
+        self.assertEqual(detail.context["page"].paginator.count, 31)
+        self.assertEqual(len(detail.context["page"]), 25)
+        self.assertEqual(len(self.client.get(url, {"page": 2}).context["page"]), 6)
         finding.record.shareable = False
         finding.record.save(update_fields=["shareable"])
         self.login(self.reader)
         response = self.client.get("/reviews/?state=all")
         self.assertEqual(response.context["review_total"], 0)
         self.assertTrue(all(state["count"] == 0 for state in response.context["queue_states"]))
+        self.assertEqual(self.client.get(url).status_code, 404)
