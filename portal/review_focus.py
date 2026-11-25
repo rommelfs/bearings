@@ -72,16 +72,35 @@ def ratio(numerator, denominator):
     }
 
 
+def _machine_assets(user, org_ids):
+    orgs = organizations_for(user)
+    if org_ids is not None:
+        orgs = orgs.filter(pk__in=org_ids)
+    return Asset.objects.filter(organization__in=orgs, lifecycle="active", kind__in=MACHINE_KINDS).filter(
+        consistent(source__organization_id=F("organization_id"))
+    )
+
+
+def machine_coverage(user, org_ids):
+    """Current device coverage independently of package findings."""
+    machines = _machine_assets(user, org_ids)
+    feed_scope = _ready_feed_scope()
+    if feed_scope:
+        devices = _evaluated_devices(feed_scope)
+        machines = machines.annotate(
+            evaluated=Exists(devices),
+            partial=Exists(devices.filter(distro_summary__package_state="partial")),
+        )
+    else:
+        machines = machines.annotate(evaluated=Value(False), partial=Value(False))
+    return machines, bool(feed_scope)
+
+
 def posture(user, org_ids=None, *, shared_only=False, include_totals=True, scoped_evidence=False):
     """One mutually exclusive priority per evaluated machine; explicit unknown coverage."""
     from .circl import findings_for
 
-    orgs = organizations_for(user)
-    if org_ids is not None:
-        orgs = orgs.filter(pk__in=org_ids)
-    machines = Asset.objects.filter(organization__in=orgs, lifecycle="active", kind__in=MACHINE_KINDS).filter(
-        consistent(source__organization_id=F("organization_id"))
-    )
+    machines = _machine_assets(user, org_ids)
     scope = findings_for(user)
     if shared_only:
         scope = scope.filter(record__shareable=True)
@@ -207,8 +226,8 @@ def _scoped_automatic_status(reviews):
     }
 
 
-def _evaluated_machine_status(reviews, feed_scope, matches):
-    devices = AgentDevice.objects.filter(
+def _evaluated_devices(feed_scope):
+    return AgentDevice.objects.filter(
         feed_scope,
         asset_id=OuterRef("pk"),
         source_id=OuterRef("source_id"),
@@ -222,6 +241,10 @@ def _evaluated_machine_status(reviews, feed_scope, matches):
         distro_summary__state__in=["ready", "partial"],
         distro_summary__evaluator_version=distro_results.VERSION,
     )
+
+
+def _evaluated_machine_status(reviews, feed_scope, matches):
+    devices = _evaluated_devices(feed_scope)
     if matches is None:
         automatic = _automatic_matches(reviews)
         matches = {

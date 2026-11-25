@@ -10,7 +10,8 @@ from unittest.mock import patch
 from .tests import Fixture
 from . import test_ubuntu_status as fixture
 from .distro_fix_evidence import HasVendorFix
-from .models import Asset, AssetIssue, Finding, SourceRecord
+from .distro_projection import DistroVendorFixInputsV1
+from .models import Asset, AssetIssue, DistroMatch, Finding, SourceRecord
 
 
 class HostOverviewTests(Fixture):
@@ -181,6 +182,8 @@ class HostOverviewTests(Fixture):
             self.assertNotContains(panel, "0 matching hosts", status_code=503)
             self.assertNotContains(panel, self.other.name, status_code=503)
             self.assertIn("hosts;dur=", panel["Server-Timing"])
+            self.assertIn("dbmax;dur=", panel["Server-Timing"])
+            self.assertEqual(panel["X-Bearings-Host-Error"], "database")
             self.assertIn("no-store", panel["Cache-Control"])
             self.assertEqual(self.client.get(self.url("organization-hosts", self.b)).status_code, 404)
             overview.assert_called_once()
@@ -212,11 +215,29 @@ class HostOverviewTests(Fixture):
                 SourceRecord.objects.filter(pk=row.pk).update(payload={"package_check": proof})
                 actual = (
                     SourceRecord.objects.filter(pk=row.pk)
-                    .annotate(fixed=HasVendorFix(F("payload")))
-                    .values_list("fixed", flat=True)
+                    .annotate(
+                        fixed=HasVendorFix(F("payload")),
+                        projected=HasVendorFix(DistroVendorFixInputsV1(F("payload"))),
+                    )
+                    .values_list("fixed", "projected")
                     .get()
                 )
-                self.assertEqual(actual, expected)
+                self.assertEqual(actual, (expected, expected))
+
+    def test_bulk_snapshot_update_recomputes_vendor_fix_without_losing_affectedness(self):
+        self.cached()
+        self.prepare()
+        match = DistroMatch.objects.get()
+        snapshot = copy.deepcopy(match.snapshot)
+        snapshot["package_check"].pop("vendor_comments")
+        DistroMatch.objects.filter(pk=match.pk).update(snapshot=snapshot)
+        response = self.page(host_filter="affected")
+        host = response.context["host_page"][0]
+        self.assertEqual(host.affected_packages, 1)
+        self.assertEqual(host.fix_packages, 0)
+        self.assertEqual(response.context["host_stats"]["fixes"], 0)
+        match.refresh_from_db()
+        self.assertIsNone(match.vendor_fix_inputs["package_check"]["vendor_comments"])
 
     def test_analyst_read_snapshot_rechecks_revocation_on_the_next_request(self):
         from django.contrib.auth.models import Group

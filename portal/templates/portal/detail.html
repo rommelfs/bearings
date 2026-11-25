@@ -9,7 +9,7 @@
   {% include "portal/_host_inventory_preview.html" %}
 </section>
 {% endif %}
-<script src="{% static 'portal/company-hosts.js' %}?v=20261125-host-preview-1" defer></script>
+<script src="{% static 'portal/company-hosts.js' %}?v=20261125-host-preview-2" defer></script>
 <details class="organization-administration"{% if request.GET.inventory_page or request.GET.contact_page or request.GET.scope_page or request.GET.inventory_q %} open{% endif %}><summary id="organization-administration">Administration, full inventory, contacts &amp; infrastructure</summary>
 {% if workflow_stage %}{% include 'portal/workflow.html' %}{% endif %}
 {% if user.is_superuser %}<p><a href="{% url 'company-merge' %}">Merge organizations →</a></p>{% endif %}{% if not org.merged_into_id %}{% if member_admin or user.is_superuser %}<p><a class="button" href="{% url 'company-members' org.slug %}">Company members & invitations →</a> <a class="button" href="{% url 'company-members' org.slug %}#domain-codes">Company email domain codes →</a></p>{% endif %}{% endif %}

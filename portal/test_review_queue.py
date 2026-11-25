@@ -130,21 +130,24 @@ class QueueTests(DistroTests):
         match = DistroMatch.objects.get()
         snapshot, revisions = match.snapshot, DistroMatchRevision.objects.count()
         original_status = finding.status
+        fix_inputs = match.vendor_fix_inputs
         # TestCase holds fixture inserts in a transaction; resolve their deferred
         # FK events before DDL, as a real upgrade starts after committed writes.
         with connection.cursor() as cursor:
             cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
         executor = MigrationExecutor(connection)
+        current_targets = executor.loader.graph.leaf_nodes()
         try:
             executor.migrate([("portal", "0071_ubuntu_status_queue_index")])
         finally:
-            MigrationExecutor(connection).migrate([("portal", "0072_generated_distribution_queue_proof")])
+            MigrationExecutor(connection).migrate(current_targets)
             with connection.cursor() as cursor:
                 cursor.execute("SET CONSTRAINTS ALL DEFERRED")
         match.refresh_from_db()
         finding.refresh_from_db()
         self.assertEqual(match.snapshot, snapshot)
         self.assertEqual(match.queue_proof["version"], snapshot["version"])
+        self.assertEqual(match.vendor_fix_inputs, fix_inputs)
         self.assertEqual(DistroMatchRevision.objects.count(), revisions)
         self.assertEqual(finding.status, original_status)
         self.assertEqual(self.bucket(), "action")

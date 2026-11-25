@@ -8,6 +8,7 @@ from django.db.models import (
     Count,
     F,
     IntegerField,
+    Min,
     OuterRef,
     Q,
     Subquery,
@@ -24,8 +25,9 @@ from .circl import findings_for
 from .distro_fix_evidence import HasVendorFix
 from .issues import ACTIVE, visible_issues
 from .models import AgentDevice, Installation
-from .review_focus import MACHINE_KINDS, posture
-from .review_queue import CLEARED_VERDICTS, classified
+from .review_focus import machine_coverage
+from .review_queue import CLEARED_VERDICTS, classified, current_package_proofs
+from .presentation import severity_rank
 from .table_sort import TableSort
 from .inventory_presentation import additional_software_filter
 
@@ -43,10 +45,17 @@ def count_for(queryset, field, grouping):
 def _correlated_package_counts(reviews):
     reviews = classified(reviews).filter(package_current=True)
     automatic = reviews.filter(distro_match__queue_proof__verdict="affected")
-    fixes = automatic.annotate(has_vendor_fix=HasVendorFix(F("distro_match__snapshot"))).filter(
+    fixes = automatic.annotate(has_vendor_fix=HasVendorFix(F("distro_match__vendor_fix_inputs"))).filter(
         has_vendor_fix=True
     )
+    priority = (
+        automatic.annotate(rank=severity_rank("record__source_severity")).order_by("rank").values("rank")[:1]
+    )
     return {
+        "source_priority": Case(
+            When(evaluated=True, then=Subquery(priority)),
+            default=Cast(Value(None), IntegerField()),
+        ),
         "affected_packages": Case(
             When(evaluated=True, then=count_for(automatic, "installation_id", "installation__asset_id")),
             default=Value(0),
@@ -68,26 +77,36 @@ def _correlated_package_counts(reviews):
     }
 
 
-def _package_counts(reviews):
+def _package_counts(reviews, hosts):
     """Summarize current proofs once for a bounded organization host cohort."""
-    affected = Q(distro_match__queue_proof__verdict="affected")
+    affected = Q(queue_proof__verdict="affected")
     # Currentness is proven by the outer filter. The unresolved bucket therefore
     # needs only the verdict and saved-assessment predicates here.
     unresolved = (
         ~affected
-        & ~Q(distro_match__queue_proof__verdict__in=CLEARED_VERDICTS)
-        & ~Q(analyst_applicability__in=("affected", "not_affected"))
+        & ~Q(queue_proof__verdict__in=CLEARED_VERDICTS)
+        & ~Q(finding__analyst_applicability__in=("affected", "not_affected"))
     )
     counts = (
-        classified(reviews.filter(installation__asset__kind__in=MACHINE_KINDS))
-        .filter(package_current=True)
-        .alias(has_vendor_fix=HasVendorFix(F("distro_match__snapshot")))
+        current_package_proofs()
+        .filter(
+            finding__in=reviews.order_by(),
+            finding__installation__asset__in=hosts.order_by(),
+            component__device__organization_id=F("finding__organization_id"),
+            component__device__asset_id=F("finding__installation__asset_id"),
+            component__device__source_id=F("finding__installation__asset__source_id"),
+            component__installation_id=F("finding__installation_id"),
+        )
+        .alias(has_vendor_fix=HasVendorFix(F("vendor_fix_inputs")))
         .order_by()
-        .values("installation__asset_id")
+        .values("finding__installation__asset_id")
         .annotate(
-            affected_packages=Count("installation_id", distinct=True, filter=affected),
-            fix_packages=Count("installation_id", distinct=True, filter=affected & Q(has_vendor_fix=True)),
-            unresolved_packages=Count("installation_id", distinct=True, filter=unresolved),
+            affected_packages=Count("finding__installation_id", distinct=True, filter=affected),
+            fix_packages=Count(
+                "finding__installation_id", distinct=True, filter=affected & Q(has_vendor_fix=True)
+            ),
+            unresolved_packages=Count("finding__installation_id", distinct=True, filter=unresolved),
+            source_priority=Min(severity_rank("finding__record__source_severity"), filter=affected),
         )[: MAX_GROUPED_PACKAGE_HOSTS + 1]
     )
     rows = list(counts)
@@ -95,16 +114,18 @@ def _package_counts(reviews):
         return _correlated_package_counts(reviews.filter(installation__asset_id=OuterRef("pk")))
 
     annotations = {}
-    for field in ("affected_packages", "fix_packages", "unresolved_packages"):
-        by_count = {}
+    for field in ("affected_packages", "fix_packages", "unresolved_packages", "source_priority"):
+        default = None if field in {"fix_packages", "source_priority"} else 0
+        by_value = {}
         for row in rows:
-            if count := row[field]:
-                by_count.setdefault(count, []).append(row["installation__asset_id"])
+            value = row[field]
+            if value is not None and (value or field == "source_priority"):
+                by_value.setdefault(value, []).append(row["finding__installation__asset_id"])
+        cases = [When(evaluated=True, pk__in=ids, then=Value(value)) for value, ids in by_value.items()]
+        if field == "fix_packages":
+            cases.append(When(evaluated=True, then=Value(0)))
         annotations[field] = Case(
-            *(When(evaluated=True, pk__in=ids, then=Value(count)) for count, ids in by_count.items()),
-            When(evaluated=True, then=Value(0)),
-            default=Value(None if field == "fix_packages" else 0),
-            output_field=IntegerField(),
+            *cases, default=Cast(Value(default), IntegerField()), output_field=IntegerField()
         )
     return annotations
 
@@ -131,13 +152,17 @@ def overview(request, org):
             ("observed", "Last report", "report_time", False),
         ],
     )
-    machine_status = posture(request.user, [org.pk], include_totals=False, scoped_evidence=True)
+    machines, evaluation_available = machine_coverage(request.user, [org.pk])
+    query = request.GET.get("host_q", "").strip()[:128]
+    if query:
+        machines = machines.filter(name__icontains=query)
     scoped_reviews = findings_for(request.user).filter(organization=org)
     reviews = scoped_reviews.filter(installation__asset_id=OuterRef("pk"))
     package_counts = (
-        _package_counts(scoped_reviews)
-        if machine_status["evaluation_available"]
+        _package_counts(scoped_reviews, machines)
+        if evaluation_available
         else {
+            "source_priority": Cast(Value(None), IntegerField()),
             "affected_packages": Value(0),
             "fix_packages": Value(None, output_field=IntegerField()),
             "unresolved_packages": Value(0),
@@ -184,62 +209,55 @@ def overview(request, org):
         .order_by("rank")
         .values("rank")[:1]
     )
-    machines = (
-        machine_status["machines"]
-        .annotate(
-            **package_counts,
-            manual_packages=count_for(
-                reviews.filter(distro_match__isnull=True, status__in=ACTIVE).exclude(
-                    analyst_applicability="not_affected"
-                ),
-                "installation_id",
-                "installation__asset_id",
+    machines = machines.annotate(
+        **package_counts,
+        manual_packages=count_for(
+            reviews.filter(distro_match__isnull=True, status__in=ACTIVE).exclude(
+                analyst_applicability="not_affected"
             ),
-            saved_affected=count_for(
-                reviews.filter(analyst_applicability="affected", status__in=[*ACTIVE, "accepted_risk"]),
-                "installation_id",
-                "installation__asset_id",
+            "installation_id",
+            "installation__asset_id",
+        ),
+        saved_affected=count_for(
+            reviews.filter(analyst_applicability="affected", status__in=[*ACTIVE, "accepted_risk"]),
+            "installation_id",
+            "installation__asset_id",
+        ),
+        mapping_gaps=count_for(unmapped.filter(asset_id=OuterRef("pk")), "pk", "asset_id"),
+        issue_count=count_for(issues, "pk", "asset_id"),
+        issue_priority=Subquery(issue_order, output_field=IntegerField()),
+        report_time=Subquery(devices.order_by("-last_observed_at").values("last_observed_at")[:1]),
+    ).annotate(
+        host_priority=Case(
+            When(source_priority__isnull=True, then=F("issue_priority")),
+            When(issue_priority__lt=F("source_priority"), then=F("issue_priority")),
+            default=F("source_priority"),
+            output_field=IntegerField(),
+        ),
+        has_gaps=Case(
+            When(
+                Q(evaluated=False)
+                | Q(missing_since__isnull=False)
+                | Q(partial=True)
+                | Q(mapping_gaps__gt=0)
+                | Q(manual_packages__gt=0)
+                | Q(unresolved_packages__gt=0),
+                then=Value(True),
             ),
-            mapping_gaps=count_for(unmapped.filter(asset_id=OuterRef("pk")), "pk", "asset_id"),
-            issue_count=count_for(issues, "pk", "asset_id"),
-            issue_priority=Subquery(issue_order, output_field=IntegerField()),
-            report_time=Subquery(devices.order_by("-last_observed_at").values("last_observed_at")[:1]),
-        )
-        .annotate(
-            host_priority=Case(
-                When(source_priority__isnull=True, then=F("issue_priority")),
-                When(issue_priority__lt=F("source_priority"), then=F("issue_priority")),
-                default=F("source_priority"),
-                output_field=IntegerField(),
+            default=Value(False),
+        ),
+        has_problems=Case(
+            When(
+                Q(affected_packages__gt=0)
+                | Q(missing_since__isnull=False)
+                | Q(issue_count__gt=0)
+                | Q(manual_packages__gt=0)
+                | Q(saved_affected__gt=0),
+                then=Value(True),
             ),
-            has_gaps=Case(
-                When(
-                    Q(evaluated=False)
-                    | Q(missing_since__isnull=False)
-                    | Q(partial=True)
-                    | Q(mapping_gaps__gt=0)
-                    | Q(manual_packages__gt=0)
-                    | Q(unresolved_packages__gt=0),
-                    then=Value(True),
-                ),
-                default=Value(False),
-            ),
-            has_problems=Case(
-                When(
-                    Q(affected_packages__gt=0)
-                    | Q(missing_since__isnull=False)
-                    | Q(issue_count__gt=0)
-                    | Q(manual_packages__gt=0)
-                    | Q(saved_affected__gt=0),
-                    then=Value(True),
-                ),
-                default=Value(False),
-            ),
-        )
+            default=Value(False),
+        ),
     )
-    query = request.GET.get("host_q", "").strip()[:128]
-    if query:
-        machines = machines.filter(name__icontains=query)
     stats = machines.order_by().aggregate(
         total=Count("pk"),
         problems=Count("pk", filter=Q(has_problems=True)),

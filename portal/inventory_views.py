@@ -137,6 +137,7 @@ def _host_context(request, org):
     from .host_overview import overview as host_overview
 
     started = perf_counter()
+    database = None
     try:
         with (
             read_snapshot(),
@@ -162,6 +163,9 @@ def _host_context(request, org):
         )
         return {
             "host_overview_unavailable": True,
+            "host_error_reason": reason,
+            "host_database_ms": database.seconds * 1000 if database else 0,
+            "host_dbmax_ms": database.slowest * 1000 if database else 0,
             **_host_inventory_preview(org, request.GET.get("host_q", "").strip()[:128]),
         }
 
@@ -183,13 +187,13 @@ def hosts(request, slug):
         {"org": org, **context},
         status=503 if context.get("host_overview_unavailable") else 200,
     )
-    response["Server-Timing"] = f"hosts;dur={(perf_counter() - started) * 1000:.1f}"
+    response["Server-Timing"] = (
+        f"hosts;dur={(perf_counter() - started) * 1000:.1f}, "
+        f"database;dur={context['host_database_ms']:.1f}, dbmax;dur={context['host_dbmax_ms']:.1f}"
+    )
     if context.get("host_overview_unavailable"):
         response["Retry-After"] = "5"
-    else:
-        response["Server-Timing"] += (
-            f", database;dur={context['host_database_ms']:.1f}, dbmax;dur={context['host_dbmax_ms']:.1f}"
-        )
+        response["X-Bearings-Host-Error"] = context["host_error_reason"]
     return response
 
 

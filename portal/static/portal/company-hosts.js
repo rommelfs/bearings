@@ -34,7 +34,14 @@
         throw new Error("Unexpected redirect");
       }
       if (!response.ok) {
-        failure = `CVE assessment could not load (HTTP ${response.status}).`;
+        const reason = response.headers.get("X-Bearings-Host-Error");
+        if (reason === "request_budget" || reason === "query_cancelled") {
+          failure = `CVE assessment exceeded the server time limit (HTTP ${response.status}).`;
+        } else if (reason === "database") {
+          failure = `CVE assessment encountered a database error (HTTP ${response.status}).`;
+        } else {
+          failure = `CVE assessment could not load (HTTP ${response.status}).`;
+        }
         throw new Error("Unsuccessful assessment response");
       }
       const html = document.createElement("template");

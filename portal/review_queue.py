@@ -19,7 +19,7 @@ BUCKETS = (
 )
 
 
-def classified(reviews):
+def current_package_proofs():
     # Same proof/input contract as DistroMatch.inputs_changed, evaluated in SQL so
     # a page never requires hydrating the entire inventory or counting stale proof.
     feed_keys = Q(pk__in=[])
@@ -35,7 +35,7 @@ def classified(reviews):
             feed_keys |= (
                 Q(component__device__os__id=distro, advisory__feed__key=f"{distro}:{version}") & version_q
             )
-    current = (
+    return (
         DistroMatch.objects.annotate(
             saved_version=KT("queue_proof__version"),
             saved_feed=KT("queue_proof__feed"),
@@ -45,14 +45,6 @@ def classified(reviews):
             saved_ubuntu_cve=KT("queue_proof__ubuntu_cve"),
         )
         .filter(
-            # The outer one-to-one join already fixes the finding identity.
-            # Correlate its exact match PK and visible installation/source facts
-            # instead of rejoining finding/installation/asset inside this proof.
-            pk=OuterRef("distro_match__pk"),
-            component__device__organization_id=OuterRef("organization_id"),
-            component__device__asset_id=OuterRef("installation__asset_id"),
-            component__device__source_id=OuterRef("installation__asset__source_id"),
-            component__installation_id=OuterRef("installation_id"),
             queue_proof__evaluator_version=distro_results.VERSION,
             queue_proof__schema="bearings.package-check.v2",
             saved_version=F("component__version"),
@@ -83,6 +75,18 @@ def classified(reviews):
                 ubuntu_status__last_success__gte=timezone.now() - timedelta(hours=12),
             )
         )
+    )
+
+
+def classified(reviews):
+    # Correlate the exact match and visible inventory/source, reusing the
+    # same proof contract as the host overview's set-based query.
+    current = current_package_proofs().filter(
+        pk=OuterRef("distro_match__pk"),
+        component__device__organization_id=OuterRef("organization_id"),
+        component__device__asset_id=OuterRef("installation__asset_id"),
+        component__device__source_id=OuterRef("installation__asset__source_id"),
+        component__installation_id=OuterRef("installation_id"),
     )
     return reviews.annotate(package_current=Exists(current)).annotate(queue_bucket=bucket_expression())
 

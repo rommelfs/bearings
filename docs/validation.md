@@ -2667,3 +2667,26 @@ controls at 390 px. The reason field measured 94 px high. The organization
 document displayed inventory before a deliberately delayed HTTP 504. The
 preview stayed visible and the next attempt loaded the full host assessment.
 The exercise does not identify the cause of any live gateway failure.
+
+## Host CVE assessment query and timeout diagnosis
+
+The scoped host panel uses one set-based query for current package proofs,
+affected/unresolved counts, documented fixes and source priority. It shares
+the proof-currentness predicates used by the review queue and preserves the
+independent evaluation-coverage check. Migration 0076 adds a stored generated
+projection of comparisons and vendor comments. The original evidence is
+retained and the projection follows bulk writes. HTTP 503 includes a sanitized
+application error category and numeric timing headers.
+
+On PostgreSQL with seven synthetic hosts and 20,000 package proofs, the full
+response went from 3.27 s to 0.94 s for the platform operator and 2.92 s to
+0.90 s for an organization reader. Both roles went from HTTP 503 to HTTP 200
+under a locally tightened one-second statement limit. Complete host counts,
+package counts and priority were checked. These are synthetic measurements
+and do not identify the cause of the CIRCL production response.
+
+Increasing only the retained synthetic context to 100 KB per proof reproduced
+HTTP 503 with the normal five-second database statement limit. On that same
+database the updated reader request returned HTTP 200 in 0.84 s with the
+same complete host and vendor-fix counts. Migration 0076 was exercised as
+an upgrade on the populated fixture before this test.
