@@ -115,3 +115,7 @@ python3 scripts/build_windows_client.py --go /path/to/go --server https://bearin
 ```
 
 This writes architecture-specific EXEs and ZIPs, `SHA256SUMS` and a matching source ZIP into `.local/windows-client`. Distribute the source ZIP with the binary packages. For synthetic native updater tests, run `go test -run "TestSelfUpdate|TestNativeProtectedStateAndLock" ./...` from `clients/windows` on Windows. The full suite also includes a live local registry/WUA collector test; run that only on an authorized pilot. The Python source remains available as a compatibility reference.
+
+For a scoped Windows 11 ARM64 baseline and evidence acceptance, use the
+[Windows 11 pilot guide](../../docs/user-guide/windows11-pilot.md). The pilot
+diagnostic export does not establish CVE remediation or update Windows.

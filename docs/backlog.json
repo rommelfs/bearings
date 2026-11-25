@@ -282,6 +282,10 @@
       {
         "title": "Account for every recorded software installation and expose CVE coverage gaps",
         "body": "Implemented organization-scoped paginated installation accounting, disjoint inventory prerequisites and separate unlinked/excluded client observations. Promote the ledger in the infrastructure overview and host inventory; label existing machine ratios as Linux package checks and expose coverage gaps outside diagnostics. Per-row application evidence verifies watch/source identity, latest successful snapshot membership, immutable advisory/evaluation revision and unchanged inputs; prior evaluated version is retained. Bound and escape examples, separate analyst decisions and withhold foreign or restricted data. Reuse existing Linux proof checks; no claim of complete discovery, manufacturer coverage or safe zero results. Synthetic PostgreSQL and offline desktop/mobile browser checks; no new migration, client update, production actions or automatic merge. See docs/user-guide/software-coverage.md and docs/validation.md."
+      },
+      {
+        "title": "Start a scoped Windows 11 ARM64 evidence pilot",
+        "body": "Implement a read-only per-device diagnostic export of the exact applied signed Windows observation, complete build/role/edition/native architecture, reviewed MSRC ProductTree identities, edition-specific 22H2 Home/Pro lifecycle evidence, report currentness and bounded WUA cache/KB facts. No hostnames, credentials, upstream fetches, inventory changes or CVE compliance verdict. Tests use synthetic ARM64/x64/conflicting-role and failure/ownership cases. Real task/WUA/client-update acceptance and per-advisory servicing evidence remain pending. See docs/user-guide/windows11-pilot.md. No production actions or automatic merge."
       }
     ]
   },

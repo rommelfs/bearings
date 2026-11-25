@@ -2620,3 +2620,35 @@ This change makes recorded coverage gaps and retained version-rule evidence
 navigable. It does not add manufacturer rules or establish complete software/CVE
 coverage. Windows servicing lines and unsupported product tracks remain explicit
 gaps. See the [software coverage guide](user-guide/software-coverage.md).
+
+## Windows 11 ARM64 evidence pilot (2026-11-25)
+
+The initial pilot adds only a scoped, read-only `windows_pilot` management command.
+It exports one exact signed/applied report's bounded diagnostic facts, verifies
+report-body hash and projection/source ownership, and keeps currentness,
+manufacturer identity, lifecycle and WUA cache coverage separate. Historical
+last-success update rows cannot replace missing/failed evidence in a new report.
+It never fetches upstream data, scans, updates inventory, changes a watch or
+produces a CVE remediation verdict. Existing CVE evaluation semantics are unchanged.
+
+The manufacturer ProductTree IDs were inspected read-only in the official
+2024-October and 2026-November MSRC CVRF documents. The reviewed 22H2 Home/Pro end
+date comes from Microsoft's explicit end-of-updates announcement. These facts do
+not establish KB applicability, Hotpatch/ESU entitlement, current patch compliance
+or lifecycle dates for other editions. References are in the
+[pilot guide](user-guide/windows11-pilot.md) and
+[Windows evidence contract](integrations/windows-cves.md).
+
+Ten synthetic pilot tests pass on SQLite and PostgreSQL 17. They cover ARM64/x64
+product separation, missing UBR, contradictory releases/kernels, Server 2025 and
+LTSC rejection, edition-specific lifecycle boundaries, real signed admission,
+stable/changed fingerprints, missing/failed WUA evidence, stale/revoked devices,
+cross-company/source/report links, modified projections/body bytes and active
+actor enforcement. The wider targeted PostgreSQL run passed 45 tests before the
+last legacy-report omission case was added. Frozen dependencies, migrations,
+Django checks/migration consistency, Ruff lint/format and whitespace checks pass.
+No new migration, runtime dependency or client rebuild is required for this
+command. No operational inventory, screenshot identifiers or production actions
+are included. Native ARM64 collection, task execution and end-to-end update
+acceptance on the intended machine remain pending; synthetic tests cannot prove
+those operations or substitute for them on every Windows architecture/policy.

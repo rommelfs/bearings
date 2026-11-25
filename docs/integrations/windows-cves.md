@@ -132,3 +132,19 @@ The Windows Update increment now supplies cached KB/update identities, pending s
 Manufacturer URLs are bounded to 2,048 characters without controls. Explanations contain only the evaluated version-rule fields and at most ten matching rule samples, with the total match count. Arbitrary extra CNA fields cannot be amplified into every installation review; the full original advisory remains retained separately.
 
 Rule v3 rejects explicitly malformed interval bounds (including empty/zero values) instead of treating them as absent; exact-version rules do not need an ordering type. Unknown extra fields are retained only in the original advisory, not in repeated explanations.
+
+
+## Windows 11 pilot diagnostics
+
+A separate read-only `windows_pilot` management command correlates one exact
+applied signed observation with reviewed MSRC ProductTree IDs and explicit
+lifecycle/update-evidence gaps. It does not change this evaluator or automatically
+enroll OS watches. See the [pilot guide](../user-guide/windows11-pilot.md).
+
+ProductID references reviewed on 2026-11-25:
+[2024-October MSRC CVRF](https://api.msrc.microsoft.com/cvrf/v3.0/cvrf/2024-Oct)
+(22H2 ARM64 12085 / x64 12086) and
+[2026-November MSRC CVRF](https://api.msrc.microsoft.com/cvrf/v3.0/cvrf/2026-Nov)
+(24H2 ARM64 12389 / x64 12390; 25H2 ARM64 20437 / x64 20438).
+Only product identities are reused; monthly CPE version fields do not establish
+observed versions, fix thresholds, update lines or support entitlement.

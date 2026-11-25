@@ -2,6 +2,10 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Windows 11 evidence pilot — 2026-11-25
+
+Start with a scoped read-only Windows 11 ARM64 diagnostic export, finite reviewed MSRC ProductIDs, an edition-specific historical lifecycle rule and exact applied-report/WUA evidence. The export remains separate from CVE compliance and contains no hostnames or credentials. Synthetic rule/protocol/ownership tests are reusable across products; native ARM64 task/WUA/updater acceptance and additional servicing/lifecycle rules remain pending. See [pilot guide](user-guide/windows11-pilot.md). No production actions or automatic merge.
+
 ## Software accounting and explained CVE coverage — 2026-11-25
 
 Implemented a scoped, paginated installation ledger with mutually exclusive inventory categories and separate unlinked/excluded client observations. Overview promotes that workflow, names Linux-only machine metrics and exposes gaps outside diagnostics. Current application proof requires the same watch/source, latest complete snapshot, immutable revision and unchanged input/version; historical inputs remain visible without a current verdict. Bounded examples preserve evaluated versions, rule identities and human decisions; foreign/restricted data is withheld. Existing package currentness is reused without claiming full application coverage. Synthetic PostgreSQL and desktop/mobile offline browser validation; no new vendor rules, production actions or automatic merge. See [user guide](user-guide/software-coverage.md).
