@@ -26,6 +26,7 @@ from .presentation import decorate_finding, severity_first, vulnerability_summar
 from .overview_queries import bounded_list, read_snapshot
 from .queue_context import return_url
 from .review_cases import case_identity, case_page, evidence_page
+from .review_update_preview import add_case_fix_previews
 from .review_work import RECHECK_DISCOVERY, scoped_work
 
 
@@ -177,12 +178,20 @@ def intelligence(request, slug):
         page = Paginator([], 25).get_page(1)
     elif view != "cve":
         work = scoped_work(findings, assessment_scope)
-        page = grouped_page(work, view, request.GET.get("page"), filters, request.get_full_path())
+        page = grouped_page(
+            work,
+            view,
+            request.GET.get("page"),
+            filters,
+            request.get_full_path(),
+            show_affected=assessment_scope == "attention",
+        )
     else:
-        work = scoped_work(findings, assessment_scope).annotate(
+        work = case_identity(scoped_work(findings, assessment_scope)).annotate(
             discovery_recheck=Case(When(RECHECK_DISCOVERY, then=Value(True)), default=Value(False))
         )
         page, _, _, _ = case_page(work, request.GET.get("page"), "all", "", prioritize_assets=False)
+        add_case_fix_previews(work, page)
         for finding in page:
             finding.source_summary = vulnerability_summary(finding.record.payload)
             finding.severity_key = finding.source_summary["severity"].lower()

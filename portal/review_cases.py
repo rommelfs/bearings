@@ -7,6 +7,7 @@ from django.db.models import Case, CharField, F, Value, When
 from django.db.models.functions import Cast, Least, Upper
 from .presentation import SEVERITY_ORDER, severity_first, severity_rank
 from .review_queue import BUCKETS, classified
+from .review_update_preview import FIX_FEED, FIX_PROOF, fix_targets
 
 CVE_ID = r"^CVE-[0-9]{4}-[0-9]{4,}$"
 BUCKET_ORDER = ("action", "unresolved", "pending", "cleared")
@@ -224,6 +225,8 @@ def evidence_page(visible, finding, number):
         "distro_match__queue_proof__verdict",
         "analyst_applicability",
         "status",
+        FIX_PROOF,
+        FIX_FEED,
     )
     page = Paginator(evidence, 25).get_page(number)
     labels = dict(BUCKETS)
@@ -239,6 +242,8 @@ def evidence_page(visible, finding, number):
             row["result"] = verdicts.get(
                 row["distro_match__queue_proof__verdict"], "Vendor clarification needed"
             )
+            if row["distro_match__queue_proof__verdict"] == "affected":
+                row["update_targets"] = fix_targets(row)
         elif row["distro_match__pk"]:
             row["result"] = "Current package evaluation pending"
         else:

@@ -8,6 +8,7 @@ from .distro_fix_evidence import HasVendorFix
 from .presentation import ACTIVE_REVIEWS
 from .review_queue import classified
 from .review_focus import machine_coverage
+from .review_update_preview import asset_fix_preview
 from .review_work import (
     CONFLICTING,
     CURRENT_AFFECTED,
@@ -62,6 +63,7 @@ def attention_for(user, asset, device, findings, windows_update):
         updates = {
             "label": f"{count} package" + ("s" if count != 1 else "") + " with documented vendor fixes",
             "detail": "Repository update availability has not been checked.",
+            "targets": asset_fix_preview(findings.filter(distro_match__component__device_id=device.pk)),
             "attention": True,
         }
     else:

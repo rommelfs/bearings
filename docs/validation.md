@@ -2734,3 +2734,19 @@ with 10,000 retained cleared proofs produced HTTP 200 with zero results in
 Intelligence, active issues and grouped actions in 0.40, 0.24 and 0.32 seconds
 respectively. Reopened evidence with a saved closed workflow is covered by
 the existing continuous-discovery acceptance tests.
+
+## Known update versions and grouped CVE counts
+
+Current distribution evidence shows an explicit vendor fixed version, checked
+version and any version-bound Ubuntu ESM channel in scoped asset and CVE
+summaries. Tests use the retained Canonical pip fixture and verify that stale
+inputs remove the preview and move the CVE from affected to unverified. The
+Windows signed-report fixture verifies a pending KB in the update summary,
+HTML escaping and suppression of the current preview for historical receipts.
+Linux host repository candidates remain unknown.
+
+Chromium on local PostgreSQL verified the machine counts, link to affected CVEs
+only and the fixed-version preview. A fixture with one affected CVE and 1,655
+unverified CVEs measured 0.258 s by machine and 0.108 s by software. Both views
+returned the same disjoint counts and an affected maximum CVSS of 8.9 despite
+unverified scores of 10.0. No production host or live update source was used.

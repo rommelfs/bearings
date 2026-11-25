@@ -9,11 +9,14 @@ from django.db.models.functions import Coalesce
 
 from .models import DistroMatchRevision, IssueHistory, IssueRevision
 from .presentation import ACTIVE_REVIEWS
-from .review_cases import case_identity
+from .review_cases import CVE_ID, case_identity
 from .review_queue import classified
 
 # A current affected-version match still needs attention after a workflow closure.
 CURRENT_AFFECTED = Q(package_current=True, distro_match__queue_proof__verdict="affected")
+AFFECTED_CVE = Q(record__external_id__iregex=CVE_ID) & (
+    CURRENT_AFFECTED | Q(analyst_applicability="affected", status__in=[*ACTIVE_REVIEWS, "accepted_risk"])
+)
 OPEN_WORK = (
     Q(status__in=[*ACTIVE_REVIEWS, "accepted_risk"])
     | CURRENT_AFFECTED
@@ -28,6 +31,7 @@ RECHECK_DISCOVERY = Q(discovery__review_required=True, analyst_applicability="no
 NEEDS_ATTENTION = (OPEN_WORK & ~Q(queue_bucket="cleared")) | CONFLICTING | RECHECK_DISCOVERY
 REVIEW_SCOPES = (
     ("attention", "Needs attention"),
+    ("affected", "Affected CVEs only"),
     ("action", "Version matches and reviews"),
     ("unresolved", "Vendor clarification"),
     ("pending", "Awaiting evaluation"),
@@ -42,6 +46,8 @@ def scoped_work(findings, scope):
     findings = classified(findings)
     if scope == "attention":
         return findings.filter(NEEDS_ATTENTION)
+    if scope == "affected":
+        return findings.filter(NEEDS_ATTENTION, AFFECTED_CVE)
     if scope == "cleared":
         return findings.filter(queue_bucket=scope).exclude(CONFLICTING | RECHECK_DISCOVERY)
     if scope == "action":

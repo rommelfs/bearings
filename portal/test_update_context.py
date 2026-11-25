@@ -149,6 +149,18 @@ class UbuntuUpdateTests(DistroTests):
             "bundled copy of urllib3",
         ]:
             self.assertContains(response, text)
+        asset_url = self.url("asset", pk=self.device.asset_id)
+        intelligence_url = self.url("intelligence")
+        evidence_url = intelligence_url + f"?case={finding.pk}"
+        for url in (asset_url, intelligence_url, evidence_url):
+            preview = self.client.get(url)
+            self.assertContains(preview, "Vendor-listed fix:")
+            self.assertContains(preview, "Ubuntu ESM Apps / Ubuntu Pro")
+            self.assertContains(preview, "24.0+dfsg-1ubuntu1.3+esm3")
+            self.assertContains(preview, "Repository update availability has not been checked.")
+        machine = self.client.get(intelligence_url, {"view": "machine"}).context["page"][0]
+        self.assertEqual((machine["affected_cves"], machine["unverified_cves"]), (1, 0))
+        self.assertEqual(float(machine["max_cvss"]), 8.9)
         self.assertEqual(response.context["severity_counts"][2]["count"], 1)
         self.assertEqual(response.context["severity_counts"][1]["count"], 0)
         save_browser_evidence("queue-pip-esm", response)
@@ -171,6 +183,12 @@ class UbuntuUpdateTests(DistroTests):
         self.assertEqual(self.client.get("/circl/findings/?view=records").context["page"].paginator.count, 0)
         self.assertContains(stale, "Awaiting current package evaluation")
         self.assertNotContains(stale, "Vendor-listed fix")
+        self.login()
+        for url in (asset_url, intelligence_url, evidence_url):
+            self.assertNotContains(self.client.get(url), "Vendor-listed fix:")
+        machine = self.client.get(intelligence_url, {"view": "machine"}).context["page"][0]
+        self.assertEqual((machine["affected_cves"], machine["unverified_cves"]), (0, 1))
+        self.assertIsNone(machine["max_cvss"])
         component.version = old_version
         component.save(update_fields=["version"])
         self.login()

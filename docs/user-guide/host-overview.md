@@ -13,6 +13,14 @@ Organization pages now start with **Which hosts need attention?**, using live, a
 - Last active report time is visible, with the exact configured display timezone available in the time label/tooltip. Missing/stale reports remain explicit. No unverified last-known OS becomes a confirmed current evaluation.
 - Asset and review evidence links retain the original validated host search/filter/sort/page destination. External/nested return URLs remain rejected. Every destination rechecks authorization; restricted evidence is omitted from counts, priority and fixes.
 
+In organization Intelligence, the default **Needs attention** tables group the CVEs by machine or software. **Affected CVEs** have either a current distribution version proof or a saved affected assessment in an open or risk-accepted workflow. **CVEs to verify** include source associations and unresolved or stale evidence without either of those signals. Each CVE is counted once per row and an affected result takes precedence over an unresolved record for the same CVE. The highest CVSS in these tables uses affected evidence only. Select the affected count to open the corresponding CVE cards. Explicit retained-evidence filters show the selected CVE count and its source scores.
+
+## Which update addresses a finding?
+
+Open **See package versions** in the host overview or **Updates** on the asset page. When current Linux evidence contains an explicit vendor fix, Bearings shows the package, the evaluated version, the documented fixed version and the matching Ubuntu ESM channel if the vendor names one. The same information is visible on the organization CVE cards and in the underlying case evidence. The machine and software views link to their filtered CVE cards. The compact summaries show up to three targets; the individual CVE record contains the full vendor comparison and applicable read-only checks. Availability in the host's configured repositories and subscriptions is unknown.
+
+For Windows, **Updates** shows up to three pending titles and KB identifiers reported by the current local Windows Update cache. Hidden entries are labelled. Older observations are labelled as historical and remain in the update evidence. The cache does not establish a link between a KB and a specific CVE.
+
 ## Reading style
 
 The approved **stronger text + reading font** is the default across the application. Body/control/table text uses the local system font stack, dark foreground `#15232d`, secondary text `#354954` and stronger text links `#17445a`. Headings and branding retain bundled Raleway. Semantic priority/status colors stay separate. A stylesheet version change refreshes cached CSS; no external font service is used.

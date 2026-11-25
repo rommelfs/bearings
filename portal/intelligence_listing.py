@@ -6,7 +6,7 @@ from django.db.models import Count, Max, Q
 
 from .models import Finding
 from .review_cases import CVE_ID, case_identity
-from .review_work import REVIEW_SCOPES
+from .review_work import AFFECTED_CVE, REVIEW_SCOPES
 
 VIEWS = {"cve": "By CVE", "machine": "By machine", "software": "By software"}
 UBUNTU_PRIORITIES = ("negligible", "low", "medium", "high", "critical")
@@ -53,30 +53,44 @@ class IntelligenceFilters(forms.Form):
         return findings
 
 
-def grouped_page(findings, view, number, filters, return_to):
+def grouped_page(findings, view, number, filters, return_to, *, show_affected):
     dimension, related = (
         ("installation__asset", "installation__product")
         if view == "machine"
         else ("installation__product", "installation__asset")
     )
     key, name = dimension + "_id", dimension + "__name"
+    cve = Q(record__external_id__iregex=CVE_ID)
+    scores = (
+        {
+            "affected_cves": Count("case_identifier", distinct=True, filter=AFFECTED_CVE),
+            "max_cvss": Max("record__source_cvss", filter=AFFECTED_CVE),
+        }
+        if show_affected
+        else {"max_cvss": Max("record__source_cvss")}
+    )
     groups = (
         case_identity(findings)
         .values(key, name)
         .annotate(
-            cves=Count("case_identifier", distinct=True, filter=Q(record__external_id__iregex=CVE_ID)),
+            cves=Count("case_identifier", distinct=True, filter=cve),
             related_count=Count(related, distinct=True),
-            max_cvss=Max("record__source_cvss"),
+            **scores,
         )
         .order_by(name, key)
     )
     page = Paginator(groups, 25).get_page(number)
     rows = list(page)
     for row in rows:
+        if show_affected:
+            row["unverified_cves"] = row["cves"] - row["affected_cves"]
         params = filters.copy()
         params["view"] = "cve"
         params["asset" if view == "machine" else "product"] = row[key]
         params["return_to"] = return_to
         row.update(name=row[name], url="?" + params.urlencode())
+        if row.get("affected_cves"):
+            params["state"] = "affected"
+            row["affected_url"] = "?" + params.urlencode()
     page.object_list = rows
     return page

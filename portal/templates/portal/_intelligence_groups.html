@@ -1,16 +1,21 @@
 {% if page.object_list %}
+{% if assessment_scope == "attention" %}
+<p>Affected CVEs have a current affected-version match or an open analyst assessment of affected. CVEs to verify have no such evidence in this selection. Each CVE counts once per row.</p>
+{% endif %}
 <div class="table-scroll">
   <table>
     <thead><tr>
       <th scope="col">{% if view == "machine" %}Machine{% else %}Software{% endif %}</th>
-      <th scope="col">Distinct CVEs</th>
+      {% if assessment_scope == "attention" %}<th scope="col">Affected CVEs</th><th scope="col">CVEs to verify</th>
+      {% else %}<th scope="col">CVEs in this selection</th>{% endif %}
       <th scope="col">{% if view == "machine" %}Software products{% else %}Machines{% endif %}</th>
-      <th scope="col">Highest CVSS</th>
+      <th scope="col">{% if assessment_scope == "attention" %}Highest affected CVSS{% else %}Highest source CVSS{% endif %}</th>
       <th scope="col">Details</th>
     </tr></thead>
     <tbody>{% for group in page %}<tr>
       <th scope="row"><a href="{{ group.url }}">{{ group.name }}</a></th>
-      <td>{{ group.cves }}</td>
+      {% if assessment_scope == "attention" %}<td>{% if group.affected_url %}<a href="{{ group.affected_url }}" aria-label="View {{ group.affected_cves }} affected CVEs for {{ group.name }}">{{ group.affected_cves }}</a>{% else %}0{% endif %}</td><td>{{ group.unverified_cves }}</td>
+      {% else %}<td>{{ group.cves }}</td>{% endif %}
       <td>{{ group.related_count }}</td>
       <td>{% if group.max_cvss != None %}{{ group.max_cvss|floatformat:"1u" }}{% else %}—{% endif %}</td>
       <td><a href="{{ group.url }}">View reviews →</a></td>

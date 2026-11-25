@@ -154,7 +154,12 @@ def backlog_summary(receipt):
         )
         if evidence["status"] == "partial":
             detail += " The result is partial."
-        return {"label": label, "detail": detail, "attention": True}
+        return {
+            "label": label,
+            "detail": detail,
+            "attention": True,
+            "entries": evidence["updates"][:3] if not historical else [],
+        }
     if current and not historical and pending["status"] == "ok":
         return {
             "label": "No pending entries in the Windows cache",

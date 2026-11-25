@@ -1,10 +1,17 @@
 {% if asset_attention %}
 <section class="asset-attention" aria-label="Updates and vulnerabilities">
-  <article class="asset-attention-card{% if asset_attention.updates.attention %} needs-attention{% endif %}">
+  <article id="updates" class="asset-attention-card{% if asset_attention.updates.attention %} needs-attention{% endif %}">
     <h2>Updates</h2>
     <p class="asset-attention-value">{{ asset_attention.updates.label }}</p>
+    {% if asset_attention.updates.targets %}
+      {% include "portal/_update_targets.html" with targets=asset_attention.updates.targets only %}
+    {% endif %}
+    {% if asset_attention.updates.entries %}
+      <ul>{% for update in asset_attention.updates.entries %}<li>{{ update.title|default:"Untitled update" }}{% for kb in update.kbs %} · <a href="https://support.microsoft.com/help/{{ kb|cut:'KB' }}">{{ kb }}</a>{% endfor %}{% if update.hidden %} · hidden in Windows Update{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
     <p>{{ asset_attention.updates.detail }}</p>
-    <a href="{{ asset_attention.updates_href }}">Review update evidence →</a>
+    {% if asset_attention.updates.targets %}<a href="{% url 'intelligence' org.slug %}?asset={{ asset.pk }}">Review package fixes by CVE →</a>
+    {% else %}<a href="{{ asset_attention.updates_href }}">Review update evidence →</a>{% endif %}
   </article>
   <article class="asset-attention-card{% if asset_attention.has_reviews %} needs-attention{% elif asset_attention.clear %} assessment-clear{% endif %}">
     <h2>Vulnerabilities</h2>

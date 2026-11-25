@@ -826,3 +826,9 @@ rollback; retain the existing overview/list query budgets and evidence checks.
 ## Host-first organization view — 2026-11-24
 
 Implemented the approved host overview with stronger reading text, scoped current version/issue priorities, application-discovery/evaluation gaps, exact vendor-fix counts, freshness, search/sort/page controls and expandable retained administration/inventory. Preserve original host context through asset/evidence navigation. Keep missing/stale proof and repository update availability explicit. Bounded queries/hydration and next-request analyst revocation are tested; no migrations, writes or operational deployments. Actual repository candidate/update/entitlement collection remains planned. See [host overview and update steps](user-guide/host-overview.md).
+
+## Show the update alongside the finding — 2026-11-25
+
+Implemented bounded, scoped fix-version previews on asset and CVE views with the vendor-documented channel and checked version. Current Windows Update cache entries supply pending KB titles and links directly in the asset summary. Stale evidence remains accessible with its age and repository availability stays explicit. See [host overview](user-guide/host-overview.md#which-update-addresses-a-finding).
+
+The default machine and software tables now split unique CVEs with affected evidence from CVEs still to verify. The highest CVSS in these tables comes from affected evidence only.

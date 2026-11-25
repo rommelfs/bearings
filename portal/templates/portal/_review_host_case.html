@@ -14,6 +14,10 @@
     {% for name, state in finding.software_preview %}{{ name }}{% if state == 'cleared' and not finding.evidence_conflict and not finding.discovery_recheck %} (fixed or not affected){% elif state == 'pending' %} (awaiting evaluation){% elif state == 'unresolved' %} (vendor clarification needed){% endif %}{% if not forloop.last %}, {% endif %}{% empty %}{{ finding.installation.product.name }}{% endfor %}
     {% if finding.more_software %} · {{ finding.more_software }} more{% endif %}
   </p>
+  {% if finding.update_preview %}
+  {% include "portal/_update_targets.html" with targets=finding.update_preview only %}
+  <p class="muted">Repository update availability has not been checked.</p>
+  {% endif %}
   <div class="review-next">
     <div>
       {% if finding.mixed_buckets %}<span class="badge warning">Different review categories</span>{% endif %}
