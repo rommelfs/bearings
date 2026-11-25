@@ -13,8 +13,8 @@ from .presentation import SEVERITY_ORDER
 
 
 def page_for(user, org_ids, number):
-    machines = posture(user, org_ids)["machines"]
-    reviews = classified(findings_for(user)).filter(installation__asset_id=OuterRef("pk"))
+    machines = posture(user, org_ids, include_totals=False)["machines"]
+    reviews = findings_for(user).filter(installation__asset_id=OuterRef("pk"))
     operational = (
         visible_issues(user)
         .filter(active_filter(), asset_id=OuterRef("pk"))

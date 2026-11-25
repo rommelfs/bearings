@@ -5,13 +5,14 @@ from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from .access import audit, is_analyst, organizations_for
+from .access import analyst_read_snapshot, audit_organizations, organizations_for
 from .models import Asset, Membership
 from .overview import OverviewEvidence, company_states, priority_assets
 from .overview_queries import overview_queries
 
 
 @login_required
+@analyst_read_snapshot
 @never_cache
 def overview(request):
     started = perf_counter()
@@ -44,19 +45,7 @@ def _overview_response(request):
     page.object_list = list(
         page.object_list.select_related("inventory_source__instance", "inventory_review_policy")
     )
-    if request.user.is_superuser:
-        audited_orgs = page.object_list
-    elif is_analyst(request.user):
-        member_ids = set(
-            Membership.objects.filter(user=request.user, organization__in=page.object_list).values_list(
-                "organization_id", flat=True
-            )
-        )
-        audited_orgs = [org for org in page if org.pk not in member_ids]
-    else:
-        audited_orgs = []
-    for org in audited_orgs:
-        audit(request.user, org, "operator.access")
+    audit_organizations(request.user, page.object_list)
     scoped = perf_counter()
     evidence = OverviewEvidence.for_page(request.user, page.object_list)
     companies = company_states(request.user, page.object_list, evidence=evidence)

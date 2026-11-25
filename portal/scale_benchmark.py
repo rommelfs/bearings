@@ -478,7 +478,7 @@ def plans(profile):
 
 def endpoints(org, asset):
     return [
-        ("company_overview", "owner", "get", "/", None),
+        ("company_overview", "owner", "get", "/infrastructure/", None),
         ("company_inventory", "owner", "get", "/inventory/", None),
         ("company_detail", "owner", "get", f"/organizations/{org.slug}/", None),
         ("company_asset", "owner", "get", f"/organizations/{org.slug}/assets/{asset.pk}/", None),
@@ -493,7 +493,7 @@ def endpoints(org, asset):
         ],
         ("national_map", "analyst", "get", "/circl/map/data/", None),
         ("national_findings", "analyst", "get", "/circl/findings/", None),
-        ("national_company_search", "analyst", "get", "/?q=Scale+Company+123", None),
+        ("national_company_search", "analyst", "get", "/infrastructure/?q=Scale+Company+000", None),
         ("national_inventory", "analyst", "get", "/inventory/", None),
         ("national_issues", "analyst", "get", "/issues/", None),
         ("national_reviews", "analyst", "get", "/reviews/", None),
@@ -543,7 +543,7 @@ def measure(options):
     from django.core.management import call_command
     from django.core.wsgi import get_wsgi_application
     from django.test import Client
-    from django.test.utils import setup_test_environment
+    from django.test.utils import setup_test_environment, teardown_test_environment
     from django.conf import settings
     from django.db import close_old_connections
     from unittest.mock import patch
@@ -672,7 +672,7 @@ def measure(options):
             "exact_asset_count",
             m.Asset.objects.count() == manifest["companies"] * manifest["assets_per_company"],
         )
-        check("anonymous_login_required", Client().get("/").status_code == 302)
+        check("anonymous_login_required", Client().get("/infrastructure/").status_code == 302)
         check("one_company_per_owner", m.Membership.objects.filter(user=owner).count() == 1)
         check(
             "foreign_asset_denied",
@@ -739,33 +739,32 @@ def measure(options):
         report["workflows"].append(
             {"name": "company_asset_write_rolled_back", "ms": round((perf_counter() - started) * 1000, 1)}
         )
-        # Real bounded reminder scheduling and local file mail, without exposing link/token bodies.
+        # Verify the reminder against an isolated file sink and keep repeat runs on the same fixture.
         import io
 
-        for command, args in [("process_jobs", {}), ("remind_inventory", {"limit": 10})]:
-            sent_before = m.InventoryReviewDelivery.objects.filter(status="sent").count()
-            messages_before = file_message_count(settings.EMAIL_FILE_PATH)
-            started = perf_counter()
-            profile = RequestProfile(seconds=20, queries=3000)
-            try:
-                with connection.execute_wrapper(profile):
-                    call_command(command, stdout=io.StringIO(), **args)
-                result = "ok"
-            except Exception as error:
-                result = type(error).__name__
-            if command == "remind_inventory":
-                sent = m.InventoryReviewDelivery.objects.filter(status="sent").count() - sent_before
-                messages = file_message_count(settings.EMAIL_FILE_PATH) - messages_before
-                check("local_review_reminder_delivery", sent > 0 and sent == messages)
-            report["workflows"].append(
-                {
-                    "name": command,
-                    "ms": round((perf_counter() - started) * 1000, 1),
-                    "queries": profile.count,
-                    "result": result,
-                }
-            )
+        started = perf_counter()
+        profile = RequestProfile(seconds=20, queries=3000)
+        try:
+            with connection.execute_wrapper(profile):
+                call_command("process_jobs", stdout=io.StringIO())
+            result = "ok"
+        except Exception as error:
+            result = type(error).__name__
+        report["workflows"].append(
+            {
+                "name": "process_jobs",
+                "ms": round((perf_counter() - started) * 1000, 1),
+                "queries": profile.count,
+                "result": result,
+            }
+        )
+        reminder = reminder_probe()
+        check("local_review_reminder_delivery", reminder.pop("passed"))
+        report["workflows"].append(reminder)
         save()
+
+        # Remove Django test-only template signal instrumentation before HTTP timing.
+        teardown_test_environment()
 
         # Actual loopback HTTP, authenticated sessions and full middleware/rendering.
         # This is a diagnostic threaded WSGI server, not a production web-server claim.
@@ -878,6 +877,7 @@ def measure(options):
                 "ms": round((perf_counter() - started) * 1000, 1),
                 "queries": int(response.headers.get("X-Scale-Queries", "0")),
                 "guard": response.headers.get("X-Scale-Guard"),
+                "server_timing": response.headers.get("Server-Timing", ""),
             }
 
         churn_stop = threading.Event()
@@ -983,7 +983,7 @@ def measure(options):
             from django.test import RequestFactory
             from django.contrib.messages.storage.fallback import FallbackStorage
             from django.middleware.csrf import CsrfViewMiddleware
-            from .views import create_asset
+            from .inventory_edit_views import create_asset
 
             request = RequestFactory().post(
                 f"/organizations/{org.slug}/assets/new/",
@@ -1092,6 +1092,47 @@ def measure(options):
         ),
         flush=True,
     )
+
+
+def reminder_probe():
+    """Test actual delivery without consuming the retained synthetic schedule."""
+    import io
+    import tempfile
+    from django.core.management import call_command
+    from django.test import override_settings
+
+    with tempfile.TemporaryDirectory(prefix="scale-reminder-", dir=OUTPUT) as mail:
+        with transaction.atomic(), override_settings(EMAIL_FILE_PATH=Path(mail)):
+            policies = list(
+                m.InventoryReviewPolicy.objects.filter(email_enabled=True)
+                .order_by("pk")
+                .values_list("pk", flat=True)[:10]
+            )
+            # Every policy here belongs to the guarded synthetic fixture. The
+            # rollback restores its prior schedule and delivery history.
+            m.InventoryReviewDelivery.objects.filter(policy_id__in=policies).delete()
+            m.InventoryReviewPolicy.objects.filter(pk__in=policies).update(
+                next_due=timezone.localdate(), next_reminder_at=timezone.now() - timedelta(days=365)
+            )
+            started = perf_counter()
+            profile = RequestProfile(seconds=20, queries=3000)
+            result = "ok"
+            try:
+                with connection.execute_wrapper(profile):
+                    call_command("remind_inventory", limit=10, stdout=io.StringIO())
+            except Exception as error:
+                result = type(error).__name__
+            sent = m.InventoryReviewDelivery.objects.filter(policy_id__in=policies, status="sent").count()
+            passed = result == "ok" and sent > 0 and sent == file_message_count(mail)
+            report = {
+                "name": "remind_inventory",
+                "ms": round((perf_counter() - started) * 1000, 1),
+                "queries": profile.count,
+                "result": result,
+                "passed": passed,
+            }
+            transaction.set_rollback(True)
+    return report
 
 
 def measure_workflows(options):

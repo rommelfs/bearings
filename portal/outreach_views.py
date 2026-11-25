@@ -2,10 +2,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import redirect, render
-from .access import audit, can_review_contact, require
+from .access import audit, can_review_contact, require, organization
 from .models import OutreachPolicy
 from .outreach import PolicyForm
-from .views import organization
 
 
 @login_required

@@ -8,7 +8,20 @@ from datetime import timedelta
 from urllib.parse import urlencode
 from django.conf import settings
 from django.core import signing
-from django.db.models import Case, CharField, Count, Exists, F, Min, OuterRef, Q, Subquery, Value, When
+from django.db.models import (
+    Case,
+    CharField,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    Min,
+    OuterRef,
+    Q,
+    Subquery,
+    Value,
+    When,
+)
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast, Coalesce, Concat, Lower, Substr
 from django.urls import reverse
@@ -17,7 +30,7 @@ from .access import organizations_for
 from .models import AgentDevice, Asset, DistroFeed
 from .query_integrity import consistent
 from . import distro_cves, distro_results, distro_sources
-from .review_queue import classified
+from .review_queue import bucket_expression, classified
 
 MACHINE_KINDS = ["server", "desktop", "laptop", "appliance", "vm"]
 CASE_FIELDS = ("organization_id", "family", "platform", "manager", "case_kind")
@@ -67,63 +80,29 @@ def posture(user, org_ids=None, *, shared_only=False, include_totals=True):
     machines = Asset.objects.filter(organization__in=orgs, lifecycle="active", kind__in=MACHINE_KINDS).filter(
         consistent(source__organization_id=F("organization_id"))
     )
-    reviews = classified(findings_for(user)).filter(installation__asset_id=OuterRef("pk"))
+    reviews = findings_for(user).filter(installation__asset_id=OuterRef("pk"))
     if shared_only:
         reviews = reviews.filter(record__shareable=True)
-    automatic = reviews.filter(package_current=True, distro_match__queue_proof__verdict="affected")
-    devices = AgentDevice.objects.filter(
-        asset_id=OuterRef("pk"),
-        source_id=OuterRef("source_id"),
-        organization_id=OuterRef("organization_id"),
-        enabled=True,
-        expires_at__gt=timezone.now(),
-        last_observed_at__gte=timezone.now() - timedelta(hours=12),
-        last_sequence=F("applied_sequence"),
-        distro_requested=False,
-        distro_checked_at__gte=F("last_observed_at"),
-        distro_summary__state__in=["ready", "partial"],
-        distro_summary__evaluator_version=distro_results.VERSION,
+    manual = Exists(
+        reviews.filter(
+            distro_match__isnull=True, status__in=["new", "under_review", "confirmed", "accepted_risk"]
+        ).exclude(analyst_applicability="not_affected")
     )
-    feed_scope = Q(pk__in=[])
-    for feed in DistroFeed.objects.filter(enabled=True, key__in=distro_sources.supported_keys()):
-        if distro_cves.feed_state(feed) != "ready":
-            continue
-        distro, release = feed.key.split(":")
-        versions = Q(os__version=release)
-        if distro != "ubuntu":
-            versions |= Q(os__version__startswith=release + ".")
-        feed_scope |= (
-            Q(os__id=distro, distro_summary__feed=feed.key, distro_summary__generation=str(feed.generation))
-            & versions
+    feed_scope = _ready_feed_scope()
+    if feed_scope:
+        machines = machines.annotate(manual=manual, **_evaluated_machine_status(reviews, feed_scope))
+    else:
+        machines = machines.annotate(
+            manual=manual,
+            source_priority=Value(None, output_field=IntegerField()),
+            evaluated=Value(False),
+            partial=Value(False),
+            version_match=Value(False),
+            critical=Value(False),
+            high=Value(False),
         )
-    devices = devices.filter(feed_scope) if settings.DISTRO_CVE_ENABLED else devices.none()
-    from .presentation import SEVERITY_ORDER
-
-    priority = (
-        automatic.annotate(
-            rank=Case(
-                *[When(record__source_severity=key, then=Value(i)) for i, key in enumerate(SEVERITY_ORDER)],
-                default=Value(len(SEVERITY_ORDER)),
-            )
-        )
-        .order_by("rank")
-        .values("rank")[:1]
-    )
-    machines = machines.annotate(
-        source_priority=Case(When(Exists(devices), then=Subquery(priority)), default=Value(None)),
-        evaluated=Exists(devices),
-        partial=Exists(devices.filter(distro_summary__package_state="partial")),
-        version_match=Exists(automatic),
-        critical=Exists(automatic.filter(record__source_severity="critical")),
-        high=Exists(automatic.filter(record__source_severity="high")),
-        manual=Exists(
-            reviews.filter(
-                distro_match__isnull=True, status__in=["new", "under_review", "confirmed", "accepted_risk"]
-            ).exclude(analyst_applicability="not_affected")
-        ),
-    )
     if not include_totals:
-        return {"machines": machines}
+        return {"machines": machines, "evaluation_available": bool(feed_scope)}
     result = {}
     for row in (
         machines.order_by()
@@ -170,6 +149,64 @@ def posture(user, org_ids=None, *, shared_only=False, include_totals=True):
     }
 
 
+def _ready_feed_scope():
+    scope = Q()
+    if not settings.DISTRO_CVE_ENABLED:
+        return scope
+    for feed in DistroFeed.objects.filter(enabled=True, key__in=distro_sources.supported_keys()):
+        if distro_cves.feed_state(feed) != "ready":
+            continue
+        distro, release = feed.key.split(":")
+        versions = Q(os__version=release)
+        if distro != "ubuntu":
+            versions |= Q(os__version__startswith=release + ".")
+        scope |= (
+            Q(os__id=distro, distro_summary__feed=feed.key, distro_summary__generation=str(feed.generation))
+            & versions
+        )
+    return scope
+
+
+def _evaluated_machine_status(reviews, feed_scope):
+    from .presentation import SEVERITY_ORDER
+
+    devices = AgentDevice.objects.filter(
+        feed_scope,
+        asset_id=OuterRef("pk"),
+        source_id=OuterRef("source_id"),
+        organization_id=OuterRef("organization_id"),
+        enabled=True,
+        expires_at__gt=timezone.now(),
+        last_observed_at__gte=timezone.now() - timedelta(hours=12),
+        last_sequence=F("applied_sequence"),
+        distro_requested=False,
+        distro_checked_at__gte=F("last_observed_at"),
+        distro_summary__state__in=["ready", "partial"],
+        distro_summary__evaluator_version=distro_results.VERSION,
+    )
+    automatic = classified(reviews).filter(
+        package_current=True, distro_match__queue_proof__verdict="affected"
+    )
+    priority = (
+        automatic.annotate(
+            rank=Case(
+                *[When(record__source_severity=key, then=Value(i)) for i, key in enumerate(SEVERITY_ORDER)],
+                default=Value(len(SEVERITY_ORDER)),
+            )
+        )
+        .order_by("rank")
+        .values("rank")[:1]
+    )
+    return {
+        "source_priority": Case(When(Exists(devices), then=Subquery(priority)), default=Value(None)),
+        "evaluated": Exists(devices),
+        "partial": Exists(devices.filter(distro_summary__package_state="partial")),
+        "version_match": Exists(automatic),
+        "critical": Exists(automatic.filter(record__source_severity="critical")),
+        "high": Exists(automatic.filter(record__source_severity="high")),
+    }
+
+
 def case_scope(reviews):
     """Identity uses explicit source-package metadata, otherwise exact product identity."""
     return classified(reviews).annotate(
@@ -201,13 +238,7 @@ def case_scope(reviews):
             output_field=CharField(),
         ),
         manager=Coalesce("distro_match__component__manager", Value("application")),
-        case_kind=Case(
-            When(analyst_applicability="affected", then=Value("human")),
-            When(package_current=True, distro_match__queue_proof__verdict="affected", then=Value("version")),
-            When(queue_bucket="action", then=Value("manual")),
-            default=F("queue_bucket"),
-            output_field=CharField(),
-        ),
+        case_kind=bucket_expression(human="human", affected="version", manual="manual"),
     )
 
 

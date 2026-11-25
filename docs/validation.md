@@ -2558,3 +2558,20 @@ cross-compile for x64, ARM64 and x86. A native test covers ownership of
 the local files and detection of a changed registration. The actual Windows
 helper and Linux cleanup on a running systemd installation still require
 native acceptance. Acknowledgment records delivery of the request.
+
+### Portal modularization and scoped performance
+
+The portal views are separated by inventory, edits, contacts and scope,
+review, and organization API. Signed inventory-client routes moved to the
+agent API module. The full PostgreSQL 17 regression passed 1,094 of 1,099
+cases with five conditional skips, including real loopback Linux client
+HTTPS interoperability. Frozen dependency sync, migrations, Django checks,
+migration drift, Ruff and whitespace checks passed.
+
+With 48 and 48,000 synthetic assets, all functional checks and four-client
+HTTP probes passed. A sixteen-client loopback check using three Gunicorn
+workers and two threads per worker completed 420/420 requests at 922 ms p95
+while synthetic writes and snapshot refreshes ran. Chromium loaded three
+authenticated pages, all five national panels and the map. The threaded
+diagnostic completed without timeouts in the final repeat but remained slow
+at 5.53 s p95. See [methods, paired timings, and limits](performance/maintenance-20261125.md).

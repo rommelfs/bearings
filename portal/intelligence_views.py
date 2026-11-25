@@ -8,12 +8,11 @@ from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
-from .access import can_edit, can_operator_review, require, visible_findings
+from .access import can_edit, can_operator_review, require, visible_findings, organization
 from .connectors.http import ConnectorError, validate_base
 from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link, resolve_risk
 from .models import MOSPRisk, MOSPSource, RiskLink, Product, Installation
-from .views import organization
 from .presentation import decorate_finding, severity_first
 
 

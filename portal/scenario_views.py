@@ -4,13 +4,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
-from .access import require
+from .access import require, organization
 from .connectors.http import ConnectorError
 from .intelligence import digest, resolve_risk, link_resolved_risk
 from .issues import editable, link_risk, visible_issues
 from .models import AssetIssue
 from .scenario_suggestions import catalog_suggestions, draft_scenario
-from .views import organization
 
 
 class ConfirmationForm(forms.Form):

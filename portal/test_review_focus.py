@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 from .test_evaluation_presentation import EvaluationTests
 from .models import AgentDevice, Asset, Finding
-from .review_focus import posture, cases
+from .review_focus import posture, cases, case_scope
 from .test_package_verdicts import save_browser_evidence
 from .circl import findings_for, outstanding
 
@@ -102,6 +102,15 @@ class FocusTests(EvaluationTests):
         manual = self.client.get(reverse("organization-cases", args=[self.a.slug]), {"category": "manual"})
         self.assertContains(manual, "Check version applicability")
         self.assertEqual(manual.context["page"].paginator.count, 1)
+
+    def test_saved_not_affected_assessment_overrides_version_case_grouping(self):
+        self.cached()
+        self.prepare()
+        finding = Finding.objects.get()
+        assessment = case_scope(findings_for(self.reader)).values("case_kind", "queue_bucket")
+        self.assertEqual(assessment.get(pk=finding.pk)["case_kind"], "version")
+        Finding.objects.filter(pk=finding.pk).update(analyst_applicability="not_affected")
+        self.assertEqual(assessment.get(pk=finding.pk), {"case_kind": "cleared", "queue_bucket": "cleared"})
 
     def test_attention_defaults_to_machine_teasers_and_keeps_the_grouped_view(self):
         self.cached()

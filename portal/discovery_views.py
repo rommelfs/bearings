@@ -8,9 +8,16 @@ from django.db.models import Q, Count, F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .access import audit, can_edit, organizations_for, require, audit_organizations, visible_findings_for
+from .access import (
+    audit,
+    can_edit,
+    organizations_for,
+    require,
+    audit_organizations,
+    visible_findings_for,
+    organization,
+)
 from .models import Product, ProductWatch, Installation, Membership
-from .views import organization
 from .product_matching import suggestions
 from .connectors.vulnerability_lookup import browse_products
 from .connectors.http import ConnectorError

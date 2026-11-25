@@ -4,12 +4,11 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from .access import can_edit, can_operator_review, require
+from .access import can_edit, can_operator_review, require, organization
 from .business_risk import RiskAssessmentForm, assess, evidence
 from .intelligence import digest
 from .issues import visible_issues
 from .models import BusinessRiskRevision, Contact
-from .views import organization
 
 
 @login_required

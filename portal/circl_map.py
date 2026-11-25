@@ -1,6 +1,8 @@
 """Current scoped company locations and bounded problem markers, without external geography calls."""
 
 import heapq
+from bisect import insort
+from urllib.parse import quote, urlencode
 from django.db.models import Case, Count, IntegerField, Max, Value, When
 from django.urls import reverse
 from .access import organizations_for
@@ -63,9 +65,24 @@ def map_data(user):
     }
     unlocated = []
 
+    def priority(item):
+        return -item["rank"], -item["reviews"] - item["issues"], item["name"].casefold(), item["id"]
+
     def markers():
         for org in (
-            organizations_for(user).select_related("map_location").order_by("pk").iterator(chunk_size=500)
+            organizations_for(user)
+            .select_related("map_location")
+            .only(
+                "name",
+                "slug",
+                "postal_address",
+                "operator_visibility",
+                "map_location__latitude",
+                "map_location__longitude",
+                "map_location__address_digest",
+            )
+            .order_by("pk")
+            .iterator(chunk_size=500)
         ):
             summary["companies"] += 1
             location = company_location(org)
@@ -92,25 +109,26 @@ def map_data(user):
                 summary["unlocated"] += 1
                 summary["missing_address"] += int(not org.postal_address.strip())
                 summary["unlocated_with_problems"] += int(rank > 0)
-                unlocated.append(item)
-                unlocated.sort(
-                    key=lambda p: (-p["rank"], -p["reviews"] - p["issues"], p["name"].casefold(), p["id"])
-                )
-                del unlocated[50:]
+                insort(unlocated, item, key=priority)
+                if len(unlocated) > 50:
+                    unlocated.pop()
 
-    points = heapq.nsmallest(
-        MAX_POINTS,
-        markers(),
-        key=lambda p: (-p["rank"], -p["reviews"] - p["issues"], p["name"].casefold(), p["id"]),
+    points = heapq.nsmallest(MAX_POINTS, markers(), key=priority)
+    # Resolve constant route shapes once per response, including any script prefix.
+    slug_slot = "__bearings_map_company__"
+    company_prefix, _, company_suffix = reverse("organization", args=[slug_slot]).rpartition(slug_slot)
+    location_prefix, _, location_suffix = reverse("circl-map-location", args=[slug_slot]).rpartition(
+        slug_slot
     )
+    review_route = reverse("circl-findings")
+    issue_route = reverse("issues")
     for item in [*points, *unlocated]:
+        slug = quote(item["slug"], safe="")
         item.update(
-            company_url=reverse("organization", args=[item["slug"]]),
-            reviews_url=reverse("circl-findings") + "?view=records&organization=" + item["slug"],
-            issues_url=reverse("issues") + "?organization=" + item["slug"] + "&state=map-open",
-            location_url=reverse("circl-map-location", args=[item["slug"]])
-            if item.pop("location_editable")
-            else "",
+            company_url=f"{company_prefix}{slug}{company_suffix}",
+            reviews_url=f"{review_route}?" + urlencode({"view": "records", "organization": item["slug"]}),
+            issues_url=f"{issue_route}?" + urlencode({"organization": item["slug"], "state": "map-open"}),
+            location_url=f"{location_prefix}{slug}{location_suffix}" if item.pop("location_editable") else "",
         )
     summary["shown"] = len(points)
     summary["omitted"] = summary["located"] - len(points)

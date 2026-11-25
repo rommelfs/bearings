@@ -204,7 +204,7 @@ class AgentClientTests(TransactionTestCase):
                 original_redeem(*a, **kw)
                 raise RuntimeError("SYNTHETIC lost device receipt")
 
-            with patch("portal.agent_views.agents.redeem", side_effect=lose_enrollment):
+            with patch("portal.agent_api.agents.redeem", side_effect=lose_enrollment):
                 self.assertNotEqual(self.cli("bootstrap", *args, stdin=token, ok=False).returncode, 0)
             self.assertEqual(AgentDevice.objects.count(), 1)
             self.assertTrue((self.state / "bootstrap-grant.json").exists())
@@ -316,7 +316,7 @@ class AgentClientTests(TransactionTestCase):
     def test_lost_ack_keeps_outbox_and_retry_does_not_duplicate(self):
         self.enroll()
         with patch(
-            "portal.agent_views.agents.receipt", side_effect=RuntimeError("SYNTHETIC lost acknowledgment")
+            "portal.agent_api.agents.receipt", side_effect=RuntimeError("SYNTHETIC lost acknowledgment")
         ):
             result = self.cli("report", "--package", "bash", ok=False)
         self.assertNotEqual(result.returncode, 0)

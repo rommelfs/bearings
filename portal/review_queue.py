@@ -84,18 +84,18 @@ def classified(reviews):
             )
         )
     )
-    return reviews.annotate(package_current=Exists(current)).annotate(
-        queue_bucket=Case(
-            When(analyst_applicability="affected", then=Value("action")),
-            When(analyst_applicability="not_affected", then=Value("cleared")),
-            When(distro_match__isnull=True, then=Value("action")),
-            When(package_current=False, then=Value("pending")),
-            When(distro_match__queue_proof__verdict="affected", then=Value("action")),
-            When(
-                distro_match__queue_proof__verdict__in=["fixed", "not_matched"],
-                then=Value("cleared"),
-            ),
-            default=Value("unresolved"),
-            output_field=CharField(),
-        )
+    return reviews.annotate(package_current=Exists(current)).annotate(queue_bucket=bucket_expression())
+
+
+def bucket_expression(*, human="action", affected="action", manual="action"):
+    """Use the same evidence precedence for both the queue and grouped cases."""
+    return Case(
+        When(analyst_applicability="affected", then=Value(human)),
+        When(analyst_applicability="not_affected", then=Value("cleared")),
+        When(distro_match__isnull=True, then=Value(manual)),
+        When(package_current=False, then=Value("pending")),
+        When(distro_match__queue_proof__verdict="affected", then=Value(affected)),
+        When(distro_match__queue_proof__verdict__in=["fixed", "not_matched"], then=Value("cleared")),
+        default=Value("unresolved"),
+        output_field=CharField(),
     )

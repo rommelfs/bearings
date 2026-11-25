@@ -58,7 +58,7 @@ python3 scripts/build_linux_client.py
 
 In the retained lab, a focused Bearings image build followed by `up --no-build` is equivalent when reusing unchanged native-service images. Cloud proxy/CA environments have `scripts/cloud_image_build.py`; verification stays enabled. Production endpoints require correctly trusted HTTPS and operator-configured `BEARINGS_PUBLIC_URL`/allowed hosts. Run migrations 0054–0057 before serving the new endpoints.
 
-See the [client guide](../../clients/linux/README.md) for commands, protected enrollment files, systemd, outage behavior and replacement procedure. Source implementation: `portal/agent_protocol.py`, `portal/agents.py`, `portal/agent_views.py`; tests: `portal/test_agents.py`, `portal/test_agent_client.py`, `clients/linux/client_test.go`. Build outputs stay under ignored `.local/`; no release binary, signing key, real customer report or enrollment secret belongs in Git.
+See the [client guide](../../clients/linux/README.md) for commands, protected enrollment files, systemd, outage behavior and replacement procedure. Source implementation: `portal/agent_protocol.py`, `portal/agents.py`, `portal/agent_api.py`, and `portal/agent_views.py`; tests: `portal/test_agents.py`, `portal/test_agent_client.py`, `clients/linux/client_test.go`. Build outputs stay under ignored `.local/`; no release binary, signing key, real customer report or enrollment secret belongs in Git.
 
 
 ## Configured native binary extension — 20 November 2026

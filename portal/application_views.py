@@ -9,7 +9,7 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET
-from .access import audit, audit_operator_access, is_analyst, organizations_for
+from .access import audit, audit_operator_access, is_analyst, organizations_for, organization
 from .browser_policy import browser_base, origin
 from .models import FlowIntelInstance, InventorySource, RTInstance
 
@@ -140,7 +140,6 @@ def render_workspace(request, entries, selected, *, open_frame=False):
 @require_GET
 def source_reference(request, slug, pk, reference):
     from django.shortcuts import get_object_or_404
-    from .views import organization
     from .models import Asset
     from .asset_context import asset_context
 

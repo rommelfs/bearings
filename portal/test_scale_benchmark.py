@@ -6,8 +6,9 @@ from unittest.mock import Mock, patch
 from django.core.management.base import CommandError
 from django.db import OperationalError, connection
 from django.test import SimpleTestCase, TransactionTestCase
+from django.urls import resolve
 from . import models as m
-from .scale_benchmark import RequestProfile, guard, seed
+from .scale_benchmark import RequestProfile, endpoints, guard, seed
 
 
 class ScaleGuardTests(SimpleTestCase):
@@ -22,6 +23,11 @@ class ScaleGuardTests(SimpleTestCase):
         ):
             with self.assertRaises(CommandError):
                 guard()
+
+    def test_overview_benchmarks_resolve_to_authenticated_workspace(self):
+        paths = {name: path for name, _, _, path, _ in endpoints(Mock(slug="synthetic"), Mock())}
+        for name in ("company_overview", "national_company_search"):
+            self.assertEqual(resolve(paths[name].split("?", 1)[0]).url_name, "overview")
 
     def test_query_budget_stops_sql_before_execution(self):
         execute = Mock(return_value=None)

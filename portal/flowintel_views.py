@@ -8,11 +8,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from .access import audit_operator_access, require, visible_findings
+from .access import audit_operator_access, require, visible_findings, organization
 from .connectors.http import ConnectorError
 from .models import FlowIntelCase, FlowIntelInstance
 from . import flowintel
-from .views import organization
 
 
 def available_instances():

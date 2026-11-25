@@ -14,6 +14,8 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 from . import issues
 from .access import (
+    analyst_read_snapshot,
+    organization,
     audit_organizations,
     audit,
     is_analyst,
@@ -27,7 +29,6 @@ from .pagination import object_page
 from .issue_forms import IssueForm, RiskForm
 from .models import Asset, AssetIssue, IssueRiskLink, Membership
 from .presentation import vulnerability_summary
-from .views import organization
 from .queue_context import with_return
 from .inventory_presentation import decorate_addresses, host_network_summary
 
@@ -49,6 +50,7 @@ def decorate(issue):
 
 
 @login_required
+@analyst_read_snapshot
 @bounded_list
 def board(request):
     orgs = organizations_for(request.user).order_by("name")
@@ -185,21 +187,11 @@ def board(request):
     else:
         timing = ""
     ordering = ("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk")
-    key_source = None
-    if not org_id:
-        key_source = (
-            AssetIssue.objects.filter(organization__in=orgs)
-            .annotate(deadline_order=Coalesce("action_due", "event_date"), priority_order=priority_order)
-            .order_by(*ordering)
-        )
-    # A single-company list can order its already filtered IDs directly.
-    # The broader queue retains its ordered candidate scan.
     page = object_page(
         base.order_by(*ordering),
         25,
         request.GET.get("page"),
         count=counts[timing] if timing else counts["total"],
-        key_source=key_source,
     )
     decorate_addresses([issue.asset for issue in page])
     for issue in page:

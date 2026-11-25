@@ -14,12 +14,19 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 from . import inventory_csv, issues
-from .access import audit, can_review_contact, organizations_for, require, is_analyst
+from .access import (
+    analyst_read_snapshot,
+    audit,
+    can_review_contact,
+    organizations_for,
+    require,
+    is_analyst,
+    organization,
+)
 from .circl_views import private_response
 from .models import InventoryCSVBatch, InventorySource, InfrastructureClaim, AssetIssue
 from .overview_queries import overview_queries
 from .scope import normalize
-from .views import organization
 from .queue_context import with_return
 from django.urls import reverse
 
@@ -156,6 +163,7 @@ def csv_template(request, slug):
 
 @login_required
 @never_cache
+@analyst_read_snapshot
 @require_http_methods(["GET"])
 def actions(request):
     if request.user.is_superuser or is_analyst(request.user):

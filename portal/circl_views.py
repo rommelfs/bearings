@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_http_methods
-from .access import audit, is_analyst, require, organizations_for
+from .access import analyst_read_snapshot, audit, is_analyst, require, organizations_for
 from .circl import dashboard, findings_for, outstanding, research
 from .circl_forms import ResearchForm
 from .overview_queries import overview_queries, bounded_list, read_snapshot
@@ -372,6 +372,7 @@ def coverage_records(request):
 @login_required
 @never_cache
 @require_GET
+@analyst_read_snapshot
 @bounded_list
 def machine_records(request, slug=None):
     from .review_focus import posture
@@ -382,7 +383,7 @@ def machine_records(request, slug=None):
         authorize(request, "operator.machine_indicators")
     else:
         audit(request.user, org, "inventory.machine_indicators")
-    scope = posture(request.user, [org.pk] if org else None)["machines"]
+    scope = posture(request.user, [org.pk] if org else None, include_totals=False)["machines"]
     focus = request.GET.get("focus", "all")
     filters = {
         "all": {},
