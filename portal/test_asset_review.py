@@ -11,7 +11,7 @@ from .test_exchange_example import evidence
 from .asset_context import asset_context
 from .connectors.http import ConnectorError
 from .inventory import refresh_inventory
-from .models import FindingHistory, Installation, SourceRecord
+from .models import Asset, FindingHistory, Installation, Product, SourceRecord
 from .services import persist_lookup
 
 
@@ -163,7 +163,7 @@ class AssetReviewTests(Fixture):
             self.client.get(reverse("home"), {"severity": "critical"}).context["review_page"][0].pk, first.pk
         )
 
-    def test_cases_keep_distinct_installations_and_filter_out_restricted_evidence(self):
+    def test_host_case_lists_distinct_software_and_keeps_scoped_evidence(self):
         identifier = self.finding.record.external_id
         duplicate = persist_lookup(
             self.admin, self.installation, "fixture://another-source", identifier.lower(), {}
@@ -172,25 +172,71 @@ class AssetReviewTests(Fixture):
         duplicate.save(update_fields=["analyst_applicability"])
         self.finding.analyst_applicability = "affected"
         self.finding.save(update_fields=["analyst_applicability"])
-        other = Installation.objects.create(
+        other_version = Installation.objects.create(
             asset=self.asset, product=self.installation.product, version="2.0"
         )
-        other_finding = persist_lookup(self.admin, other, "fixture://another-source", identifier, {})
-        hidden = persist_lookup(self.admin, self.installation, "fixture://restricted-source", identifier, {})
+        other_version_finding = persist_lookup(
+            self.admin, other_version, "fixture://another-source", identifier, {}
+        )
+        product = Product.objects.create(organization=self.a, name="Second synthetic package")
+        second_package = Installation.objects.create(asset=self.asset, product=product, version="3.0")
+        second_finding = persist_lookup(
+            self.admin, second_package, "fixture://another-source", identifier, {}
+        )
+        hidden_product = Product.objects.create(organization=self.a, name="Restricted synthetic package")
+        hidden_installation = Installation.objects.create(asset=self.asset, product=hidden_product)
+        hidden = persist_lookup(
+            self.admin, hidden_installation, "fixture://restricted-source", identifier, {}
+        )
         SourceRecord.objects.filter(pk=hidden.record_id).update(shareable=False)
+        other_host = Asset.objects.create(organization=self.a, source=self.asset.source, name="another-host")
+        remote = Installation.objects.create(asset=other_host, product=product)
+        remote_finding = persist_lookup(self.admin, remote, "fixture://another-source", identifier, {})
 
         self.login(self.admin)
         response = self.client.get(reverse("home"), {"state": "all", "review_page": "999999999999"})
+        host_case, remote_case = response.context["review_page"]
+        self.assertEqual((host_case.pk, remote_case.pk), (self.finding.pk, remote_finding.pk))
         self.assertEqual(
-            [item.pk for item in response.context["review_page"]], [self.finding.pk, other_finding.pk]
+            dict(host_case.software_preview),
+            {
+                self.installation.product.name: "action",
+                product.name: "action",
+            },
         )
-        self.assertContains(response, "Compare 2 evidence records")
-        self.assertContains(response, "Conflicting saved assessments")
+        self.assertContains(response, "View software &amp; evidence (4)")
+        self.assertContains(response, "Different saved assessments")
+        self.assertNotContains(response, hidden_product.name)
         self.assertEqual(response.context["review_total"], 2)
+
+        search = self.client.get(reverse("home"), {"q": "Second synthetic package"})
+        self.assertEqual(search.context["review_total"], 2)
+        self.assertEqual(search.context["review_page"][0].software_preview, host_case.software_preview)
+        self.assertEqual(
+            self.client.get(reverse("home"), {"q": hidden_product.name}).context["review_total"], 0
+        )
         detail = self.client.get(reverse("review-evidence", args=[self.finding.pk]))
-        self.assertEqual({row["pk"] for row in detail.context["page"]}, {self.finding.pk, duplicate.pk})
+        self.assertEqual(
+            {row["pk"] for row in detail.context["page"]},
+            {self.finding.pk, duplicate.pk, other_version_finding.pk, second_finding.pk},
+        )
+        self.assertContains(detail, "2.0")
+        self.assertContains(detail, product.name)
         self.assertNotContains(detail, "fixture://restricted-source")
         self.assertEqual(self.client.get(reverse("review-evidence", args=[hidden.pk])).status_code, 404)
+
+    def test_host_case_limits_preview_and_preserves_all_evidence_in_details(self):
+        for i in range(7):
+            product = Product.objects.create(organization=self.a, name=f"Synthetic package {i}")
+            installation = Installation.objects.create(asset=self.asset, product=product)
+            persist_lookup(self.admin, installation, "fixture://package", self.finding.record.external_id, {})
+        self.login()
+        response = self.client.get(reverse("home"))
+        (finding,) = response.context["review_page"]
+        self.assertEqual(len(finding.software_preview), 6)
+        self.assertEqual(finding.more_software, 2)
+        detail = self.client.get(reverse("review-evidence", args=[finding.pk]))
+        self.assertEqual(detail.context["page"].paginator.count, 8)
 
     def test_current_visibility_applies_to_search_counts_details_and_evidence(self):
         self.finding.record.shareable = False

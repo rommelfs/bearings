@@ -2621,3 +2621,18 @@ for one installation and CVE produced one case in four HTTP 200 responses
 (0.53–0.94 s via Django's test client). The comparison exposed all 400 evidence
 pages of 25 records. Chromium verified the case count, comparison pagination
 and return navigation. The fixture did not use production records.
+
+## Server-wide cases in Vulnerability review
+
+A second grouping pass replaces the installation key with the scoped inventory
+asset key. Synthetic coverage includes the same CVE on different software and
+versions on one server and on another server. Searching one affected package
+retains the whole case. A restricted package is absent from search, preview,
+counts and direct evidence access. A seven-package-plus-original fixture
+verifies the six-name preview limit and the complete detail count. No schema or
+client package changes are needed.
+
+On loopback PostgreSQL 17, a synthetic case with two software names and 10,001
+visible review records returned one compact card in 0.35–0.44 s on four Django
+test-client requests. The details exposed 401 pages, including the last
+record. Chromium verified the card, evidence pagination and return link.

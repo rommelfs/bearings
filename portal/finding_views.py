@@ -63,6 +63,7 @@ def home(request):
     if severity not in SEVERITY_ORDER:
         severity = ""
     reviews = visible_findings_for(request.user).filter(status__in=ACTIVE_REVIEWS)
+    search = None
     if query:
         reviews = reviews.annotate(
             inventory_text=Cast("installation__asset__upstream_data", TextField()),
@@ -71,7 +72,8 @@ def home(request):
                 .filter(network_host_id=OuterRef("installation__asset_id"))
                 .filter(Q(name__icontains=query) | Q(address_dns__icontains=query))
             ),
-        ).filter(
+        )
+        search = (
             Q(record__external_id__icontains=query)
             | Q(installation__asset__name__icontains=query)
             | Q(organization__name__icontains=query)
@@ -87,7 +89,7 @@ def home(request):
     if bucket not in dict(BUCKETS):
         bucket = "action"
     review_page, queue_states, severity_counts, review_total = case_page(
-        reviews, request.GET.get("review_page"), bucket, severity
+        reviews, request.GET.get("review_page"), bucket, severity, search
     )
     audit_organizations(request.user, [finding.organization for finding in review_page])
     operator = request.user.is_superuser or is_analyst(request.user)
@@ -105,7 +107,8 @@ def home(request):
         decorate_finding(finding)
         for key in ("addresses", "dns_names", "assigned_address_count", "addresses_truncated"):
             finding.asset_context[key] = networks[finding.installation.asset_id][key]
-        decorate_package_verdict(finding)
+        if not finding.multiple_installations:
+            decorate_package_verdict(finding)
         finding.notification_mode = ""
         if finding.record.shareable and finding.analyst_applicability != "not_affected":
             if operator and finding.organization.operator_visibility:
@@ -142,7 +145,7 @@ def review_evidence(request, pk):
         classified(
             visible.filter(
                 organization_id=finding.organization_id,
-                installation_id=finding.installation_id,
+                installation__asset_id=finding.installation.asset_id,
                 case_identifier=finding.case_identifier,
             )
         )
@@ -150,6 +153,10 @@ def review_evidence(request, pk):
         "pk",
         "record__source",
         "record__source_severity",
+        "installation__product__name",
+        "installation__version",
+        "installation__edition",
+        "installation__build",
         "rule",
         "queue_bucket",
         "package_current",

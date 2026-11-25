@@ -11,6 +11,7 @@ from .review_queue import BUCKETS, classified
 CVE_ID = r"^CVE-[0-9]{4}-[0-9]{4,}$"
 BUCKET_ORDER = ("action", "unresolved", "pending", "cleared")
 PAGE_SIZE = 25
+SOFTWARE_PREVIEW_LIMIT = 6
 
 
 def case_identity(reviews):
@@ -23,7 +24,7 @@ def case_identity(reviews):
     )
 
 
-def case_page(reviews, number, bucket, severity):
+def case_page(reviews, number, bucket, severity, search=None):
     """Compute the histogram and page from one snapshot of authorized narrow rows."""
     evidence = (
         case_identity(classified(reviews))
@@ -31,6 +32,9 @@ def case_page(reviews, number, bucket, severity):
             source_rank=Least(severity_rank("record__source_severity"), Value(len(SEVERITY_ORDER) - 1)),
             asset_rank=Case(When(installation__asset__criticality="high", then=Value(0)), default=Value(1)),
             saved_assessment=F("analyst_applicability"),
+            search_match=Case(When(search, then=Value(1)), default=Value(0))
+            if search is not None
+            else Value(1),
         )
         .order_by()
         .values(
@@ -39,9 +43,12 @@ def case_page(reviews, number, bucket, severity):
             "source_rank",
             "asset_rank",
             "saved_assessment",
+            "search_match",
             finding_key=F("pk"),
             company_key=F("organization_id"),
             installation_key=F("installation_id"),
+            asset_key=F("installation__asset_id"),
+            software_name=F("installation__product__name"),
             review_time=F("evaluated_at"),
         )
     )
@@ -66,6 +73,10 @@ def case_page(reviews, number, bucket, severity):
             ),
             ranked AS (
                 SELECT finding_key AS id, bucket_rank, source_rank, asset_rank, review_time,
+                       company_key, asset_key, case_identifier,
+                       MAX(search_match) OVER case_group AS matched_search,
+                       MIN(installation_key) OVER case_group <> MAX(installation_key) OVER case_group
+                           AS multiple_installations,
                        ROW_NUMBER() OVER (
                            case_group ORDER BY bucket_rank, source_rank, review_time DESC, finding_key
                        ) AS representative,
@@ -75,17 +86,17 @@ def case_page(reviews, number, bucket, severity):
                        + MAX(CASE WHEN saved_assessment = 'not_affected' THEN 1 ELSE 0 END) OVER case_group
                            AS decisive_assessments
                 FROM prioritized
-                WINDOW case_group AS (PARTITION BY company_key, installation_key, case_identifier)
+                WINDOW case_group AS (PARTITION BY company_key, asset_key, case_identifier)
             ),
             cases AS (
-                SELECT * FROM ranked WHERE representative = 1
+                SELECT * FROM ranked WHERE representative = 1 AND matched_search = 1
             ),
             histogram AS (
                 SELECT bucket_rank, source_rank, COUNT(*) AS total
                 FROM cases GROUP BY bucket_rank, source_rank
             ),
             selected AS (
-                SELECT id, bucket_rank, source_rank, evidence_count, mixed_buckets, decisive_assessments,
+                SELECT cases.*,
                        ROW_NUMBER() OVER (ORDER BY source_rank, asset_rank, review_time DESC, id) AS position,
                        COUNT(*) OVER () AS total
                 FROM cases
@@ -101,15 +112,35 @@ def case_page(reviews, number, bucket, severity):
                             ELSE ((total - 1) / page_size) * page_size END AS page_start,
                        page_size
                 FROM selected CROSS JOIN page_request
+            ),
+            page_cases AS (
+                SELECT * FROM paged WHERE position > page_start AND position <= page_start + page_size
+            ),
+            software AS (
+                SELECT page_cases.id, MIN(prioritized.bucket_rank) AS software_bucket,
+                       prioritized.software_name
+                FROM page_cases JOIN prioritized USING (company_key, asset_key, case_identifier)
+                WHERE page_cases.multiple_installations
+                GROUP BY page_cases.id, prioritized.software_name
+            ),
+            software_previews AS (
+                SELECT software.*,
+                       COUNT(*) OVER (PARTITION BY id) AS software_count,
+                       ROW_NUMBER() OVER (PARTITION BY id ORDER BY software_bucket, software_name) AS rank
+                FROM software
             )
-            SELECT NULL AS id, bucket_rank, source_rank, total, NULL AS mixed_buckets,
-                   NULL AS decisive_assessments, 0 AS position
+            SELECT 0 AS kind, NULL AS id, bucket_rank, source_rank, total, NULL AS mixed_buckets,
+                   NULL AS decisive_assessments, NULL AS multiple_installations,
+                   NULL AS software_name, 0 AS position, 0 AS software_rank
             FROM histogram
             UNION ALL
-            SELECT id, bucket_rank, source_rank, evidence_count, mixed_buckets, decisive_assessments, position
-            FROM paged
-            WHERE position > page_start AND position <= page_start + page_size
-            ORDER BY position
+            SELECT 1, id, bucket_rank, source_rank, evidence_count, mixed_buckets, decisive_assessments,
+                   multiple_installations, NULL, position, 0
+            FROM page_cases
+            UNION ALL
+            SELECT 2, id, software_bucket, NULL, software_count, NULL, NULL, NULL, software_name, 0, rank
+            FROM software_previews WHERE rank <= %s
+            ORDER BY kind, position, software_rank
             """,
             (
                 *params,
@@ -120,17 +151,23 @@ def case_page(reviews, number, bucket, severity):
                 severity_rank_filter,
                 requested,
                 PAGE_SIZE,
+                SOFTWARE_PREVIEW_LIMIT,
             ),
         )
         rows = cursor.fetchall()
     buckets, severities, selected = Counter(), Counter(), {}
-    for pk, state, rank, count, mixed, decisions, _ in rows:
-        if pk is None:
+    software, software_counts = {}, {}
+    for kind, pk, state, rank, count, mixed, decisions, multiple, name, _, preview_rank in rows:
+        if kind == 0:
             buckets[BUCKET_ORDER[state]] += count
             if bucket == "all" or bucket == BUCKET_ORDER[state]:
                 severities[SEVERITY_ORDER[rank]] += count
+        elif kind == 1:
+            selected[pk] = (count, mixed, decisions == 2, multiple)
         else:
-            selected[pk] = (count, mixed, decisions == 2)
+            software.setdefault(pk, []).append((name, BUCKET_ORDER[state]))
+            if preview_rank == 1:
+                software_counts[pk] = count
 
     total = sum(severities.values())
     paginator = Paginator([], PAGE_SIZE)
@@ -144,7 +181,15 @@ def case_page(reviews, number, bucket, severity):
     }
     page.object_list = [findings[pk] for pk in selected if pk in findings]
     for finding in page:
-        finding.evidence_count, finding.mixed_buckets, finding.conflicting_assessments = selected[finding.pk]
+        (
+            finding.evidence_count,
+            finding.mixed_buckets,
+            finding.conflicting_assessments,
+            finding.multiple_installations,
+        ) = selected[finding.pk]
+        finding.software_preview = software.get(finding.pk, [])
+        finding.more_software = software_counts.get(finding.pk, 0) - len(finding.software_preview)
+        finding.case_category = dict(BUCKETS)[finding.queue_bucket]
     states = [
         {"key": key, "label": label, "count": sum(buckets.values()) if key == "all" else buckets[key]}
         for key, label in BUCKETS

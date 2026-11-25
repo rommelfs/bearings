@@ -2,14 +2,13 @@
 {% block title %}Review evidence · Bearings{% endblock %}
 {% block content %}
 <p><a href="{{ return_url }}">← Vulnerability review</a></p>
-<h1>{{ finding.record.external_id }} · Review evidence</h1>
-<p><a href="{% url 'asset' finding.organization.slug finding.installation.asset_id %}">{{ finding.installation.asset.name }}</a>
- · {{ finding.installation.product.name }} · {{ finding.installation.version|default:'Version unknown' }}</p>
+<h1>{{ finding.record.external_id|upper }} · Review evidence</h1>
+<p><a href="{% url 'asset' finding.organization.slug finding.installation.asset_id %}">{{ finding.installation.asset.name }}</a></p>
 <p>{{ page.paginator.count }} visible records in this case.</p>
 <div class="table-scroll"><table>
-<thead><tr><th scope="col">Source and rule</th><th scope="col">Package result</th><th scope="col">Review category</th><th scope="col">Source severity</th><th scope="col">Saved assessment</th><th scope="col">Workflow</th><th scope="col">Details</th></tr></thead>
+<thead><tr><th scope="col">Software and version</th><th scope="col">Source and rule</th><th scope="col">Package result</th><th scope="col">Review category</th><th scope="col">Source severity</th><th scope="col">Saved assessment</th><th scope="col">Workflow</th><th scope="col">Details</th></tr></thead>
 <tbody>{% for item in page %}
-<tr><td>{{ item.record__source }}<br><small>{{ item.rule }}</small></td><td>{{ item.result }}</td><td>{{ item.category }}</td>
+<tr><td>{{ item.installation__product__name }}<br>{{ item.installation__version|default:'Version unknown' }}{% if item.installation__edition %} · {{ item.installation__edition }}{% endif %}{% if item.installation__build %} · Build {{ item.installation__build }}{% endif %}</td><td>{{ item.record__source }}<br><small>{{ item.rule }}</small></td><td>{{ item.result }}</td><td>{{ item.category }}</td>
 <td>{{ item.record__source_severity|title }}</td><td>{{ item.analyst_applicability }}</td><td>{{ item.status }}</td>
 <td><a href="{% url 'intelligence' finding.organization.slug %}?finding={{ item.pk }}&amp;return_to={{ return_url|urlencode }}#finding-{{ item.pk }}">Open record →</a></td></tr>
 {% endfor %}</tbody>

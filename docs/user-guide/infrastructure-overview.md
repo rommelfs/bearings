@@ -155,14 +155,19 @@ and native comparison. The tabs separately expose **Vendor clarification
 needed**, **Awaiting current evaluation**, **Fixed / not affected / assessed**
 and **All retained open reviews**. Severity counts apply to the selected tab
 and search, before pagination. Each case groups the visible open records for one
-normalized CVE and one concrete software installation. Other identifiers are
-grouped only within the same source record. The case takes the first applicable
-category in this order: actionable, vendor clarification, awaiting evaluation,
-and fixed or not affected. The source severity of the selected record controls
-the case's severity filter. **Compare evidence records** shows each visible
-source, current package result, saved assessment, and workflow with links to its
-full record. Different review categories and conflicting saved assessments are
-flagged on the case.
+normalized CVE on one inventory server. Other identifiers are grouped only
+within the same source record on that server. The case takes the first
+applicable category in this order: actionable, vendor clarification, awaiting
+evaluation, and fixed or not affected. The source severity of the selected
+record controls the case's severity filter.
+
+When a case spans multiple installations, its compact card lists up to six
+distinct software names and gives the number of additional names. **View
+software & evidence** opens the complete paginated records with the software
+version, edition and build where known, the source, package result, and saved
+assessment. Searching for one software name finds the server case with all its
+visible software. Different review categories and saved assessments are flagged
+on the card.
 
 An updated package with a proven vendor fix leaves the default queue after
 automatic reevaluation. Its review history and analyst assessment remain.
