@@ -24,10 +24,13 @@ from .circl import findings_for
 from .distro_fix_evidence import HasVendorFix
 from .issues import ACTIVE, visible_issues
 from .models import AgentDevice, Installation
-from .review_focus import posture
-from .review_queue import classified
+from .review_focus import MACHINE_KINDS, posture
+from .review_queue import CLEARED_VERDICTS, classified
 from .table_sort import TableSort
 from .inventory_presentation import additional_software_filter
+
+
+MAX_GROUPED_PACKAGE_HOSTS = 250
 
 
 def count_for(queryset, field, grouping):
@@ -37,7 +40,7 @@ def count_for(queryset, field, grouping):
     return Coalesce(Subquery(grouped, output_field=IntegerField()), Value(0))
 
 
-def _package_counts(reviews):
+def _correlated_package_counts(reviews):
     reviews = classified(reviews).filter(package_current=True)
     automatic = reviews.filter(distro_match__queue_proof__verdict="affected")
     fixes = automatic.annotate(has_vendor_fix=HasVendorFix(F("distro_match__snapshot"))).filter(
@@ -65,6 +68,47 @@ def _package_counts(reviews):
     }
 
 
+def _package_counts(reviews):
+    """Summarize current proofs once for a bounded organization host cohort."""
+    affected = Q(distro_match__queue_proof__verdict="affected")
+    # Currentness is proven by the outer filter. The unresolved bucket therefore
+    # needs only the verdict and saved-assessment predicates here.
+    unresolved = (
+        ~affected
+        & ~Q(distro_match__queue_proof__verdict__in=CLEARED_VERDICTS)
+        & ~Q(analyst_applicability__in=("affected", "not_affected"))
+    )
+    counts = (
+        classified(reviews.filter(installation__asset__kind__in=MACHINE_KINDS))
+        .filter(package_current=True)
+        .alias(has_vendor_fix=HasVendorFix(F("distro_match__snapshot")))
+        .order_by()
+        .values("installation__asset_id")
+        .annotate(
+            affected_packages=Count("installation_id", distinct=True, filter=affected),
+            fix_packages=Count("installation_id", distinct=True, filter=affected & Q(has_vendor_fix=True)),
+            unresolved_packages=Count("installation_id", distinct=True, filter=unresolved),
+        )[: MAX_GROUPED_PACKAGE_HOSTS + 1]
+    )
+    rows = list(counts)
+    if len(rows) > MAX_GROUPED_PACKAGE_HOSTS:
+        return _correlated_package_counts(reviews.filter(installation__asset_id=OuterRef("pk")))
+
+    annotations = {}
+    for field in ("affected_packages", "fix_packages", "unresolved_packages"):
+        by_count = {}
+        for row in rows:
+            if count := row[field]:
+                by_count.setdefault(count, []).append(row["installation__asset_id"])
+        annotations[field] = Case(
+            *(When(evaluated=True, pk__in=ids, then=Value(count)) for count, ids in by_count.items()),
+            When(evaluated=True, then=Value(0)),
+            default=Value(None if field == "fix_packages" else 0),
+            output_field=IntegerField(),
+        )
+    return annotations
+
+
 def overview(request, org):
     filter_key = request.GET.get("host_filter", "all")
     filters = {
@@ -87,10 +131,11 @@ def overview(request, org):
             ("observed", "Last report", "report_time", False),
         ],
     )
-    machine_status = posture(request.user, [org.pk], include_totals=False)
-    reviews = findings_for(request.user).filter(organization=org, installation__asset_id=OuterRef("pk"))
+    machine_status = posture(request.user, [org.pk], include_totals=False, scoped_evidence=True)
+    scoped_reviews = findings_for(request.user).filter(organization=org)
+    reviews = scoped_reviews.filter(installation__asset_id=OuterRef("pk"))
     package_counts = (
-        _package_counts(reviews)
+        _package_counts(scoped_reviews)
         if machine_status["evaluation_available"]
         else {
             "affected_packages": Value(0),

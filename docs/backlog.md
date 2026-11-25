@@ -2,6 +2,10 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Organization Intelligence and host panel
+
+Apply the same CVE-and-host grouping to the organization Intelligence page with scoped details, exact finding URLs and the per-record API. Aggregate current package evidence for the host panel before counting and pagination. Query failures retain an explicit retry state with server timing and a sanitized log reason.
+
 ## One case per CVE and server in Vulnerability review
 
 Group visible open findings per inventory server before searching, counting and pagination. Compact multi-installation cards summarize distinct software names. The paginated detail lists versions, sources and individual decisions. Different servers and organization boundaries stay separate. See [Vulnerability review](user-guide/infrastructure-overview.md#distribution-package-verdicts-in-vulnerability-review).

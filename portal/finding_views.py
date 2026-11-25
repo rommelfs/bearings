@@ -2,7 +2,6 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef, Q, TextField
 from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404, redirect, render
@@ -37,10 +36,10 @@ from .models import (
     Membership,
 )
 from .overview_queries import bounded_list, read_snapshot
-from .presentation import ACTIVE_REVIEWS, SEVERITY_ORDER, decorate_finding, severity_first
+from .presentation import ACTIVE_REVIEWS, SEVERITY_ORDER, decorate_finding
 from .queue_context import return_url
-from .review_cases import case_identity, case_page
-from .review_queue import BUCKETS, classified
+from .review_cases import case_identity, case_page, evidence_page
+from .review_queue import BUCKETS
 from .services import (
     lookup_for_installation,
     transition_finding,
@@ -141,50 +140,8 @@ def home(request):
 def review_evidence(request, pk):
     visible = case_identity(visible_findings_for(request.user)).filter(status__in=ACTIVE_REVIEWS)
     finding = get_object_or_404(visible, pk=pk)
-    evidence = severity_first(
-        classified(
-            visible.filter(
-                organization_id=finding.organization_id,
-                installation__asset_id=finding.installation.asset_id,
-                case_identifier=finding.case_identifier,
-            )
-        )
-    ).values(
-        "pk",
-        "record__source",
-        "record__source_severity",
-        "installation__product__name",
-        "installation__version",
-        "installation__edition",
-        "installation__build",
-        "rule",
-        "queue_bucket",
-        "package_current",
-        "distro_match__pk",
-        "distro_match__queue_proof__verdict",
-        "analyst_applicability",
-        "status",
-    )
-    page = Paginator(evidence, 25).get_page(request.GET.get("page"))
+    page = evidence_page(visible, finding, request.GET.get("page"))
     audit_organizations(request.user, [finding.organization])
-    labels = dict(BUCKETS)
-    verdicts = {
-        "affected": "Affected version",
-        "fixed": "Includes vendor fix",
-        "not_matched": "Vendor rule does not match",
-    }
-    rows = list(page)
-    for row in rows:
-        row["category"] = labels[row["queue_bucket"]]
-        if row["package_current"]:
-            row["result"] = verdicts.get(
-                row["distro_match__queue_proof__verdict"], "Vendor clarification needed"
-            )
-        elif row["distro_match__pk"]:
-            row["result"] = "Current package evaluation pending"
-        else:
-            row["result"] = "—"
-    page.object_list = rows
     return render(
         request,
         "portal/review_evidence.html",

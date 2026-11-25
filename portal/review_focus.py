@@ -198,7 +198,7 @@ def _scoped_automatic_status(reviews):
     return {
         "priority": Case(
             *(When(pk__in=ids, then=Value(rank)) for rank, ids in ids_by_rank.items()),
-            default=Value(None),
+            default=Cast(Value(None), IntegerField()),
             output_field=IntegerField(),
         ),
         "version_match": Q(pk__in=[row["installation__asset_id"] for row in rows]),
@@ -235,7 +235,9 @@ def _evaluated_machine_status(reviews, feed_scope, matches):
             "high": Exists(automatic.filter(record__source_severity="high")),
         }
     return {
-        "source_priority": Case(When(Exists(devices), then=matches["priority"]), default=Value(None)),
+        "source_priority": Case(
+            When(Exists(devices), then=matches["priority"]), default=Cast(Value(None), IntegerField())
+        ),
         "evaluated": Exists(devices),
         "partial": Exists(devices.filter(distro_summary__package_state="partial")),
         "version_match": matches["version_match"],

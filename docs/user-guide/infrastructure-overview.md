@@ -169,6 +169,12 @@ assessment. Searching for one software name finds the server case with all its
 visible software. Different review categories and saved assessments are flagged
 on the card.
 
+The organization's **Asset → Vulnerability → Risk** list uses the same
+CVE-and-host grouping within its current filters, including retained decisions.
+A single review opens inline. A grouped case links to paginated evidence.
+Existing direct finding links open the individual assessment and risk mapping.
+The review-decision timeline still counts recorded transitions.
+
 An updated package with a proven vendor fix leaves the default queue after
 automatic reevaluation. Its review history and analyst assessment remain.
 An explicit analyst affected assessment remains actionable until reconciled.

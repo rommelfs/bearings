@@ -17,7 +17,8 @@
 {% url 'asset' finding.organization.slug finding.installation.asset.pk as asset_url %}
 {% url 'case-guide' finding.organization.slug finding.pk as guide_url %}
 {% if finding.multiple_installations %}
-{% include "portal/_review_host_case.html" %}
+{% url 'review-evidence' finding.pk as evidence_url %}
+{% include "portal/_review_host_case.html" with case_url=evidence_url|add:"?return_to="|add:return_path %}
 {% else %}
 <article class="review-cue severity-{% if finding.queue_bucket == 'cleared' %}none{% else %}{{ finding.severity_key }}{% endif %}" id="review-{{ finding.pk }}">
 <div class="review-heading"><div><p class="eyebrow"><a href="{{ organization_url }}">{{ finding.organization.name }}</a> / <a href="{{ intelligence_url }}?return_to={{ return_path }}&amp;finding={{ finding.pk }}#assessment-{{ finding.pk }}">{% if finding.package_verdict %}{{ finding.package_verdict.heading }}{% else %}Manual assessment{% endif %}</a></p><h2><a href="{{ intelligence_url }}?return_to={{ return_path }}&amp;finding={{ finding.pk }}#evidence-{{ finding.pk }}">{{ finding.record.external_id }}</a></h2><a class="vulnerability-title" href="{{ intelligence_url }}?return_to={{ return_path }}&amp;finding={{ finding.pk }}#evidence-{{ finding.pk }}">{{ finding.source_summary.title }}</a></div>{% include 'portal/severity.html' with severity_return_url=request.get_full_path %}</div>

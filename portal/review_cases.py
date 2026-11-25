@@ -5,7 +5,7 @@ from django.core.paginator import Paginator
 from django.db import connection
 from django.db.models import Case, CharField, F, Value, When
 from django.db.models.functions import Cast, Least, Upper
-from .presentation import SEVERITY_ORDER, severity_rank
+from .presentation import SEVERITY_ORDER, severity_first, severity_rank
 from .review_queue import BUCKETS, classified
 
 CVE_ID = r"^CVE-[0-9]{4}-[0-9]{4,}$"
@@ -24,13 +24,15 @@ def case_identity(reviews):
     )
 
 
-def case_page(reviews, number, bucket, severity, search=None):
+def case_page(reviews, number, bucket, severity, search=None, *, prioritize_assets=True):
     """Compute the histogram and page from one snapshot of authorized narrow rows."""
     evidence = (
         case_identity(classified(reviews))
         .annotate(
             source_rank=Least(severity_rank("record__source_severity"), Value(len(SEVERITY_ORDER) - 1)),
-            asset_rank=Case(When(installation__asset__criticality="high", then=Value(0)), default=Value(1)),
+            asset_rank=Case(When(installation__asset__criticality="high", then=Value(0)), default=Value(1))
+            if prioritize_assets
+            else Value(0),
             saved_assessment=F("analyst_applicability"),
             search_match=Case(When(search, then=Value(1)), default=Value(0))
             if search is not None
@@ -196,3 +198,50 @@ def case_page(reviews, number, bucket, severity, search=None):
     ]
     counts = [{"key": key, "label": key.title(), "count": severities[key]} for key in SEVERITY_ORDER]
     return page, states, counts, total
+
+
+def evidence_page(visible, finding, number):
+    evidence = severity_first(
+        classified(
+            visible.filter(
+                organization_id=finding.organization_id,
+                installation__asset_id=finding.installation.asset_id,
+                case_identifier=finding.case_identifier,
+            )
+        )
+    ).values(
+        "pk",
+        "record__source",
+        "record__source_severity",
+        "installation__product__name",
+        "installation__version",
+        "installation__edition",
+        "installation__build",
+        "rule",
+        "queue_bucket",
+        "package_current",
+        "distro_match__pk",
+        "distro_match__queue_proof__verdict",
+        "analyst_applicability",
+        "status",
+    )
+    page = Paginator(evidence, 25).get_page(number)
+    labels = dict(BUCKETS)
+    verdicts = {
+        "affected": "Affected version",
+        "fixed": "Includes vendor fix",
+        "not_matched": "Vendor rule does not match",
+    }
+    rows = list(page)
+    for row in rows:
+        row["category"] = labels[row["queue_bucket"]]
+        if row["package_current"]:
+            row["result"] = verdicts.get(
+                row["distro_match__queue_proof__verdict"], "Vendor clarification needed"
+            )
+        elif row["distro_match__pk"]:
+            row["result"] = "Current package evaluation pending"
+        else:
+            row["result"] = "—"
+    page.object_list = rows
+    return page

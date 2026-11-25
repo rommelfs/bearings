@@ -1,5 +1,6 @@
 """Company and asset inventory pages."""
 
+import logging
 from datetime import timedelta
 from time import perf_counter
 
@@ -46,13 +47,15 @@ from .inventory_presentation import (
     decorate_addresses,
     top_level_assets,
 )
-from .overview_queries import overview_queries
+from .overview_queries import OverviewBudgetExceeded, overview_queries, read_snapshot
 from .models import (
     AgentDevice,
     Asset,
     Installation,
 )
 from .presentation import ACTIVE_REVIEWS, decorate_finding, severity_first
+
+logger = logging.getLogger(__name__)
 
 
 def company_cards(user, orgs, page_number):
@@ -119,10 +122,30 @@ def inventory(request):
 def _host_context(request, org):
     from .host_overview import overview as host_overview
 
+    started = perf_counter()
     try:
-        with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
-            return host_overview(request, org)
-    except OperationalError:
+        with (
+            read_snapshot(),
+            overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4) as database,
+        ):
+            context = host_overview(request, org)
+        return {
+            **context,
+            "host_database_ms": database.seconds * 1000,
+            "host_dbmax_ms": database.slowest * 1000,
+        }
+    except OperationalError as exc:
+        state = getattr(exc.__cause__, "sqlstate", None)
+        reason = (
+            "request_budget"
+            if isinstance(exc, OverviewBudgetExceeded)
+            else "query_cancelled"
+            if state == "57014"
+            else "database"
+        )
+        logger.warning(
+            "Host overview unavailable reason=%s elapsed_ms=%d", reason, (perf_counter() - started) * 1000
+        )
         return {"host_overview_unavailable": True}
 
 
@@ -144,6 +167,12 @@ def hosts(request, slug):
         status=503 if context.get("host_overview_unavailable") else 200,
     )
     response["Server-Timing"] = f"hosts;dur={(perf_counter() - started) * 1000:.1f}"
+    if context.get("host_overview_unavailable"):
+        response["Retry-After"] = "5"
+    else:
+        response["Server-Timing"] += (
+            f", database;dur={context['host_database_ms']:.1f}, dbmax;dur={context['host_dbmax_ms']:.1f}"
+        )
     return response
 
 

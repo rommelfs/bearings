@@ -3,17 +3,28 @@ from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, prefetch_related_objects
 from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
-from .access import can_edit, can_operator_review, require, visible_findings, organization
+from .access import (
+    analyst_read_snapshot,
+    can_edit,
+    can_operator_review,
+    require,
+    visible_findings,
+    organization,
+)
 from .connectors.http import ConnectorError, validate_base
 from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link, resolve_risk
 from .models import MOSPRisk, MOSPSource, RiskLink, Product, Installation
 from .presentation import decorate_finding, severity_first
+from .overview_queries import bounded_list, read_snapshot
+from .queue_context import return_url
+from .review_cases import case_identity, case_page, evidence_page
 
 
 def vulnerability_url(finding):
@@ -24,18 +35,8 @@ def vulnerability_url(finding):
     return base + "/api/vulnerability/" + quote(finding.record.external_id, safe="")
 
 
-def finding_page(request, org):
-    links = RiskLink.objects.select_related("risk_revision__risk__source", "evidence_revision", "created_by")
-    findings = (
-        visible_findings(request.user, org)
-        .select_related(
-            "installation__asset__source__instance",
-            "distro_match__component__device",
-            "distro_match__advisory__feed",
-        )
-        .prefetch_related(Prefetch("risk_links", queryset=links), "history__actor")
-        .order_by("-evaluated_at", "pk")
-    )
+def scoped_findings(request, org):
+    findings = visible_findings(request.user, org)
     if request.GET.get("asset"):
         import uuid
 
@@ -80,30 +81,84 @@ def finding_page(request, org):
         findings = findings.filter(pk=finding_id)
     if request.GET.get("changed") == "1":
         findings = findings.filter(Q(discovery__review_required=True) | Q(distro_match__review_required=True))
+    return findings
+
+
+def finding_page(request, org, *, findings=None):
+    if findings is None:
+        findings = scoped_findings(request, org)
+    findings = findings.select_related(
+        "installation__asset__source__instance",
+        "distro_match__component__device",
+        "distro_match__advisory__feed",
+    )
     page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
-    for finding in page:
+    decorate_records(list(page), request.user)
+    return page
+
+
+def decorate_records(records, user):
+    from .distro_verdicts import decorate_package_verdict
+    from .flowintel_views import decorate
+
+    links = RiskLink.objects.select_related("risk_revision__risk__source", "evidence_revision", "created_by")
+    prefetch_related_objects(records, Prefetch("risk_links", queryset=links), "history__actor")
+    for finding in records:
         decorate_finding(finding)
-        from .distro_verdicts import decorate_package_verdict
-
         decorate_package_verdict(finding)
-        from .flowintel_views import decorate
-
-        decorate(finding, request.user)
+        decorate(finding, user)
         finding.vulnerability_url = vulnerability_url(finding)
         finding.links = list(finding.risk_links.all())
         for link in finding.links:
             link.review_flags = link_state(link)
             link.needs_review = any(link.review_flags.values())
-    return page
 
 
 @login_required
 @never_cache
+@analyst_read_snapshot
+@read_snapshot()
+@bounded_list
 def intelligence(request, slug):
     org = organization(request, slug)
     filters = request.GET.copy()
     filters.pop("page", None)
-    page = finding_page(request, org)
+    findings = scoped_findings(request, org).select_related("installation__asset__source__instance")
+    if not request.GET.get("finding") and (case := request.GET.get("case")):
+        if not case.isascii() or not case.isdigit() or len(case) > 19 or not 0 < int(case) <= 2**63 - 1:
+            raise Http404
+        visible = case_identity(findings)
+        finding = get_object_or_404(visible, pk=int(case))
+        list_filters = filters.copy()
+        for name in ("case", "return_to"):
+            list_filters.pop(name, None)
+        list_url = reverse("intelligence", args=[org.slug])
+        if list_filters:
+            list_url += "?" + list_filters.urlencode()
+        return render(
+            request,
+            "portal/review_evidence.html",
+            {
+                "finding": finding,
+                "page": evidence_page(visible, finding, request.GET.get("page")),
+                "return_url": return_url(request) or list_url,
+                "return_label": "Back to intelligence",
+                "record_return_url": request.get_full_path(),
+                "pagination_query": filters.urlencode(),
+            },
+        )
+    if request.GET.get("finding"):
+        page = finding_page(request, org, findings=findings)
+    else:
+        page, _, _, _ = case_page(findings, request.GET.get("page"), "all", "", prioritize_assets=False)
+        decorate_records([finding for finding in page if finding.evidence_count == 1], request.user)
+        for finding in page:
+            if finding.evidence_count > 1:
+                decorate_finding(finding)
+                params = filters.copy()
+                params["case"] = finding.pk
+                params["return_to"] = request.get_full_path()
+                finding.case_url = "?" + params.urlencode()
     from .timelines import review_decisions
 
     return render(
@@ -112,7 +167,7 @@ def intelligence(request, slug):
         {
             "org": org,
             "page": page,
-            "review_timeline": review_decisions(page.paginator.object_list),
+            "review_timeline": review_decisions(findings),
             "editable": can_edit(request.user, org) or can_operator_review(request.user, org),
             "sources": MOSPSource.objects.all(),
             "withdrawal_form": RiskWithdrawalForm(),

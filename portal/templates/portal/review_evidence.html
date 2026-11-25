@@ -1,7 +1,7 @@
 {% extends 'portal/base.html' %}
 {% block title %}Review evidence · Bearings{% endblock %}
 {% block content %}
-<p><a href="{{ return_url }}">← Vulnerability review</a></p>
+<p><a href="{{ return_url }}">← {{ return_label|default:"Vulnerability review" }}</a></p>
 <h1>{{ finding.record.external_id|upper }} · Review evidence</h1>
 <p><a href="{% url 'asset' finding.organization.slug finding.installation.asset_id %}">{{ finding.installation.asset.name }}</a></p>
 <p>{{ page.paginator.count }} visible records in this case.</p>
@@ -10,12 +10,12 @@
 <tbody>{% for item in page %}
 <tr><td>{{ item.installation__product__name }}<br>{{ item.installation__version|default:'Version unknown' }}{% if item.installation__edition %} · {{ item.installation__edition }}{% endif %}{% if item.installation__build %} · Build {{ item.installation__build }}{% endif %}</td><td>{{ item.record__source }}<br><small>{{ item.rule }}</small></td><td>{{ item.result }}</td><td>{{ item.category }}</td>
 <td>{{ item.record__source_severity|title }}</td><td>{{ item.analyst_applicability }}</td><td>{{ item.status }}</td>
-<td><a href="{% url 'intelligence' finding.organization.slug %}?finding={{ item.pk }}&amp;return_to={{ return_url|urlencode }}#finding-{{ item.pk }}">Open record →</a></td></tr>
+<td><a href="{% url 'intelligence' finding.organization.slug %}?finding={{ item.pk }}&amp;return_to={{ record_return_url|default:return_url|urlencode }}#finding-{{ item.pk }}">Open record →</a></td></tr>
 {% endfor %}</tbody>
 </table></div>
 {% if page.has_other_pages %}<nav aria-label="Evidence pages">
-{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&amp;return_to={{ return_url|urlencode }}">Previous records</a>{% endif %}
+{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&amp;{% if pagination_query %}{{ pagination_query }}{% else %}return_to={{ return_url|urlencode }}{% endif %}">Previous records</a>{% endif %}
  Page {{ page.number }} / {{ page.paginator.num_pages }}
-{% if page.has_next %}<a href="?page={{ page.next_page_number }}&amp;return_to={{ return_url|urlencode }}">Next records</a>{% endif %}
+{% if page.has_next %}<a href="?page={{ page.next_page_number }}&amp;{% if pagination_query %}{{ pagination_query }}{% else %}return_to={{ return_url|urlencode }}{% endif %}">Next records</a>{% endif %}
 </nav>{% endif %}
 {% endblock %}

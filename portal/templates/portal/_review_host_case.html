@@ -1,16 +1,15 @@
-{% url 'review-evidence' finding.pk as evidence_url %}
 <article class="review-cue severity-{% if finding.queue_bucket == 'cleared' %}none{% else %}{{ finding.severity_key }}{% endif %}" id="review-{{ finding.pk }}">
   <div class="review-heading">
     <div>
-      <p class="eyebrow"><a href="{{ organization_url }}">{{ finding.organization.name }}</a> / {{ finding.case_category }}</p>
-      <h2><a href="{{ evidence_url }}?return_to={{ return_path }}">{{ finding.record.external_id|upper }}</a></h2>
+      <p class="eyebrow"><a href="{{ organization_url }}">{{ finding.organization.name }}</a>{% if not hide_case_category %} / {{ finding.case_category }}{% endif %}</p>
+      <h2><a href="{{ case_url }}">{{ finding.record.external_id|upper }}</a></h2>
       <p>{{ finding.source_summary.title }}</p>
     </div>
     {% include 'portal/severity.html' with severity_return_url=request.get_full_path %}
   </div>
   <p><strong>Server</strong> <a href="{{ asset_url }}">{{ finding.installation.asset.name }}</a></p>
   <p><strong>Software in this case</strong>
-    {% for name, state in finding.software_preview %}{{ name }}{% if state == 'cleared' %} (fixed or not affected){% elif state == 'pending' %} (awaiting evaluation){% elif state == 'unresolved' %} (vendor clarification needed){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}
+    {% for name, state in finding.software_preview %}{{ name }}{% if state == 'cleared' %} (fixed or not affected){% elif state == 'pending' %} (awaiting evaluation){% elif state == 'unresolved' %} (vendor clarification needed){% endif %}{% if not forloop.last %}, {% endif %}{% empty %}{{ finding.installation.product.name }}{% endfor %}
     {% if finding.more_software %} · {{ finding.more_software }} more{% endif %}
   </p>
   <div class="review-next">
@@ -18,6 +17,6 @@
       {% if finding.mixed_buckets %}<span class="badge warning">Different review categories</span>{% endif %}
       {% if finding.conflicting_assessments %}<span class="badge warning">Different saved assessments</span>{% endif %}
     </div>
-    <a class="button primary" href="{{ evidence_url }}?return_to={{ return_path }}">View software &amp; evidence ({{ finding.evidence_count }}) →</a>
+    <a class="button primary" href="{{ case_url }}">View software &amp; evidence ({{ finding.evidence_count }}) →</a>
   </div>
 </article>

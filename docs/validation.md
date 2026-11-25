@@ -2636,3 +2636,20 @@ On loopback PostgreSQL 17, a synthetic case with two software names and 10,001
 visible review records returned one compact card in 0.35–0.44 s on four Django
 test-client requests. The details exposed 401 pages, including the last
 record. Chromium verified the card, evidence pagination and return link.
+
+## Organization Intelligence and host overview
+
+The organization Intelligence list groups visible evidence by host and CVE
+under the original filters. The comparison includes retained closed records,
+links the original assessments, and preserves the per-record API and decision
+timeline. Tests cover distinct software, restricted evidence, filtered return
+navigation and direct access to a retained record.
+
+With 1,000 hosts and 10,001 synthetic review records on loopback PostgreSQL 17,
+the full host panel went from 4.35 s to 2.32 s. A temporary 1.6 s per-statement
+stress limit produced HTTP 503 with the previous query and HTTP 200 with the
+grouped query, retaining the exact package counts. The deployed statement
+limit remains 5 s. Chromium checked the asynchronous host panel and followed
+a single Intelligence case through paginated evidence and an individual
+review, then returned to the list. These observations are synthetic and do
+not establish the cause of a live failure.

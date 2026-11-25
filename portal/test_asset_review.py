@@ -225,6 +225,35 @@ class AssetReviewTests(Fixture):
         self.assertNotContains(detail, "fixture://restricted-source")
         self.assertEqual(self.client.get(reverse("review-evidence", args=[hidden.pk])).status_code, 404)
 
+    def test_intelligence_groups_a_host_cve_and_keeps_filtered_records_and_history(self):
+        identifier = self.finding.record.external_id
+        product = Product.objects.create(organization=self.a, name="Second intelligence package")
+        installation = Installation.objects.create(asset=self.asset, product=product, version="3.0")
+        second = persist_lookup(self.admin, installation, "fixture://secondary", identifier.lower(), {})
+        second.status = "resolved"
+        second.save(update_fields=["status"])
+        hidden = persist_lookup(self.admin, self.installation, "fixture://restricted-source", identifier, {})
+        SourceRecord.objects.filter(pk=hidden.record_id).update(shareable=False)
+
+        self.login(self.reader)
+        url = self.url("intelligence")
+        scope = {"asset": str(self.asset.pk)}
+        response = self.client.get(url, scope)
+        (summary,) = response.context["page"]
+        self.assertEqual(summary.evidence_count, 2)
+        self.assertContains(response, "View software &amp; evidence (2)")
+        self.assertContains(response, product.name)
+        self.assertNotContains(response, 'id="assessment-')
+        comparison = self.client.get(url + summary.case_url)
+        self.assertEqual({row["pk"] for row in comparison.context["page"]}, {self.finding.pk, second.pk})
+        self.assertContains(comparison, "resolved")
+        self.assertContains(comparison, f"asset={self.asset.pk}")
+        self.assertEqual(self.client.get(url, {"case": hidden.pk}).status_code, 404)
+        self.assertContains(self.client.get(url, {"finding": second.pk}), f'id="assessment-{second.pk}"')
+        self.assertEqual(self.client.get(self.url("api-intelligence")).json()["pagination"]["count"], 2)
+        single = self.client.get(url, {"product": product.pk})
+        self.assertContains(single, f'id="assessment-{second.pk}"')
+
     def test_host_case_limits_preview_and_preserves_all_evidence_in_details(self):
         for i in range(7):
             product = Product.objects.create(organization=self.a, name=f"Synthetic package {i}")

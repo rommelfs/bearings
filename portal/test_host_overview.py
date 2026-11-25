@@ -39,6 +39,12 @@ class HostOverviewTests(Fixture):
         self.assertEqual(host.affected_packages, 1)
         self.assertEqual(host.fix_packages, 1)
         self.assertEqual(response.context["host_stats"]["fixes"], 1)
+        self.assertIn("dbmax;dur=", response["Server-Timing"])
+        with patch("portal.host_overview.MAX_GROUPED_PACKAGE_HOSTS", 0):
+            fallback = self.page()
+        old_host = next(h for h in fallback.context["host_page"] if h.pk == self.device.asset_id)
+        self.assertEqual((old_host.affected_packages, old_host.fix_packages), (1, 1))
+        self.assertEqual(response.context["host_stats"], fallback.context["host_stats"])
         self.assertContains(response, "Repository updates: not checked")
         self.assertContains(response, "Fixed version explicitly documented")
         # A second advisory/record for the same installation never multiplies packages.

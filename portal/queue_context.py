@@ -8,6 +8,7 @@ KEYS = {
     "workspace",
     "installation",
     "changed",
+    "case",
     "organization",
     "company_q",
     "kind",
