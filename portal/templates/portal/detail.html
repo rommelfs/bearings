@@ -1,5 +1,14 @@
-{% extends 'portal/base.html' %}{% block workflow_path %}{% endblock %}{% block content %}{% if org.merged_into_id %}<aside>This organization is archived after a merge. <a href="{% url 'organization' org.merged_into.slug %}">Open the combined company →</a></aside>{% endif %}<div class="organization-host-title"><h1>{{ org.name }}</h1><a href="{% url 'inventory' %}">All organizations →</a></div>
+{% extends 'portal/base.html' %}{% load static %}{% block workflow_path %}{% endblock %}{% block content %}{% if org.merged_into_id %}<aside>This organization is archived after a merge. <a href="{% url 'organization' org.merged_into.slug %}">Open the combined company →</a></aside>{% endif %}<div class="organization-host-title"><h1>{{ org.name }}</h1><a href="{% url 'inventory' %}">All organizations →</a></div>
+{% if host_stats or host_overview_unavailable %}
 {% include 'portal/_host_overview.html' %}
+{% else %}
+<section id="hosts" data-host-panel="{% url 'organization-hosts' org.slug %}{% querystring %}" aria-labelledby="host-heading">
+  <div class="row"><h2 id="host-heading">Which hosts need attention?</h2><a href="#inventory">Full inventory ↓</a></div>
+  <p><a data-load-hosts href="{% querystring host_filter='all' %}#hosts">Load host overview →</a></p>
+  <p data-host-load-status role="status"></p>
+</section>
+{% endif %}
+<script src="{% static 'portal/company-hosts.js' %}" defer></script>
 <details class="organization-administration"{% if request.GET.inventory_page or request.GET.contact_page or request.GET.scope_page or request.GET.inventory_q %} open{% endif %}><summary id="organization-administration">Administration, full inventory, contacts &amp; infrastructure</summary>
 {% if workflow_stage %}{% include 'portal/workflow.html' %}{% endif %}
 {% if user.is_superuser %}<p><a href="{% url 'company-merge' %}">Merge organizations →</a></p>{% endif %}{% if not org.merged_into_id %}{% if member_admin or user.is_superuser %}<p><a class="button" href="{% url 'company-members' org.slug %}">Company members & invitations →</a> <a class="button" href="{% url 'company-members' org.slug %}#domain-codes">Company email domain codes →</a></p>{% endif %}{% endif %}

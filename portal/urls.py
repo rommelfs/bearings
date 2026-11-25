@@ -301,6 +301,7 @@ urlpatterns = [
         name="api-evidence",
     ),
     path("contacts/verify/", company_scope_views.verify_contact, name="verify-contact"),
+    path("organizations/<slug:slug>/hosts/", inventory_views.hosts, name="organization-hosts"),
     path("organizations/<slug:slug>/", inventory_views.detail, name="organization"),
     path(
         "organizations/<slug:slug>/contacts/new/", company_scope_views.create_contact, name="create-contact"

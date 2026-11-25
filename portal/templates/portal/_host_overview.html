@@ -2,7 +2,7 @@
 <section id="hosts" aria-labelledby="host-heading">
 <div class="row"><h2 id="host-heading">Which hosts need attention?</h2><a href="#organization-administration">Administration &amp; full inventory ↓</a></div>
 <p class="host-intro">Problems, evaluation gaps and documented vendor fixes for active hosts.</p>
-{% if host_overview_unavailable %}<aside role="status"><strong>Host overview temporarily unavailable.</strong><p>The query could not finish. No assessment or empty result is implied. Reload this page to retry, or use the full inventory and review workspace below.</p><a href="{% url 'intelligence' org.slug %}">Open scoped evidence →</a></aside>{% else %}
+{% if host_overview_unavailable %}<aside role="status"><strong>Host overview temporarily unavailable.</strong><p>The query could not finish. No assessment or empty result is implied. Try again or use the full inventory and review workspace below.</p><a href="{% url 'organization' org.slug %}?host_filter=all#hosts">Retry host overview →</a> · <a href="{% url 'intelligence' org.slug %}">Open scoped evidence →</a></aside>{% else %}
 <nav class="host-metrics" aria-label="Host overview quick filters">{% for metric in host_metrics %}<a class="host-metric" data-filter="{{ metric.key }}" href="{{ metric.url }}"{% if metric.active %} aria-current="page"{% endif %}><strong>{{ metric.count }}</strong><span>{{ metric.label }}</span></a>{% endfor %}</nav>
 <form class="host-filters" method="get" action="#hosts">
 <label>Find host<input name="host_q" type="search" maxlength="128" value="{{ host_query }}" placeholder="Host name"></label>

@@ -2584,3 +2584,14 @@ tests. Synthetic asset tests cover current and historical Windows backlog
 counts and current, stale, and restricted Linux vendor-fix evidence.
 Chromium verified the summary placement and status explanations on both
 platforms at 1,280 and 390 pixels, using both pointer hover and keyboard focus.
+
+### Independent company inventory and host evaluation
+
+The company inventory and scoped host fragment pass the complete PostgreSQL
+regression (1,096 passed, five conditional skips), including explicit host
+sorting and filters, Windows inventory, and the injected timeout response.
+On the retained 48,000-asset database the company document median was 42.4 ms
+over five warm requests. Chromium opened the existing inventory anchor in
+439 ms with an eight-second synthetic host delay and fetched the host panel
+only on request. Django checks, migration drift, Ruff, JavaScript syntax and
+static-file discovery passed. See [the timings and boundaries](performance/company-inventory.md).

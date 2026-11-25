@@ -317,7 +317,9 @@ class CompanyInventoryTests(Fixture):
             response.content.decode().split('<table class="company-hosts">', 1)[1].split("</table>", 1)[0]
         )
         self.assertEqual(inventory_html.count("Ubuntu 24.04"), 50)
-        self.assertEqual(len(response.context["host_page"]), 25)
+        self.assertNotIn("host_page", response.context)
+        panel = self.client.get(self.url("organization-hosts"))
+        self.assertEqual(len(panel.context["host_page"]), 25)
         self.assertNotContains(response, "base-package-")
         self.assertNotContains(response, "Investigate a known CVE")
         for host in response.context["inventory_page"]:

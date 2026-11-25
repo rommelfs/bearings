@@ -19,6 +19,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Cast, Coalesce, Now
 from django.utils import timezone
+from django.urls import reverse
 from .circl import findings_for
 from .distro_fix_evidence import HasVendorFix
 from .issues import ACTIVE, visible_issues
@@ -323,7 +324,7 @@ def overview(request, org):
         "host_stats": stats,
         "host_metrics": metrics,
         "host_query": query,
-        "host_return_url": request.path + sorting.url(return_to=None),
+        "host_return_url": reverse("organization", args=[org.slug]) + sorting.url(return_to=None),
         "host_filter": filter_key,
         **{"host_" + key: value for key, value in sorting.context(page).items()},
     }

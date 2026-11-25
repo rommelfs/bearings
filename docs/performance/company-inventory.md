@@ -11,3 +11,27 @@ A larger case with 101 assets, 100,900 installations and 10,000 reviews exposed 
 After that query fix the larger case measured **0.3863s median, 26 queries and 349,771 bytes**, versus 3.6803s immediately before the count fix. The returned first page remains bounded to fifty assets and five hundred installation previews. Fresh bulk-loaded statistics were intentionally retained rather than hiding the bad plan with ANALYZE. Regression tests check query/response growth, no payload/history selection, raw intelligence visibility, independent section pagination and a preserved source binding. See [raw measurements](company-inventory-20261120.json).
 
 No production records, SMTP, scans, NetBox writes or database schema were changed by this performance validation. This addresses company-page rendering; it is not a new fleet ingestion/publication throughput acceptance. Standard detailed asset/CVE views retain their own pagination and authorization.
+
+## Direct inventory links and host evaluation — 25 November 2026
+
+The organization document now delivers inventory independently of the host
+attention cohort. Opening the existing `#inventory` link expands the inventory
+section and skips the background host request. The normal company landing page
+loads the host panel independently. Explicit host filters, sorting and pagination
+retain a full-page path that also works without JavaScript. The panel applies
+current company scope and has a separate unavailable state and retry path.
+
+On the retained **48,000-asset PostgreSQL** fixture, five warm authenticated
+requests measured a median of **42.4 ms** for the company document,
+**174.2 ms** with synchronous host evaluation requested, and **109.7 ms**
+for the separate panel. With an eight-second synthetic delay deliberately
+injected into host evaluation, the synchronous response took **8,180 ms**
+and the company document **56 ms**. Chromium reached the open inventory in
+**439 ms** with that delay in place. It issued the host request only when
+the user explicitly opened the panel. These measurements isolate the effect
+of the split. The source of the reported production latency remains unverified.
+
+The company response reports numeric company, inventory and render times in
+`Server-Timing`. The scale runner measures the company document and host panel separately.
+The host response reports its own duration. Deploy
+with the usual source update and `collectstatic` to publish `company-hosts.js`.

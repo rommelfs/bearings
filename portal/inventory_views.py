@@ -1,9 +1,12 @@
 """Company and asset inventory pages."""
 
 from datetime import timedelta
+from time import perf_counter
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import OperationalError
+from django.http import HttpResponseBadRequest
 from django.db.models import (
     Case,
     Count,
@@ -18,6 +21,8 @@ from django.db.models import (
 )
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
 
 from .access import (
     analyst_read_snapshot,
@@ -41,6 +46,7 @@ from .inventory_presentation import (
     decorate_addresses,
     top_level_assets,
 )
+from .overview_queries import overview_queries
 from .models import (
     AgentDevice,
     Asset,
@@ -110,11 +116,43 @@ def inventory(request):
     )
 
 
+def _host_context(request, org):
+    from .host_overview import overview as host_overview
+
+    try:
+        with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
+            return host_overview(request, org)
+    except OperationalError:
+        return {"host_overview_unavailable": True}
+
+
+@login_required
+@never_cache
+@require_GET
+@analyst_read_snapshot
+def hosts(request, slug):
+    started = perf_counter()
+    org = organization(request, slug)
+    try:
+        context = _host_context(request, org)
+    except ValueError:
+        return HttpResponseBadRequest("Unsupported host overview filter or sorting.")
+    response = render(
+        request,
+        "portal/_host_overview.html",
+        {"org": org, **context},
+        status=503 if context.get("host_overview_unavailable") else 200,
+    )
+    response["Server-Timing"] = f"hosts;dur={(perf_counter() - started) * 1000:.1f}"
+    return response
+
+
 @login_required
 @analyst_read_snapshot
 def detail(request, slug):
     from .models import OrganizationConfiguration
 
+    started = perf_counter()
     org = organization(request, slug)
     role = org.membership_set.filter(user=request.user).values_list("role", flat=True).first()
     editable = request.user.is_superuser or role in {"admin", "editor"}
@@ -129,6 +167,7 @@ def detail(request, slug):
             closed=Count("pk", filter=Q(status__in=["resolved", "false_positive"])),
         )
     )
+    inventory_started = perf_counter()
     inventory_query = request.GET.get("inventory_q", "").strip()[:128]
     inventory_assets = top_level_assets(org.assets.filter(source__organization=org))
     if inventory_query:
@@ -215,20 +254,17 @@ def detail(request, slug):
         elif asset.os_preview:
             installed_os = asset.os_preview[0]
             asset.overview_os = " ".join(filter(None, (installed_os.product.name, installed_os.version)))
-    from django.db import OperationalError
-    from django.http import HttpResponseBadRequest
-
-    from .host_overview import overview as host_overview
-    from .overview_queries import overview_queries
-
-    try:
-        with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
-            host_context = host_overview(request, org)
-    except ValueError:
-        return HttpResponseBadRequest("Unsupported host overview filter or sorting.")
-    except OperationalError:
-        host_context = {"host_overview_unavailable": True}
-    return render(
+    inventory_ms = (perf_counter() - inventory_started) * 1000
+    # A hash such as #inventory never reaches Django. Load the host cohort
+    # independently unless the visitor explicitly requested its filters or page.
+    host_context = {}
+    if request.GET.keys() & {"host_filter", "host_q", "sort", "direction", "page"}:
+        try:
+            host_context = _host_context(request, org)
+        except ValueError:
+            return HttpResponseBadRequest("Unsupported host overview filter or sorting.")
+    render_started = perf_counter()
+    response = render(
         request,
         "portal/detail.html",
         {
@@ -257,6 +293,12 @@ def detail(request, slug):
             **host_context,
         },
     )
+    finished = perf_counter()
+    response["Server-Timing"] = (
+        f"company;dur={(finished - started) * 1000:.1f}, inventory;dur={inventory_ms:.1f}, "
+        f"render;dur={(finished - render_started) * 1000:.1f}"
+    )
+    return response
 
 
 @login_required

@@ -298,7 +298,7 @@ class WindowsAgentTests(Fixture):
         self.assertEqual(distro_cves.evaluate_device(self.device.pk)["state"], "unsupported")
 
         self.login(self.reader)
-        response = self.client.get(self.url("organization"))
+        response = self.client.get(self.url("organization-hosts"))
         self.assertContains(response, "Windows 26100.1234")
         self.assertContains(response, "No current package evaluation")
         hosts = response.context["host_page"]

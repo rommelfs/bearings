@@ -26,7 +26,7 @@ class HostOverviewTests(Fixture):
 
     def page(self, **params):
         self.login(self.reader)
-        response = self.client.get(self.url("organization"), params)
+        response = self.client.get(self.url("organization-hosts"), params)
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("host_overview_unavailable", response.context)
         return response
@@ -98,7 +98,7 @@ class HostOverviewTests(Fixture):
         self.assertIsNone(host.source_priority)
         self.assertEqual(host.fix_packages, 0)
         self.login(self.platform)
-        response = self.client.get(self.url("organization"))
+        response = self.client.get(self.url("organization-hosts"))
         host = next(h for h in response.context["host_page"] if h.pk == self.device.asset_id)
         self.assertEqual(host.source_priority, 0)
         bad = Asset.objects.create(
@@ -152,13 +152,26 @@ class HostOverviewTests(Fixture):
         self.assertEqual(host.issue_count, 0)
         self.assertIsNone(host.host_priority)
 
-    def test_timeout_has_retry_state_and_keeps_full_inventory(self):
-        with patch("portal.host_overview.overview", side_effect=OperationalError("synthetic timeout")):
-            self.login(self.reader)
-            response = self.client.get(self.url("organization"))
-        self.assertContains(response, "Host overview temporarily unavailable")
-        self.assertContains(response, self.asset.name)
-        self.assertNotContains(response, "0 matching hosts")
+    def test_inventory_is_independent_of_host_overview_and_fragment_stays_scoped(self):
+        self.login(self.reader)
+        with patch(
+            "portal.host_overview.overview", side_effect=OperationalError("synthetic timeout")
+        ) as overview:
+            document = self.client.get(self.url("organization"))
+            self.assertContains(document, self.asset.name)
+            self.assertContains(document, "data-host-panel=")
+            self.assertNotContains(document, "0 matching hosts")
+            self.assertIn("company;dur=", document["Server-Timing"])
+            overview.assert_not_called()
+            panel = self.client.get(self.url("organization-hosts"))
+            self.assertContains(panel, "Host overview temporarily unavailable", status_code=503)
+            self.assertContains(panel, "Retry host overview", status_code=503)
+            self.assertIn("hosts;dur=", panel["Server-Timing"])
+            self.assertIn("no-store", panel["Cache-Control"])
+            self.assertEqual(self.client.get(self.url("organization-hosts", self.b)).status_code, 404)
+            overview.assert_called_once()
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url("organization-hosts")).status_code, 302)
 
     def test_vendor_fix_contract_matches_exact_bound_and_ignores_malformed_evidence(self):
         row = SourceRecord.objects.create(

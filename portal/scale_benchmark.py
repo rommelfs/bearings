@@ -481,6 +481,7 @@ def endpoints(org, asset):
         ("company_overview", "owner", "get", "/infrastructure/", None),
         ("company_inventory", "owner", "get", "/inventory/", None),
         ("company_detail", "owner", "get", f"/organizations/{org.slug}/", None),
+        ("company_hosts", "owner", "get", f"/organizations/{org.slug}/hosts/", None),
         ("company_asset", "owner", "get", f"/organizations/{org.slug}/assets/{asset.pk}/", None),
         ("company_issues", "owner", "get", "/issues/", None),
         ("company_reviews", "owner", "get", "/reviews/", None),
