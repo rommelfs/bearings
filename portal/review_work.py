@@ -22,7 +22,10 @@ OPEN_WORK = (
     | Q(distro_match__isnull=False, queue_bucket__in=("pending", "unresolved"))
 )
 CONFLICTING = CURRENT_AFFECTED & Q(analyst_applicability="not_affected")
-NEEDS_ATTENTION = (OPEN_WORK & ~Q(queue_bucket="cleared")) | CONFLICTING
+RECHECK_DISCOVERY = Q(discovery__review_required=True, analyst_applicability="not_affected") & ~Q(
+    discovery__result="not_affected"
+)
+NEEDS_ATTENTION = (OPEN_WORK & ~Q(queue_bucket="cleared")) | CONFLICTING | RECHECK_DISCOVERY
 REVIEW_SCOPES = (
     ("attention", "Needs attention"),
     ("action", "Version matches and reviews"),
@@ -40,9 +43,9 @@ def scoped_work(findings, scope):
     if scope == "attention":
         return findings.filter(NEEDS_ATTENTION)
     if scope == "cleared":
-        return findings.filter(queue_bucket=scope).exclude(CONFLICTING)
+        return findings.filter(queue_bucket=scope).exclude(CONFLICTING | RECHECK_DISCOVERY)
     if scope == "action":
-        return findings.filter(Q(OPEN_WORK, queue_bucket=scope) | CONFLICTING)
+        return findings.filter(Q(OPEN_WORK, queue_bucket=scope) | CONFLICTING | RECHECK_DISCOVERY)
     return findings.filter(OPEN_WORK, queue_bucket=scope)
 
 

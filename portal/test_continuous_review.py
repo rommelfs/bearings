@@ -132,6 +132,10 @@ class DiscoveryAcceptance(tests.Fixture):
         self.sync()
         self.login()
         self.assertContains(self.client.get(self.url("intelligence") + "?changed=1"), "CVE-2025-12345")
+        self.assertContains(
+            self.client.get(self.url("intelligence")),
+            "New evidence needs review despite a saved assessment",
+        )
         finding.refresh_from_db()
         self.assertEqual(finding.status, "resolved")
 

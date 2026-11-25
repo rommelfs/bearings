@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Prefetch, Q, prefetch_related_objects
+from django.db.models import Case, Prefetch, Q, Value, When, prefetch_related_objects
 from django.http import JsonResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -26,7 +26,7 @@ from .presentation import decorate_finding, severity_first, vulnerability_summar
 from .overview_queries import bounded_list, read_snapshot
 from .queue_context import return_url
 from .review_cases import case_identity, case_page, evidence_page
-from .review_work import scoped_work
+from .review_work import RECHECK_DISCOVERY, scoped_work
 
 
 def vulnerability_url(finding):
@@ -130,7 +130,7 @@ def intelligence(request, slug):
     if view not in VIEWS:
         return HttpResponseBadRequest("Unsupported Intelligence view.")
     form_data = request.GET.copy()
-    form_data.setdefault("state", "attention")
+    form_data.setdefault("state", "all" if request.GET.get("changed") == "1" else "attention")
     listing_filters = IntelligenceFilters(form_data)
     valid_filters = listing_filters.is_valid()
     findings = listing_filters.apply(findings) if valid_filters else findings.none()
@@ -179,7 +179,9 @@ def intelligence(request, slug):
         work = scoped_work(findings, assessment_scope)
         page = grouped_page(work, view, request.GET.get("page"), filters, request.get_full_path())
     else:
-        work = scoped_work(findings, assessment_scope)
+        work = scoped_work(findings, assessment_scope).annotate(
+            discovery_recheck=Case(When(RECHECK_DISCOVERY, then=Value(True)), default=Value(False))
+        )
         page, _, _, _ = case_page(work, request.GET.get("page"), "all", "", prioritize_assets=False)
         for finding in page:
             finding.source_summary = vulnerability_summary(finding.record.payload)
