@@ -4,11 +4,12 @@
 {% else %}
 <section id="hosts" data-host-panel="{% url 'organization-hosts' org.slug %}{% querystring %}" aria-labelledby="host-heading">
   <div class="row"><h2 id="host-heading">Which hosts need attention?</h2><a href="#inventory">Full inventory ↓</a></div>
-  <p><a data-load-hosts href="{% querystring host_filter='all' %}#hosts">Load host overview →</a></p>
+  <p><a data-load-hosts href="{% querystring host_filter='all' %}#hosts">Load CVE assessment →</a></p>
   <p data-host-load-status role="status"></p>
+  {% include "portal/_host_inventory_preview.html" %}
 </section>
 {% endif %}
-<script src="{% static 'portal/company-hosts.js' %}" defer></script>
+<script src="{% static 'portal/company-hosts.js' %}?v=20261125-host-preview-1" defer></script>
 <details class="organization-administration"{% if request.GET.inventory_page or request.GET.contact_page or request.GET.scope_page or request.GET.inventory_q %} open{% endif %}><summary id="organization-administration">Administration, full inventory, contacts &amp; infrastructure</summary>
 {% if workflow_stage %}{% include 'portal/workflow.html' %}{% endif %}
 {% if user.is_superuser %}<p><a href="{% url 'company-merge' %}">Merge organizations →</a></p>{% endif %}{% if not org.merged_into_id %}{% if member_admin or user.is_superuser %}<p><a class="button" href="{% url 'company-members' org.slug %}">Company members & invitations →</a> <a class="button" href="{% url 'company-members' org.slug %}#domain-codes">Company email domain codes →</a></p>{% endif %}{% endif %}

@@ -119,6 +119,20 @@ def inventory(request):
     )
 
 
+def _host_inventory_preview(org, query=""):
+    from .review_focus import MACHINE_KINDS
+
+    assets = org.assets.filter(source__organization=org, lifecycle="active", kind__in=MACHINE_KINDS)
+    if query:
+        assets = assets.filter(name__icontains=query)
+    try:
+        with overview_queries(query_timeout_ms=1500):
+            hosts = list(assets.order_by("name", "pk").values("pk", "name", "kind", "missing_since")[:26])
+    except OperationalError:
+        return {"host_inventory_unavailable": True}
+    return {"host_inventory_preview": hosts[:25], "host_inventory_more": len(hosts) > 25}
+
+
 def _host_context(request, org):
     from .host_overview import overview as host_overview
 
@@ -146,7 +160,10 @@ def _host_context(request, org):
         logger.warning(
             "Host overview unavailable reason=%s elapsed_ms=%d", reason, (perf_counter() - started) * 1000
         )
-        return {"host_overview_unavailable": True}
+        return {
+            "host_overview_unavailable": True,
+            **_host_inventory_preview(org, request.GET.get("host_q", "").strip()[:128]),
+        }
 
 
 @login_required
@@ -292,6 +309,8 @@ def detail(request, slug):
             host_context = _host_context(request, org)
         except ValueError:
             return HttpResponseBadRequest("Unsupported host overview filter or sorting.")
+    else:
+        host_context = _host_inventory_preview(org)
     render_started = perf_counter()
     response = render(
         request,

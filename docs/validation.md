@@ -2653,3 +2653,17 @@ limit remains 5 s. Chromium checked the asynchronous host panel and followed
 a single Intelligence case through paginated evidence and an individual
 review, then returned to the list. These observations are synthetic and do
 not establish the cause of a live failure.
+
+## Compact assessment and host preview during gateway failure
+
+SQLite and PostgreSQL tests validate unique field labels per finding, the
+three-line required reason field, read permissions, and a scoped inventory
+preview independent of the full host assessment. The fallback retains the
+host search and retry context after an injected database error, with no CVE
+counts in the preview.
+
+Chromium on loopback verified side-by-side controls at 1,440 px and stacked
+controls at 390 px. The reason field measured 94 px high. The organization
+document displayed inventory before a deliberately delayed HTTP 504. The
+preview stayed visible and the next attempt loaded the full host assessment.
+The exercise does not identify the cause of any live gateway failure.

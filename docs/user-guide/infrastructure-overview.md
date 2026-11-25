@@ -173,6 +173,8 @@ The organization's **Asset → Vulnerability → Risk** list uses the same
 CVE-and-host grouping within its current filters, including retained decisions.
 A single review opens inline. A grouped case links to paginated evidence.
 Existing direct finding links open the individual assessment and risk mapping.
+The assessment and workflow controls sit side by side where space allows.
+The reason field starts at three lines and can be expanded.
 The review-decision timeline still counts recorded transitions.
 
 An updated package with a proven vendor fix leaves the default queue after
@@ -441,3 +443,12 @@ Company overview cards now emphasize machine-based match and evaluation-coverage
 ## Compact review workflow
 
 The company card now shows three primary next steps and folds detailed reasons, network/evidence previews and monitoring limitations. Filter chips and case return paths preserve your selected work. See [usability improvements](usability-improvements.md) for the implemented behavior and validation limits.
+
+### Organization host inventory while assessment loads
+
+The organization page renders an inventory preview of up to 25 active hosts
+before the separate CVE assessment request completes. Inventory links stay
+available after a timeout, redirect, or other failed response. Retry CVE
+assessment to recover the evaluated priorities and counts, or follow **Open
+full inventory** for the full retained inventory. A preview reflects the
+authorized inventory and carries no package or assessment totals.

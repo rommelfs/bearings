@@ -161,6 +161,13 @@ def intelligence(request, slug):
                 finding.case_url = "?" + params.urlencode()
     from .timelines import review_decisions
 
+    editable = can_edit(request.user, org) or can_operator_review(request.user, org)
+    if editable:
+        for finding in page:
+            if not getattr(finding, "case_url", None):
+                finding.review_form = FindingReviewForm(auto_id=f"review-{finding.pk}-%s")
+                finding.review_form.fields["reason"].widget.attrs["rows"] = 3
+
     return render(
         request,
         "portal/intelligence.html",
@@ -168,10 +175,9 @@ def intelligence(request, slug):
             "org": org,
             "page": page,
             "review_timeline": review_decisions(findings),
-            "editable": can_edit(request.user, org) or can_operator_review(request.user, org),
+            "editable": editable,
             "sources": MOSPSource.objects.all(),
             "withdrawal_form": RiskWithdrawalForm(),
-            "finding_review_form": FindingReviewForm(),
             "filter_query": filters.urlencode(),
         },
     )

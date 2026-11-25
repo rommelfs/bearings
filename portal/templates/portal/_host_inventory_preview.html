@@ -1,0 +1,25 @@
+<div data-host-inventory-preview>
+  <h3>Host inventory preview</h3>
+  {% if host_inventory_unavailable %}
+    <p>The inventory preview could not load.</p>
+  {% elif host_inventory_preview %}
+  <div class="table-scroll">
+    <table class="company-hosts">
+      <thead><tr><th scope="col">Host</th><th scope="col">Type</th><th scope="col">Inventory</th></tr></thead>
+      <tbody>
+        {% for host in host_inventory_preview %}
+        <tr>
+          <td><a href="{% url 'asset' org.slug host.pk %}">{{ host.name }}</a></td>
+          <td>{{ host.kind|title }}</td>
+          <td>{% if host.missing_since %}Missing from latest import{% else %}Recorded{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if host_inventory_more %}<p>First 25 hosts in name order.</p>{% endif %}
+  {% else %}
+    <p>No active hosts found in this inventory preview.</p>
+  {% endif %}
+  <p><a href="{% url 'organization' org.slug %}#inventory">Open full inventory →</a></p>
+</div>

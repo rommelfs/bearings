@@ -21,14 +21,22 @@
   async function load() {
     if (!panel.isConnected || panel.getAttribute("aria-busy") === "true") return;
     panel.setAttribute("aria-busy", "true");
-    status.textContent = "Loading host overview…";
+    status.textContent = "Loading CVE assessment…";
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
+    let failure = "CVE assessment could not load.";
     try {
       const response = await fetch(panel.dataset.hostPanel, {
         credentials: "same-origin", cache: "no-store", signal: controller.signal,
       });
-      if (response.redirected || !response.ok) throw new Error("Host overview unavailable");
+      if (response.redirected) {
+        failure = "CVE assessment was redirected. Reload this page to check your session.";
+        throw new Error("Unexpected redirect");
+      }
+      if (!response.ok) {
+        failure = `CVE assessment could not load (HTTP ${response.status}).`;
+        throw new Error("Unsuccessful assessment response");
+      }
       const html = document.createElement("template");
       html.innerHTML = await response.text();
       const hosts = html.content.querySelector("#hosts");
@@ -41,7 +49,9 @@
         heading.focus();
       }
     } catch {
-      status.textContent = "Host overview temporarily unavailable. Select Load host overview to retry.";
+      if (controller.signal.aborted) failure = "CVE assessment took too long.";
+      status.textContent = failure;
+      loadLink.textContent = "Retry CVE assessment →";
     } finally {
       clearTimeout(timeout);
       panel.removeAttribute("aria-busy");

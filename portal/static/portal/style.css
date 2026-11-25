@@ -1008,11 +1008,43 @@ main .workflow-path {
 }
 .finding-assessment {
   border-top: 1px solid #d5dfdf;
-  padding-top: 20px;
+  display: grid;
+  gap: .65rem;
+  padding-top: .85rem;
   margin-bottom: 0;
 }
-.finding-assessment form {
-  max-width: 650px;
+.finding-assessment h3,
+.finding-assessment p,
+.finding-assessment .actions,
+.finding-assessment .assessment-discovery {
+  margin: 0;
+}
+.finding-assessment .assessment-discovery {
+  padding: .65rem .85rem;
+}
+.assessment-form {
+  display: grid;
+  gap: .55rem;
+  max-width: 720px;
+}
+.assessment-form-fields {
+  display: grid;
+  gap: .55rem .85rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+.assessment-form-reason {
+  grid-column: 1 / -1;
+}
+.assessment-form-fields select,
+.assessment-form-fields textarea {
+  width: 100%;
+}
+.assessment-form-fields textarea {
+  min-height: 0;
+  resize: vertical;
+}
+.finding-assessment > .actions:empty {
+  display: none;
 }
 .evidence-chain > section {
   margin: 20px 0;

@@ -1,0 +1,45 @@
+<section class="finding-assessment" id="assessment-{{ finding.pk }}">
+  <h3>Assessment &amp; action</h3>
+  {% if finding.asset_issue or finding.flowintel_available %}
+  <div class="actions">
+    {% if finding.asset_issue %}
+    <a class="button" href="{% url 'automatic-scenario' org.slug finding.asset_issue.pk %}">Automatic risk scenario →</a>
+    <a class="button" href="{% url 'business-risk' org.slug finding.asset_issue.pk %}">Company risk assessment →</a>
+    {% endif %}
+    {% if finding.flowintel_available %}<a class="button" href="{{ finding.flowintel_review_url }}">Prepare private FlowIntel case →</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if finding.discovery %}
+  <aside class="assessment-discovery">
+    {% if finding.discovery.inputs_changed %}<strong>Installation or evidence changed since automated evaluation; refresh and review required.</strong><br>{% endif %}
+    Automatic discovery: {{ finding.discovery.result }} · {% if finding.discovery.review_required %}New or changed evidence · review required{% else %}Reviewed{% endif %}
+    {% if finding.discovery.explanation %}<details><summary>Discovery details</summary><p>{{ finding.discovery.explanation }}</p></details>{% endif %}
+  </aside>
+  {% endif %}
+  {% for case in finding.flowintel_bindings %}
+  <p><a href="{% url 'flowintel-case' org.slug case.pk %}">FlowIntel hand-off · {{ case.instance.name }} · {{ case.state }}</a>{% if case.summary %} · {{ case.summary.status }} · Last read {{ case.last_success }}{% endif %}</p>
+  {% endfor %}
+  <p>Analyst assessment: <span class="assessment-badge assessment-{{ finding.assessment_key }}">{{ finding.analyst_applicability }}</span> · Workflow: {{ finding.status }}</p>
+  {% if finding.review_form %}
+  <form class="assessment-form" method="post" action="{% url 'finding-review' org.slug finding.pk %}?return=intelligence{% if queue_return_url %}&amp;return_to={{ queue_return_url|urlencode }}{% endif %}">
+    {% csrf_token %}
+    <div class="assessment-form-fields">
+      <div>{{ finding.review_form.assessment.as_field_group }}</div>
+      <div>{{ finding.review_form.status.as_field_group }}</div>
+      <div class="assessment-form-reason">{{ finding.review_form.reason.as_field_group }}</div>
+    </div>
+    <div class="actions">
+      <button class="primary">Record assessment &amp; reason</button>
+      <a href="{% url 'asset' org.slug finding.installation.asset.pk %}#ownership">Responsible team and local asset assessment →</a>
+    </div>
+  </form>
+  {% else %}
+  <p><a href="{% url 'asset' org.slug finding.installation.asset.pk %}#ownership">Responsible team and local asset assessment →</a></p>
+  {% endif %}
+  <details><summary>Assessment history</summary>
+    {% for entry in finding.history.all %}
+    <p>{{ entry.created_at }} · {{ entry.actor }} · {{ entry.previous_status }} → {{ entry.status }} · {{ entry.assessment }}<br>{{ entry.reason }}</p>
+    {% empty %}<p>No analyst assessment recorded.</p>{% endfor %}
+  </details>
+</section>
