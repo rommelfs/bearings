@@ -342,7 +342,7 @@ class IntelligenceTests(Fixture):
         self.bundle["threat"]["name"] = '<script>alert("x")</script>'
         link = self.link()
         self.login()
-        response = self.client.get(self.url("intelligence"))
+        response = self.client.get(self.url("intelligence"), {"finding": self.finding.pk})
         self.assertNotContains(response, '<script>alert("x")</script>')
         self.assertContains(response, "&lt;script&gt;")
         self.assertEqual(

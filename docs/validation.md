@@ -2690,3 +2690,11 @@ HTTP 503 with the normal five-second database statement limit. On that same
 database the updated reader request returned HTTP 200 in 0.84 s with the
 same complete host and vendor-fix counts. Migration 0076 was exercised as
 an upgrade on the populated fixture before this test.
+
+## Uniform Intelligence overview cards
+
+The organization Intelligence overview uses the same compact card for one
+or multiple evidence records. Single cards link directly to the original
+review and grouped cards link to scoped evidence comparison. Filtered return
+links, source severity, evidence visibility, assessment forms and the
+per-record API remain covered by the synthetic review tests.

@@ -1,11 +1,11 @@
-{% extends 'portal/base.html' %}{% block content %}{% if queue_return_url %}<p><a href="{{ queue_return_url }}">← Back to filtered list</a></p>{% endif %}
+{% extends 'portal/base.html' %}{% block content %}{% if queue_return_url %}<p><a href="{{ queue_return_url }}">← Back to filtered list</a></p>{% elif is_detail %}<p><a href="{{ intelligence_list_url }}">← Back to intelligence</a></p>{% endif %}
 <a href="{% url 'organization' org.slug %}">← {{ org.name }}</a><p class="eyebrow">EVIDENCE & RISK SCENARIOS</p><h1>Asset → Vulnerability → Risk</h1>
 <p>Follow source evidence from inventory to a vulnerability review and an explicitly selected MONARC scenario. A catalog reference is a review hypothesis, not a confirmed risk, affectedness or compromise.</p>
 <p><a class="button" href="{% url 'risk-catalog' org.slug %}">Browse MONARC risk catalog</a></p>
 <details class="history-disclosure">{% include 'portal/_chart_disclosure_summary.html' with icon='chart' title='Review decisions over time' description='Confirmations, resolutions and reopened reviews' only %}{% include "portal/_timeline.html" with timeline=review_timeline timeline_id="review-decisions-data" %}</details>
 {% for source in sources %}<aside>{{ source.name }} · {% if not source.enabled %}Disabled · {% endif %}Last complete catalog refresh: {{ source.last_success|default:'Never' }} · {{ source.error }}<br>Catalog definitions are public CC0 objects. Organizational links remain subject to membership and evidence visibility.</aside>{% empty %}<aside>No MOSP source configured. A platform operator can run sync_mosp --all. CVE review remains available in the organization workspace.</aside>{% endfor %}
 {% for finding in page %}
-{% if finding.case_url %}
+{% if not is_detail %}
 {% url 'organization' org.slug as organization_url %}
 {% url 'asset' org.slug finding.installation.asset_id as asset_url %}
 {% include "portal/_review_host_case.html" with case_url=finding.case_url hide_case_category=True %}

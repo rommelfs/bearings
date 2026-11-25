@@ -12,7 +12,7 @@ Place assessment and workflow side by side on wider screens. Keep a short, resiz
 
 ## Organization Intelligence and host panel
 
-Apply the same CVE-and-host grouping to the organization Intelligence page with scoped details, exact finding URLs and the per-record API. Aggregate current package evidence for the host panel before counting and pagination. Query failures retain an explicit retry state with server timing and a sanitized log reason.
+Apply the same compact card to all cases on the organization Intelligence page. Single records link directly to their review. Grouped cases keep the scoped evidence list, exact finding URLs and the per-record API. Aggregate current package evidence for the host panel before counting and pagination. Query failures retain an explicit retry state with server timing and a sanitized log reason.
 
 ## One case per CVE and server in Vulnerability review
 

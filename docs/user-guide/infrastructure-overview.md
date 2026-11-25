@@ -171,7 +171,8 @@ on the card.
 
 The organization's **Asset → Vulnerability → Risk** list uses the same
 CVE-and-host grouping within its current filters, including retained decisions.
-A single review opens inline. A grouped case links to paginated evidence.
+All reviews use the same compact card. A single record links directly to its
+review details. A grouped case links to paginated evidence.
 Existing direct finding links open the individual assessment and risk mapping.
 The assessment and workflow controls sit side by side where space allows.
 The reason field starts at three lines and can be expanded.

@@ -21,7 +21,7 @@ from .connectors.http import ConnectorError, validate_base
 from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link, resolve_risk
 from .models import MOSPRisk, MOSPSource, RiskLink, Product, Installation
-from .presentation import decorate_finding, severity_first
+from .presentation import decorate_finding, severity_first, vulnerability_summary
 from .overview_queries import bounded_list, read_snapshot
 from .queue_context import return_url
 from .review_cases import case_identity, case_page, evidence_page
@@ -124,7 +124,8 @@ def intelligence(request, slug):
     filters = request.GET.copy()
     filters.pop("page", None)
     findings = scoped_findings(request, org).select_related("installation__asset__source__instance")
-    if not request.GET.get("finding") and (case := request.GET.get("case")):
+    is_detail = bool(request.GET.get("finding"))
+    if not is_detail and (case := request.GET.get("case")):
         if not case.isascii() or not case.isdigit() or len(case) > 19 or not 0 < int(case) <= 2**63 - 1:
             raise Http404
         visible = case_identity(findings)
@@ -147,26 +148,33 @@ def intelligence(request, slug):
                 "pagination_query": filters.urlencode(),
             },
         )
-    if request.GET.get("finding"):
+    list_url = reverse("intelligence", args=[org.slug])
+    editable = False
+    if is_detail:
         page = finding_page(request, org, findings=findings)
-    else:
-        page, _, _, _ = case_page(findings, request.GET.get("page"), "all", "", prioritize_assets=False)
-        decorate_records([finding for finding in page if finding.evidence_count == 1], request.user)
-        for finding in page:
-            if finding.evidence_count > 1:
-                decorate_finding(finding)
-                params = filters.copy()
-                params["case"] = finding.pk
-                params["return_to"] = request.get_full_path()
-                finding.case_url = "?" + params.urlencode()
-    from .timelines import review_decisions
-
-    editable = can_edit(request.user, org) or can_operator_review(request.user, org)
-    if editable:
-        for finding in page:
-            if not getattr(finding, "case_url", None):
+        list_filters = filters.copy()
+        for name in ("finding", "case", "return_to"):
+            list_filters.pop(name, None)
+        if list_filters:
+            list_url += "?" + list_filters.urlencode()
+        editable = can_edit(request.user, org) or can_operator_review(request.user, org)
+        if editable:
+            for finding in page:
                 finding.review_form = FindingReviewForm(auto_id=f"review-{finding.pk}-%s")
                 finding.review_form.fields["reason"].widget.attrs["rows"] = 3
+    else:
+        page, _, _, _ = case_page(findings, request.GET.get("page"), "all", "", prioritize_assets=False)
+        for finding in page:
+            finding.source_summary = vulnerability_summary(finding.record.payload)
+            finding.severity_key = finding.source_summary["severity"].lower()
+            if not finding.software_preview:
+                finding.software_preview = [(finding.installation.product.name, finding.queue_bucket)]
+            params = filters.copy()
+            params["finding" if finding.evidence_count == 1 else "case"] = finding.pk
+            params["return_to"] = request.get_full_path()
+            finding.case_url = "?" + params.urlencode()
+
+    from .timelines import review_decisions
 
     return render(
         request,
@@ -174,10 +182,12 @@ def intelligence(request, slug):
         {
             "org": org,
             "page": page,
+            "is_detail": is_detail,
+            "intelligence_list_url": list_url,
             "review_timeline": review_decisions(findings),
             "editable": editable,
             "sources": MOSPSource.objects.all(),
-            "withdrawal_form": RiskWithdrawalForm(),
+            "withdrawal_form": RiskWithdrawalForm() if editable else None,
             "filter_query": filters.urlencode(),
         },
     )

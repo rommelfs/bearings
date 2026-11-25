@@ -252,27 +252,32 @@ class AssetReviewTests(Fixture):
         self.assertContains(self.client.get(url, {"finding": second.pk}), f'id="assessment-{second.pk}"')
         self.assertEqual(self.client.get(self.url("api-intelligence")).json()["pagination"]["count"], 2)
         single = self.client.get(url, {"product": product.pk})
-        self.assertContains(single, f'id="assessment-{second.pk}"')
+        self.assertContains(single, "View software &amp; evidence (1)")
+        self.assertNotContains(single, f'id="assessment-{second.pk}"')
+        (single_case,) = single.context["page"]
+        direct = self.client.get(url + single_case.case_url)
+        self.assertContains(direct, f'id="assessment-{second.pk}"')
+        self.assertContains(direct, f'href="{url}?product={product.pk}"')
+        self.assertNotContains(direct, 'class="assessment-form"')
 
     def test_intelligence_assessment_form_uses_small_field_and_unique_labels(self):
         other = persist_lookup(self.admin, self.installation, "fixture://compact-form", "CVE-2099-55555", {})
         self.login(self.admin)
         url = self.url("intelligence")
-        response = self.client.get(url)
-        self.assertContains(response, 'class="assessment-form"', count=2)
-        self.assertContains(response, 'rows="3"', count=2)
+        overview = self.client.get(url)
+        self.assertContains(overview, "View software &amp; evidence (1)", count=2)
+        self.assertNotContains(overview, 'class="assessment-form"')
         for finding in (self.finding, other):
+            response = self.client.get(url, {"finding": finding.pk})
+            self.assertContains(response, 'class="assessment-form"', count=1)
+            self.assertContains(response, 'rows="3"', count=1)
             for name in ("assessment", "status", "reason"):
                 field_id = f"review-{finding.pk}-{name}"
                 self.assertContains(response, f'id="{field_id}"', count=1)
                 self.assertContains(response, f'for="{field_id}"', count=1)
-            self.assertTrue(
-                next(item for item in response.context["page"] if item.pk == finding.pk)
-                .review_form.fields["reason"]
-                .required
-            )
+            self.assertTrue(response.context["page"][0].review_form.fields["reason"].required)
         self.login(self.reader)
-        self.assertNotContains(self.client.get(url), 'class="assessment-form"')
+        self.assertNotContains(self.client.get(url, {"finding": self.finding.pk}), 'class="assessment-form"')
 
     def test_host_case_limits_preview_and_preserves_all_evidence_in_details(self):
         for i in range(7):

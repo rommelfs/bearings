@@ -144,7 +144,8 @@ class FlowIntelTests(tests.Fixture):
         with self.assertRaises(PermissionDenied):
             self.preview()
         self.login(self.analyst)
-        self.assertNotContains(self.client.get(self.url("intelligence")), "Prepare private FlowIntel case")
+        detail = self.client.get(self.url("intelligence"), {"finding": self.finding.pk})
+        self.assertNotContains(detail, "Prepare private FlowIntel case")
         self.mock.assert_not_called()
 
     def test_private_case_playbook_and_read_only_status_leave_finding_unchanged(self):
