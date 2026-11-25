@@ -1,3 +1,4 @@
+from time import perf_counter
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -25,7 +26,7 @@ from .access import (
 )
 from .circl_views import private_response
 from .models import InventoryCSVBatch, InventorySource, InfrastructureClaim, AssetIssue
-from .overview_queries import overview_queries
+from .overview_queries import overview_queries, read_snapshot
 from .scope import normalize
 from .queue_context import with_return
 from django.urls import reverse
@@ -166,6 +167,7 @@ def csv_template(request, slug):
 @analyst_read_snapshot
 @require_http_methods(["GET"])
 def actions(request):
+    started = perf_counter()
     if request.user.is_superuser or is_analyst(request.user):
         audit(request.user, None, "operator.company_actions")
     orgs = organizations_for(request.user)
@@ -179,11 +181,28 @@ def actions(request):
         from .attention_machines import page_for
 
         try:
-            with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
-                page = page_for(request.user, orgs.values_list("pk", flat=True), request.GET.get("page"))
-                return private_response(
+            with (
+                read_snapshot(),
+                overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4) as database,
+            ):
+                page = page_for(
+                    request.user,
+                    orgs.values_list("pk", flat=True),
+                    request.GET.get("page"),
+                    scoped_evidence=bool(selected),
+                )
+                render_started = perf_counter()
+                response = private_response(
                     render(request, "portal/attention_machines.html", {"page": page, "selected": selected})
                 )
+                render_ms = (perf_counter() - render_started) * 1000
+            response["Server-Timing"] = (
+                f"actions;dur={(perf_counter() - started) * 1000:.1f}, "
+                f"database;dur={database.seconds * 1000:.1f}, "
+                f"dbmax;dur={database.slowest * 1000:.1f}, "
+                f"render;dur={render_ms:.1f}"
+            )
+            return response
         except OperationalError:
             return private_response(
                 render(

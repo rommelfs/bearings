@@ -2,10 +2,11 @@
 
 from datetime import timedelta
 from urllib.parse import urlsplit, parse_qs
+from unittest.mock import patch
 from django.urls import reverse
 from django.utils import timezone
 from .test_evaluation_presentation import EvaluationTests
-from .models import AgentDevice, Asset, Finding
+from .models import AgentDevice, Asset, Finding, SourceRecord
 from .review_focus import posture, cases, case_scope
 from .test_package_verdicts import save_browser_evidence
 from .circl import findings_for, outstanding
@@ -77,8 +78,6 @@ class FocusTests(EvaluationTests):
         self.prepare()
         finding = Finding.objects.get()
         # A second evidence source is kept, while the same machine still counts once.
-        from .models import SourceRecord
-
         record = SourceRecord.objects.create(
             organization=self.a,
             source="https://example.invalid/synthetic",
@@ -112,12 +111,43 @@ class FocusTests(EvaluationTests):
         Finding.objects.filter(pk=finding.pk).update(analyst_applicability="not_affected")
         self.assertEqual(assessment.get(pk=finding.pk), {"case_kind": "cleared", "queue_bucket": "cleared"})
 
+    def test_scoped_machine_proofs_match_correlated_flags_with_policy_and_stale_inputs(self):
+        self.cached()
+        self.prepare()
+        finding = Finding.objects.get()
+        SourceRecord.objects.filter(pk=finding.record_id).update(source_severity="high")
+        fields = ("pk", "evaluated", "partial", "version_match", "critical", "high", "source_priority")
+
+        def flags(user, scoped):
+            return list(
+                posture(user, [self.a.pk], include_totals=False, scoped_evidence=scoped)["machines"]
+                .order_by("pk")
+                .values_list(*fields)
+            )
+
+        current = flags(self.reader, True)
+        self.assertEqual(current, flags(self.reader, False))
+        self.assertEqual(current, [(self.asset.pk, True, False, True, False, True, 1)])
+        with patch("portal.review_focus.MAX_SCOPED_MATCHED_MACHINES", 0):
+            self.assertEqual(flags(self.reader, True), current)
+        SourceRecord.objects.filter(pk=finding.record_id).update(shareable=False)
+        hidden = flags(self.reader, True)
+        self.assertEqual(hidden, flags(self.reader, False))
+        self.assertFalse(hidden[0][3])
+        self.assertEqual(flags(self.platform, True), current)
+        AgentDevice.objects.filter(pk=self.device.pk).update(distro_requested=True)
+        stale = flags(self.platform, True)
+        self.assertEqual(stale, flags(self.platform, False))
+        self.assertFalse(stale[0][1])
+        self.assertFalse(stale[0][3])
+
     def test_attention_defaults_to_machine_teasers_and_keeps_the_grouped_view(self):
         self.cached()
         self.prepare()
         self.login(self.reader)
         response = self.client.get(reverse("company-actions"), {"organization": self.a.slug})
         self.assertEqual(response.status_code, 200)
+        self.assertIn("dbmax;dur=", response["Server-Timing"])
         save_browser_evidence("focus-attention", response)
         self.assertContains(response, "Current distribution-version match")
         self.assertContains(response, "Version match")

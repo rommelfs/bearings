@@ -87,6 +87,26 @@ def classified(reviews):
     return reviews.annotate(package_current=Exists(current)).annotate(queue_bucket=bucket_expression())
 
 
+CLEARED_VERDICTS = ("fixed", "not_matched")
+
+
+def review_bucket(assessment, has_package, current, verdict):
+    """Bucket for already classified package inputs, such as grouped dashboard counts."""
+    if assessment == "affected":
+        return "action"
+    if assessment == "not_affected":
+        return "cleared"
+    if not has_package:
+        return "action"
+    if not current:
+        return "pending"
+    if verdict == "affected":
+        return "action"
+    if verdict in CLEARED_VERDICTS:
+        return "cleared"
+    return "unresolved"
+
+
 def bucket_expression(*, human="action", affected="action", manual="action"):
     """Use the same evidence precedence for both the queue and grouped cases."""
     return Case(
@@ -95,7 +115,7 @@ def bucket_expression(*, human="action", affected="action", manual="action"):
         When(distro_match__isnull=True, then=Value(manual)),
         When(package_current=False, then=Value("pending")),
         When(distro_match__queue_proof__verdict="affected", then=Value(affected)),
-        When(distro_match__queue_proof__verdict__in=["fixed", "not_matched"], then=Value("cleared")),
+        When(distro_match__queue_proof__verdict__in=CLEARED_VERDICTS, then=Value("cleared")),
         default=Value("unresolved"),
         output_field=CharField(),
     )

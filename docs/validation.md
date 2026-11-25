@@ -2595,3 +2595,13 @@ over five warm requests. Chromium opened the existing inventory anchor in
 439 ms with an eight-second synthetic host delay and fetched the host panel
 only on request. Django checks, migration drift, Ruff, JavaScript syntax and
 static-file discovery passed. See [the timings and boundaries](performance/company-inventory.md).
+
+## Scoped infrastructure and attention latency (2026-11-25)
+
+Paired complete authenticated responses on PostgreSQL 17 with 1,000 machines,
+10,000 current synthetic package-CVE proofs and linked issues measured warm
+medians of 751 to 625 ms for infrastructure and 1,593 to 595 ms for the
+attention machine list. Both responses preserve full scoped counters, current
+evidence and unknown coverage. The attention result is still paginated and
+reports a numeric Server-Timing header. See
+[fixture, results and post-update verification](performance/scoped-overview-and-attention.md).

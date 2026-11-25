@@ -2,6 +2,10 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Company infrastructure and attention latency — 2026-11-25
+
+Reuse grouped review proof facts for infrastructure counters and aggregate visible current package matches once for the selected company's attention list. Preserve the complete results, ranking and analyst decisions. The paired PostgreSQL fixture measured 751 → 625 ms and 1,593 → 595 ms respectively. Attention now emits numeric Server-Timing. Production latency still needs post-update verification. See [measurements](performance/scoped-overview-and-attention.md).
+
 ## Direct inventory response — 2026-11-25
 
 The existing company inventory link now reaches the inventory without waiting for the host attention cohort. The dedicated, scoped panel retains the full assessment and has independent timing and retry. Synthetic tests verified an injected eight-second host delay. See [company inventory measurements](performance/company-inventory.md).
