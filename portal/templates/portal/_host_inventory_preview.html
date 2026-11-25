@@ -4,7 +4,7 @@
     <p>The inventory preview could not load.</p>
   {% elif host_inventory_preview %}
   <div class="table-scroll">
-    <table class="company-hosts">
+    <table class="host-inventory-preview-table">
       <thead><tr><th scope="col">Host</th><th scope="col">Type</th><th scope="col">Inventory</th></tr></thead>
       <tbody>
         {% for host in host_inventory_preview %}
