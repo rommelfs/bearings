@@ -2,6 +2,12 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Organization Intelligence views and filters
+
+Add CVE, machine and software pivots with scoped drill-down. Search across
+CVE, host and software, and filter by CVSS threshold, Ubuntu vendor priority
+and workflow. Migration 0077 backfills source CVSS for existing evidence.
+
 ## Host CVE assessment query and timeout diagnosis
 
 The host overview aggregates current package evidence, severity and documented fixes together. Migration 0076 stores just the JSON inputs needed for the vendor-fix check and updates them on snapshot writes. The HTTP error response distinguishes an application database timeout or failure from an upstream response. See [validation](validation.md#host-cve-assessment-query-and-timeout-diagnosis).

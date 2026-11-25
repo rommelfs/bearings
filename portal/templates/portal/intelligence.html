@@ -2,8 +2,15 @@
 <a href="{% url 'organization' org.slug %}">← {{ org.name }}</a><p class="eyebrow">EVIDENCE & RISK SCENARIOS</p><h1>Asset → Vulnerability → Risk</h1>
 <p>Follow source evidence from inventory to a vulnerability review and an explicitly selected MONARC scenario. A catalog reference is a review hypothesis, not a confirmed risk, affectedness or compromise.</p>
 <p><a class="button" href="{% url 'risk-catalog' org.slug %}">Browse MONARC risk catalog</a></p>
-<details class="history-disclosure">{% include 'portal/_chart_disclosure_summary.html' with icon='chart' title='Review decisions over time' description='Confirmations, resolutions and reopened reviews' only %}{% include "portal/_timeline.html" with timeline=review_timeline timeline_id="review-decisions-data" %}</details>
+{% if review_timeline %}<details class="history-disclosure">{% include 'portal/_chart_disclosure_summary.html' with icon='chart' title='Review decisions over time' description='Confirmations, resolutions and reopened reviews' only %}{% include "portal/_timeline.html" with timeline=review_timeline timeline_id="review-decisions-data" %}</details>{% endif %}
 {% for source in sources %}<aside>{{ source.name }} · {% if not source.enabled %}Disabled · {% endif %}Last complete catalog refresh: {{ source.last_success|default:'Never' }} · {{ source.error }}<br>Catalog definitions are public CC0 objects. Organizational links remain subject to membership and evidence visibility.</aside>{% empty %}<aside>No MOSP source configured. A platform operator can run sync_mosp --all. CVE review remains available in the organization workspace.</aside>{% endfor %}
+{% if not is_detail %}
+{% include "portal/_intelligence_filters.html" %}
+{% endif %}
+{% if valid_filters %}
+{% if not is_detail and view != "cve" %}
+{% include "portal/_intelligence_groups.html" %}
+{% else %}
 {% for finding in page %}
 {% if not is_detail %}
 {% url 'organization' org.slug as organization_url %}
@@ -17,6 +24,8 @@
 {% for link in finding.links %}<div class="risk-reference"><span class="badge {% if link.needs_review %}warning{% endif %}">{% if link.withdrawn_at %}Withdrawn{% elif link.needs_review %}Evidence or catalog changed · review required{% else %}Analyst-selected scenario · unassessed{% endif %}</span><p><strong><a href="{% url 'risk-link-evidence' org.slug link.pk %}">{{ link.risk_revision.payload.threat.name }}</a></strong><br>Catalog asset type: <a href="{% url 'risk-link-evidence' org.slug link.pk %}">{{ link.risk_revision.payload.asset.name }}</a><br>General weakness: <a href="{% url 'risk-link-evidence' org.slug link.pk %}">{{ link.risk_revision.payload.vulnerability.name }}</a></p><p>{{ link.reason }}</p><p class="muted">Mapped {{ link.created_at }} by {{ link.created_by|default:'Unavailable' }}<br>Catalog UUID {{ link.risk_revision.risk.uuid }}<br>Snapshot {{ link.risk_revision.captured_at }} · CC0-1.0<br>Upstream update {{ link.risk_revision.payload.risk.updated_at|default:'Not supplied' }}</p><p><a href="{% url 'risk-link-evidence' org.slug link.pk %}">Read pinned vulnerability & risk evidence</a> · {% if link.risk_revision.payload.fixture %}<span>Synthetic catalog example · no upstream assessment</span>{% else %}<a href="{{ link.risk_revision.risk.source_url }}" target="_blank" rel="noopener noreferrer">MOSP source</a>{% endif %}</p>{% if link.withdrawn_at %}<p>Withdrawn {{ link.withdrawn_at }}: {{ link.withdrawal_reason }}</p>{% elif editable %}<details><summary>Withdraw this mapping</summary><form method="post" action="{% url 'withdraw-risk-link' org.slug link.pk %}">{% csrf_token %}{{ withdrawal_form.as_p }}<button>Withdraw mapping; retain history</button></form></details>{% endif %}</div>{% empty %}<p>No scenario linked. Coverage is incomplete; this does not mean low risk.</p>{% endfor %}
 {% if editable %}<p><a class="button" href="{% url 'create-risk-link' org.slug finding.pk %}">+ Link a risk scenario</a></p>{% endif %}</section></div>{% include 'portal/_finding_assessment.html' %}</article>
 {% endif %}
-{% empty %}<article><h2>No visible vulnerability reviews yet</h2><p>Open an inventory asset, record its software/version and retrieve a CVE for review. Software is not inferred from a device name. Restricted evidence and its derived links are omitted from this view.</p><a href="{% url 'organization' org.slug %}#inventory">Go to inventory</a></article>{% endfor %}
+{% empty %}{% if listing_filters.has_changed %}<p>No visible reviews match these filters.</p>{% else %}<article><h2>No visible vulnerability reviews yet</h2><p>Open an inventory asset, record its software/version and retrieve a CVE for review. Software is not inferred from a device name. Restricted evidence and its derived links are omitted from this view.</p><a href="{% url 'organization' org.slug %}#inventory">Go to inventory</a></article>{% endif %}{% endfor %}
+{% endif %}
 <nav>{% if page.has_previous %}<a href="?{{ filter_query }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}<span>Page {{ page.number }} / {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a href="?{{ filter_query }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+{% endif %}
 {% endblock %}

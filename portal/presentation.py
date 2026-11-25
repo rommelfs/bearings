@@ -59,9 +59,29 @@ def vulnerability_summary(payload):
         result["priority_source"] = {"ubuntu": "Ubuntu", "debian": "Debian", "rhel": "Red Hat"}.get(
             feed, "Vendor"
         )
+    score, version = cvss_rating_v1(cna)
+    if score is not None:
+        severity = (
+            "Critical"
+            if score >= 9
+            else "High"
+            if score >= 7
+            else "Medium"
+            if score >= 4
+            else "Low"
+            if score > 0
+            else "None"
+        )
+        result.update(score=score, cvss_version=version, score_severity=severity, score_key=severity.lower())
+        if not result.get("vendor_priority"):
+            result["severity"] = severity
+    return result
+
+
+def cvss_rating_v1(cna):
     metrics = cna.get("metrics")
     if not isinstance(metrics, list):
-        return result
+        return None, ""
     for metric in metrics[:50]:
         if not isinstance(metric, dict):
             continue
@@ -70,26 +90,9 @@ def vulnerability_summary(payload):
             if not isinstance(value, dict) or value.get("version") != version:
                 continue
             score = value.get("baseScore")
-            if type(score) not in {int, float} or not 0 <= score <= 10 or not math.isfinite(score):
-                continue
-            severity = (
-                "Critical"
-                if score >= 9
-                else "High"
-                if score >= 7
-                else "Medium"
-                if score >= 4
-                else "Low"
-                if score > 0
-                else "None"
-            )
-            result.update(
-                score=score, cvss_version=version, score_severity=severity, score_key=severity.lower()
-            )
-            if not result.get("vendor_priority"):
-                result["severity"] = severity
-            return result
-    return result
+            if type(score) in {int, float} and 0 <= score <= 10 and math.isfinite(score):
+                return score, version
+    return None, ""
 
 
 def decorate_finding(finding):

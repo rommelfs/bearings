@@ -2698,3 +2698,13 @@ or multiple evidence records. Single cards link directly to the original
 review and grouped cards link to scoped evidence comparison. Filtered return
 links, source severity, evidence visibility, assessment forms and the
 per-record API remain covered by the synthetic review tests.
+
+## Intelligence grouping and rating filters
+
+SQLite and PostgreSQL tests cover counts across machines and products,
+multiple records for a CVE, access revocation, search scope, numeric CVSS
+boundaries, Canonical Ubuntu priority thresholds, unknown ratings and status
+filters. Migration 0077 was applied to a PostgreSQL fixture containing a
+retained CVSS 9.8 record, then the indexed rating was verified. Chromium
+verified all three views, both active rating filters, a group drill-down and
+return to the filtered group. These checks use synthetic records.

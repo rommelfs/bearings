@@ -630,14 +630,21 @@ class SourceRecord(models.Model):
         choices=[(v, v.title()) for v in ["critical", "high", "medium", "low", "none", "unknown"]],
     )
 
+    source_cvss = models.FloatField(null=True, editable=False, db_index=True)
+
+    def update_source_ratings(self):
+        from .presentation import vulnerability_summary
+
+        summary = vulnerability_summary(self.payload)
+        self.source_severity = summary["severity"].lower()
+        self.source_cvss = summary["score"]
+
     def save(self, *args, **kwargs):
         fields = kwargs.get("update_fields")
         if self._state.adding or fields is None or "payload" in fields:
-            from .presentation import vulnerability_summary
-
-            self.source_severity = vulnerability_summary(self.payload)["severity"].lower()
+            self.update_source_ratings()
             if fields is not None:
-                kwargs["update_fields"] = set(fields) | {"source_severity"}
+                kwargs["update_fields"] = set(fields) | {"source_severity", "source_cvss"}
         return super().save(*args, **kwargs)
 
     class Meta:

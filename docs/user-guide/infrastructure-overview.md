@@ -173,6 +173,15 @@ The organization's **Asset → Vulnerability → Risk** list uses the same
 CVE-and-host grouping within its current filters, including retained decisions.
 All reviews use the same compact card. A single record links directly to its
 review details. A grouped case links to paginated evidence.
+Use **By CVE** for one card per CVE and host, **By machine** for per-host
+summaries, or **By software** for per-product summaries. Machine and software
+rows count distinct CVE IDs and link to filtered CVE cards. The same search and
+filters apply in each view. Filters include a minimum CVSS score (inclusive),
+Ubuntu vendor priority above a selected level (exclusive), and workflow status.
+An active threshold requires a known rating from that source. Combined filters
+must match the same evidence record. Recorded associations and workflow state
+remain separate from confirmed package applicability.
+
 Existing direct finding links open the individual assessment and risk mapping.
 The assessment and workflow controls sit side by side where space allows.
 The reason field starts at three lines and can be expanded.

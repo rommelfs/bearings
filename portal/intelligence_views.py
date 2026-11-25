@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Prefetch, Q, prefetch_related_objects
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -20,6 +20,7 @@ from .access import (
 from .connectors.http import ConnectorError, validate_base
 from .forms import FindingReviewForm, RiskLinkForm, RiskWithdrawalForm
 from .intelligence import link_risk, link_state, visible_links, withdraw_link, resolve_risk
+from .intelligence_listing import FILTER_SCOPE, VIEWS, IntelligenceFilters, grouped_page
 from .models import MOSPRisk, MOSPSource, RiskLink, Product, Installation
 from .presentation import decorate_finding, severity_first, vulnerability_summary
 from .overview_queries import bounded_list, read_snapshot
@@ -124,6 +125,12 @@ def intelligence(request, slug):
     filters = request.GET.copy()
     filters.pop("page", None)
     findings = scoped_findings(request, org).select_related("installation__asset__source__instance")
+    view = request.GET.get("view", "cve")
+    if view not in VIEWS:
+        return HttpResponseBadRequest("Unsupported Intelligence view.")
+    listing_filters = IntelligenceFilters(request.GET)
+    valid_filters = listing_filters.is_valid()
+    findings = listing_filters.apply(findings) if valid_filters else findings.none()
     is_detail = bool(request.GET.get("finding"))
     if not is_detail and (case := request.GET.get("case")):
         if not case.isascii() or not case.isdigit() or len(case) > 19 or not 0 < int(case) <= 2**63 - 1:
@@ -162,6 +169,10 @@ def intelligence(request, slug):
             for finding in page:
                 finding.review_form = FindingReviewForm(auto_id=f"review-{finding.pk}-%s")
                 finding.review_form.fields["reason"].widget.attrs["rows"] = 3
+    elif not valid_filters:
+        page = Paginator([], 25).get_page(1)
+    elif view != "cve":
+        page = grouped_page(findings, view, request.GET.get("page"), filters, request.get_full_path())
     else:
         page, _, _, _ = case_page(findings, request.GET.get("page"), "all", "", prioritize_assets=False)
         for finding in page:
@@ -174,6 +185,15 @@ def intelligence(request, slug):
             params["return_to"] = request.get_full_path()
             finding.case_url = "?" + params.urlencode()
 
+    modes = []
+    for key, label in VIEWS.items():
+        params = filters.copy()
+        params["view"] = key
+        modes.append({"key": key, "label": label, "url": "?" + params.urlencode()})
+    reset = filters.copy()
+    for key in listing_filters.fields:
+        reset.pop(key, None)
+
     from .timelines import review_decisions
 
     return render(
@@ -183,13 +203,20 @@ def intelligence(request, slug):
             "org": org,
             "page": page,
             "is_detail": is_detail,
+            "view": view,
+            "modes": modes,
+            "listing_filters": listing_filters,
+            "listing_scope": [(key, filters[key]) for key in FILTER_SCOPE if key in filters],
+            "reset_filters_url": list_url + ("?" + reset.urlencode() if reset else ""),
+            "valid_filters": valid_filters,
             "intelligence_list_url": list_url,
-            "review_timeline": review_decisions(findings),
+            "review_timeline": review_decisions(findings) if valid_filters else None,
             "editable": editable,
             "sources": MOSPSource.objects.all(),
             "withdrawal_form": RiskWithdrawalForm() if editable else None,
             "filter_query": filters.urlencode(),
         },
+        status=200 if valid_filters else 400,
     )
 
 
