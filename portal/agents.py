@@ -32,16 +32,18 @@ def administrator(user, org):
     return user.is_active and not org.merged_into_id and (user.is_superuser or role_for(user, org) == "admin")
 
 
-def current(device):
+def device_in_scope(device):
     return (
-        device.enabled
-        and device.expires_at > timezone.now()
-        and not device.organization.merged_into_id
+        not device.organization.merged_into_id
         and device.asset.organization_id == device.organization_id
         and device.asset.source_id == device.source_id
         and device.source.organization_id == device.organization_id
         and device.asset.lifecycle == "active"
     )
+
+
+def current(device):
+    return device.enabled and device.expires_at > timezone.now() and device_in_scope(device)
 
 
 @transaction.atomic
@@ -716,17 +718,62 @@ def bind(actor, org, component_id, installation_id=None, create=False):
     return installation
 
 
+def _revoke_locked(device, now):
+    if device.enabled:
+        device.enabled = False
+        device.revoked_at = now
+        device.save(update_fields=["enabled", "revoked_at"])
+    AgentReport.objects.filter(device=device, status="pending").update(
+        status="rejected", error="Device revoked", processed_at=now
+    )
+
+
 @transaction.atomic
 def revoke(actor, org, device_id):
     device = AgentDevice.objects.select_for_update(of=("self",)).get(pk=device_id, organization=org)
     require(administrator(actor, org))
-    device.enabled = False
-    device.revoked_at = timezone.now()
-    device.save(update_fields=["enabled", "revoked_at"])
-    AgentReport.objects.filter(device=device, status="pending").update(
-        status="rejected", error="Device revoked", processed_at=timezone.now()
-    )
+    _revoke_locked(device, timezone.now())
     audit(actor, org, "agent.revoked", device.pk)
+
+
+@transaction.atomic
+def request_uninstall(actor, org, device_id):
+    device = (
+        AgentDevice.objects.select_related("asset", "source", "organization")
+        .select_for_update(of=("self",))
+        .get(pk=device_id, organization=org)
+    )
+    require(administrator(actor, org) and device_in_scope(device))
+    now = timezone.now()
+    if device.uninstall_acknowledged_at or device.uninstall_offer_open(now):
+        return
+    _revoke_locked(device, now)
+    device.uninstall_requested_at = now
+    device.save(update_fields=["uninstall_requested_at"])
+    audit(actor, org, "agent.uninstall_requested", device.pk)
+
+
+@transaction.atomic
+def uninstall_exchange(pk, action):
+    device = (
+        AgentDevice.objects.select_related("asset", "source", "organization")
+        .select_for_update(of=("self",))
+        .get(pk=pk)
+    )
+    require(device_in_scope(device))
+    now = timezone.now()
+    offered = device.uninstall_offer_open(now)
+    if action == "check":
+        require(offered or current(device))
+        return "uninstall" if offered else "none"
+    # A signed local removal may relinquish only its own credential, even after expiry.
+    require(action == "local" or (action == "acknowledge" and offered))
+    if not device.uninstall_acknowledged_at:
+        _revoke_locked(device, now)
+        device.uninstall_acknowledged_at = now
+        device.save(update_fields=["uninstall_acknowledged_at"])
+        audit(None, device.organization, "agent.uninstall_acknowledged", device.pk, origin=action)
+    return "uninstall"
 
 
 @transaction.atomic

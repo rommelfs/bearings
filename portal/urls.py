@@ -56,6 +56,7 @@ urlpatterns = [
     path("api/v1/agent/enroll/", agent_views.enrollment, name="agent-enroll"),
     path("api/v1/agent/bootstrap/", agent_views.fleet_bootstrap, name="agent-fleet-bootstrap"),
     path("api/v1/agent/reports/", agent_views.reports, name="agent-reports"),
+    path("api/v1/agent/uninstall/", agent_views.uninstall, name="agent-uninstall"),
     path("api/v1/agent/status/", agent_views.status, name="agent-status"),
     path(
         "organizations/<slug:slug>/agents/<uuid:pk>/evaluation/",

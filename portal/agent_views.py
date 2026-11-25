@@ -145,6 +145,43 @@ def authenticate(request):
 
 @csrf_exempt
 @require_POST
+def uninstall(request):
+    try:
+        raw = body(request, 1024)
+        message = decode(raw)
+        if (
+            not isinstance(message, dict)
+            or set(message) != {"schema", "action"}
+            or message["schema"] != "bearings.agent.uninstall.v1"
+            or message["action"] not in ("check", "acknowledge", "local")
+        ):
+            raise ValueError("Invalid uninstall request")
+        identity = request.headers.get("X-Bearings-Key", "")
+        if not identity.startswith("device:") or len(identity) != 43:
+            raise ValueError("Invalid key")
+        device = AgentDevice.objects.get(pk=identifier(identity[7:]))
+        verify(request, raw, identity, device.public_key)
+        action = agents.uninstall_exchange(device.pk, message["action"])
+        return private(
+            JsonResponse({"schema": message["schema"], "action": action, "device_id": str(device.pk)})
+        )
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        ValidationError,
+        PermissionDenied,
+        AgentDevice.DoesNotExist,
+        HTTPMessageSignaturesException,
+        IntegrityError,
+    ):
+        return private(JsonResponse({"error": "Uninstall request unavailable"}, status=403))
+    except OperationalError:
+        return private(JsonResponse({"error": "Temporarily unavailable"}, status=503))
+
+
+@csrf_exempt
+@require_POST
 def reports(request):
     try:
         device, raw = authenticate(request)
@@ -314,6 +351,12 @@ def center(request, slug):
                 device = get_object_or_404(AgentDevice, pk=request.POST.get("device"), organization=org)
                 agents.revoke(request.user, org, device.pk)
                 messages.success(request, "Device revoked; pending observations cannot update software.")
+            elif action == "uninstall":
+                device = get_object_or_404(AgentDevice, pk=request.POST.get("device"), organization=org)
+                if request.POST.get("confirm_uninstall") != "on":
+                    raise ValidationError("Confirm removal of the client and its local inventory queue")
+                agents.request_uninstall(request.user, org, device.pk)
+                messages.success(request, "Device deregistered. Client removal requested.")
             elif action == "software-policy":
                 device = get_object_or_404(AgentDevice, pk=request.POST.get("device"), organization=org)
                 agents.software_policy(request.user, org, device.pk, request.POST.get("enabled") == "on")

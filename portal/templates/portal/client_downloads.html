@@ -13,6 +13,8 @@
 <li>On the server:<pre>sudo python3 bearings-install.py enroll --code</pre>Paste the code at the hidden prompt. No registration files need to cross your SSH connection.</li></ol></details>
 <p><a href="{% url 'linux-client-artifact' 'install.py' %}">Installer</a> · <a href="{% url 'linux-client-artifact' 'SHA256SUMS' %}">Checksums</a> · <a href="{% url 'linux-client-artifact' 'bearings-linux-source.tar.gz' %}">Corresponding source</a> · <a href="{% url 'linux-client-artifact' 'LICENSE' %}">License</a></p>
 <p>Updates use the same install command. Device keys and queued observations remain. Files are operator-built reference artifacts; checksums are not release signatures. Custom CA trust is supported with <code>--ca-file</code>; certificate verification is always required.</p>
+<h2>Uninstall</h2>
+<p>Run <code>sudo python3 install.py uninstall</code> on the host. An administrator can also choose <strong>Deregister and uninstall</strong> for the device in <strong>Inventory reports</strong>. The timer installed by the current installer checks for the request.</p>
 {% else %}<p>The operator has not published a complete client build yet. Build with <code>python3 scripts/build_linux_client.py</code> and configure the approved artifact directory before distributing clients.</p>{% endif %}
 </section>
 {% endblock %}

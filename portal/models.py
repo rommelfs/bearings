@@ -2181,6 +2181,8 @@ class AgentDevice(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
+    uninstall_requested_at = models.DateTimeField(null=True, blank=True)
+    uninstall_acknowledged_at = models.DateTimeField(null=True, blank=True)
     last_sequence = models.PositiveBigIntegerField(default=0)
     daily_bytes = models.PositiveBigIntegerField(default=0)
     daily_reports = models.PositiveIntegerField(default=0)
@@ -2220,6 +2222,12 @@ class AgentDevice(models.Model):
                 fields=["asset"], condition=Q(enabled=True), name="one_active_agent_per_asset"
             )
         ]
+
+    def uninstall_offer_open(self, at=None):
+        from datetime import timedelta
+
+        at = at or timezone.now()
+        return bool(self.uninstall_requested_at and at - self.uninstall_requested_at <= timedelta(days=30))
 
     @property
     def stale(self):

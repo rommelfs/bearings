@@ -277,7 +277,7 @@ func getStatus(s *store, id string) error {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("use init, bootstrap, enroll, collect, report, enqueue, flush, status, watch or version")
+		return errors.New("use init, bootstrap, enroll, collect, report, enqueue, flush, status, watch, retirement or version")
 	}
 	if args[0] == "version" {
 		fmt.Println(version)
@@ -295,6 +295,22 @@ func run(args []string) error {
 			return err
 		}
 		return output(map[string]any{"schema": "bearings.application-probes.v1", "profiles": len(profiles)})
+	}
+	if args[0] == "retirement" {
+		if len(args) != 3 || (args[1] != "check" && args[1] != "acknowledge" && args[1] != "local") {
+			return errors.New("use retirement check|acknowledge|local STATE_DIRECTORY")
+		}
+		s, err := openStore(args[2], false)
+		if err != nil {
+			return err
+		}
+		defer s.close()
+		result, err := uninstallRequest(s, args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Println(result)
+		return nil
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(io.Discard)

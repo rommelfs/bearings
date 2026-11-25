@@ -265,6 +265,29 @@ class AgentClientTests(TransactionTestCase):
             self.assertEqual(AgentFleetRegistration.objects.count(), 3)
             self.assertFalse(InventoryWrite.objects.exists())
 
+    def test_native_linux_client_acknowledges_own_removal_over_https(self):
+        self.enroll()
+        device = AgentDevice.objects.get(asset=self.asset)
+
+        def retirement(action):
+            result = subprocess.run(
+                [str(CLIENT), "retirement", action, str(self.state)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return result.stdout.strip()
+
+        self.assertEqual(retirement("check"), "none")
+        agents.request_uninstall(self.admin, self.org, device.pk)
+        self.assertEqual(retirement("check"), "uninstall")
+        self.assertEqual(retirement("acknowledge"), "uninstall")
+        self.assertEqual(retirement("acknowledge"), "uninstall")
+        device.refresh_from_db()
+        self.assertFalse(device.enabled)
+        self.assertIsNotNone(device.uninstall_acknowledged_at)
+
     def test_actual_client_enrollment_report_receipt_and_explicit_projection(self):
         self.enroll()
         raw = self.cli("report", "--package", "bash").stdout

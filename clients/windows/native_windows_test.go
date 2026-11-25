@@ -84,3 +84,40 @@ func TestNativeRegistry(t *testing.T) {
 		t.Fatal("registry snapshot does not meet the inventory contract")
 	}
 }
+
+func TestNativeUninstallKeepsChangedStateAndRemovesOnlyOwnedFiles(t *testing.T) {
+	task, err := currentReporterTask()
+	if err != nil {
+		t.Fatal(err)
+	}
+	task.name = "Bearings Test " + identifier()
+	task.program = filepath.Join(t.TempDir(), "bearings-windows.exe")
+	dir := t.TempDir()
+	statePath, userFile := filepath.Join(dir, "state.dpapi"), filepath.Join(dir, "keep.txt")
+	for _, path := range []string{task.program, statePath, userFile} {
+		if err := os.WriteFile(path, []byte("synthetic test"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := removeWindowsInstallation(task, dir, digest([]byte("other state")), 0, false); err == nil {
+		t.Fatal("the helper accepted a changed state file")
+	}
+	if _, err := os.Stat(task.program); err != nil {
+		t.Fatal(err)
+	}
+	stateHash, err := removalStateDigest(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := removeWindowsInstallation(task, dir, stateHash, 0, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{task.program, statePath} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("owned file remains: %v", err)
+		}
+	}
+	if _, err := os.Stat(userFile); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -2540,3 +2540,21 @@ large-extra-field/large-link regression and the Windows/CVE/continuous-review ru
 pass **51 tests**. Repository Ruff lint/format and diff checks pass. GitHub CI is
 required for the final commit as well; the preceding full-run result is recorded
 here without claiming native Windows acceptance or a production deployment.
+
+### Linux and Windows client removal
+
+Migration 0075 records separately when a scoped administrator requests
+removal and when the enrolled key acknowledges it. PostgreSQL tests cover
+immediate revocation, rejection of queued reports, company separation, an
+expired request, idempotent acknowledgment and the Linux client's signed
+exchange over a real loopback HTTPS connection. The full suite ran 1,073
+tests with five conditional skips. The Linux installer test simulates a
+cleanup interrupted after removal of its key and verifies that a retry
+completes while keeping an administrator-managed profile.
+
+Portable Windows Go tests cover the scoped request, older servers and
+rejection of an acknowledgment for a different device. The Windows tests
+cross-compile for x64, ARM64 and x86. A native test covers ownership of
+the local files and detection of a changed registration. The actual Windows
+helper and Linux cleanup on a running systemd installation still require
+native acceptance. Acknowledgment records delivery of the request.
