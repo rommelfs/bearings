@@ -5,7 +5,7 @@ from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from .access import audit, is_analyst, organizations_for
+from .access import analyst_read_snapshot, audit, is_analyst, organizations_for
 from .models import Asset, Membership
 from .overview import OverviewEvidence, company_states, priority_assets
 from .overview_queries import overview_queries
@@ -13,6 +13,7 @@ from .overview_queries import overview_queries
 
 @login_required
 @never_cache
+@analyst_read_snapshot
 def overview(request):
     started = perf_counter()
     with overview_queries(planning_limit=4) as database:
@@ -68,7 +69,15 @@ def _overview_response(request):
     from .review_focus import posture
 
     machine_postures = posture(request.user, [state["org"].pk for state in companies])["organizations"]
+    from .software_coverage import inventory, accounting, observation_counts
+
+    software_accounting = accounting(inventory(request.user, [s["org"].pk for s in companies]))
+    unlinked_counts = observation_counts(request.user, [s["org"].pk for s in companies])
     for state in companies:
+        state["software_accounting"] = software_accounting.get(
+            state["org"].pk, {"total": 0, "categories": []}
+        )
+        state["software_accounting"]["unlinked"] = unlinked_counts.get(state["org"].pk, 0)
         state["posture"] = machine_postures.get(state["org"].pk)
         state["setup_pending"] = not state["org"].overview_has_inventory and not any(
             state[key] for key in ("products", "reviews", "issues", "risk_assessments", "overdue")

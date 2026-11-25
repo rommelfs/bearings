@@ -2078,3 +2078,42 @@ h1,h2,h3,.brand{font-family:Raleway,Arial,sans-serif}
 .nav-client-platforms [aria-current="page"] { font-weight: 700; }
 .client-platform-links { display: flex; gap: 8px; flex-wrap: wrap; }
 .client-platform-links [aria-current="page"] { font-weight: 700; }
+
+/* Software accounting describes prerequisites, separately from CVE verdicts. */
+.software-accounting-counts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+.software-accounting-counts a {
+  display: block;
+  height: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.software-accounting-counts strong {
+  display: block;
+  font-size: 1.3rem;
+}
+.software-accounting {
+  margin-block: 1rem;
+}
+.software-coverage-table th:nth-child(1) { width: 22%; }
+.software-coverage-table th:nth-child(2) { width: 22%; }
+.software-coverage-table th:nth-child(3) { width: 34%; }
+.software-coverage-table th:nth-child(4) { width: 22%; }
+.software-coverage-table td, .software-coverage-table code { overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .software-coverage-table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .software-coverage-table td { width: 100%; padding: 0.6rem; }
+}
