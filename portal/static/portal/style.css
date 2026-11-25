@@ -1874,10 +1874,22 @@ main article p { overflow-wrap: anywhere; }
 .sync-status-grid > article { margin: 0; padding: 20px; min-width: 0; }
 .sync-status-grid h3 { margin-top: 0; }
 .sync-status-grid p { overflow-wrap: anywhere; }
-.sync-state { font-weight: 700; }
-.sync-state.state-good { color: #216449; }
-.sync-state.state-warning { color: #814414; }
-.sync-state.state-pending, .sync-state.state-neutral { color: var(--link); }
+.asset-attention { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 18px 0 20px; }
+.asset-attention-card { margin: 0; padding: 18px 20px; border-inline-start: 4px solid var(--line); }
+.asset-attention-card.needs-attention { border-inline-start-color: #b76a15; background: #fffaf1; }
+.asset-attention-card h2 { margin-top: 0; font-size: 1rem; }
+.asset-attention-card p { margin: 0 0 8px; }
+.asset-attention-value { font-size: 1.25rem; line-height: 1.3; font-weight: 700; }
+.technical-status-heading { position: relative; display: flex; align-items: center; gap: 8px; }
+.technical-status-heading h3 { margin: 0; }
+.technical-status { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; height: 28px; color: var(--muted); border-radius: 50%; cursor: help; }
+.technical-status-warning { color: #814414; }
+.technical-status:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.technical-status-tip { position: absolute; z-index: 5; inset-inline-start: 0; top: 100%; width: min(16rem, calc(100vw - 4rem)); padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); overflow-wrap: anywhere; box-shadow: 0 3px 12px #122d3b26; visibility: hidden; }
+.technical-status-tip strong { display: block; }
+.technical-status:hover .technical-status-tip, .technical-status:focus .technical-status-tip { visibility: visible; }
+.windows-update-group { margin: 10px 0; }
+@media (max-width: 600px) { .asset-attention { grid-template-columns: 1fr; } }
 .asset-secondary-actions { margin: 12px 0 24px; }
 @media (max-width: 900px) { .sync-status-grid { grid-template-columns: 1fr; } }
 

@@ -2575,3 +2575,12 @@ while synthetic writes and snapshot refreshes ran. Chromium loaded three
 authenticated pages, all five national panels and the map. The threaded
 diagnostic completed without timeouts in the final repeat but remained slow
 at 5.53 s p95. See [methods, paired timings, and limits](performance/maintenance-20261125.md).
+
+### Asset update and vulnerability summary
+
+The PostgreSQL suite ran 1,101 tests with five conditional skips, including
+the existing asset page query budget and the loopback Linux HTTPS client
+tests. Synthetic asset tests cover current and historical Windows backlog
+counts and current, stale, and restricted Linux vendor-fix evidence.
+Chromium verified the summary placement and status explanations on both
+platforms at 1,280 and 390 pixels, using both pointer hover and keyboard focus.

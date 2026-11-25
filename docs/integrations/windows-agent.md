@@ -82,3 +82,8 @@ Synthetic PostgreSQL admission/retention/rendering and Go tests/cross-compilatio
 validate the contract. Native WUA COM/PowerShell collection and corrected Task
 Scheduler execution still need a real Windows pilot. See the
 [German installation/upgrade guide](../user-guide/windows-update-installation.de.md).
+
+
+## Asset update presentation
+
+The asset page leads with pending Windows Update cache entries and visible vulnerability reviews. Positive historical counts are labeled as last recorded. Unavailable or partial empty observations leave the backlog unknown. The technical cache query and synchronization statuses use labeled icons with explanations on hover and keyboard focus.

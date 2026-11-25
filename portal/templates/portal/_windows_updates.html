@@ -1,20 +1,35 @@
 {% if windows_update %}
-<section id="windows-update"><h2>Windows Update</h2>
-<p>Observed {{ windows_update.observed_at }} · Windows build {{ windows_update.build }} · source: local Windows Update Agent cache.</p>
-{% if windows_update.historical %}<p class="warning"><strong>Historical update evidence.</strong> The latest report does not supply current update data for this build/device. Retained results do not establish current patch status.</p>{% endif %}
-<p>Last successful Automatic Updates search reported by Windows: {{ windows_update.cache_last_search_at|default:'Unknown' }}.{% if windows_update.cache_outdated %} <strong>Cache age is unknown or exceeds 24 hours.</strong>{% endif %} This timestamp is separate from the inventory observation; other update tools may not update it.</p>
-<p>Windows Update restart indicator: <strong>{{ windows_update.reboot }}</strong>. “Not observed” does not establish that no application or system restart is needed.</p>
-{% if windows_update.last_success.reboot %}<details><summary>Last recorded known restart indicator</summary><p>{{ windows_update.last_success.reboot.data }} · build {{ windows_update.last_success.reboot.build }} · observed {{ windows_update.last_success.reboot.observed_at }}. This is retained evidence.</p></details>{% endif %}
-{% for group in windows_update.groups %}
-<article><h3>{% if group.name == 'installed' %}Installed updates reported by WUA{% else %}Pending updates reported by the local cache{% endif %}</h3>
-<p>Query status: <strong>{{ group.status }}</strong>.{% if group.total != None %} {{ group.total }} update identities returned by WUA; {{ group.updates|length }} displayed.{% endif %}{% if group.truncated %} <strong>Result truncated at the client limit.</strong>{% endif %}</p>
-{% if group.status == 'partial' %}<p class="warning">Partial query or truncated results; this does not establish complete coverage.</p>{% elif group.status != 'ok' %}<p class="warning">Update query unavailable or failed. Missing results are not zero pending updates.</p>{% endif %}
-<details><summary>Inspect {{ group.name }} update identities and KB evidence</summary>
-{% for update in group.updates %}<p><strong>{{ update.title|default:'Untitled update' }}</strong>{% if update.hidden %} · hidden in Windows Update{% endif %}<br>{% for kb in update.kbs %}<a href="https://support.microsoft.com/help/{{ kb|cut:'KB' }}">{{ kb }}</a> {% empty %}No KB identifier reported.{% endfor %}<br>Update ID: <code>{{ update.id }}</code> · revision {{ update.revision }}</p>{% empty %}<p>No entries in this observation. Read the query status and cache limits above.</p>{% endfor %}
-</details>
-{% if group.status != 'ok' and group.last_success %}<details><summary>Retained complete {{ group.name }} query</summary><p>Observed {{ group.last_success.observed_at }} · build {{ group.last_success.build }} · {{ group.last_success.data.total }} update identities. Historical evidence, not the current query.</p>{% for update in group.last_success.data.updates %}<p>{{ update.title }} · {% for kb in update.kbs %}{{ kb }} {% endfor %}</p>{% endfor %}</details>{% endif %}
-</article>
-{% endfor %}
-<p>Read-only software-update inventory from the existing cache; it excludes driver updates and is not a complete CBS/MSI/hotfix history. Hidden or superseded entries may be present. No online scan, download, installation or policy change is performed. An empty pending list does not prove that Windows is fully updated. KB presence, restart status and CVE applicability are separate; Hotpatch, LTSC and ESU require their own vendor rules.</p>
+<section id="windows-update" class="windows-update">
+  <h2>Windows Update</h2>
+  {% if not asset_attention %}<p class="asset-attention-value">{{ windows_update.backlog.label }}</p><p>{{ windows_update.backlog.detail }}</p>{% endif %}
+  {% if windows_update.historical %}<p class="warning"><strong>Historical update evidence.</strong> The current Windows build or client report needs a fresh observation.</p>{% elif windows_update.cache_outdated %}<p class="warning">The Windows Update cache age is unknown or exceeds 24 hours.</p>{% endif %}
+  {% if windows_update.reboot == 'present' %}<p class="warning"><strong>{% if windows_update.historical %}Restart was reported in the last observation.{% else %}Windows Update reports a pending restart.{% endif %}</strong></p>{% endif %}
+  {% for group in windows_update.groups %}
+  <article class="windows-update-group">
+    <div class="technical-status-heading">
+      <h3>{% if group.name == 'installed' %}Installed updates{% else %}Pending update evidence{% endif %}</h3>
+      {% if group.status == 'ok' %}
+        {% include 'portal/_technical_status.html' with icon='status-check' tone='neutral' label='Cache query completed' detail='Windows Update Agent returned a complete result from its local cache.' only %}
+      {% elif group.status == 'partial' %}
+        {% include 'portal/_technical_status.html' with icon='issues' tone='warning' label='Partial query' detail='The cache returned an incomplete result.' only %}
+      {% elif group.status == 'timeout' %}
+        {% include 'portal/_technical_status.html' with icon='issues' tone='warning' label='Cache query timed out' detail='Use the retained evidence if available.' only %}
+      {% else %}
+        {% include 'portal/_technical_status.html' with icon='issues' tone='warning' label='Cache query unavailable' detail='Use the retained evidence if available.' only %}
+      {% endif %}
+    </div>
+    {% if group.total != None %}<p>{{ group.total }} update entr{{ group.total|pluralize:"y,ies" }} reported{% if windows_update.historical or windows_update.cache_outdated %} in the last observation{% endif %}.{% if group.truncated %} Showing {{ group.updates|length }} entries.{% endif %}</p>{% else %}<p>Update count unavailable. Missing results are not zero pending updates.</p>{% endif %}
+    <details><summary>View update entries and KB evidence</summary>
+      {% for update in group.updates %}<p><strong>{{ update.title|default:'Untitled update' }}</strong>{% if update.hidden %} · hidden in Windows Update{% endif %}<br>{% for kb in update.kbs %}<a href="https://support.microsoft.com/help/{{ kb|cut:'KB' }}">{{ kb }}</a> {% empty %}No KB identifier reported.{% endfor %}<br>Update ID: <code>{{ update.id }}</code> · revision {{ update.revision }}</p>{% empty %}<p>No entries in this observation.</p>{% endfor %}
+    </details>
+    {% if group.status != 'ok' and group.last_success %}<details><summary>Retained complete {{ group.name }} query</summary><p>Observed {{ group.last_success.observed_at }} · build {{ group.last_success.build }} · {{ group.last_success.data.total }} update identities.</p>{% for update in group.last_success.data.updates %}<p>{{ update.title }} · {% for kb in update.kbs %}{{ kb }} {% endfor %}</p>{% endfor %}</details>{% endif %}
+  </article>
+  {% endfor %}
+  <details><summary>Source, observation time and coverage</summary>
+    <p>Observed {{ windows_update.observed_at }} · Windows build {{ windows_update.build }} · local Windows Update Agent cache.</p>
+    <p>Last successful Automatic Updates search reported by Windows: {{ windows_update.cache_last_search_at|default:'Unknown' }}.</p>
+    <p>Windows Update restart indicator: {{ windows_update.reboot }}.{% if windows_update.last_success.reboot %} Last known indicator: {{ windows_update.last_success.reboot.data }} · build {{ windows_update.last_success.reboot.build }} · observed {{ windows_update.last_success.reboot.observed_at }}.{% endif %}</p>
+    <p>The read-only cache can include hidden or superseded entries and excludes driver updates. An empty pending list does not prove that Windows is fully updated. KB presence and CVE applicability require separate evidence.</p>
+  </details>
 </section>
-{% elif windows_device %}<section id="windows-update"><h2>Windows Update</h2><p>No Windows Update observation has been supplied. Update the Windows client to collect local cached update metadata. Missing evidence is not an up-to-date result.</p></section>{% endif %}
+{% elif windows_device %}<section id="windows-update"><h2>Windows Update</h2><p>No Windows Update observation has been supplied. The current Windows client can report local cached update metadata.</p></section>{% endif %}

@@ -234,3 +234,8 @@ execute those methods. Manifest evidence has its own field introduced by
 migration 0066. See [configurable application profiles](linux-application-probes.md)
 for JSON fields, RE2 extraction, fixed Git queries, MISP defaults, explicit
 manual-version ownership and failure semantics. Upgrade server before client.
+
+
+### Asset update presentation
+
+The asset page highlights current, authorized package matches with documented vendor fixes and displays vulnerability reviews separately. Repository update availability remains unmeasured. Missing, stale, or restricted evidence cannot supply a current fix count. The technical synchronization states are shown as icons with hover and keyboard-focus explanations.

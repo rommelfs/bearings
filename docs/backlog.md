@@ -2,6 +2,10 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Asset update and vulnerability presentation — 2026-11-25
+
+Lead the machine detail page with pending Windows cache entries, documented Linux vendor fixes, and visible vulnerability reviews. Show last-known Windows results separately from current evidence and expose technical synchronization and cache-query status through labeled icons with hover and keyboard support.
+
 ## Portal maintenance and response times — 2026-11-25
 
 Split the main views by domain, separated the signed device API, and made grouped review cases honor saved applicability decisions. Corrected the scale harness and reduced repeated query and template work. Both synthetic workloads passed the functional checks. At 48,000 assets the three-worker Gunicorn run handled 420 requests from sixteen callers alongside writes and refreshes, with 922 ms p95 and no HTTP failures. Production timings and dense package fixtures remain open. See [performance report](performance/maintenance-20261125.md).

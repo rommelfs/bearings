@@ -9,7 +9,7 @@ from django.utils import timezone
 from unittest.mock import patch
 from .tests import Fixture
 from . import test_ubuntu_status as fixture
-from .host_overview import HasVendorFix
+from .distro_fix_evidence import HasVendorFix
 from .models import Asset, AssetIssue, Finding, SourceRecord
 
 
@@ -64,6 +64,30 @@ class HostOverviewTests(Fixture):
         self.assertIsNone(host.fix_packages)
         self.assertIsNone(host.source_priority)
         self.assertNotEqual(host.priority_tone, "clear")
+
+    def test_linux_asset_prioritizes_current_fix_and_excludes_private_or_stale_evidence(self):
+        from .test_package_verdicts import save_browser_evidence
+
+        self.cached()
+        self.prepare()
+        self.login(self.reader)
+        url = self.url("asset", pk=self.device.asset_id)
+        page = self.client.get(url)
+        self.assertContains(page, "1 package with documented vendor fixes")
+        self.assertContains(page, "Repository update availability has not been checked")
+        self.assertContains(page, "1 current affected package-version match")
+        self.assertContains(page, 'aria-label="Reports received.')
+        save_browser_evidence("asset-attention-linux", page)
+        SourceRecord.objects.update(shareable=False)
+        page = self.client.get(url)
+        self.assertNotContains(page, "package with documented vendor fixes")
+        self.assertContains(page, "No open vulnerability reviews")
+        SourceRecord.objects.update(shareable=True)
+        self.device.expires_at = timezone.now() - timedelta(minutes=1)
+        self.device.save(update_fields=["expires_at"])
+        page = self.client.get(url)
+        self.assertContains(page, "Update backlog unknown")
+        self.assertNotContains(page, "current affected package-version match")
 
     def test_private_intelligence_and_foreign_source_do_not_supply_priorities(self):
         self.cached()

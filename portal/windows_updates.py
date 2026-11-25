@@ -124,8 +124,45 @@ def presentation(device):
     )
     receipt["groups"] = [
         {"name": name, **receipt[name], "last_success": receipt.get("last_success", {}).get(name)}
-        for name in ("installed", "pending")
+        for name in ("pending", "installed")
     ]
     cache_at = parse_datetime(receipt.get("cache_last_search_at", ""))
     receipt["cache_outdated"] = not cache_at or cache_at < timezone.now() - timedelta(hours=24)
+    receipt["backlog"] = backlog_summary(receipt)
     return receipt
+
+
+def backlog_summary(receipt):
+    pending = receipt["pending"]
+    current = pending["status"] in {"ok", "partial"}
+    retained = (
+        receipt.get("last_success", {}).get("pending")
+        if not current or pending["status"] == "partial" and not pending["total"]
+        else None
+    )
+    evidence = retained["data"] if retained else pending
+    count = evidence["total"]
+    historical = bool(retained or receipt["historical"] or receipt["cache_outdated"])
+    if count:
+        label = f"{count} pending update" + ("s" if count != 1 else "")
+        if historical:
+            label += " last recorded"
+        detail = (
+            "Review the last known Windows Update cache entries."
+            if historical
+            else "Windows Update Agent reported these entries in its local cache."
+        )
+        if evidence["status"] == "partial":
+            detail += " The result is partial."
+        return {"label": label, "detail": detail, "attention": True}
+    if current and not historical and pending["status"] == "ok":
+        return {
+            "label": "No pending entries in the Windows cache",
+            "detail": "Coverage is limited to the update entries reported by Windows.",
+            "attention": False,
+        }
+    return {
+        "label": "Windows update backlog unknown",
+        "detail": "A current, complete cache observation is unavailable.",
+        "attention": False,
+    }

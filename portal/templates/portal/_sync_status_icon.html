@@ -1,0 +1,7 @@
+{% if status.tone == 'good' %}
+  {% include 'portal/_technical_status.html' with icon='status-check' tone='neutral' label=status.label detail=status.detail only %}
+{% elif status.tone == 'warning' %}
+  {% include 'portal/_technical_status.html' with icon='issues' tone='warning' label=status.label detail=status.detail only %}
+{% else %}
+  {% include 'portal/_technical_status.html' with icon='status-info' tone='neutral' label=status.label detail=status.detail only %}
+{% endif %}

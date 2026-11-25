@@ -29,6 +29,7 @@ from .access import (
     visible_findings,
     visible_findings_for,
 )
+from .asset_attention import attention_for
 from .asset_context import asset_context
 from .forms import (
     ClaimReviewForm,
@@ -268,7 +269,7 @@ def asset_detail(request, slug, pk):
     findings = (
         visible_findings(request.user, org)
         .select_related("installation__asset__source__instance")
-        .filter(installation__asset=asset)
+        .filter(installation__asset=asset, installation__product__organization=org, record__organization=org)
         .order_by("-evaluated_at", "pk")
     )
     software = (
@@ -286,9 +287,6 @@ def asset_detail(request, slug, pk):
 
     software_page.object_list = list(software_page.object_list)
     decorate_installations(request.user, software_page.object_list)
-    page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
-    for finding in page:
-        decorate_finding(finding)
     from .inventory_status import synchronization_status
 
     agent_device = (
@@ -296,10 +294,21 @@ def asset_detail(request, slug, pk):
         .order_by("-enabled", "-created_at")
         .first()
     )
+    windows_update = {}
     if agent_device:
+        # These identifiers were checked by the scoped device query above.
+        agent_device.asset, agent_device.organization, agent_device.source = asset, org, asset.source
+    if agent_device and agent_device.os.get("id") == "windows":
         from .windows_updates import presentation
 
-        agent_device.windows_update_view = presentation(agent_device)
+        windows_update = presentation(agent_device)
+    asset_attention = attention_for(asset, agent_device, findings, windows_update)
+    review_paginator = Paginator(severity_first(findings), 25)
+    if asset_attention:
+        review_paginator.count = asset_attention["reviews"]["total"]
+    page = review_paginator.get_page(request.GET.get("page"))
+    for finding in page:
+        decorate_finding(finding)
     return render(
         request,
         "portal/asset.html",
@@ -323,6 +332,8 @@ def asset_detail(request, slug, pk):
             "software_query": software_query,
             "agent_device": agent_device,
             "sync_status": synchronization_status(asset, agent_device),
+            "windows_update": windows_update,
+            "asset_attention": asset_attention,
             "page": page,
             "editable": can_edit(request.user, org),
         },

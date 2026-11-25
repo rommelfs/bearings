@@ -150,6 +150,26 @@ class WindowsUpdateReceipts(Fixture):
             404,
         )
 
+    def test_asset_prioritizes_pending_updates_before_connection_and_keeps_stale_counts(self):
+        from .test_package_verdicts import save_browser_evidence
+
+        self.enroll()
+        value = snapshot()
+        value["pending"].update(total=1, updates=value["installed"]["updates"])
+        self.publish(updates=value)
+        self.login(self.reader)
+        url = self.url("asset", pk=self.asset.pk)
+        page = self.client.get(url)
+        self.assertContains(page, "1 pending update")
+        self.assertContains(page, 'aria-label="Cache query completed.')
+        self.assertNotContains(page, "Query status:")
+        self.assertLess(
+            page.content.index(b"1 pending update"), page.content.index(b"Inventory synchronization")
+        )
+        save_browser_evidence("asset-attention-windows", page)
+        self.publish(2, False, "26100.2222")
+        self.assertContains(self.client.get(url), "1 pending update last recorded")
+
     def test_failure_and_partial_result_retain_complete_results_without_false_success(self):
         self.enroll()
         self.publish()
