@@ -7,15 +7,22 @@ from .agents import current
 from .distro_fix_evidence import HasVendorFix
 from .presentation import ACTIVE_REVIEWS
 from .review_queue import classified
+from .review_focus import machine_coverage
+from .review_work import (
+    CONFLICTING,
+    CURRENT_AFFECTED,
+    NEEDS_ATTENTION,
+    positive_package_coverage,
+    verified_fix_progress,
+)
 
 MACHINE_KINDS = {"server", "vm", "desktop", "laptop", "appliance"}
 
 
-def attention_for(asset, device, findings, windows_update):
+def attention_for(user, asset, device, findings, windows_update):
     if not device and asset.kind not in MACHINE_KINDS:
         return {}
-    reviews = findings.order_by()
-    active = Q(status__in=ACTIVE_REVIEWS) & ~Q(analyst_applicability="not_affected")
+    reviews = classified(findings.order_by())
     saved = Q(
         status__in=[*ACTIVE_REVIEWS, "accepted_risk"],
         analyst_applicability="affected",
@@ -23,7 +30,7 @@ def attention_for(asset, device, findings, windows_update):
     windows = bool(device and device.os.get("id") == "windows")
     counts = {
         "total": Count("pk"),
-        "open": Count("pk", filter=active),
+        "open": Count("pk", filter=NEEDS_ATTENTION),
         "saved": Count("pk", filter=saved),
     }
     linux_evaluable = (
@@ -37,15 +44,11 @@ def attention_for(asset, device, findings, windows_update):
         and current(device)
     )
     if linux_evaluable:
-        affected = (
-            Q(distro_match__component__device_id=device.pk)
-            & Q(package_current=True, distro_match__queue_proof__verdict="affected")
-            & ~Q(analyst_applicability="not_affected")
-            & Q(status__in=[*ACTIVE_REVIEWS, "accepted_risk"])
-        )
-        reviews = classified(reviews).annotate(vendor_fix=HasVendorFix(F("distro_match__snapshot")))
+        affected = Q(distro_match__component__device_id=device.pk) & CURRENT_AFFECTED
+        reviews = reviews.annotate(vendor_fix=HasVendorFix(F("distro_match__vendor_fix_inputs")))
         counts.update(
-            version_matches=Count("pk", filter=affected),
+            version_matches=Count("installation_id", filter=affected, distinct=True),
+            conflicts=Count("pk", filter=affected & CONFLICTING),
             fixes=Count("installation_id", filter=affected & Q(vendor_fix=True), distinct=True),
         )
     result = reviews.aggregate(**counts)
@@ -66,9 +69,20 @@ def attention_for(asset, device, findings, windows_update):
             "label": "Update backlog unknown",
             "detail": "Repository update availability has not been checked.",
         }
+    has_reviews = bool(result["open"] or result["saved"] or result.get("version_matches"))
+    clear = False
+    progress = 0
+    if linux_evaluable:
+        progress = verified_fix_progress(findings.filter(distro_match__component__device_id=device.pk))
+        if not has_reviews and positive_package_coverage(device.distro_summary, True):
+            machines, _ = machine_coverage(user, [asset.organization_id])
+            clear = machines.filter(pk=asset.pk, evaluated=True, partial=False).exists()
     return {
         "updates": updates,
         "updates_href": "#windows-update" if windows else "#software",
         "reviews": result,
-        "has_reviews": bool(result["open"] or result["saved"] or result.get("version_matches")),
+        "has_reviews": has_reviews,
+        "clear": clear,
+        "checked_packages": device.distro_summary.get("packages") if clear else None,
+        "progress": progress,
     }

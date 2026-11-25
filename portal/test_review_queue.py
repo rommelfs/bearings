@@ -57,6 +57,58 @@ class QueueTests(DistroTests):
         self.assertEqual(self.bucket(), "action")
         self.assertContains(self.client.get("/reviews/"), "saved analyst assessment says affected")
 
+    def test_fix_moves_to_retained_evidence_and_rewards_verified_progress(self):
+        finding = self.prepare()
+        url = reverse("intelligence", args=[self.a.slug])
+        asset = self.url("asset", pk=self.device.asset_id)
+        cve = finding.record.external_id
+        self.assertContains(self.client.get(url), cve)
+        self.assertNotContains(self.client.get(asset), "verified fix")
+        self.relax()
+        self.send(self.data(sequence=2, version="1:1.24.0-2ubuntu7.9"))
+        agents.process_pending()
+        self.assertContains(self.client.get(url), cve)
+        self.assertNotContains(self.client.get(asset), "No open vulnerabilities in checked scope")
+        distro_cves.evaluate_device(self.device.pk)
+        self.assertEqual(self.bucket(), "cleared")
+        for view in ("cve", "machine", "software"):
+            self.assertEqual(self.client.get(url, {"view": view}).context["page"].paginator.count, 0)
+            self.assertEqual(
+                self.client.get(url, {"view": view, "state": "cleared"}).context["page"].paginator.count, 1
+            )
+        self.assertContains(self.client.get(url, {"finding": finding.pk}), "includes the vendor fix")
+        issues_url = reverse("issues")
+        self.assertEqual(self.client.get(issues_url).context["page"].paginator.count, 0)
+        self.assertEqual(self.client.get(issues_url, {"state": "all"}).context["page"].paginator.count, 1)
+        groups_url = reverse("company-actions")
+        self.assertEqual(
+            self.client.get(groups_url, {"view": "groups", "organization": self.a.slug})
+            .context["page"]
+            .paginator.count,
+            0,
+        )
+        issue = finding.asset_issue
+        issue.action_due = timezone.localdate()
+        issue.save(update_fields=["action_due"])
+        self.assertEqual(self.client.get(issues_url).context["page"].paginator.count, 1)
+        response = self.client.get(asset)
+        self.assertContains(response, "1 verified fix")
+        self.assertContains(response, "No open vulnerabilities in checked scope")
+        DistroMatch.objects.filter(pk=finding.distro_match.pk).update(input_hash="different")
+        self.assertNotContains(self.client.get(asset), "verified fix")
+        self.device.expires_at = timezone.now() - timedelta(minutes=1)
+        self.device.save(update_fields=["expires_at"])
+        self.assertNotContains(self.client.get(asset), "No open vulnerabilities in checked scope")
+
+    def test_saved_disagreement_keeps_current_affected_evidence_in_the_worklist(self):
+        finding = self.prepare()
+        Finding.objects.filter(pk=finding.pk).update(analyst_applicability="not_affected", status="resolved")
+        url = reverse("intelligence", args=[self.a.slug])
+        self.assertContains(
+            self.client.get(url), "Current affected version conflicts with a saved assessment"
+        )
+        self.assertEqual(self.client.get(url, {"state": "cleared"}).context["page"].paginator.count, 0)
+
     def test_currentness_matches_model_for_all_relevant_inputs(self):
         finding = self.prepare()
         match = finding.distro_match

@@ -2,6 +2,14 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Evidence-backed vulnerability work and progress
+
+Default the Intelligence worklist to current matches, open reviews and
+coverage gaps. Retain fixed and not-affected evidence with its source
+severity. Keep explicitly tracked operational work and distinguish verified
+package fixes from workflow closure. Show positive status only for checked
+scope with current, complete coverage.
+
 ## Organization Intelligence views and filters
 
 Add CVE, machine and software pivots with scoped drill-down. Search across

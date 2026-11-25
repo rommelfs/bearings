@@ -23,12 +23,14 @@ from .access import (
     require,
     is_analyst,
     organization,
+    visible_findings_for,
 )
 from .circl_views import private_response
 from .models import InventoryCSVBatch, InventorySource, InfrastructureClaim, AssetIssue
 from .overview_queries import overview_queries, read_snapshot
 from .scope import normalize
 from .queue_context import with_return
+from .review_work import without_cleared_issue_shells
 from django.urls import reverse
 
 
@@ -217,10 +219,9 @@ def actions(request):
         .filter(issues.active_filter(), asset__lifecycle="active")
         .exclude(finding__analyst_applicability="not_affected")
     )
-    selected = request.GET.get("organization", "")
     if selected:
-        org = get_object_or_404(orgs, slug=selected)
-        base = base.filter(organization=org)
+        base = base.filter(organization__in=orgs)
+    base = without_cleared_issue_shells(base, visible_findings_for(request.user))
     try:
         with overview_queries(query_timeout_ms=3000, budget_ms=8000, planning_limit=4):
             severity = Case(

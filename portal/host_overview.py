@@ -27,6 +27,7 @@ from .issues import ACTIVE, visible_issues
 from .models import AgentDevice, Installation
 from .review_focus import machine_coverage
 from .review_queue import CLEARED_VERDICTS, classified, current_package_proofs
+from .review_work import positive_package_coverage
 from .presentation import severity_rank
 from .table_sort import TableSort
 from .inventory_presentation import additional_software_filter
@@ -353,18 +354,21 @@ def overview(request, org):
                 else "source"
             )
         else:
+            clear = (
+                not host.has_problems
+                and not host.has_gaps
+                and positive_package_coverage(summary, host.evaluated and not host.partial)
+            )
             host.priority_label = (
-                "No current version matches"
-                if host.evaluated and not host.partial and not host.has_gaps
+                "✓ No open vulnerabilities in checked scope"
+                if clear
                 else "Assessment incomplete"
                 if host.evaluated
                 else "Assessment unavailable"
             )
             if host.saved_affected:
                 host.priority_label = "Saved affected assessment"
-            host.priority_tone = (
-                "clear" if host.evaluated and not host.has_gaps and not host.saved_affected else "unknown"
-            )
+            host.priority_tone = "clear" if clear else "unknown"
             host.priority_origin = ""
     metric_definitions = [
         ("all", "total", "Active hosts"),

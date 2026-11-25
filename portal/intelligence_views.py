@@ -26,6 +26,7 @@ from .presentation import decorate_finding, severity_first, vulnerability_summar
 from .overview_queries import bounded_list, read_snapshot
 from .queue_context import return_url
 from .review_cases import case_identity, case_page, evidence_page
+from .review_work import scoped_work
 
 
 def vulnerability_url(finding):
@@ -128,9 +129,12 @@ def intelligence(request, slug):
     view = request.GET.get("view", "cve")
     if view not in VIEWS:
         return HttpResponseBadRequest("Unsupported Intelligence view.")
-    listing_filters = IntelligenceFilters(request.GET)
+    form_data = request.GET.copy()
+    form_data.setdefault("state", "attention")
+    listing_filters = IntelligenceFilters(form_data)
     valid_filters = listing_filters.is_valid()
     findings = listing_filters.apply(findings) if valid_filters else findings.none()
+    assessment_scope = listing_filters.cleaned_data.get("state") or "attention"
     is_detail = bool(request.GET.get("finding"))
     if not is_detail and (case := request.GET.get("case")):
         if not case.isascii() or not case.isdigit() or len(case) > 19 or not 0 < int(case) <= 2**63 - 1:
@@ -172,12 +176,19 @@ def intelligence(request, slug):
     elif not valid_filters:
         page = Paginator([], 25).get_page(1)
     elif view != "cve":
-        page = grouped_page(findings, view, request.GET.get("page"), filters, request.get_full_path())
+        work = scoped_work(findings, assessment_scope)
+        page = grouped_page(work, view, request.GET.get("page"), filters, request.get_full_path())
     else:
-        page, _, _, _ = case_page(findings, request.GET.get("page"), "all", "", prioritize_assets=False)
+        work = scoped_work(findings, assessment_scope)
+        page, _, _, _ = case_page(work, request.GET.get("page"), "all", "", prioritize_assets=False)
         for finding in page:
             finding.source_summary = vulnerability_summary(finding.record.payload)
             finding.severity_key = finding.source_summary["severity"].lower()
+            finding.evidence_conflict = (
+                finding.queue_bucket == "cleared"
+                and finding.package_current
+                and finding.distro_match.queue_proof.get("verdict") == "affected"
+            )
             if not finding.software_preview:
                 finding.software_preview = [(finding.installation.product.name, finding.queue_bucket)]
             params = filters.copy()
@@ -206,6 +217,7 @@ def intelligence(request, slug):
             "view": view,
             "modes": modes,
             "listing_filters": listing_filters,
+            "assessment_scope": assessment_scope,
             "listing_scope": [(key, filters[key]) for key in FILTER_SCOPE if key in filters],
             "reset_filters_url": list_url + ("?" + reset.urlencode() if reset else ""),
             "valid_filters": valid_filters,

@@ -23,6 +23,7 @@ from .access import (
     require,
     can_edit,
     can_operator_review,
+    visible_findings_for,
 )
 from .asset_context import asset_context
 from .pagination import object_page
@@ -30,6 +31,7 @@ from .issue_forms import IssueForm, RiskForm
 from .models import Asset, AssetIssue, IssueRiskLink, Membership
 from .presentation import vulnerability_summary
 from .queue_context import with_return
+from .review_work import without_cleared_issue_shells
 from .inventory_presentation import decorate_addresses, host_network_summary
 
 
@@ -146,7 +148,9 @@ def board(request):
             finding__isnull=True, asset__lifecycle="active", status__in=[*issues.ACTIVE, "accepted_risk"]
         )
     elif state == "active":
-        base = base.filter(issues.active_filter())
+        base = without_cleared_issue_shells(
+            base.filter(issues.active_filter()), visible_findings_for(request.user)
+        )
     elif state == "closed":
         base = base.exclude(issues.active_filter())
     else:

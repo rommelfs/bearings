@@ -6,6 +6,7 @@ from django.db.models import Count, Max, Q
 
 from .models import Finding
 from .review_cases import CVE_ID, case_identity
+from .review_work import REVIEW_SCOPES
 
 VIEWS = {"cve": "By CVE", "machine": "By machine", "software": "By software"}
 UBUNTU_PRIORITIES = ("negligible", "low", "medium", "high", "critical")
@@ -22,6 +23,7 @@ class IntelligenceFilters(forms.Form):
         label="Ubuntu priority above",
         choices=[("", "Any priority"), *((key, key.title()) for key in UBUNTU_PRIORITIES[:-1])],
     )
+    state = forms.ChoiceField(required=False, label="Assessment", choices=REVIEW_SCOPES, initial="attention")
     workflow = forms.ChoiceField(
         required=False,
         label="Workflow status",

@@ -2708,3 +2708,29 @@ filters. Migration 0077 was applied to a PostgreSQL fixture containing a
 retained CVSS 9.8 record, then the indexed rating was verified. Chromium
 verified all three views, both active rating filters, a group drill-down and
 return to the filtered group. These checks use synthetic records.
+
+## Vulnerability work, coverage and verified progress
+
+The organization Intelligence worklist, asset summary, host summary and
+active/grouped issue lists were checked against the same principle. Known
+cleared evidence is available in history, current conflicts need attention, and
+missing evaluation coverage cannot produce a positive badge. The existing
+infrastructure preview and machine attention queue already keep cleared
+evidence apart from action previews and show coverage independently. Raw
+evidence, direct links, activity histories and explicit asset tasks retain
+their distinct scopes.
+
+Synthetic tests transition an installed package from affected to awaiting
+evaluation and then fixed. They verify all three Intelligence pivots, the
+archived record, removal of the automatically generated work item, preservation
+of an explicitly dated task, and safe handling of an expired device or a
+non-comparable historical proof. The positive status is limited to evaluated
+Linux packages. Verified fixes count distinct CVE and installation pairs over
+the last 30 days.
+
+Chromium verified the archived record and the checked-scope status and fix
+count after an actual synthetic package reevaluation. A PostgreSQL fixture
+with 10,000 retained cleared proofs produced HTTP 200 with zero results in
+Intelligence, active issues and grouped actions in 0.40, 0.24 and 0.32 seconds
+respectively. Reopened evidence with a saved closed workflow is covered by
+the existing continuous-discovery acceptance tests.

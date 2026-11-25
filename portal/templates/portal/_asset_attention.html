@@ -6,11 +6,19 @@
     <p>{{ asset_attention.updates.detail }}</p>
     <a href="{{ asset_attention.updates_href }}">Review update evidence →</a>
   </article>
-  <article class="asset-attention-card{% if asset_attention.has_reviews %} needs-attention{% endif %}">
+  <article class="asset-attention-card{% if asset_attention.has_reviews %} needs-attention{% elif asset_attention.clear %} assessment-clear{% endif %}">
     <h2>Vulnerabilities</h2>
-    <p class="asset-attention-value">{% if asset_attention.reviews.open %}{{ asset_attention.reviews.open }} open vulnerability review{{ asset_attention.reviews.open|pluralize }}{% elif asset_attention.reviews.saved or asset_attention.reviews.version_matches %}Affected software recorded{% else %}No open vulnerability reviews{% endif %}</p>
-    <p>{% if asset_attention.reviews.saved %}{{ asset_attention.reviews.saved }} saved affected assessment{{ asset_attention.reviews.saved|pluralize }}.{% endif %}
-       {% if asset_attention.reviews.version_matches %}{{ asset_attention.reviews.version_matches }} current affected package-version match{{ asset_attention.reviews.version_matches|pluralize }}.{% elif not asset_attention.reviews.saved %}{% if asset_attention.reviews.open %}Review the available evidence and applicability.{% else %}Coverage depends on available inventory and advisory evidence.{% endif %}{% endif %}</p>
+    <p class="asset-attention-value">
+      {% if asset_attention.reviews.version_matches %}{{ asset_attention.reviews.version_matches }} package{{ asset_attention.reviews.version_matches|pluralize }} with current affected-version matches
+      {% elif asset_attention.reviews.saved %}Affected software recorded
+      {% elif asset_attention.reviews.open %}{{ asset_attention.reviews.open }} review{{ asset_attention.reviews.open|pluralize }} need attention
+      {% elif asset_attention.clear %}✓ No open vulnerabilities in checked scope
+      {% else %}Assessment coverage incomplete or unavailable{% endif %}
+    </p>
+    {% if asset_attention.clear %}<p>{{ asset_attention.checked_packages }} packages covered by the current Linux evaluation.</p>{% endif %}
+    {% if asset_attention.reviews.saved %}<p>{{ asset_attention.reviews.saved }} saved affected assessment{{ asset_attention.reviews.saved|pluralize }}.</p>{% endif %}
+    {% if asset_attention.reviews.conflicts %}<p>Current version evidence conflicts with a saved assessment.</p>{% endif %}
+    {% if asset_attention.progress %}<p class="assessment-progress">✓ {{ asset_attention.progress }} verified fix{{ asset_attention.progress|pluralize }} in the last 30 days, compared with prior package evidence.</p>{% endif %}
     <a href="#findings">Review vulnerability evidence →</a>
   </article>
 </section>

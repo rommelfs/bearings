@@ -183,6 +183,34 @@ An active threshold requires a known rating from that source. Combined filters
 must match the same evidence record. Recorded associations and workflow state
 remain separate from confirmed package applicability.
 
+### What needs work and what is complete
+
+Intelligence starts with **Needs attention**, covering open reviews, current
+affected matches and incomplete package evidence. **Fixed or not affected**
+shows retained decisions and original source severity. **All evidence** includes
+closed workflow records. A current affected version that conflicts with a saved
+not-affected assessment stays visible for review. The selected assessment scope
+applies to CVE cards and to machine and software counts. Direct evidence links
+continue to open retained records. An empty work list is a result for the selected
+records and filters. Review machine coverage before interpreting it.
+
+The host overview or asset review shows **No open vulnerabilities in checked
+scope** only for a current complete Linux package evaluation with actual packages
+checked and no relevant visible findings. The positive statement is scoped to
+checked evidence. The host overview also keeps its application and inventory gaps
+visible. Partial, stale, unavailable or unsupported coverage remains explicitly
+incomplete. Windows update backlog evidence stays separate from package-CVE
+coverage.
+
+On an asset, verified fixes from the past 30 days count distinct CVE and
+installation pairs with current fixed evidence whose preceding recorded proof
+showed affectedness under the same package identity, OS, feed and vendor rule.
+A comparable version change counts as progress. Workflow closure alone does
+not count. Automatically generated issue entries for cleared findings leave
+active issue and grouped action lists. Explicit work, including assigned
+deadlines and recorded actions, remains available. Retained issue history and
+source records stay accessible.
+
 Existing direct finding links open the individual assessment and risk mapping.
 The assessment and workflow controls sit side by side where space allows.
 The reason field starts at three lines and can be expanded.

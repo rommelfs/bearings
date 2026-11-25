@@ -396,7 +396,7 @@ def asset_detail(request, slug, pk):
         from .windows_updates import presentation
 
         windows_update = presentation(agent_device)
-    asset_attention = attention_for(asset, agent_device, findings, windows_update)
+    asset_attention = attention_for(request.user, asset, agent_device, findings, windows_update)
     review_paginator = Paginator(severity_first(findings), 25)
     if asset_attention:
         review_paginator.count = asset_attention["reviews"]["total"]

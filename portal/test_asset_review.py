@@ -237,7 +237,7 @@ class AssetReviewTests(Fixture):
 
         self.login(self.reader)
         url = self.url("intelligence")
-        scope = {"asset": str(self.asset.pk)}
+        scope = {"asset": str(self.asset.pk), "state": "all"}
         response = self.client.get(url, scope)
         (summary,) = response.context["page"]
         self.assertEqual(summary.evidence_count, 2)
@@ -251,13 +251,13 @@ class AssetReviewTests(Fixture):
         self.assertEqual(self.client.get(url, {"case": hidden.pk}).status_code, 404)
         self.assertContains(self.client.get(url, {"finding": second.pk}), f'id="assessment-{second.pk}"')
         self.assertEqual(self.client.get(self.url("api-intelligence")).json()["pagination"]["count"], 2)
-        single = self.client.get(url, {"product": product.pk})
+        single = self.client.get(url, {"product": product.pk, "state": "all"})
         self.assertContains(single, "View software &amp; evidence (1)")
         self.assertNotContains(single, f'id="assessment-{second.pk}"')
         (single_case,) = single.context["page"]
         direct = self.client.get(url + single_case.case_url)
         self.assertContains(direct, f'id="assessment-{second.pk}"')
-        self.assertContains(direct, f'href="{url}?product={product.pk}"')
+        self.assertContains(direct, f'href="{url}?product={product.pk}&amp;state=all"')
         self.assertNotContains(direct, 'class="assessment-form"')
 
     def test_intelligence_assessment_form_uses_small_field_and_unique_labels(self):
