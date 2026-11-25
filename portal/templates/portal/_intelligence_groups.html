@@ -12,7 +12,7 @@
       <th scope="row"><a href="{{ group.url }}">{{ group.name }}</a></th>
       <td>{{ group.cves }}</td>
       <td>{{ group.related_count }}</td>
-      <td>{% if group.max_cvss != None %}{{ group.max_cvss|floatformat:"-4" }}{% else %}—{% endif %}</td>
+      <td>{% if group.max_cvss != None %}{{ group.max_cvss|floatformat:"1u" }}{% else %}—{% endif %}</td>
       <td><a href="{{ group.url }}">View reviews →</a></td>
     </tr>{% endfor %}</tbody>
   </table>

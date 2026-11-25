@@ -6,7 +6,8 @@ Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHu
 
 Add CVE, machine and software pivots with scoped drill-down. Search across
 CVE, host and software, and filter by CVSS threshold, Ubuntu vendor priority
-and workflow. Migration 0077 backfills source CVSS for existing evidence.
+and workflow. Grouped tables display the highest CVSS to one decimal place.
+Migration 0077 backfills source CVSS for existing evidence.
 
 ## Host CVE assessment query and timeout diagnosis
 

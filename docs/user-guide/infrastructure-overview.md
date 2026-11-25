@@ -175,7 +175,8 @@ All reviews use the same compact card. A single record links directly to its
 review details. A grouped case links to paginated evidence.
 Use **By CVE** for one card per CVE and host, **By machine** for per-host
 summaries, or **By software** for per-product summaries. Machine and software
-rows count distinct CVE IDs and link to filtered CVE cards. The same search and
+rows count distinct CVE IDs, display the highest CVSS to one decimal place,
+and link to filtered CVE cards. The same search and
 filters apply in each view. Filters include a minimum CVSS score (inclusive),
 Ubuntu vendor priority above a selected level (exclusive), and workflow status.
 An active threshold requires a known rating from that source. Combined filters

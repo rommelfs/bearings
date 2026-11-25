@@ -24,7 +24,7 @@ class IntelligenceListingTests(Fixture):
         third = Installation.objects.create(asset=self.asset, product=product)
         cve = "CVE-2099-12345"
         self.publish(self.installation, cve, 9.8)
-        self.publish(second, cve, 9.8)
+        self.publish(second, cve, 8.0, source="fixture://second-host")
         self.publish(third, cve, 9.8)
         self.publish(self.installation, cve.lower(), 8.0, source="fixture://secondary")
         hidden = self.publish(second, "CVE-2099-12346", 10, source="fixture://restricted")
@@ -33,12 +33,15 @@ class IntelligenceListingTests(Fixture):
         url = reverse("intelligence", args=[self.a.slug])
 
         machine = self.client.get(url, {"view": "machine", "cvss_min": "8"})
+        self.assertContains(machine, "<td>9.8</td>", html=True)
+        self.assertContains(machine, "<td>8.0</td>", html=True)
         row = next(item for item in machine.context["page"] if item["name"] == self.asset.name)
         self.assertEqual((row["cves"], row["related_count"], row["max_cvss"]), (1, 2, 9.8))
         cards = self.client.get(url + row["url"])
         self.assertEqual(cards.context["page"].paginator.count, 1)
         self.assertContains(cards, "view=machine&amp;cvss_min=8")
         software = self.client.get(url, {"view": "software"})
+        self.assertContains(software, "<td>9.8</td>", html=True)
         row = next(item for item in software.context["page"] if item["name"] == self.product.name)
         self.assertEqual((row["cves"], row["related_count"], row["max_cvss"]), (1, 2, 9.8))
 
