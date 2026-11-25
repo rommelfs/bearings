@@ -2573,3 +2573,50 @@ final implementation never overwrites a running executable. WUA/registry
 collection, application-control policies and actual fleet tasks remain outside
 these synthetic tests and require an authorized Windows pilot. No production
 actions were performed.
+
+
+## Software inventory accounting and evidence navigation (2026-11-25)
+
+Synthetic PostgreSQL 17 tests cover a disjoint accounting category for every
+retained installation, separate unlinked/excluded report observations, bounded
+pagination, host/search scopes and query growth, signed Windows application
+proof, unsupported OS channels, changed versions/advisory inputs, removed index
+entries, source outages, revoked devices and inconsistent ownership links.
+Restricted intelligence supplies neither counts nor evidence previews; analyst
+access removal and cross-company requests are denied. Automatic version-rule
+results and saved human decisions stay separate. Untrusted explanations are
+escaped and limited to a 2,000-character preview without modifying stored data.
+
+The focused 13-test PostgreSQL suite passes. The wider targeted PostgreSQL run
+passed 69 tests before the final explanation-escaping case was added. Frozen
+`uv sync`, PostgreSQL migrations, Django checks, migration consistency, repository
+Ruff lint/format, static collection (155 files) and `git diff --check` pass. No new migration is introduced.
+
+The first full PostgreSQL run found one regression in the existing 40-query
+overview limit (44 queries). Reusing the established request-scoped analyst group
+read removes redundant permission lookups without caching across requests or
+changing that limit. The subsequent 49-test PostgreSQL regression run passes,
+including the original query-budget assertion; an additional test checks rights
+revocation between overview and ledger requests. The final focused SQLite run
+passes all 14 tests, including that revocation check.
+
+The final full PostgreSQL run executes **1,107 tests: 1,101 passed, five skipped,
+one failed**. All new coverage tests and the original overview query budget pass.
+The remaining failure is the previously documented baseline
+`ScalePaginationTests.test_review_hydrates_only_displayed_assets_and_paginates_company_cards`
+(`/reviews/` HTTP 503 after the existing five-second statement limit). Its isolated
+retry passes in 0.739 seconds. This is not a green whole-suite claim; that timing
+issue remains open. No SQL timeout, query budget or existing assertion is relaxed.
+
+A local Chromium/Playwright run serves only synthetic Django test-response HTML
+and local static assets through intercepted requests. It follows the overview's
+software-installation link, checks four accounted rows and captures desktop
+(1440 px) and mobile (390 px) screenshots. Both layouts pass horizontal-overflow
+checks; mobile entries use cards. These fixtures do not inspect an authenticated
+production instance or prove live Windows collection. No deployment, upstream
+fetch, scan, notification or Windows client update was performed.
+
+This change makes recorded coverage gaps and retained version-rule evidence
+navigable. It does not add manufacturer rules or establish complete software/CVE
+coverage. Windows servicing lines and unsupported product tracks remain explicit
+gaps. See the [software coverage guide](user-guide/software-coverage.md).

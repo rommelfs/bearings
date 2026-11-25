@@ -27,6 +27,7 @@ from . import (
     outreach_views,
     business_risk_views,
     overview_views,
+    software_coverage_views,
     scenario_views,
     circl_views,
     circl_map_views,
@@ -150,6 +151,11 @@ urlpatterns = [
     ),
     path("", public_site.page, name="public-home"),
     path("infrastructure/", overview_views.overview, name="overview"),
+    path(
+        "organizations/<slug:slug>/software-coverage/",
+        software_coverage_views.ledger,
+        name="software-coverage",
+    ),
     path("faq/", public_site.page, {"faq": True}, name="public-faq"),
     path(
         "organizations/<slug:slug>/products/<int:pk>/catalog/",

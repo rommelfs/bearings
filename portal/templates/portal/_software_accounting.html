@@ -1,0 +1,8 @@
+<section class="software-accounting" aria-label="Software accounting">
+<h3>Software coverage &amp; evidence</h3>
+<p><strong>{{ accounting.total|default:0 }} retained software installations</strong> · includes OS and firmware records. Each installation belongs to exactly one inventory category below.</p>
+{% if accounting.total %}<ul class="software-accounting-counts">{% for item in accounting.categories %}<li><a href="{% url 'software-coverage' state.org.slug %}?category={{ item.key }}"><strong>{{ item.count }}</strong> {{ item.label }}</a></li>{% endfor %}</ul>{% endif %}
+<p><a href="{% url 'software-coverage' state.org.slug %}?view=observations"><strong>{{ accounting.unlinked|default:0 }}</strong> unlinked client observations · listed separately →</a></p>
+<p class="muted">These are inventory and mapping prerequisites, not counts of evaluated or vulnerable software. Current version-rule evidence and concrete gaps are shown for each installation.</p>
+<a class="button primary" href="{% url 'software-coverage' state.org.slug %}">Inspect every software installation →</a>
+</section>

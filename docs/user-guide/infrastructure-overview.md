@@ -2,6 +2,17 @@
 
 After signing in, Bearings opens **Infrastructure overview** (`/infrastructure/`). Company users see their permitted companies; CIRCL analysts see companies allowed by current operator visibility or ordinary memberships. The brand link and the first navigation item return here. **Vulnerability review** remains available at `/reviews/` with its existing evidence, severity filters and assessment workflow.
 
+## Account for software before interpreting CVE counts
+
+Use **Software coverage & evidence → Inspect every software installation** on the
+company card. The ledger accounts for each retained installation and lists
+unlinked/excluded client observations separately. Mapping prerequisites are not
+counts of evaluated software. Per-row current rule evidence, original advisories,
+saved analyst decisions and concrete gaps are connected in one workflow. Existing
+machine ratios are explicitly labeled as Linux package checks. Coverage gaps and
+recorded vendor limitations are visible outside diagnostics. See the
+[software coverage guide](software-coverage.md).
+
 ## Read the company state
 
 Each company card separates active inventory, confirmed affected reviews, overdue actions and monitoring coverage:
@@ -13,7 +24,7 @@ Each company card separates active inventory, confirmed affected reviews, overdu
 
 Coverage gaps remain visible even when the main state is Action/Review required. CVE source severity and unknown source severity are shown separately from analyst affectedness and company business risk. Synthetic inventory is labeled. Watch freshness means a complete supported read within the configured interval; it does not establish version applicability. The oldest successful refresh date covers reporting watches only; watches that have never succeeded are listed as gaps.
 
-Use **Servers needing attention** to reach the prioritized asset list: overdue actions first, followed by confirmed affectedness, high-priority lifecycle/exposure issues and critical source reviews. Server names, recorded IP/DNS, contact/team and existing next actions link to the actual asset/software details. A product/CVE match creates investigation work; it does not automatically prove that a particular update is needed. Exact fixed-version/build/backport recommendations remain outside this bounded increment.
+Use **Machines with open actions or reviews** to reach the prioritized asset list: overdue actions first, followed by confirmed affectedness, high-priority lifecycle/exposure issues and critical source reviews. Server names, recorded IP/DNS, contact/team and existing next actions link to the actual asset/software details. A product/CVE match creates investigation work; it does not automatically prove that a particular update is needed. Exact fixed-version/build/backport recommendations remain outside this bounded increment.
 
 **Auto-refresh every 60 seconds** starts checked. It reloads the current view only while the tab is visible and no text/select field is being edited. Uncheck it to stop page refresh for that page. This page refresh reads local state; background source refresh is a separate worker operation. Company search, selection and pagination remain in the current URL. Overview reads never enroll products or contact upstream services. Company counters are aggregated across the visible page; only the twelve displayed priority assets receive up to four problem/scenario previews each. Inventory sources and related evidence load in batches. Counts and links still use current permissions on every request; no shared response cache delays policy changes.
 

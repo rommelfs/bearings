@@ -83,6 +83,7 @@ ROUTES = {
         "setup-resume",
         "setup-section",
         "asset",
+        "software-coverage",
         "edit-local-asset",
         "inventory-review",
         "create-contact",
