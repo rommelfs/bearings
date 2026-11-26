@@ -156,7 +156,8 @@ adds CVE and machine entry points, grouped vendor fixes and reviewed
 mitigations, internal evidence tasks and contact-scoped mail after verified
 private FlowIntel hand-off. It tracks delivery, external completion and
 Bearings evidence independently. Windows KB matching and production delivery
-acceptance remain open.
+acceptance remain open. CVE and machine pages now expose a notification action, and
+the preview puts the send, test or internal-work button above the task details.
 
 Remaining work: MISP alert ingestion and severity semantics, assignment-name mapping, external-version compatibility, richer playbooks, remote retention/revocation process and production scheduling/egress/SSO/recovery. These are not enabled by the local pilot; notification/product matching and broader remediation remain in #6/#10/#11.
 

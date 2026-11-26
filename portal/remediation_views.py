@@ -24,7 +24,7 @@ class RemediationForm(forms.Form):
         queryset=Contact.objects.none(),
         required=False,
         widget=forms.CheckboxSelectMultiple,
-        help_text="Leave empty for internal tracking. Technical contacts receive actions for their assigned hosts.",
+        help_text="Select who should receive the notification. Leave empty to create internal tasks only. Technical contacts receive actions for their assigned hosts.",
     )
     review = forms.ModelChoiceField(
         queryset=Finding.objects.none(),
@@ -134,6 +134,8 @@ def prepare(request, slug, pk=None, cve=None):
             "asset": asset,
             "cve": cve,
             "form": form,
+            "has_destination": form.fields["instance"].queryset.exists(),
+            "has_recipients": form.fields["recipients"].queryset.exists(),
             "reviews": rows[: remediation.MAX_FINDINGS],
             "existing": list(permitted_cases(request.user, existing)),
             "too_many": len(rows) > remediation.MAX_FINDINGS or len(groups) > remediation.MAX_TASKS,

@@ -128,6 +128,12 @@ def intelligence(request, slug):
 
     org = organization(request, slug)
     can_remediate = available_to(request.user, org)
+
+    def notification_url(finding):
+        if can_remediate and finding.record.shareable and CVE.fullmatch(finding.record.external_id):
+            return reverse("remediation-cve", args=[org.slug, finding.record.external_id])
+        return ""
+
     filters = request.GET.copy()
     filters.pop("page", None)
     findings = scoped_findings(request, org).select_related("installation__asset__source__instance")
@@ -158,6 +164,7 @@ def intelligence(request, slug):
             {
                 "finding": finding,
                 "page": evidence_page(visible, finding, request.GET.get("page")),
+                "remediation_url": notification_url(finding),
                 "return_url": return_url(request) or list_url,
                 "return_label": "Back to intelligence",
                 "record_return_url": request.get_full_path(),
@@ -174,6 +181,8 @@ def intelligence(request, slug):
         if list_filters:
             list_url += "?" + list_filters.urlencode()
         editable = can_edit(request.user, org) or can_operator_review(request.user, org)
+        for finding in page:
+            finding.remediation_url = notification_url(finding)
         if editable:
             for finding in page:
                 finding.review_form = FindingReviewForm(auto_id=f"review-{finding.pk}-%s")
@@ -210,10 +219,7 @@ def intelligence(request, slug):
             params["finding" if finding.evidence_count == 1 else "case"] = finding.pk
             params["return_to"] = request.get_full_path()
             finding.case_url = "?" + params.urlencode()
-            if can_remediate and CVE.fullmatch(finding.record.external_id):
-                finding.remediation_url = reverse(
-                    "remediation-cve", args=[org.slug, finding.record.external_id]
-                )
+            finding.remediation_url = notification_url(finding)
 
     modes = []
     for key, label in VIEWS.items():

@@ -4,6 +4,7 @@
 <p><a href="{{ return_url }}">← {{ return_label|default:"Vulnerability review" }}</a></p>
 <h1>{{ finding.record.external_id|upper }} · Review evidence</h1>
 <p><a href="{% url 'asset' finding.organization.slug finding.installation.asset_id %}">{{ finding.installation.asset.name }}</a></p>
+{% if remediation_url %}<p><a class="button" href="{{ remediation_url }}">Notify about this CVE →</a></p>{% endif %}
 <p>{{ page.paginator.count }} visible records in this case.</p>
 <div class="table-scroll"><table>
 <thead><tr><th scope="col">Software and version</th><th scope="col">Source and rule</th><th scope="col">Package result</th><th scope="col">Review category</th><th scope="col">Source severity</th><th scope="col">Saved assessment</th><th scope="col">Workflow</th><th scope="col">Details</th></tr></thead>

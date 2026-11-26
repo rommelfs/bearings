@@ -100,11 +100,14 @@ def approve_case(request, slug, pk):
     binding_for(request, slug, pk)
     try:
         binding = flowintel.approve(request.user, pk)
-        text = (
-            "Remediation plan approved. The worker will verify the private FlowIntel case and tasks before releasing any messages."
-            if binding.remediation_batch_id
-            else "Private case hand-off approved and queued. The worker will create the case and its playbook tasks."
-        )
+        if not binding.remediation_batch_id:
+            text = "Private case hand-off approved and queued. The worker will create the case and its playbook tasks."
+        elif not binding.remediation_batch.deliveries.exists():
+            text = "Internal FlowIntel tasks queued."
+        elif binding.remediation_batch.transport == "file":
+            text = "Test notification queued. It will be written to the local outbox after FlowIntel confirms the case and tasks."
+        else:
+            text = "Notification queued. It will be sent after FlowIntel confirms the case and tasks."
         messages.success(request, text)
     except ValidationError as exc:
         messages.error(request, "; ".join(exc.messages))

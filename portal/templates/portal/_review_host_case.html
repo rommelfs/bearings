@@ -23,7 +23,7 @@
       {% if finding.mixed_buckets %}<span class="badge warning">Different review categories</span>{% endif %}
       {% if finding.conflicting_assessments %}<span class="badge warning">Different saved assessments</span>{% endif %}
     </div>
-    {% if finding.remediation_url %}<a class="button" href="{{ finding.remediation_url }}">Prepare remediation across machines →</a>{% endif %}
+    {% if finding.remediation_url %}<a class="button" href="{{ finding.remediation_url }}">Notify about this CVE →</a>{% endif %}
     <a class="button primary" href="{{ case_url }}">View software &amp; evidence ({{ finding.evidence_count }}) →</a>
   </div>
 </article>

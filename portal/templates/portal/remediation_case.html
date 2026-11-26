@@ -1,7 +1,43 @@
 {% extends "portal/base.html" %}
 {% block content %}
 <a href="{% url 'intelligence' org.slug %}">← Vulnerability review</a>
-<h1>Remediation plan · {{ org.name }}</h1>
+<h1>{% if case.state == "draft" and deliveries %}Review notification{% else %}Remediation plan{% endif %} · {{ org.name }}</h1>
+<article aria-labelledby="remediation-notification">
+<h2 id="remediation-notification">{% if case.state == "draft" %}Notification preview{% else %}Notification status{% endif %}</h2>
+{% if deliveries %}
+<p>{% if case.state == 'draft' %}{{ deliveries|length }} recipient{{ deliveries|length|pluralize }}. Sending starts after FlowIntel confirms the private case and tasks.{% else %}Delivery is released after FlowIntel confirms the private case and tasks.{% endif %} {% if batch.transport == 'file' %}This installation uses a local test outbox.{% endif %}</p>
+{% if can_approve %}
+<form method="post" action="{% url 'flowintel-approve' org.slug case.pk %}">{% csrf_token %}
+  <button class="primary">{% if batch.transport == 'file' %}Queue test notification{% else %}Send notification{% endif %}</button>
+</form>
+{% endif %}
+{% if batch.status == 'blocked' %}<p class="warning">Delivery was blocked because the approved plan or contact policy changed.</p>{% endif %}
+{% for delivery in deliveries %}
+<details>
+  <summary>
+    {{ delivery.contact.name }} · {{ delivery.snapshot.email }} ·
+    {% if delivery.status == 'flowintel_wait' %}Waiting for FlowIntel confirmation
+    {% elif delivery.status == 'draft' and case.state != 'draft' %}
+      {% if batch.status == 'blocked' or case.state == 'blocked' %}Blocked{% else %}Waiting for FlowIntel confirmation{% endif %}
+    {% elif delivery.status == 'filed' %}Filed in local outbox
+    {% elif delivery.status == 'accepted' %}Accepted by SMTP relay
+    {% else %}{{ delivery.status|capfirst }}{% endif %}
+    {% if delivery.acknowledged_at %} · Acknowledged {{ delivery.acknowledged_at }}{% endif %}
+  </summary>
+  <p>{{ delivery.subject }}</p><pre class="notification-message">{{ delivery.body }}</pre>
+</details>
+{% endfor %}
+{% else %}
+<p>Internal plan with no recipients.</p>
+{% if can_approve %}
+<form method="post" action="{% url 'flowintel-approve' org.slug case.pk %}">{% csrf_token %}
+  <button class="primary">Create internal FlowIntel tasks</button>
+</form>
+{% endif %}
+{% endif %}
+{% if case.state == 'draft' and not can_approve %}<p class="warning">{% if not case.instance.available %}The FlowIntel connection is disabled.{% else %}Only the person who prepared this preview can approve it.{% endif %}</p>{% endif %}
+</article>
+
 <p>FlowIntel case <strong>{{ case.state }}</strong> · {{ case.instance.name }} · Reference {{ case.pk }}</p>
 {% if case.error %}<p class="warning">{{ case.error }}</p>{% endif %}
 {% if case.instance.available %}
@@ -19,7 +55,7 @@
 <h2>Tasks</h2>
 <p>Deadline {{ case.deadline|default:"Not set" }}. Verify completed work with current host inventory and review evidence.</p>
 {% for task in tasks %}
-<details{% if case.state == 'draft' %} open{% endif %}><summary>{{ task.label }} · {{ task.state }}</summary><pre class="notification-message">{{ task.text }}</pre>
+<details><summary>{{ task.label }} · {{ task.state }}</summary><pre class="notification-message">{{ task.text }}</pre>
 <p><strong>Bearings evidence</strong> {% for label, count in task.verification %}{{ label }} ({{ count }}){% if not forloop.last %} · {% endif %}{% endfor %}</p>
 </details>
 {% endfor %}
@@ -27,20 +63,4 @@
   {% for task in case.summary.tasks %}<li>{{ task.title }} · {{ task.status }} · {% if task.completed %}Completed{% else %}Open{% endif %}</li>{% endfor %}
 </ul></details>{% endif %}
 
-<h2>Notification</h2>
-{% if deliveries %}
-<p>Delivery is released after the private case and tasks are verified. {% if batch.transport == 'file' %}This installation writes mail to a local outbox.{% else %}SMTP acceptance records hand-off to the relay. Bearings records company acknowledgement separately.{% endif %}</p>
-{% if batch.status == 'blocked' %}<p class="warning">Delivery was blocked because the approved plan or contact policy changed.</p>{% endif %}
-{% for delivery in deliveries %}
-<details{% if case.state == 'draft' %} open{% endif %}>
-  <summary>{{ delivery.contact }} · {% if delivery.status == 'flowintel_wait' %}Waiting for FlowIntel confirmation{% elif delivery.status == 'filed' %}Filed in local outbox{% elif delivery.status == 'accepted' %}Accepted by SMTP relay{% else %}{{ delivery.status|capfirst }}{% endif %}{% if delivery.acknowledged_at %} · Acknowledged {{ delivery.acknowledged_at }}{% endif %}</summary>
-  <p>{{ delivery.subject }}</p><pre class="notification-message">{{ delivery.body }}</pre>
-</details>
-{% endfor %}
-{% else %}<p>Internal tracking. This plan has no recipients.</p>{% endif %}
-{% if can_approve %}
-<form method="post" action="{% url 'flowintel-approve' org.slug case.pk %}">{% csrf_token %}
-  <button class="primary">{% if deliveries %}Approve FlowIntel tasks and notification{% else %}Approve internal FlowIntel tasks{% endif %}</button>
-</form>
-{% endif %}
 {% endblock %}

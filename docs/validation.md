@@ -2775,3 +2775,12 @@ HTTPS. It checked the private case and two tasks, denied a foreign service
 organization, filed one synthetic message in the local outbox, and kept the
 unresolved review internal. A repeat plan found the existing action claims.
 The test used a fresh isolated lab and the file transport.
+
+### Notification entry points and approval visibility
+
+All 55 focused PostgreSQL tests passed. They covered the notification action on
+CVE cards, grouped evidence, individual evidence, the machine list and asset
+details. The test outbox approval appears above the task list and passes through
+the existing FlowIntel gate. The SMTP label was exercised with a synthetic
+transport configuration. The internal-only and missing-configuration states
+were also checked. Django migration, system and Ruff checks passed.

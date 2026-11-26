@@ -101,9 +101,9 @@ With `python3 scripts/dev.py up --sso --flowintel`, use `circl-analyst` through 
 ## Plan remediation by CVE or machine
 
 A CIRCL analyst or platform administrator can open **Vulnerability review** in
-an organization that grants operator visibility. Use **Prepare remediation
-across machines** on a CVE card or **Prepare remediation** in **By machine**.
-The machine detail also offers **Prepare machine remediation**. Each plan uses
+an organization that grants operator visibility. Choose **Notify about this
+CVE** on a CVE card or evidence page, or **Notify about this machine** in
+**By machine** or on the machine detail page. Each plan uses
 one organization's open, shareable CVE reviews. Review-list filters do not
 silently narrow the plan. A plan supports up to 2,000 reviews, 150 tasks and 25
 recipients. For larger selections, start with a narrower CVE or machine.
@@ -125,7 +125,11 @@ recipients. For larger selections, start with a narrower CVE or machine.
    verification task per host. They stay out of the outgoing message. Fixed,
    unaffected, closed and restricted findings are excluded. The preview shows
    each task and the exact mail to be sent to each contact.
-4. Approve the plan. PostgreSQL reserves the same host/CVE/action across both
+4. Choose **Preview notification**. The recipient and message previews appear
+   above the task details. Choose **Send notification** to approve and queue
+   delivery, **Queue test notification** for the local outbox, or **Create
+   internal FlowIntel tasks** for a plan without recipients. PostgreSQL
+   reserves the same host/CVE/action across both
    entry points. The worker creates, then verifies, the private FlowIntel case
    and its tasks over HTTPS. The case links to the Bearings delivery and
    verification record. Bearings releases the approved mail through its

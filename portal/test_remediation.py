@@ -86,8 +86,12 @@ class RemediationTests(Fixture):
         landing = self.client.get(self.url("intelligence"), {"view": "machine"})
         self.assertContains(landing, urls[1])
         self.assertContains(self.client.get(self.url("intelligence")), urls[0])
+        self.assertContains(landing, "Notify about this machine")
+        for query in ({}, {"case": self.finding.pk}, {"finding": self.finding.pk}):
+            self.assertContains(self.client.get(self.url("intelligence"), query), "Notify about this CVE")
+        self.assertContains(self.client.get(self.url("asset", pk=self.asset.pk)), "Notify about this machine")
         for url in urls:
-            self.assertContains(self.client.get(url), "Preview tasks and notification")
+            self.assertContains(self.client.get(url), "Preview notification")
         self.assertEqual(self.client.get(self.url("remediation-machine", pk=self.other.pk)).status_code, 404)
         self.assertEqual(self.client.get(self.url("remediation-cve", cve="not-a-cve")).status_code, 404)
         first, _ = self.draft(cve=self.finding.record.external_id)
@@ -105,6 +109,10 @@ class RemediationTests(Fixture):
     def test_internal_review_has_no_mail_and_restricted_evidence_is_omitted(self):
         private = self.extra_finding("CVE-2025-90001", shareable=False)
         case, _ = self.draft()
+        self.login(self.analyst)
+        preview = self.client.get(self.url("flowintel-case", pk=case.pk))
+        self.assertContains(preview, "Create internal FlowIntel tasks")
+        self.assertNotContains(preview, "Send notification")
         self.assertEqual(case.snapshot["finding_ids"], [self.finding.pk])
         self.assertNotIn(private.record.external_id, case.tasks.get().description)
         with self.assertRaisesMessage(ValidationError, "no actionable items"):
@@ -165,13 +173,21 @@ class RemediationTests(Fixture):
             )
             self.assertEqual(response.status_code, 302)
             case = self.finding.flowintel_cases.get()
-            self.assertContains(self.client.get(response.url), "Approve FlowIntel tasks and notification")
+            preview = self.client.get(response.url)
+            self.assertContains(preview, "Queue test notification")
+            self.assertNotContains(preview, "Send notification")
+            self.assertLess(
+                preview.content.index(b"Queue test notification"), preview.content.index(b"<h2>Tasks</h2>")
+            )
             delivery = case.remediation_batch.deliveries.get()
             self.assertIn("FIXTURE-ADVISORY-42", delivery.body)
             self.assertNotIn(internal.record.external_id, delivery.body)
             with self.assertRaisesMessage(ValidationError, "linked FlowIntel"):
                 notifications.claim_batch(self.analyst, case.remediation_batch_id, [delivery.pk])
-            flowintel.approve(self.analyst, case.pk)
+            approved = self.client.post(self.url("flowintel-approve", pk=case.pk), follow=True)
+            self.assertContains(approved, "Test notification queued")
+            self.assertContains(approved, "Waiting for FlowIntel confirmation")
+            self.assertNotContains(approved, "Queue test notification")
             self.run_case(case, 3)
             self.assertEqual(notifications.process_queued_notifications(), 0)
             self.run_case(case, 1)
@@ -181,6 +197,26 @@ class RemediationTests(Fixture):
             self.assertEqual(notifications.process_queued_notifications(), 0)
             self.finding.refresh_from_db()
             self.assertEqual(self.finding.status, "new")
+
+    def test_smtp_preview_prominently_labels_send_without_performing_io(self):
+        with patch("portal.notifications.transport_configuration", return_value=("smtp", "fixture")):
+            case, _ = self.draft(recipients=[self.contact.pk], mitigation=self.mitigation())
+        self.login(self.analyst)
+        preview = self.client.get(self.url("flowintel-case", pk=case.pk))
+        self.assertContains(preview, "Send notification")
+        self.assertContains(preview, self.contact.email)
+        self.assertNotContains(preview, "Queue test notification")
+        self.mock_api.assert_not_called()
+
+    def test_prepare_explains_missing_configuration_and_contacts(self):
+        self.login(self.analyst)
+        url = self.url("remediation-machine", pk=self.asset.pk)
+        Contact.objects.filter(pk=self.contact.pk).update(notification_enabled=False)
+        self.assertContains(self.client.get(url), "no verified contacts eligible")
+        FlowIntelInstance.objects.filter(pk=self.instance.pk).update(enabled=False)
+        response = self.client.get(url)
+        self.assertContains(response, "enable a private FlowIntel destination")
+        self.assertNotContains(response, "Preview notification")
 
     def test_recipient_revocation_blocks_before_first_remote_write(self):
         case, _ = self.draft(recipients=[self.contact.pk], mitigation=self.mitigation())
