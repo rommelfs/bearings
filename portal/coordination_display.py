@@ -4,6 +4,7 @@ from django.db.models import Case, F, IntegerField, Value, When, Window
 from django.db.models.functions import RowNumber
 from .distro_verdicts import decorate_package_verdict
 from .presentation import vulnerability_summary
+from .review_queue import classified
 
 
 def decorate(user, rows, *, prepared=False):
@@ -44,7 +45,7 @@ def decorate(user, rows, *, prepared=False):
     ids = list(selected)
     examples = {
         finding.pk: finding
-        for finding in candidates.filter(pk__in=ids)
+        for finding in classified(candidates.filter(pk__in=ids))
         .select_related(
             "organization",
             "record",
@@ -83,6 +84,8 @@ def decorate(user, rows, *, prepared=False):
                 finding.next_step = "Inspect the unsupported or missing conditions in the evidence."
         elif verdict:
             finding.next_step = "Refresh inventory and vendor evaluation before deciding on remediation."
+        elif finding.queue_bucket == "cleared":
+            finding.next_step = "Review retained evidence and the saved assessment."
         else:
             finding.next_step = (
                 "Verify this installed version against the advisory's affected-version conditions."

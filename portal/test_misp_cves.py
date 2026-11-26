@@ -38,6 +38,22 @@ CIRCL = advisory(
 )
 
 
+TOTP = advisory(
+    "CVE-2026-103655",
+    misp_cves.CIRCL,
+    [{"version": "0", "lessThan": "2.5.48", "versionType": "semver", "status": "affected"}],
+    "https://github.com/MISP/MISP/commit/a020fa47b",
+    repo="https://github.com/MISP/MISP",
+    modules=["app/Controller/UsersController.php (otp method)"],
+    programFiles=["app/Controller/UsersController.php"],
+)
+TOTP["containers"]["cna"]["references"][0]["tags"] = ["patch"]
+LDAP = deepcopy(TOTP)
+LDAP["cveMetadata"]["cveId"] = "CVE-2026-90961"
+LDAP["containers"]["cna"]["references"][0]["url"] = "https://github.com/MISP/MISP/commit/0ee058548"
+LDAP["containers"]["cna"]["affected"][0]["versions"][0]["lessThan"] = "2.5.46"
+
+
 class MispVersionTests(Fixture):
     def setUp(self):
         self.installation.version = "2.5.51"
@@ -67,6 +83,50 @@ class MispVersionTests(Fixture):
                 self.installation.version = version
                 self.assertEqual(discovery.evaluate(self.watch, self.installation, GITHUB)[0], gh_result)
                 self.assertEqual(discovery.evaluate(self.watch, self.installation, CIRCL)[0], circl_result)
+
+    def test_circl_short_patch_reference_and_component_annotations(self):
+        for advisory_record, old, boundary in ((TOTP, "2.5.47", "2.5.48"), (LDAP, "2.5.45", "2.5.46")):
+            self.installation.version = old
+            self.assertEqual(
+                discovery.evaluate(self.watch, self.installation, advisory_record)[0], "potential"
+            )
+            for version in (boundary, "2.5.51"):
+                self.installation.version = version
+                self.assertEqual(
+                    discovery.evaluate(self.watch, self.installation, advisory_record)[0], "not_affected"
+                )
+        unverified = deepcopy(TOTP)
+        unverified["containers"]["cna"]["references"][0].pop("tags")
+        self.assertEqual(discovery.evaluate(self.watch, self.installation, unverified)[0], "unknown")
+
+    def test_same_version_exclusion_in_review_counts_detail_and_outreach(self):
+        from .notifications import candidates
+        from .overview import OverviewEvidence
+        from .remediation import work
+
+        self.refresh(TOTP, LDAP)
+        identifier = TOTP["cveMetadata"]["cveId"]
+        finding = Finding.objects.get(record__external_id=identifier)
+        review = self.url("intelligence")
+        filters = {"view": "cve", "asset": self.asset.pk}
+        self.assertNotContains(self.client.get(review, filters), identifier)
+        self.assertContains(self.client.get(review, {**filters, "state": "cleared"}), identifier)
+        detail = self.client.get(review, {**filters, "finding": finding.pk})
+        self.assertContains(detail, "Installed version outside the published affected range")
+        self.assertNotContains(detail, "Notify about this CVE")
+        national = self.client.get(
+            reverse("circl-findings"), {"view": "records", "record": identifier, "assessment": "action"}
+        )
+        self.assertEqual(national.context["page"].paginator.count, 0)
+        panel = self.client.get(reverse("circl-panel", args=["problems"]))
+        self.assertContains(panel, "Cleared by current version evidence or a saved assessment.")
+        totals = OverviewEvidence.for_page(self.analyst, [self.a]).review_totals[0][self.a.pk]
+        self.assertEqual((totals["reviews"], totals["review_cleared"]), (0, 2))
+        retained_issue = self.client.get(self.url("issue", pk=finding.asset_issue.pk))
+        self.assertContains(retained_issue, "The current version is excluded by the vendor evidence")
+        self.assertNotContains(retained_issue, "Prepare stakeholder notification")
+        self.assertFalse(work(self.analyst, self.a, cve=identifier).exists())
+        self.assertFalse(candidates(self.analyst, "circl", {"cve": identifier}).exists())
 
     def test_unsupported_rules_and_lookalike_references_cannot_clear(self):
         payload = deepcopy(GITHUB)

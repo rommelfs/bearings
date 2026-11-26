@@ -274,13 +274,22 @@ def detail(request, slug, pk):
     can_rt_export = any(
         rt.can_write(request.user, issue, instance) for instance in instances(request.user, issue)
     )
+    from .review_queue import classified, current_version_exclusion
     from .scenario_suggestions import draft_scenario
+
+    version_excluded = bool(
+        issue.finding_id
+        and classified(visible_findings_for(request.user).filter(pk=issue.finding_id))
+        .filter(current_version_exclusion())
+        .exists()
+    )
 
     return render(
         request,
         "portal/issue.html",
         {
             "issue": issue,
+            "version_excluded": version_excluded,
             "org": issue.organization,
             "asset": issue.asset,
             "facts": issue.facts,

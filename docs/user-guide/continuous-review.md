@@ -95,9 +95,12 @@ The [infrastructure overview](infrastructure-overview.md) is now the login landi
 
 The product watch recognizes the MISP GitHub CNA's explicit upper bounds
 and CIRCL CNA's structured SemVer intervals when the record references the
-MISP repository and supports a definite version decision. For example,
+MISP repository and supports a definite version decision. CIRCL records that
+name affected modules and link a tagged MISP patch can establish that a release
+exceeds their upper version bounds. For example, CVE-2026-103655 affects
+versions before 2.5.48 and CVE-2026-90961 versions before 2.5.46.
 CVE-2026-44381 concerns releases before 2.5.37 and CVE-2026-10868 concerns
-releases through 2.5.38. MISP 2.5.51 is outside both published ranges. Missing
+releases through 2.5.38. MISP 2.5.51 is outside these published ranges. Missing
 versions, unsupported ranges and ambiguous evidence remain technical review
 work. A change in inventory or source evidence invalidates the old exclusion.
 
@@ -108,3 +111,9 @@ work. Existing manual assessments, tasks and evidence history are retained.
 After updating, open **Automatic CVE discovery**, find the MISP product and
 choose **Refresh CVEs** to queue a fresh evaluation of stored and current
 public advisory data for the configured product watch.
+
+The shared review classifier supplies the current category for Vulnerability
+review, infrastructure and machine counts, national review records and
+software cases. Asset issue filtering and notification eligibility use the
+same current version proof. Open workflow totals and retained history record
+analyst work. They are not counts of affected installations.

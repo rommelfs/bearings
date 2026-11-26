@@ -23,7 +23,7 @@ from .models import (
 )
 from .notifications import digest
 from .presentation import ACTIVE_REVIEWS
-from .review_queue import classified
+from .review_queue import classified, current_version_exclusion
 from .review_update_preview import FIX_FEED, FIX_PROOF, fix_targets
 from .service_mail import mail_subject
 
@@ -83,7 +83,7 @@ def work(actor, org, *, asset=None, cve=None, ids=None):
         qs = qs.filter(pk__in=ids)
     return (
         classified(qs)
-        .exclude(package_current=True, distro_match__queue_proof__verdict__in=["fixed", "not_matched"])
+        .exclude(current_version_exclusion())
         .select_related("installation__asset__responsible_contact", "installation__asset__source")
         .defer("record__payload")
     )

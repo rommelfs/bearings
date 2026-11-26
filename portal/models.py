@@ -2416,6 +2416,7 @@ class DistroMatch(models.Model):
 
     @property
     def inputs_changed(self):
+        """Check an in-memory match, including edits that have not been saved."""
         from . import distro_cves, distro_results, distro_sources
 
         from .ubuntu_status import proof_current

@@ -6,7 +6,7 @@ from django.db.models import Case, Exists, F, IntegerField, Min, OuterRef, Q, Va
 from django.db.models.functions import RowNumber
 from django.utils import timezone
 from .review_focus import posture
-from .review_queue import classified
+from .review_queue import CURRENT_AFFECTED, SAVED_AFFECTED, classified
 from .circl import findings_for
 from .issues import visible_issues, active_filter
 from .presentation import SEVERITY_ORDER
@@ -21,12 +21,7 @@ def page_for(user, org_ids, number, *, scoped_evidence=False):
         .filter(~Q(kind="vulnerability") | Q(action_due__isnull=False) | ~Q(next_action=""))
     )
     machines = machines.annotate(
-        human=Exists(
-            reviews.filter(
-                analyst_applicability="affected",
-                status__in=["new", "under_review", "confirmed", "accepted_risk"],
-            )
-        ),
+        human=Exists(reviews.filter(SAVED_AFFECTED)),
         operational=Exists(operational),
         overdue=Exists(operational.filter(action_due__lt=timezone.localdate())),
         operational_critical=Exists(operational.filter(priority="critical")),
@@ -69,7 +64,7 @@ def page_for(user, org_ids, number, *, scoped_evidence=False):
             kind=Min(
                 Case(
                     When(analyst_applicability="affected", then=Value(0)),
-                    When(package_current=True, distro_match__queue_proof__verdict="affected", then=Value(1)),
+                    When(CURRENT_AFFECTED, then=Value(1)),
                     When(distro_match__isnull=True, then=Value(2)),
                     default=Value(3),
                 )

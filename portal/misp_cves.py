@@ -2,7 +2,8 @@
 
 import re
 
-RULE = "misp-vendor-versions/v1"
+RULE = "misp-vendor-versions/v2"
+COMPATIBLE_PROOFS = (RULE, "misp-vendor-versions/v1")
 GITHUB = "a0819718-46f1-4df5-94e2-005712e83aaa"
 CIRCL = "5a6e4751-2f3f-4070-9419-94fb35b644e8"
 RELEASE = r"(?:0|[1-9][0-9]{0,8})(?:\.(?:0|[1-9][0-9]{0,8})){2}"
@@ -10,7 +11,8 @@ GHSA = re.compile(
     r"https://github\.com/MISP/MISP/security/advisories/GHSA-(?:[a-z0-9]{4}-){2}[a-z0-9]{4}", re.I | re.ASCII
 )
 COMMIT = re.compile(r"https://github\.com/MISP/MISP/commit/[a-f0-9]{40}", re.I | re.ASCII)
-QUALIFIERS = ("platforms", "modules", "programRoutines", "programFiles")
+PATCH_COMMIT = re.compile(r"https://github\.com/MISP/MISP/commit/[a-f0-9]{7,40}", re.I | re.ASCII)
+REPOSITORY = "https://github.com/MISP/MISP"
 
 
 def is_misp(watch):
@@ -31,19 +33,34 @@ def evaluate(watch, installation, cna, entries, semver):
     circl = provider.get("orgId") == CIRCL and any(
         GHSA.fullmatch(url) or COMMIT.fullmatch(url) for url in urls
     )
-    if not (github or circl):
+    circl_patch = provider.get("orgId") == CIRCL and any(
+        isinstance(ref, dict)
+        and "patch" in (ref.get("tags") if isinstance(ref.get("tags"), list) else [])
+        and isinstance(ref.get("url"), str)
+        and PATCH_COMMIT.fullmatch(ref["url"])
+        for ref in references
+    )
+    if not (github or circl or circl_patch):
         return None
 
     ranges = []
+    above_only = False
     for entry in entries:
         if (
             str(entry.get("vendor", "")).casefold() != "misp"
             or str(entry.get("product", "")).casefold() != "misp"
-            or any(entry.get(key) for key in QUALIFIERS)
+            or entry.get("platforms")
+            or (
+                any(entry.get(key) for key in ("modules", "programFiles", "programRoutines"))
+                and not (circl_patch and entry.get("repo") == REPOSITORY)
+            )
             or entry.get("defaultStatus") not in (None, "unaffected")
-            or (circl and entry.get("defaultStatus") != "unaffected")
         ):
             return None
+        if not github and entry.get("defaultStatus") is None:
+            if not circl_patch or entry.get("repo") != REPOSITORY:
+                return None
+            above_only = True
         versions = entry.get("versions")
         if not isinstance(versions, list) or not versions:
             return None
@@ -84,4 +101,6 @@ def evaluate(watch, installation, cna, entries, semver):
         for low, high, inclusive in ranges
     ):
         return "potential", "The installed MISP release matches a published affected-version range."
+    if above_only and any(version < high or inclusive and version == high for _, high, inclusive in ranges):
+        return None
     return "not_affected", "The installed MISP release is outside the published affected-version ranges."

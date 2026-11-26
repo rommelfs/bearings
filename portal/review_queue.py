@@ -21,9 +21,11 @@ from django.utils import timezone
 from django.db.models.fields.json import KT
 from django.db.models.functions import Cast
 from . import distro_oval, distro_results, distro_sources
-from .models import DistroMatch
+from .models import DiscoveryRevision, DistroMatch
+from .misp_cves import COMPATIBLE_PROOFS
 from .distro_projection import ComparableJSON
 from .overview_queries import SNAPSHOT_PROOF_IDS
+from .presentation import ACTIVE_REVIEWS
 
 
 BUCKETS = (
@@ -170,23 +172,51 @@ def classified(reviews, *, organizations=None, assets=None, package_evidence=Tru
 
 
 CLEARED_VERDICTS = ("fixed", "not_matched")
+CURRENT_AFFECTED = Q(package_current=True, distro_match__queue_proof__verdict="affected")
+SAVED_AFFECTED = Q(status__in=[*ACTIVE_REVIEWS, "accepted_risk"], analyst_applicability="affected")
 
 
-def review_bucket(assessment, has_package, current, verdict):
-    """Bucket for already classified package inputs, such as grouped dashboard counts."""
-    if assessment == "affected":
-        return "action"
-    if assessment == "not_affected":
-        return "cleared"
-    if not has_package:
-        return "action"
-    if not current:
-        return "pending"
-    if verdict == "affected":
-        return "action"
-    if verdict in CLEARED_VERDICTS:
-        return "cleared"
-    return "unresolved"
+def current_misp_proof(result):
+    """A version verdict belongs to the exact evaluated installation and advisory."""
+    return (
+        DiscoveryRevision.objects.filter(
+            match__finding_id=OuterRef("pk"),
+            match__result=result,
+            match__watch__vendor__iexact="misp",
+            match__watch__product_key__iexact="misp",
+            match__watch__product_id=OuterRef("installation__product_id"),
+            match__evidence_revision__record_id=OuterRef("record_id"),
+            fingerprint=F("match__input_hash"),
+            snapshot__evaluation_rule__in=COMPATIBLE_PROOFS,
+            snapshot__result=result,
+        )
+        .alias(
+            version_text=KT("snapshot__version"),
+            edition_text=KT("snapshot__edition"),
+            build_text=KT("snapshot__build"),
+            product_text=KT("snapshot__product_identifier"),
+            evaluated_payload=ComparableJSON("match__evidence_revision__payload"),
+        )
+        .filter(
+            version_text=OuterRef("installation__version"),
+            edition_text=OuterRef("installation__edition"),
+            build_text=OuterRef("installation__build"),
+            product_text=OuterRef("installation__product__identifier"),
+            evaluated_payload=ComparableJSON(OuterRef("record__payload")),
+        )
+    )
+
+
+def current_discovery_exclusion():
+    return Q(Exists(current_misp_proof("not_affected")))
+
+
+def current_version_exclusion():
+    """A current version exclusion prevents automatic remediation/outreach."""
+    return (
+        Q(package_current=True, distro_match__queue_proof__verdict__in=CLEARED_VERDICTS)
+        | Q(distro_match__isnull=True) & current_discovery_exclusion()
+    )
 
 
 def bucket_expression(*, human="action", affected="action", manual="action"):
@@ -194,6 +224,7 @@ def bucket_expression(*, human="action", affected="action", manual="action"):
     return Case(
         When(analyst_applicability="affected", then=Value(human)),
         When(analyst_applicability="not_affected", then=Value("cleared")),
+        When(Q(distro_match__isnull=True) & current_discovery_exclusion(), then=Value("cleared")),
         When(distro_match__isnull=True, then=Value(manual)),
         When(package_current=False, then=Value("pending")),
         When(distro_match__queue_proof__verdict="affected", then=Value(affected)),

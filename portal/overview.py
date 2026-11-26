@@ -26,7 +26,6 @@ from .models import (
 from .notifications import contact_policy
 from .presentation import ACTIVE_REVIEWS, severity_rank
 from .overview_explanations import review_explanation
-from .review_queue import review_bucket
 from .review_work import without_unworked_issue_shells
 
 
@@ -78,14 +77,9 @@ class OverviewEvidence:
                 "analyst_applicability",
                 "record__source_severity",
                 "distro_match__queue_proof__verdict",
+                "queue_bucket",
             )
-            .annotate(
-                has_package=Case(
-                    When(distro_match__isnull=False, then=Value(True)),
-                    default=Value(False),
-                ),
-                total=Count("pk"),
-            )
+            .annotate(total=Count("pk"))
         )
         for row in bins:
             counts = companies.setdefault(row["organization_id"], _review_counts())
@@ -93,9 +87,7 @@ class OverviewEvidence:
             verdict = row["distro_match__queue_proof__verdict"]
             if row["package_current"] and verdict == "affected":
                 counts["automatic_affected"] += total
-            bucket = review_bucket(
-                row["analyst_applicability"], row["has_package"], row["package_current"], verdict
-            )
+            bucket = row["queue_bucket"]
             if bucket == "cleared":
                 counts["review_cleared"] += total
                 continue

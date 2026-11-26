@@ -5,13 +5,11 @@ from django.db.models import Count, F, Q
 
 from .agents import current
 from .distro_fix_evidence import HasVendorFix
-from .presentation import ACTIVE_REVIEWS
-from .review_queue import classified
+from .review_queue import CURRENT_AFFECTED, SAVED_AFFECTED, classified
 from .review_focus import machine_coverage
 from .review_update_preview import asset_fix_preview
 from .review_work import (
     CONFLICTING,
-    CURRENT_AFFECTED,
     NEEDS_ATTENTION,
     positive_package_coverage,
     verified_fix_progress,
@@ -25,15 +23,11 @@ def attention_for(user, asset, device, findings, windows_update):
         return {}
     findings = classified(findings, assets=[asset.pk])
     reviews = findings.order_by()
-    saved = Q(
-        status__in=[*ACTIVE_REVIEWS, "accepted_risk"],
-        analyst_applicability="affected",
-    )
     windows = bool(device and device.os.get("id") == "windows")
     counts = {
         "total": Count("pk"),
         "open": Count("pk", filter=NEEDS_ATTENTION),
-        "saved": Count("pk", filter=saved),
+        "saved": Count("pk", filter=SAVED_AFFECTED),
     }
     linux_evaluable = (
         device

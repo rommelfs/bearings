@@ -26,7 +26,7 @@ from .presentation import decorate_finding, severity_first, vulnerability_summar
 from .overview_queries import bounded_list, read_snapshot
 from .queue_context import return_url
 from .review_cases import case_identity, case_page, evidence_page
-from .review_queue import classified
+from .review_queue import classified, current_discovery_exclusion
 from .review_update_preview import add_case_fix_previews
 from .review_work import RECHECK_DISCOVERY, scoped_work
 
@@ -91,10 +91,18 @@ def scoped_findings(request, org):
 def finding_page(request, org, *, findings=None):
     if findings is None:
         findings = scoped_findings(request, org)
-    findings = findings.select_related(
-        "installation__asset__source__instance",
-        "distro_match__component__device",
-        "distro_match__advisory__feed",
+    findings = (
+        classified(findings)
+        .annotate(
+            discovery_excluded=Case(
+                When(current_discovery_exclusion(), then=Value(True)), default=Value(False)
+            )
+        )
+        .select_related(
+            "installation__asset__source__instance",
+            "distro_match__component__device",
+            "distro_match__advisory__feed",
+        )
     )
     page = Paginator(severity_first(findings), 25).get_page(request.GET.get("page"))
     decorate_records(list(page), request.user)
@@ -185,7 +193,8 @@ def intelligence(request, slug):
             list_url += "?" + list_filters.urlencode()
         editable = can_edit(request.user, org) or can_operator_review(request.user, org)
         for finding in page:
-            finding.remediation_url = notification_url(finding)
+            if not finding.discovery_excluded:
+                finding.remediation_url = notification_url(finding)
         if editable:
             for finding in page:
                 finding.review_form = FindingReviewForm(auto_id=f"review-{finding.pk}-%s")

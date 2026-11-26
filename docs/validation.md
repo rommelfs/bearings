@@ -2821,3 +2821,32 @@ retained evidence and manual assessments. The PostgreSQL suite passed all
 129 focused tests. The SQLite suite passed seven tests. Django checks, migration
 drift and Ruff passed. The public advisory reads and synthetic tests used no
 production inventory.
+
+## Shared current review classification and CIRCL MISP ranges
+
+Reviewed the published CNA applicability fields for CVE-2026-103655
+(exclusive upper bound 2.5.48) and CVE-2026-90961 (exclusive upper bound
+2.5.46). The fixture copies the relevant structured version fields,
+repository identity and patch reference. Boundary tests also keep unverified
+or incomplete inputs out of current exclusions.
+
+The code review traced the review queue, company CVE and machine views,
+national review records and coordination examples, overview counters, grouped
+actions, asset issue details and both notification paths. The previous
+Python dashboard bucket classifier and view-level MISP exclusion rules were
+replaced with the shared query classification. Saved assessments retain
+precedence in review views. A current version exclusion prevents outreach.
+Persisted package verdict displays consume the same currentness annotation
+as the lists. The model's in-memory check remains available for unsaved
+evidence edits. Workflow-history reads retain their workflow meaning.
+
+On PostgreSQL with 13,002 synthetic review records, three warm Django
+test-client requests per route gave medians of 175 ms for the CVE list,
+201 ms for the machine list, 455 ms for Infrastructure and 93 ms for grouped
+actions. All responses completed with HTTP 200. The two MISP fixtures stayed
+out of the active responses. These are fixture response times.
+
+The full PostgreSQL suite ran 1,134 tests with five skips and no failures.
+After the final coordination-label update, all 149 focused PostgreSQL tests
+passed. The SQLite regression selection ran 89 tests with two PostgreSQL-only
+skips and no failures. Django checks, migration drift and Ruff passed.

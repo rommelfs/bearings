@@ -8,19 +8,14 @@ from django.utils import timezone
 from django.db.models.functions import Coalesce
 
 from .discovery import RULE as DISCOVERY_RULE
-from .distro_projection import ComparableJSON
-from .misp_cves import RULE as MISP_RULE
-from .models import DiscoveryRevision, DistroMatchRevision, Finding, IssueHistory, IssueRevision
+from .models import DistroMatchRevision, Finding, IssueHistory, IssueRevision
 from .presentation import ACTIVE_REVIEWS
 from .query_integrity import consistent
 from .review_cases import CVE_ID, case_identity
-from .review_queue import classified
+from .review_queue import CURRENT_AFFECTED, SAVED_AFFECTED, classified, current_misp_proof
 
 # A current affected-version match still needs attention after a workflow closure.
-CURRENT_AFFECTED = Q(package_current=True, distro_match__queue_proof__verdict="affected")
-AFFECTED_CVE = Q(record__external_id__iregex=CVE_ID) & (
-    CURRENT_AFFECTED | Q(analyst_applicability="affected", status__in=[*ACTIVE_REVIEWS, "accepted_risk"])
-)
+AFFECTED_CVE = Q(record__external_id__iregex=CVE_ID) & (CURRENT_AFFECTED | SAVED_AFFECTED)
 OPEN_WORK = (
     Q(status__in=[*ACTIVE_REVIEWS, "accepted_risk"])
     | CURRENT_AFFECTED
@@ -44,51 +39,12 @@ REVIEW_SCOPES = (
 )
 
 
-def current_misp_proof(result):
-    """A version verdict belongs to the exact evaluated installation and advisory."""
-    return (
-        DiscoveryRevision.objects.filter(
-            match__finding_id=OuterRef("pk"),
-            match__result=result,
-            match__watch__vendor__iexact="misp",
-            match__watch__product_key__iexact="misp",
-            match__watch__product_id=OuterRef("installation__product_id"),
-            match__evidence_revision__record_id=OuterRef("record_id"),
-            fingerprint=F("match__input_hash"),
-            snapshot__evaluation_rule=MISP_RULE,
-            snapshot__result=result,
-        )
-        .alias(
-            version_text=KeyTextTransform("version", "snapshot"),
-            edition_text=KeyTextTransform("edition", "snapshot"),
-            build_text=KeyTextTransform("build", "snapshot"),
-            product_text=KeyTextTransform("product_identifier", "snapshot"),
-            evaluated_payload=ComparableJSON("match__evidence_revision__payload"),
-        )
-        .filter(
-            version_text=OuterRef("installation__version"),
-            edition_text=OuterRef("installation__edition"),
-            build_text=OuterRef("installation__build"),
-            product_text=OuterRef("installation__product__identifier"),
-            evaluated_payload=ComparableJSON(OuterRef("record__payload")),
-        )
-    )
-
-
-def current_misp_exclusion():
-    return (
-        Q(distro_match__isnull=True)
-        & ~Q(analyst_applicability="affected")
-        & Q(Exists(current_misp_proof("not_affected")))
-    )
-
-
 def scoped_work(findings, scope):
     if scope == "all":
         return findings
     findings = classified(findings)
     if scope == "attention":
-        return findings.filter(NEEDS_ATTENTION).exclude(current_misp_exclusion())
+        return findings.filter(NEEDS_ATTENTION)
     if scope == "affected":
         # Both branches of AFFECTED_CVE already need attention, including
         # current package matches that conflict with a saved decision.
@@ -101,15 +57,9 @@ def scoped_work(findings, scope):
             )
         )
     if scope == "cleared":
-        return (
-            findings.filter(Q(queue_bucket=scope) | current_misp_exclusion())
-            .exclude(CONFLICTING | RECHECK_DISCOVERY)
-            .annotate(queue_bucket=Value("cleared"))
-        )
+        return findings.filter(queue_bucket=scope).exclude(CONFLICTING | RECHECK_DISCOVERY)
     if scope == "action":
-        return findings.filter(Q(OPEN_WORK, queue_bucket=scope) | CONFLICTING | RECHECK_DISCOVERY).exclude(
-            current_misp_exclusion()
-        )
+        return findings.filter(Q(OPEN_WORK, queue_bucket=scope) | CONFLICTING | RECHECK_DISCOVERY)
     return findings.filter(OPEN_WORK, queue_bucket=scope)
 
 

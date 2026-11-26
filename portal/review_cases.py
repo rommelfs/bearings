@@ -247,6 +247,8 @@ def evidence_page(visible, finding, number):
                 row["update_targets"] = fix_targets(row)
         elif row["distro_match__pk"]:
             row["result"] = "Current package evaluation pending"
+        elif row["queue_bucket"] == "cleared":
+            row["result"] = "Cleared by current version evidence or a saved assessment"
         else:
             row["result"] = "—"
     page.object_list = rows

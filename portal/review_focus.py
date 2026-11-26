@@ -31,7 +31,7 @@ from .models import AgentDevice, Asset, DistroFeed
 from .query_integrity import consistent
 from . import distro_cves, distro_results, distro_sources
 from .presentation import SEVERITY_ORDER, severity_rank
-from .review_queue import bucket_expression, classified
+from .review_queue import CURRENT_AFFECTED, bucket_expression, classified
 
 MACHINE_KINDS = ["server", "desktop", "laptop", "appliance", "vm"]
 MAX_SCOPED_MATCHED_MACHINES = 250
@@ -106,9 +106,12 @@ def posture(user, org_ids=None, *, shared_only=False, include_totals=True, scope
         scope = scope.filter(record__shareable=True)
     reviews = scope.filter(installation__asset_id=OuterRef("pk"))
     manual = Exists(
-        reviews.filter(
-            distro_match__isnull=True, status__in=["new", "under_review", "confirmed", "accepted_risk"]
-        ).exclude(analyst_applicability="not_affected")
+        classified(
+            reviews.filter(
+                distro_match__isnull=True, status__in=["new", "under_review", "confirmed", "accepted_risk"]
+            ),
+            package_evidence=False,
+        ).exclude(queue_bucket="cleared")
     )
     feed_scope = _ready_feed_scope()
     if feed_scope:
@@ -195,7 +198,7 @@ def _ready_feed_scope():
 
 
 def _automatic_matches(reviews):
-    return classified(reviews).filter(package_current=True, distro_match__queue_proof__verdict="affected")
+    return classified(reviews).filter(CURRENT_AFFECTED)
 
 
 def _scoped_automatic_status(reviews, organizations):

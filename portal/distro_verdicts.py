@@ -7,7 +7,7 @@ def decorate_package_verdict(finding):
     except finding.__class__.distro_match.RelatedObjectDoesNotExist:
         finding.package_verdict = None
         return
-    if match.inputs_changed:
+    if not finding.package_current:
         finding.package_verdict = {
             "heading": "Awaiting current package evaluation",
             "reason": "Inventory, vendor rules, cache freshness or evaluation logic changed. The retained result is historical until reevaluated.",
