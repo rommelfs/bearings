@@ -23,7 +23,7 @@ from django.db.models.functions import Cast
 from . import distro_oval, distro_results, distro_sources
 from .discovery import RULE as DISCOVERY_RULE
 from .models import DiscoveryRevision, DistroMatch
-from .misp_cves import COMPATIBLE_PROOFS
+from .misp_cves import COMPATIBLE_PROOFS, MATCHED_RANGE
 from .distro_projection import ComparableJSON
 from .overview_queries import SNAPSHOT_PROOF_IDS
 from .presentation import ACTIVE_REVIEWS
@@ -217,6 +217,26 @@ def current_misp_proof(result):
     )
 
 
+def current_discovery_match():
+    # Older snapshots also tagged generic discovery fallbacks with the MISP
+    # rule. Only the specialist evaluator's own range decision is positive proof.
+    proof = current_misp_proof("potential").filter(snapshot__explanation__endswith=MATCHED_RANGE)
+    return Q(distro_match__isnull=True) & Q(Exists(proof))
+
+
+def current_affected():
+    return CURRENT_AFFECTED | current_discovery_match()
+
+
+def discovery_version_status():
+    return Case(
+        When(current_discovery_match(), then=Value("affected")),
+        When(current_discovery_exclusion(), then=Value("not_affected")),
+        default=Value(""),
+        output_field=CharField(),
+    )
+
+
 def current_discovery_exclusion():
     return Q(Exists(current_misp_proof("not_affected")))
 
@@ -235,10 +255,12 @@ def outreach_exclusion():
 
 def bucket_expression(*, human="action", affected="action", manual="action"):
     """Use the same evidence precedence for both the queue and grouped cases."""
+    discovery_match = [When(current_discovery_match(), then=Value(affected))] if affected != manual else []
     return Case(
         When(analyst_applicability="affected", then=Value(human)),
         When(analyst_applicability="not_affected", then=Value("cleared")),
         When(Q(distro_match__isnull=True) & current_discovery_exclusion(), then=Value("cleared")),
+        *discovery_match,
         When(MISP_CATALOGUE_GAP, then=Value("unresolved")),
         When(distro_match__isnull=True, then=Value(manual)),
         When(package_current=False, then=Value("pending")),

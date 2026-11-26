@@ -169,6 +169,47 @@ class MispVersionTests(Fixture):
         )
         self.assertFalse(candidates(self.analyst, "circl", {"cve": "CVE-2026-93295"}).exists())
 
+        positive = Finding.objects.get(record__external_id="CVE-2026-132144")
+        heading = "Installed version in the published affected range"
+        review = self.url("intelligence")
+        home = reverse("home")
+        for response in (
+            self.client.get(home),
+            self.client.get(review, {"state": "affected"}),
+            self.client.get(review, {"finding": positive.pk}),
+            self.client.get(reverse("review-evidence", args=[positive.pk])),
+        ):
+            self.assertContains(response, heading)
+            self.assertNotContains(response, "Manual assessment:")
+        group = self.client.get(review, {"view": "machine"})
+        self.assertEqual(list(group.context["page"])[0]["affected_cves"], 1)
+
+        positive.analyst_applicability = "not_affected"
+        positive.save(update_fields=["analyst_applicability"])
+        conflict = self.client.get(review, {"state": "affected"})
+        self.assertContains(conflict, heading)
+        self.assertContains(conflict, "Current affected version conflicts with a saved assessment")
+        self.assertFalse(work(self.analyst, self.a, cve=positive.record.external_id).exists())
+
+        self.installation.version = "2.5.52"
+        self.installation.save(update_fields=["version"])
+        self.assertNotContains(self.client.get(home), heading)
+        self.assertNotContains(self.client.get(review, {"state": "affected"}), "CVE-2026-132144")
+
+    def test_generic_fallback_is_not_a_current_misp_version_match(self):
+        record = deepcopy(CIRCL)
+        cna = record["containers"]["cna"]
+        cna["providerMetadata"]["orgId"] = "unsupported"
+        cna["affected"][0]["versions"][0].update(version="2.5.0", lessThanOrEqual="2.5.51")
+        self.refresh(record)
+        self.assertEqual(Finding.objects.get().discovery.result, "potential")
+        url = self.url("intelligence")
+        self.assertContains(self.client.get(url), "CVE-2026-10868")
+        self.assertNotContains(self.client.get(url, {"state": "affected"}), "CVE-2026-10868")
+        self.assertNotContains(
+            self.client.get(reverse("home")), "Installed version in the published affected range"
+        )
+
     def test_legacy_mitre_requires_matching_fixed_release_and_placeholder_product(self):
         record = advisory(
             "CVE-2024-46918",

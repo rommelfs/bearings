@@ -2889,3 +2889,19 @@ CVE-2026-132144 retained the preparation action.
 
 The final focused PostgreSQL run passed all 69 MISP, queue and
 remediation tests. Django checks, migration drift and Ruff passed.
+
+## Current MISP matches in review views
+
+The PostgreSQL replay used the 269 captured public MISP advisories with a
+synthetic 2.5.51 installation. CVE-2026-132144 showed the current affected
+range in the cross-company review queue, affected-CVE list, finding detail
+and evidence table. The machine summary counted 46 current affected-version
+matches. The Needs attention, Fixed or not affected and Vendor clarification
+responses had 46, 168 and 55 cases respectively and each rendered in under
+0.5 seconds through the Django test client. Changing the recorded version
+to 2.5.52 withdrew the positive classification for CVE-2026-132144 before
+another watch refresh. Existing proof snapshots were sufficient, with
+generic discovery fallbacks excluded from the current MISP match predicate.
+
+The focused PostgreSQL run passed 82 tests. Django checks, migration drift
+and Ruff passed. Distribution coverage retains its distribution-feed scope.

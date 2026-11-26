@@ -6,7 +6,7 @@ from django.db import connection
 from django.db.models import Case, CharField, F, Value, When
 from django.db.models.functions import Cast, Least, Upper
 from .presentation import SEVERITY_ORDER, severity_first, severity_rank
-from .review_queue import BUCKETS, classified
+from .review_queue import BUCKETS, classified, discovery_version_status
 from .review_update_preview import FIX_FEED, FIX_PROOF, fix_targets
 
 CVE_ID = r"^CVE-[0-9]{4}-[0-9]{4,}$"
@@ -179,9 +179,9 @@ def case_page(reviews, number, bucket, severity, search=None, *, prioritize_asse
     page = paginator.get_page(number)
     findings = {
         finding.pk: finding
-        for finding in classified(reviews.filter(pk__in=selected).order_by()).select_related(
-            "distro_match__component__device", "distro_match__advisory__feed"
-        )
+        for finding in classified(reviews.filter(pk__in=selected).order_by())
+        .annotate(discovery_version=discovery_version_status())
+        .select_related("distro_match__component__device", "distro_match__advisory__feed")
     }
     page.object_list = [findings[pk] for pk in selected if pk in findings]
     for finding in page:
@@ -203,31 +203,36 @@ def case_page(reviews, number, bucket, severity, search=None, *, prioritize_asse
 
 
 def evidence_page(visible, finding, number):
-    evidence = severity_first(
-        classified(
-            visible.filter(
-                organization_id=finding.organization_id,
-                installation__asset_id=finding.installation.asset_id,
-                case_identifier=finding.case_identifier,
+    evidence = (
+        severity_first(
+            classified(
+                visible.filter(
+                    organization_id=finding.organization_id,
+                    installation__asset_id=finding.installation.asset_id,
+                    case_identifier=finding.case_identifier,
+                )
             )
         )
-    ).values(
-        "pk",
-        "record__source",
-        "record__source_severity",
-        "installation__product__name",
-        "installation__version",
-        "installation__edition",
-        "installation__build",
-        "rule",
-        "queue_bucket",
-        "package_current",
-        "distro_match__pk",
-        "distro_match__queue_proof__verdict",
-        "analyst_applicability",
-        "status",
-        FIX_PROOF,
-        FIX_FEED,
+        .annotate(discovery_version=discovery_version_status())
+        .values(
+            "pk",
+            "record__source",
+            "discovery_version",
+            "record__source_severity",
+            "installation__product__name",
+            "installation__version",
+            "installation__edition",
+            "installation__build",
+            "rule",
+            "queue_bucket",
+            "package_current",
+            "distro_match__pk",
+            "distro_match__queue_proof__verdict",
+            "analyst_applicability",
+            "status",
+            FIX_PROOF,
+            FIX_FEED,
+        )
     )
     page = Paginator(evidence, 25).get_page(number)
     labels = dict(BUCKETS)
@@ -247,6 +252,10 @@ def evidence_page(visible, finding, number):
                 row["update_targets"] = fix_targets(row)
         elif row["distro_match__pk"]:
             row["result"] = "Current package evaluation pending"
+        elif row["discovery_version"] == "affected":
+            row["result"] = "Installed version in the published affected range"
+        elif row["discovery_version"] == "not_affected":
+            row["result"] = "Installed version outside the published affected range"
         elif row["queue_bucket"] == "cleared":
             row["result"] = "Cleared by current version evidence or a saved assessment"
         else:

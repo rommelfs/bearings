@@ -26,7 +26,7 @@ from .presentation import decorate_finding, severity_first, vulnerability_summar
 from .overview_queries import bounded_list, read_snapshot
 from .queue_context import return_url
 from .review_cases import case_identity, case_page, evidence_page
-from .review_queue import classified, current_discovery_exclusion
+from .review_queue import classified, discovery_version_status
 from .review_update_preview import add_case_fix_previews
 from .review_work import RECHECK_DISCOVERY, scoped_work
 
@@ -93,11 +93,7 @@ def finding_page(request, org, *, findings=None):
         findings = scoped_findings(request, org)
     findings = (
         classified(findings)
-        .annotate(
-            discovery_excluded=Case(
-                When(current_discovery_exclusion(), then=Value(True)), default=Value(False)
-            )
-        )
+        .annotate(discovery_version=discovery_version_status())
         .select_related(
             "installation__asset__source__instance",
             "distro_match__component__device",
@@ -224,10 +220,9 @@ def intelligence(request, slug):
         for finding in page:
             finding.source_summary = vulnerability_summary(finding.record.payload)
             finding.severity_key = finding.source_summary["severity"].lower()
-            finding.evidence_conflict = (
-                finding.queue_bucket == "cleared"
-                and finding.package_current
-                and finding.distro_match.queue_proof.get("verdict") == "affected"
+            finding.evidence_conflict = finding.analyst_applicability == "not_affected" and (
+                finding.discovery_version == "affected"
+                or (finding.package_current and finding.distro_match.queue_proof.get("verdict") == "affected")
             )
             if not finding.software_preview:
                 finding.software_preview = [(finding.installation.product.name, finding.queue_bucket)]

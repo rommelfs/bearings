@@ -23,6 +23,7 @@ COMPARE = re.compile(
     r"https://github\.com/MISP/MISP/compare/v(" + RELEASE + r")\.\.\.v(" + RELEASE + r")",
     re.I | re.ASCII,
 )
+MATCHED_RANGE = "The installed MISP release matches a published affected-version range."
 OUTSIDE = ("not_affected", "The installed MISP release is outside the published affected-version ranges.")
 
 
@@ -162,7 +163,7 @@ def evaluate(watch, installation, cna, entries, semver):
         low <= version and (version < high or inclusive and version == high)
         for low, high, inclusive in ranges
     ):
-        return "potential", "The installed MISP release matches a published affected-version range."
+        return "potential", MATCHED_RANGE
     if any(
         high is None or version < high or inclusive and version == high
         for high, inclusive in upper_bounds_without_default

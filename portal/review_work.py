@@ -12,18 +12,24 @@ from .models import DistroMatchRevision, Finding, IssueHistory, IssueRevision
 from .presentation import ACTIVE_REVIEWS
 from .query_integrity import consistent
 from .review_cases import CVE_ID, case_identity
-from .review_queue import CURRENT_AFFECTED, MISP_CATALOGUE_GAP, SAVED_AFFECTED, classified, current_misp_proof
+from .review_queue import (
+    MISP_CATALOGUE_GAP,
+    SAVED_AFFECTED,
+    classified,
+    current_affected,
+    current_discovery_match,
+)
 
 # A current affected-version match still needs attention after a workflow closure.
-AFFECTED_CVE = Q(record__external_id__iregex=CVE_ID) & (CURRENT_AFFECTED | SAVED_AFFECTED)
+AFFECTED_CVE = Q(record__external_id__iregex=CVE_ID) & (current_affected() | SAVED_AFFECTED)
 OPEN_WORK = (
     Q(status__in=[*ACTIVE_REVIEWS, "accepted_risk"])
-    | CURRENT_AFFECTED
+    | current_affected()
     | Q(discovery__review_required=True)
     | Q(distro_match__review_required=True)
     | Q(distro_match__isnull=False, queue_bucket__in=("pending", "unresolved"))
 )
-CONFLICTING = CURRENT_AFFECTED & Q(analyst_applicability="not_affected")
+CONFLICTING = current_affected() & Q(analyst_applicability="not_affected")
 RECHECK_DISCOVERY = Q(discovery__review_required=True, analyst_applicability="not_affected") & ~Q(
     discovery__result="not_affected"
 )
@@ -77,7 +83,7 @@ def without_unworked_issue_shells(issues, findings=None):
         discovery__result="potential",
         discovery__watch__vendor__iexact="misp",
         discovery__watch__product_key__iexact="misp",
-    ).exclude(Exists(current_misp_proof("potential")))
+    ).exclude(current_discovery_match())
     hidden_evidence = catalogue & (
         Q(finding__discovery__result__in=["unknown", "not_affected"]) | Q(Exists(stale_misp))
     )

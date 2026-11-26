@@ -31,7 +31,7 @@ from .models import AgentDevice, Asset, DistroFeed
 from .query_integrity import consistent
 from . import distro_cves, distro_results, distro_sources
 from .presentation import SEVERITY_ORDER, severity_rank
-from .review_queue import CURRENT_AFFECTED, bucket_expression, classified
+from .review_queue import CURRENT_AFFECTED, bucket_expression, classified, current_discovery_match
 
 MACHINE_KINDS = ["server", "desktop", "laptop", "appliance", "vm"]
 MAX_SCOPED_MATCHED_MACHINES = 250
@@ -39,7 +39,7 @@ CASE_FIELDS = ("organization_id", "family", "platform", "manager", "case_kind")
 CASE_LABELS = {
     "version": (
         "Check vendor fixes for this software family",
-        "Current distribution version evidence; inspect the individual fix boundaries and update channels before applying changes.",
+        "Current vendor version evidence; inspect the advisory and any listed fix before applying changes.",
     ),
     "manual": (
         "Check version applicability",
@@ -111,7 +111,7 @@ def posture(user, org_ids=None, *, shared_only=False, include_totals=True, scope
                 distro_match__isnull=True, status__in=["new", "under_review", "confirmed", "accepted_risk"]
             ),
             package_evidence=False,
-        ).exclude(queue_bucket="cleared")
+        ).exclude(Q(queue_bucket="cleared") | current_discovery_match())
     )
     feed_scope = _ready_feed_scope()
     if feed_scope:

@@ -12,7 +12,7 @@
 
   {% if finding.discovery %}
   <aside class="assessment-discovery">
-    {% if finding.discovery_excluded %}<strong>Installed version outside the published affected range.</strong><br>{% elif finding.discovery.inputs_changed %}<strong>Installation or evidence changed since automated evaluation; refresh and review required.</strong><br>{% endif %}
+    {% if finding.discovery_version %}{% include "portal/_discovery_version.html" %}{% elif finding.discovery.inputs_changed %}<strong>Installation or evidence changed since automated evaluation; refresh and review required.</strong><br>{% endif %}
     Automatic discovery: {{ finding.discovery.result }} · {% if finding.discovery.review_required %}New or changed evidence · review required{% else %}Reviewed{% endif %}
     {% if finding.discovery.explanation %}<details><summary>Discovery details</summary><p>{{ finding.discovery.explanation }}</p></details>{% endif %}
   </aside>

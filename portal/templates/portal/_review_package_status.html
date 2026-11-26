@@ -10,5 +10,6 @@
 {% endif %}
 {% else %}<br>Retained evidence awaits a current evaluation; no current fix recommendation is shown.
 {% endif %}
+{% elif finding.discovery_version %}{% include "portal/_discovery_version.html" %}
 {% elif finding.queue_bucket == "cleared" %}Cleared by current version evidence or a saved assessment.
-{% else %}No automatic distribution-package assessment is linked. Review the original evidence.{% endif %}
+{% else %}Version applicability needs review. Check the source evidence and installed version.{% endif %}

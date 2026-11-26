@@ -194,7 +194,7 @@ def _finding_response(request, org=None):
                 },
             )
         )
-    from .review_queue import classified, BUCKETS
+    from .review_queue import classified, discovery_version_status, BUCKETS
 
     assessment = request.GET.get("assessment", "action")
     if assessment not in dict(BUCKETS):
@@ -220,7 +220,7 @@ def _finding_response(request, org=None):
                 ("asset", "Company / asset", "installation__asset__name", False),
                 ("installation", "Installation", "installation__product__name", False),
                 ("priority", "Source priority", "source_severity_order", True),
-                ("assessment", "Automatic package assessment / next step", "queue_bucket", False),
+                ("assessment", "Automatic version assessment / next step", "queue_bucket", False),
                 ("decision", "Saved analyst decision", "analyst_applicability", False),
             ],
         )
@@ -230,7 +230,7 @@ def _finding_response(request, org=None):
         )
     page = object_page(
         severity_first(
-            qs.select_related(
+            qs.annotate(discovery_version=discovery_version_status()).select_related(
                 "organization",
                 "record",
                 "installation__product",

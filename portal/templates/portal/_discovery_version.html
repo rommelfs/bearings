@@ -1,0 +1,5 @@
+{% if finding.discovery_version == "affected" %}
+<p><strong>Installed version in the published affected range.</strong> {{ finding.installation.product.name }} {{ finding.installation.version }} · Check local exposure and any configuration requirements.</p>
+{% elif finding.discovery_version == "not_affected" %}
+<p><strong>Installed version outside the published affected range.</strong></p>
+{% endif %}

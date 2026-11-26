@@ -144,3 +144,10 @@ New, automatically created MISP matches with insufficient version evidence
 are listed under **Assessment → Vendor clarification**. Existing analyst
 assessments retain precedence. A CVE notification action requires at least
 one eligible review for that CVE within the organization.
+
+A current MISP affected-range match is shown in the review cards and evidence
+details, and contributes to the **Affected CVEs only** filter and its grouped
+counts. The installed release, product identity and current advisory must
+match the saved evaluation. The range match and any saved analyst decision
+are both visible when they disagree. Distribution coverage remains measured
+against distribution feeds.

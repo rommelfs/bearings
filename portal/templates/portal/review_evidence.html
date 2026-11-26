@@ -8,7 +8,7 @@
 {% include "portal/_notification_access.html" %}
 <p>{{ page.paginator.count }} visible records in this case.</p>
 <div class="table-scroll"><table>
-<thead><tr><th scope="col">Software and version</th><th scope="col">Source and rule</th><th scope="col">Package result</th><th scope="col">Review category</th><th scope="col">Source severity</th><th scope="col">Saved assessment</th><th scope="col">Workflow</th><th scope="col">Details</th></tr></thead>
+<thead><tr><th scope="col">Software and version</th><th scope="col">Source and rule</th><th scope="col">Version result</th><th scope="col">Review category</th><th scope="col">Source severity</th><th scope="col">Saved assessment</th><th scope="col">Workflow</th><th scope="col">Details</th></tr></thead>
 <tbody>{% for item in page %}
 <tr><td>{{ item.installation__product__name }}<br>{{ item.installation__version|default:'Version unknown' }}{% if item.installation__edition %} · {{ item.installation__edition }}{% endif %}{% if item.installation__build %} · Build {{ item.installation__build }}{% endif %}</td><td>{{ item.record__source }}<br><small>{{ item.rule }}</small></td><td>{{ item.result }}
 {% if item.update_targets %}{% include "portal/_update_targets.html" with targets=item.update_targets|slice:":3" only %}<small>Repository update availability has not been checked.</small>{% endif %}

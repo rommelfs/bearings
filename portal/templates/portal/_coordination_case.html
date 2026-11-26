@@ -11,6 +11,7 @@
 {% elif finding.queue_bucket == "cleared" %}<p><strong>Cleared by current version evidence or a saved assessment.</strong></p>
 {% else %}<p><strong>Automatic version verdict:</strong> not established here. A linked CVE alone does not prove this version is affected.</p>{% endif %}
 <p>Saved analyst assessment: {{ finding.analyst_applicability }} · workflow: {{ finding.get_status_display }}.</p>
+{% include "portal/_discovery_version.html" %}
 <p><strong>Next step:</strong> {{ finding.next_step }} <a href="{% url 'intelligence' finding.organization.slug %}?finding={{ finding.pk }}#finding-{{ finding.pk }}">Inspect version evidence &amp; review →</a></p>
 </div>
 {% empty %}<p>Current installation examples unavailable. Reopen the case to check current access and refresh state.</p>{% endfor %}
