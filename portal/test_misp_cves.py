@@ -6,7 +6,8 @@ from unittest.mock import patch
 from django.urls import reverse
 
 from . import discovery, misp_cves
-from .models import Finding, ProductWatch
+from .connectors.http import ConnectorError
+from .models import Finding, ProductWatch, SourceRecord
 from .tests import Fixture
 
 
@@ -188,3 +189,61 @@ class MispVersionTests(Fixture):
         self.installation.version = "2.5.51"
         self.installation.save(update_fields=["version"])
         self.assertNotContains(self.client.get(url, params), "CVE-2026-44381")
+
+    def test_refresh_replays_a_retained_cve_missing_from_the_index(self):
+        with (
+            patch("portal.misp_cves.RULE", "misp-vendor-versions/v1"),
+            patch("portal.misp_cves.evaluate", return_value=None),
+        ):
+            self.refresh(TOTP)
+        finding = Finding.objects.get()
+        self.assertEqual(finding.discovery.result, "unknown")
+        previous_observation = finding.record.ingested_at
+
+        self.refresh()
+        finding.refresh_from_db()
+        self.watch.refresh_from_db()
+        self.assertEqual(finding.discovery.result, "not_affected")
+        self.assertEqual(finding.record.ingested_at, previous_observation)
+        self.assertEqual(self.watch.summary["retained_missing"], 1)
+        self.assertEqual(self.watch.summary["retained_reevaluated"], 1)
+        self.assertNotContains(self.client.get(self.url("intelligence")), finding.record.external_id)
+
+        self.refresh()
+        self.watch.refresh_from_db()
+        self.assertEqual(self.watch.summary["retained_reevaluated"], 0)
+        self.assertEqual(finding.discovery.history.count(), 2)
+
+    def test_index_failure_preserves_health_and_replays_only_bound_manual_evidence(self):
+        identifier = TOTP["cveMetadata"]["cveId"]
+        for source in (self.watch.source_url, "https://other.example.invalid"):
+            record = SourceRecord.objects.create(
+                organization=self.a, source=source, external_id=identifier, payload=TOTP, shareable=False
+            )
+            Finding.objects.create(
+                organization=self.a,
+                installation=self.installation,
+                record=record,
+                analyst_applicability="affected",
+                explanation="Existing analyst assessment",
+                status="under_review",
+            )
+        with (
+            patch("portal.discovery.product_records", side_effect=ConnectorError("synthetic timeout")),
+            self.assertRaises(ConnectorError),
+        ):
+            discovery.sync_watch(self.watch.pk)
+
+        self.watch.refresh_from_db()
+        self.assertTrue(self.watch.error)
+        self.assertIsNone(self.watch.last_success)
+        self.assertEqual(self.watch.summary["retained_reevaluated"], 1)
+        bound = Finding.objects.get(record__source=self.watch.source_url)
+        self.assertEqual(bound.discovery.result, "not_affected")
+        self.assertEqual((bound.analyst_applicability, bound.status), ("affected", "under_review"))
+        self.assertFalse(bound.record.shareable)
+        self.assertFalse(
+            Finding.objects.filter(
+                record__source="https://other.example.invalid", discovery__isnull=False
+            ).exists()
+        )

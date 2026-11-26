@@ -117,3 +117,17 @@ review, infrastructure and machine counts, national review records and
 software cases. Asset issue filtering and notification eligibility use the
 same current version proof. Open workflow totals and retained history record
 analyst work. They are not counts of affected installations.
+
+The MISP refresh also replays saved reviews for the exact watched product,
+organization and advisory source when their evaluation inputs changed.
+An advisory can be available by CVE ID while missing from the product index.
+The local replay can still use previously retained publisher evidence. It
+keeps the original source observation date, analyst assessment and sharing
+policy. A failed product-index request is still shown as a source error.
+The refresh reports any saved reviews it reevaluated.
+
+After updating the Bearings web and worker services on Ubuntu, open
+**Automatic CVE discovery**, find the MISP watch and select **Refresh CVEs**.
+Once the refresh completes, check **Vulnerability review → Needs attention**.
+Reviews with a current not-affected version assessment can be opened under
+**Fixed or not affected** or from a saved evidence link.

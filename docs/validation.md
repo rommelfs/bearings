@@ -2850,3 +2850,20 @@ The full PostgreSQL suite ran 1,134 tests with five skips and no failures.
 After the final coordination-label update, all 149 focused PostgreSQL tests
 passed. The SQLite regression selection ran 89 tests with two PostgreSQL-only
 skips and no failures. Django checks, migration drift and Ruff passed.
+
+## Reassessment of retained MISP reviews
+
+Captured seven public MISP product index pages and the separate
+CVE-2026-103655 record. The second index page contained the same CVE JSON
+and the exclusive 2.5.48 version bound. Replayed the captured pages
+against synthetic MISP 2.5.51 on PostgreSQL, first unmodified (269 CVE JSON
+records) and then with this record omitted from the CVE JSON source
+(268 records). In both runs the legacy unknown review moved out of
+Needs attention and remained visible under Fixed or not affected. The
+second run used retained evidence and recorded one local reassessment.
+Both filtered responses returned HTTP 200.
+
+The 112 focused PostgreSQL tests passed, including preserved manual
+assessments and sharing restrictions, source binding, refresh failure
+reporting and replay idempotence. Django checks, migration drift and
+Ruff passed. The tests used public advisories and synthetic inventory.

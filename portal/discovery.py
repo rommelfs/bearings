@@ -149,6 +149,125 @@ def evaluate(watch, installation, payload, *, windows=None):
     return result, prefix + reason + " No confirmed affectedness, exploitation or compromise is inferred."
 
 
+def apply_evaluation(watch, installation, record, revision, windows, now, *, finding=None):
+    payload = record.payload
+    result, explanation = evaluate(watch, installation, payload, windows=windows)
+    if finding is None:
+        finding = Finding.objects.filter(installation=installation, record=record).order_by("pk").first()
+    if finding is None:
+        finding = Finding.objects.create(
+            organization=installation.asset.organization,
+            installation=installation,
+            record=record,
+            rule=RULE,
+            explanation=explanation,
+            applicability=result,
+        )
+    # Preserve existing manual finding identity, rule and original assessment.
+    if finding.rule == RULE:
+        finding.applicability, finding.explanation = result, explanation
+        finding.evaluated_at = now
+        finding.save(update_fields=["applicability", "explanation", "evaluated_at"])
+    inputs = digest(evaluation_inputs(watch, installation, payload, windows=windows))
+    match, new = DiscoveryMatch.objects.get_or_create(
+        finding=finding,
+        defaults={
+            "watch": watch,
+            "evidence_revision": revision,
+            "input_hash": inputs,
+            "explanation": explanation,
+            "result": result,
+        },
+    )
+    changed = new or match.input_hash != inputs
+    if changed:
+        match.evidence_revision, match.input_hash = revision, inputs
+        match.result, match.explanation, match.review_required = result, explanation, True
+        match.evaluated_at = now
+        match.save()
+        DiscoveryRevision.objects.get_or_create(
+            match=match,
+            fingerprint=inputs,
+            defaults={
+                "snapshot": {
+                    "evidence_revision": revision.pk,
+                    "version": installation.version,
+                    "edition": installation.edition,
+                    "build": installation.build,
+                    "product_identifier": installation.product.identifier,
+                    "result": result,
+                    "explanation": explanation,
+                    "windows": windows,
+                    "evaluation_rule": misp_cves.RULE if windows is None and misp_cves.is_misp(watch) else "",
+                },
+            },
+        )
+        audit(
+            None,
+            installation.asset.organization,
+            "vulnerability.discovery_changed",
+            finding.pk,
+            evidence_revision=revision.pk,
+        )
+    ensure_vulnerability_issue(finding)
+    return match, changed
+
+
+def reevaluate_retained_misp(watch, seen, now):
+    """Replay only changed inputs for retained, explicitly source-bound MISP evidence."""
+    from django.db.models import Q
+    from .windows_cves import context
+
+    org = watch.product.organization
+    retained = (
+        Finding.objects.filter(
+            organization=org,
+            record__organization=org,
+            record__source=watch.source_url.rstrip("/"),
+            installation__product=watch.product,
+            installation__asset__organization=org,
+            installation__asset__source__organization=org,
+            installation__asset__lifecycle="active",
+        )
+        .filter(Q(discovery__isnull=True) | Q(discovery__watch=watch))
+        .exclude(discovery__pk__in=seen)
+        .select_related(
+            "discovery",
+            "record",
+            "installation__product",
+            "installation__asset__organization",
+            "installation__agent_component__device__asset",
+            "installation__agent_component__device__source",
+            "installation__agent_component__last_report",
+        )
+        .defer("installation__agent_component__last_report__body")
+        .order_by("pk")[:10001]
+    )
+    changed = 0
+    for index, finding in enumerate(retained.iterator(chunk_size=100)):
+        if index == 10000:
+            raise ConnectorError("Retained MISP evidence exceeds 10000 installation/CVE evaluations")
+        if index % 100 == 0:
+            development_heartbeat()
+        installation = finding.installation
+        windows = context(installation)
+        match = getattr(finding, "discovery", None)
+        inputs = digest(evaluation_inputs(watch, installation, finding.record.payload, windows=windows))
+        if match and match.input_hash == inputs:
+            continue
+        _, updated = apply_evaluation(
+            watch,
+            installation,
+            finding.record,
+            snapshot_evidence(finding.record),
+            windows,
+            now,
+            finding=finding,
+        )
+        changed += updated
+    return changed
+
+
 def sync_watch(pk, *, due=False):
     failed = False
     with transaction.atomic():
@@ -161,6 +280,7 @@ def sync_watch(pk, *, due=False):
             and now - watch.last_attempt < timedelta(minutes=watch.interval_minutes)
         ):
             return None
+        seen = set()
         try:
             with transaction.atomic():
                 source, records = product_records(watch)
@@ -187,7 +307,6 @@ def sync_watch(pk, *, due=False):
 
                 windows_contexts = {i.pk: context(i) for i in installations}
                 changed = 0
-                seen = set()
                 for identifier, payload in records:
                     record, created = SourceRecord.objects.select_for_update().get_or_create(
                         organization=watch.product.organization,
@@ -204,72 +323,8 @@ def sync_watch(pk, *, due=False):
                         if index % 100 == 0:
                             development_heartbeat()
                         windows = windows_contexts[installation.pk]
-                        result, explanation = evaluate(watch, installation, payload, windows=windows)
-                        finding = (
-                            Finding.objects.filter(installation=installation, record=record)
-                            .order_by("pk")
-                            .first()
-                        )
-                        if finding is None:
-                            finding = Finding.objects.create(
-                                organization=installation.asset.organization,
-                                installation=installation,
-                                record=record,
-                                rule=RULE,
-                                explanation=explanation,
-                                applicability=result,
-                            )
-                        # Preserve existing manual finding identity, rule and original assessment.
-                        if finding.rule == RULE:
-                            finding.applicability, finding.explanation = result, explanation
-                            finding.evaluated_at = now
-                            finding.save(update_fields=["applicability", "explanation", "evaluated_at"])
-                        inputs = digest(evaluation_inputs(watch, installation, payload, windows=windows))
-                        match, new = DiscoveryMatch.objects.get_or_create(
-                            finding=finding,
-                            defaults={
-                                "watch": watch,
-                                "evidence_revision": revision,
-                                "input_hash": inputs,
-                                "explanation": explanation,
-                                "result": result,
-                            },
-                        )
-                        if new or match.input_hash != inputs:
-                            match.evidence_revision, match.input_hash = revision, inputs
-                            match.result, match.explanation, match.review_required = result, explanation, True
-                            match.evaluated_at = now
-                            match.save()
-                            DiscoveryRevision.objects.get_or_create(
-                                match=match,
-                                fingerprint=inputs,
-                                defaults={
-                                    "snapshot": {
-                                        "evidence_revision": revision.pk,
-                                        "version": installation.version,
-                                        "edition": installation.edition,
-                                        "build": installation.build,
-                                        "product_identifier": installation.product.identifier,
-                                        "result": result,
-                                        "explanation": explanation,
-                                        "windows": windows,
-                                        "evaluation_rule": (
-                                            misp_cves.RULE
-                                            if windows is None and misp_cves.is_misp(watch)
-                                            else ""
-                                        ),
-                                    }
-                                },
-                            )
-                            audit(
-                                None,
-                                installation.asset.organization,
-                                "vulnerability.discovery_changed",
-                                finding.pk,
-                                evidence_revision=revision.pk,
-                            )
-                            changed += 1
-                        ensure_vulnerability_issue(finding)
+                        match, updated = apply_evaluation(watch, installation, record, revision, windows, now)
+                        changed += updated
                         seen.add(match.pk)
                 # Missing upstream matches never delete/resolve local findings.
                 missing = watch.discoverymatch_set.exclude(pk__in=seen).count()
@@ -281,9 +336,18 @@ def sync_watch(pk, *, due=False):
                 }
         except (ConnectorError, ValidationError, ValueError, TypeError, KeyError):
             failed = True
+            seen.clear()
             watch.error = ERROR
         else:
             watch.error, watch.last_success = "", timezone.now()
+        if misp_cves.is_misp(watch):
+            try:
+                with transaction.atomic():
+                    retained = reevaluate_retained_misp(watch, seen, now)
+                watch.summary = {**watch.summary, "retained_reevaluated": retained}
+            except (ConnectorError, ValidationError, ValueError, TypeError, KeyError):
+                failed = True
+                watch.error = ERROR
         watch.last_attempt, watch.requested = now, False
         watch.save(update_fields=["error", "last_success", "last_attempt", "requested", "summary"])
         audit(
