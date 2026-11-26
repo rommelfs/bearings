@@ -27,6 +27,7 @@ from .notifications import contact_policy
 from .presentation import ACTIVE_REVIEWS, severity_rank
 from .overview_explanations import review_explanation
 from .review_queue import review_bucket
+from .review_work import without_unworked_issue_shells
 
 
 def reviews_for(user, *, include_cleared=False, organizations=None):
@@ -116,7 +117,7 @@ class OverviewEvidence:
 
     @cached_property
     def active_issues(self):
-        return (
+        return without_unworked_issue_shells(
             self.issues.filter(asset__lifecycle="active")
             .filter(active_filter())
             .exclude(finding__analyst_applicability="not_affected")

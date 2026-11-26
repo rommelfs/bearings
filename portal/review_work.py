@@ -7,7 +7,10 @@ from django.db.models.fields.json import KeyTextTransform, KeyTransform
 from django.utils import timezone
 from django.db.models.functions import Coalesce
 
-from .models import DistroMatchRevision, IssueHistory, IssueRevision
+from .discovery import RULE as DISCOVERY_RULE
+from .distro_projection import ComparableJSON
+from .misp_cves import RULE as MISP_RULE
+from .models import DiscoveryRevision, DistroMatchRevision, Finding, IssueHistory, IssueRevision
 from .presentation import ACTIVE_REVIEWS
 from .query_integrity import consistent
 from .review_cases import CVE_ID, case_identity
@@ -41,12 +44,51 @@ REVIEW_SCOPES = (
 )
 
 
+def current_misp_proof(result):
+    """A version verdict belongs to the exact evaluated installation and advisory."""
+    return (
+        DiscoveryRevision.objects.filter(
+            match__finding_id=OuterRef("pk"),
+            match__result=result,
+            match__watch__vendor__iexact="misp",
+            match__watch__product_key__iexact="misp",
+            match__watch__product_id=OuterRef("installation__product_id"),
+            match__evidence_revision__record_id=OuterRef("record_id"),
+            fingerprint=F("match__input_hash"),
+            snapshot__evaluation_rule=MISP_RULE,
+            snapshot__result=result,
+        )
+        .alias(
+            version_text=KeyTextTransform("version", "snapshot"),
+            edition_text=KeyTextTransform("edition", "snapshot"),
+            build_text=KeyTextTransform("build", "snapshot"),
+            product_text=KeyTextTransform("product_identifier", "snapshot"),
+            evaluated_payload=ComparableJSON("match__evidence_revision__payload"),
+        )
+        .filter(
+            version_text=OuterRef("installation__version"),
+            edition_text=OuterRef("installation__edition"),
+            build_text=OuterRef("installation__build"),
+            product_text=OuterRef("installation__product__identifier"),
+            evaluated_payload=ComparableJSON(OuterRef("record__payload")),
+        )
+    )
+
+
+def current_misp_exclusion():
+    return (
+        Q(distro_match__isnull=True)
+        & ~Q(analyst_applicability="affected")
+        & Q(Exists(current_misp_proof("not_affected")))
+    )
+
+
 def scoped_work(findings, scope):
     if scope == "all":
         return findings
     findings = classified(findings)
     if scope == "attention":
-        return findings.filter(NEEDS_ATTENTION)
+        return findings.filter(NEEDS_ATTENTION).exclude(current_misp_exclusion())
     if scope == "affected":
         # Both branches of AFFECTED_CVE already need attention, including
         # current package matches that conflict with a saved decision.
@@ -59,15 +101,37 @@ def scoped_work(findings, scope):
             )
         )
     if scope == "cleared":
-        return findings.filter(queue_bucket=scope).exclude(CONFLICTING | RECHECK_DISCOVERY)
+        return (
+            findings.filter(Q(queue_bucket=scope) | current_misp_exclusion())
+            .exclude(CONFLICTING | RECHECK_DISCOVERY)
+            .annotate(queue_bucket=Value("cleared"))
+        )
     if scope == "action":
-        return findings.filter(Q(OPEN_WORK, queue_bucket=scope) | CONFLICTING | RECHECK_DISCOVERY)
+        return findings.filter(Q(OPEN_WORK, queue_bucket=scope) | CONFLICTING | RECHECK_DISCOVERY).exclude(
+            current_misp_exclusion()
+        )
     return findings.filter(OPEN_WORK, queue_bucket=scope)
 
 
-def without_cleared_issue_shells(issues, findings):
-    """Suppress automatic issue shells while retaining explicit operational work."""
-    cleared = scoped_work(findings.filter(pk=OuterRef("finding_id")), "cleared")
+def without_unworked_issue_shells(issues, findings=None):
+    """Keep catalogue-only and cleared evidence out of operational issue queues."""
+    catalogue = Q(
+        finding__rule=DISCOVERY_RULE,
+        finding__status="new",
+        finding__analyst_applicability__in=["unknown", "unassessed"],
+    )
+    stale_misp = Finding.objects.filter(
+        pk=OuterRef("finding_id"),
+        discovery__result="potential",
+        discovery__watch__vendor__iexact="misp",
+        discovery__watch__product_key__iexact="misp",
+    ).exclude(Exists(current_misp_proof("potential")))
+    hidden_evidence = catalogue & (
+        Q(finding__discovery__result__in=["unknown", "not_affected"]) | Q(Exists(stale_misp))
+    )
+    if findings is not None:
+        cleared = classified(findings.filter(pk=OuterRef("finding_id"))).filter(queue_bucket="cleared")
+        hidden_evidence |= Q(Exists(cleared.exclude(CONFLICTING | RECHECK_DISCOVERY)))
     shell = Q(
         kind="vulnerability",
         status="new",
@@ -81,7 +145,7 @@ def without_cleared_issue_shells(issues, findings):
         IssueRevision.objects.filter(issue_id=OuterRef("pk"), actor__isnull=False)
     )
     return issues.exclude(
-        Case(When(shell, then=Exists(cleared) & ~acted_on), default=Value(False), output_field=BooleanField())
+        Case(When(shell, then=hidden_evidence & ~acted_on), default=Value(False), output_field=BooleanField())
     )
 
 

@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from .access import audit
+from . import misp_cves
 from .connectors.http import ConnectorError
 from .connectors.vulnerability_lookup import product_records, development_heartbeat
 from .intelligence import digest, snapshot_evidence
@@ -95,6 +96,8 @@ def evaluation_inputs(watch, installation, payload, *, windows=None):
     ]
     if windows is not None:
         inputs.append(windows)
+    elif misp_cves.is_misp(watch):
+        inputs.append(misp_cves.RULE)
     return inputs
 
 
@@ -116,6 +119,10 @@ def evaluate(watch, installation, payload, *, windows=None):
     if not isinstance(affected, list):
         return "unknown", prefix + "Unsupported affected-product evidence."
     entries = [a for a in affected if same_product(watch, a)]
+    misp_result = misp_cves.evaluate(watch, installation, cna, entries, semver)
+    if misp_result:
+        result, reason = misp_result
+        return result, prefix + reason
     matches = []
     for item in entries:
         versions = item.get("versions", [])
@@ -246,6 +253,11 @@ def sync_watch(pk, *, due=False):
                                         "result": result,
                                         "explanation": explanation,
                                         "windows": windows,
+                                        "evaluation_rule": (
+                                            misp_cves.RULE
+                                            if windows is None and misp_cves.is_misp(watch)
+                                            else ""
+                                        ),
                                     }
                                 },
                             )

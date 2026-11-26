@@ -31,7 +31,7 @@ from .issue_forms import IssueForm, RiskForm
 from .models import Asset, AssetIssue, IssueRiskLink, Membership
 from .presentation import vulnerability_summary
 from .queue_context import with_return
-from .review_work import without_cleared_issue_shells
+from .review_work import without_unworked_issue_shells
 from .inventory_presentation import decorate_addresses, host_network_summary
 
 
@@ -148,7 +148,7 @@ def board(request):
             finding__isnull=True, asset__lifecycle="active", status__in=[*issues.ACTIVE, "accepted_risk"]
         )
     elif state == "active":
-        base = without_cleared_issue_shells(
+        base = without_unworked_issue_shells(
             base.filter(issues.active_filter()), visible_findings_for(request.user)
         )
     elif state == "closed":

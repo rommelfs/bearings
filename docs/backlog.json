@@ -287,7 +287,7 @@
       },
       {
         "title": "Implement explicit product/version applicability",
-        "body": "Implemented bounded scheduled explicit vendor/product watches, pinned operator sources, strict live-envelope/legacy pagination and CVE JSON 5 identities, atomic retained failures, exact/CPE/package identity and conservative exact/release-SemVer rules, deduplicated findings and immutable discovery explanations/input revisions. Manual finding IDs, analyst decisions and restricted source policy survive updates; closed findings receive separate changed-evidence cues. Broader ecosystems/prereleases/backports/configuration, aliases, source-version acceptance and large-product delta scalability remain open. See docs/user-guide/continuous-review.md."
+        "body": "Implemented bounded scheduled explicit vendor/product watches, pinned operator sources, strict live-envelope/legacy pagination and CVE JSON 5 identities, atomic retained failures, exact/CPE/package identity and conservative exact/release-SemVer rules, deduplicated findings and immutable discovery explanations/input revisions. MISP GitHub and CIRCL version ranges now distinguish unaffected releases, and catalogue-only automatic findings stay out of active operational issues. Manual finding IDs, analyst decisions and restricted source policy survive updates; closed findings receive separate changed-evidence cues. Broader ecosystems/prereleases/backports/configuration, aliases, source-version acceptance and large-product delta scalability remain open. See docs/user-guide/continuous-review.md."
       },
       {
         "title": "Implement MISP ingestion with redistribution policy",

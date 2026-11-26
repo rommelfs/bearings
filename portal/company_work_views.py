@@ -30,7 +30,7 @@ from .models import InventoryCSVBatch, InventorySource, InfrastructureClaim, Ass
 from .overview_queries import overview_queries, read_snapshot
 from .scope import normalize
 from .queue_context import with_return
-from .review_work import without_cleared_issue_shells
+from .review_work import without_unworked_issue_shells
 from django.urls import reverse
 
 
@@ -222,7 +222,7 @@ def actions(request):
     )
     if selected:
         base = base.filter(organization__in=orgs)
-    base = without_cleared_issue_shells(base, visible_findings_for(request.user))
+    base = without_unworked_issue_shells(base, visible_findings_for(request.user))
     try:
         with overview_queries(query_timeout_ms=3000, budget_ms=8000, planning_limit=4):
             severity = Case(

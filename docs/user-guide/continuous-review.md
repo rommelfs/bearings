@@ -89,3 +89,22 @@ These screenshots show a fictional company, `.invalid` contacts and a synthetic 
 ![Private DPO and technical-contact message previews](../images/continuous-review-dpo.png)
 
 The [infrastructure overview](infrastructure-overview.md) is now the login landing page. The vulnerability review queue remains available at `/reviews/`.
+
+
+### MISP release ranges and active issues
+
+The product watch recognizes the MISP GitHub CNA's explicit upper bounds
+and CIRCL CNA's structured SemVer intervals when the record references the
+MISP repository and supports a definite version decision. For example,
+CVE-2026-44381 concerns releases before 2.5.37 and CVE-2026-10868 concerns
+releases through 2.5.38. MISP 2.5.51 is outside both published ranges. Missing
+versions, unsupported ranges and ambiguous evidence remain technical review
+work. A change in inventory or source evidence invalidates the old exclusion.
+
+Automatically created catalogue-only rows with unknown or non-affected
+results stay available in the evidence views. They do not appear as open
+Asset issues or Grouped actions unless someone has recorded operational
+work. Existing manual assessments, tasks and evidence history are retained.
+After updating, open **Automatic CVE discovery**, find the MISP product and
+choose **Refresh CVEs** to queue a fresh evaluation of stored and current
+public advisory data for the configured product watch.

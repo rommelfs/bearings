@@ -2810,3 +2810,14 @@ response counted two affected assets and one standalone High issue. It ranked
 the company High. Five warm Django HTTP test-client requests per variant
 yielded medians of 48.6 ms and 61.1 ms. These measurements cover the JSON
 endpoint on the fixture.
+
+## MISP release ranges and active issue queues (2026-11-26)
+
+Checked the published CNA version fields of CVE-2026-44381 (MISP GitHub
+advisory, before 2.5.37) and CVE-2026-10868 (CIRCL CNA, through 2.5.38).
+Regression fixtures passed on both sides of the version boundaries, including
+2.5.51, unsupported rules, changed inventory, grouped actions, active issues,
+retained evidence and manual assessments. The PostgreSQL suite passed all
+129 focused tests. The SQLite suite passed seven tests. Django checks, migration
+drift and Ruff passed. The public advisory reads and synthetic tests used no
+production inventory.
