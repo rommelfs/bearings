@@ -32,13 +32,14 @@ from .inventory_presentation import (
 )
 from .inventory_views import company_cards
 from .models import (
+    Finding,
     Installation,
     Membership,
 )
 from .overview_queries import bounded_list, read_snapshot
 from .presentation import ACTIVE_REVIEWS, SEVERITY_ORDER, decorate_finding
 from .queue_context import return_url
-from .review_cases import case_identity, case_page, evidence_page
+from .review_cases import SMALL_CASE_SCOPE_LIMIT, case_identity, case_page, evidence_page
 from .review_queue import BUCKETS, classified
 from .services import (
     lookup_for_installation,
@@ -90,8 +91,16 @@ def home(request):
     bucket = request.GET.get("state", "action")
     if bucket not in dict(BUCKETS):
         bucket = "action"
+    evidence_scope = None
+    if not search and not has_package_proofs:
+        # Select the already authorized IDs first. Including the wider company
+        # policy joins in the window query can make PostgreSQL choose an
+        # expensive plan even for one visible review in a large company list.
+        ids = list(reviews.order_by().values_list("pk", flat=True)[: SMALL_CASE_SCOPE_LIMIT + 1])
+        if ids and len(ids) <= SMALL_CASE_SCOPE_LIMIT:
+            evidence_scope = classified(Finding.objects.filter(pk__in=ids), package_evidence=False)
     review_page, queue_states, severity_counts, review_total = case_page(
-        reviews, request.GET.get("review_page"), bucket, severity, search
+        reviews, request.GET.get("review_page"), bucket, severity, search, evidence_scope=evidence_scope
     )
     audit_organizations(request.user, [finding.organization for finding in review_page])
     operator = request.user.is_superuser or is_analyst(request.user)

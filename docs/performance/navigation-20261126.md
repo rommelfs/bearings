@@ -22,12 +22,14 @@ Access events created by the audit itself are represented by sampled admin event
 
 An initial cold national test had HTTP 503 on four panels before their projections were prepared. The ordinary projection refresh restored the data. Baseline and follow-up timings use the prepared national state. PostgreSQL execution plans exposed repeated current-proof subplans in the dense cases. A trial using an unnested array in a subquery was rejected after it made the join slower. The retained implementation uses direct array membership.
 
-The GitHub PostgreSQL suite also reproduced an existing HTTP 503 in the
-`/reviews/` pagination fixture. Its log records statement cancellation after
-the five-second limit. The review queue now checks its visible scope for
-package evidence before building that classification. The empty-package
-fixture can use a constant current-proof marker. The targeted PostgreSQL
-scale and review tests completed all 48 cases.
+The serial GitHub and Cloud PostgreSQL suites reproduced an HTTP 503 in
+the `/reviews/` pagination fixture. PostgreSQL activity showed the windowed
+case query running until the five-second statement limit. Skipping package
+classification alone did not resolve the CI failure. For small scopes with
+no package proofs and no text search, the reader now selects the authorized
+finding IDs first. The window query ranks those IDs and hydration still uses
+the authorized queryset. The targeted PostgreSQL scale, review and access
+regressions ran 64 cases.
 
 ## Concentrated package evidence
 

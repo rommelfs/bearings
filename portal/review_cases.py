@@ -13,6 +13,7 @@ CVE_ID = r"^CVE-[0-9]{4}-[0-9]{4,}$"
 BUCKET_ORDER = ("action", "unresolved", "pending", "cleared")
 PAGE_SIZE = 25
 SOFTWARE_PREVIEW_LIMIT = 6
+SMALL_CASE_SCOPE_LIMIT = 250
 
 
 def case_identity(reviews):
@@ -25,10 +26,10 @@ def case_identity(reviews):
     )
 
 
-def case_page(reviews, number, bucket, severity, search=None, *, prioritize_assets=True):
+def case_page(reviews, number, bucket, severity, search=None, *, prioritize_assets=True, evidence_scope=None):
     """Compute the histogram and page from one snapshot of authorized narrow rows."""
     evidence = (
-        case_identity(classified(reviews))
+        case_identity(classified(evidence_scope if evidence_scope is not None else reviews))
         .annotate(
             source_rank=Least(severity_rank("record__source_severity"), Value(len(SEVERITY_ORDER) - 1)),
             asset_rank=Case(When(installation__asset__criticality="high", then=Value(0)), default=Value(1))
