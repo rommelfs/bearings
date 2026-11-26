@@ -1,0 +1,7 @@
+{% if notification_blocker %}
+<aside class="warning"><strong>Notifications unavailable.</strong> {{ notification_blocker }}
+  {% if request.user.is_superuser and not org.operator_visibility %}
+  <a href="{% url 'admin:portal_organization_change' org.pk %}">Review organization settings →</a>
+  {% endif %}
+</aside>
+{% endif %}

@@ -124,13 +124,14 @@ def decorate_records(records, user):
 @read_snapshot()
 @bounded_list
 def intelligence(request, slug):
-    from .remediation import CVE, available_to
+    from .remediation import CVE, notification_access_blocker
 
     org = organization(request, slug)
-    can_remediate = available_to(request.user, org)
+    notification_blocker = notification_access_blocker(request.user, org)
+    can_remediate = not notification_blocker
 
     def notification_url(finding):
-        if can_remediate and finding.record.shareable and CVE.fullmatch(finding.record.external_id):
+        if can_remediate and CVE.fullmatch(finding.record.external_id):
             return reverse("remediation-cve", args=[org.slug, finding.record.external_id])
         return ""
 
@@ -162,7 +163,9 @@ def intelligence(request, slug):
             request,
             "portal/review_evidence.html",
             {
+                "org": org,
                 "finding": finding,
+                "notification_blocker": notification_blocker,
                 "page": evidence_page(visible, finding, request.GET.get("page")),
                 "remediation_url": notification_url(finding),
                 "return_url": return_url(request) or list_url,
@@ -240,6 +243,7 @@ def intelligence(request, slug):
             "page": page,
             "is_detail": is_detail,
             "can_remediate": can_remediate,
+            "notification_blocker": notification_blocker,
             "view": view,
             "modes": modes,
             "listing_filters": listing_filters,

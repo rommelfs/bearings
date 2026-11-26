@@ -356,13 +356,14 @@ def detail(request, slug):
 @analyst_read_snapshot
 @read_snapshot()
 def asset_detail(request, slug, pk):
-    from .remediation import available_to
+    from .remediation import notification_access_blocker
 
     org = organization(request, slug)
     asset = get_object_or_404(
         org.assets.select_related("source__instance", "network_host"),
         pk=pk,
     )
+    notification_blocker = notification_access_blocker(request.user, org)
     findings = (
         visible_findings(request.user, org)
         .select_related("installation__asset__source__instance")
@@ -413,7 +414,8 @@ def asset_detail(request, slug, pk):
             "org": org,
             "asset": asset,
             "missing_review_form": MissingReviewForm(),
-            "can_remediate": asset.lifecycle == "active" and available_to(request.user, org),
+            "can_remediate": asset.lifecycle == "active" and not notification_blocker,
+            "notification_blocker": notification_blocker if asset.lifecycle == "active" else "",
             "facts": asset_context(asset, workspace=True),
             "network_host": asset.network_host
             if (

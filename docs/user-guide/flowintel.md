@@ -108,6 +108,12 @@ one organization's open, shareable CVE reviews. Review-list filters do not
 silently narrow the plan. A plan supports up to 2,000 reviews, 150 tasks and 25
 recipients. For larger selections, start with a narrower CVE or machine.
 
+If the notification action is unavailable, the workspace explains the
+required role or the organization's CIRCL analyst visibility setting.
+Platform administrators can open the organization settings from the notice.
+A CVE may have evidence from several sources. The preparation screen checks
+which open reviews in the organization are approved for sharing.
+
 1. Select an enabled private FlowIntel instance with a configured **Bearings
    URL**, an optional deadline and the verified contacts that should receive
    the actions. Technical contacts receive only actions for hosts assigned to

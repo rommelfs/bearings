@@ -33,8 +33,18 @@ MAX_TASKS = 150
 MAX_CONTACTS = 25
 
 
+def notification_access_blocker(actor, org):
+    if not actor.is_active:
+        return "Sign in with an active account to prepare notifications."
+    if not org.operator_visibility:
+        return "This organization has disabled CIRCL analyst visibility. A platform administrator can review that setting."
+    if not can_operator_review(actor, org):
+        return "A CIRCL analyst or platform administrator can prepare notifications for this organization."
+    return ""
+
+
 def available_to(actor, org):
-    return bool(actor.is_active and org.operator_visibility and can_operator_review(actor, org))
+    return not notification_access_blocker(actor, org)
 
 
 def findings_for(actor, org):

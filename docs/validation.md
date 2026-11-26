@@ -2784,3 +2784,8 @@ details. The test outbox approval appears above the task list and passes through
 the existing FlowIntel gate. The SMTP label was exercised with a synthetic
 transport configuration. The internal-only and missing-configuration states
 were also checked. Django migration, system and Ruff checks passed.
+
+The notification access follow-up passed all 57 focused PostgreSQL tests.
+Tests cover the visible explanation for company-only users and disabled CIRCL
+analyst visibility, denial on direct access, and a grouped CVE with restricted
+and shareable sources where only the shareable evidence enters preparation.

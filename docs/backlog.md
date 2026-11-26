@@ -158,6 +158,8 @@ private FlowIntel hand-off. It tracks delivery, external completion and
 Bearings evidence independently. Windows KB matching and production delivery
 acceptance remain open. CVE and machine pages now expose a notification action, and
 the preview puts the send, test or internal-work button above the task details.
+Missing role or organization visibility is explained in the workspace. The
+CVE entry point supports grouped evidence with mixed sharing permissions.
 
 Remaining work: MISP alert ingestion and severity semantics, assignment-name mapping, external-version compatibility, richer playbooks, remote retention/revocation process and production scheduling/egress/SSO/recovery. These are not enabled by the local pilot; notification/product matching and broader remediation remain in #6/#10/#11.
 

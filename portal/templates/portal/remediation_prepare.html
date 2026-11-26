@@ -29,5 +29,5 @@
   <li><a href="{% url 'intelligence' org.slug %}?finding={{ review.pk }}#finding-{{ review.pk }}">{{ review.record.external_id }} · {{ review.installation.asset.name }} · {{ review.installation.product.name }}</a> · Review ID {{ review.pk }}</li>
   {% endfor %}</ul>
 </details>
-{% elif not existing %}<p>No eligible open CVE reviews in this scope.</p>{% endif %}
+{% elif not existing %}<p>No eligible open CVE reviews in this scope. A notification plan includes only open reviews with evidence approved for sharing.</p>{% endif %}
 {% endblock %}

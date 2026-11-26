@@ -106,6 +106,39 @@ class RemediationTests(Fixture):
         self.assertEqual(self.client.get(urls[1]).status_code, 403)
         self.assertEqual(self.client.get(self.url("flowintel-case", pk=first.pk)).status_code, 404)
 
+    def test_views_explain_notification_access_blockers(self):
+        url = self.url("intelligence")
+        prepare = self.url("remediation-cve", cve=self.finding.record.external_id)
+        self.login(self.admin)
+        response = self.client.get(url)
+        self.assertContains(response, "A CIRCL analyst or platform administrator")
+        self.assertNotContains(response, prepare)
+        self.assertEqual(self.client.get(prepare).status_code, 403)
+
+        self.a.operator_visibility = False
+        self.a.save(update_fields=["operator_visibility"])
+        self.login(self.platform)
+        for view in (
+            self.client.get(url),
+            self.client.get(url, {"case": self.finding.pk}),
+            self.client.get(self.url("asset", pk=self.asset.pk)),
+        ):
+            self.assertContains(view, "This organization has disabled CIRCL analyst visibility.")
+            self.assertContains(view, "Review organization settings")
+            self.assertNotContains(view, prepare)
+        self.assertEqual(self.client.get(prepare).status_code, 403)
+
+    def test_restricted_display_record_does_not_hide_cve_action_or_enter_preview(self):
+        self.finding.record.shareable = False
+        self.finding.record.save(update_fields=["shareable"])
+        permitted = self.extra_finding(self.finding.record.external_id)
+        self.login(self.analyst)
+        prepare = self.url("remediation-cve", cve=self.finding.record.external_id)
+        response = self.client.get(self.url("intelligence"), {"case": self.finding.pk})
+        self.assertContains(response, prepare)
+        preview = self.client.get(prepare)
+        self.assertEqual([finding.pk for finding in preview.context["reviews"]], [permitted.pk])
+
     def test_internal_review_has_no_mail_and_restricted_evidence_is_omitted(self):
         private = self.extra_finding("CVE-2025-90001", shareable=False)
         case, _ = self.draft()
