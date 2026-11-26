@@ -1,13 +1,29 @@
 """Classify scoped review rows before counting/paging; never mutate human workflow."""
 
 from datetime import timedelta
-from django.db.models import Case, CharField, Exists, F, OuterRef, Q, Value, When
+from django.contrib.postgres.fields import ArrayField
+from django.db import connection
+from django.db.models import (
+    BigIntegerField,
+    BooleanField,
+    Case,
+    CharField,
+    Exists,
+    ExpressionWrapper,
+    F,
+    Func,
+    OuterRef,
+    Q,
+    Value,
+    When,
+)
 from django.utils import timezone
 from django.db.models.fields.json import KT
 from django.db.models.functions import Cast
 from . import distro_oval, distro_results, distro_sources
 from .models import DistroMatch
 from .distro_projection import ComparableJSON
+from .overview_queries import SNAPSHOT_PROOF_IDS
 
 
 BUCKETS = (
@@ -78,7 +94,67 @@ def current_package_proofs():
     )
 
 
-def classified(reviews):
+def scoped_package_proofs(*, organizations=None, assets=None):
+    """Current verdicts for a bounded inventory scope, joined to their exact finding."""
+    proofs = current_package_proofs().filter(
+        component__device__organization_id=F("finding__organization_id"),
+        component__device__asset_id=F("finding__installation__asset_id"),
+        component__device__source_id=F("finding__installation__asset__source_id"),
+        component__installation_id=F("finding__installation_id"),
+    )
+    if organizations is not None:
+        proofs = proofs.filter(finding__organization_id__in=organizations)
+    if assets is not None:
+        proofs = proofs.filter(component__device__asset_id__in=assets)
+    return proofs
+
+
+MAX_LOADED_PROOFS = 20000
+
+
+class CurrentProofMembership(Func):
+    """Use one PostgreSQL array parameter, with no SQL text per finding."""
+
+    arity = 2
+    arg_joiner = " = ANY("
+    template = "(%(expressions)s))"
+    output_field = BooleanField()
+
+
+def _scoped_current_expression(proofs, organizations, assets):
+    # A repeatable-read snapshot keeps loaded proof IDs and the later readers
+    # coherent while another transaction publishes a newly evaluated report.
+    cache = SNAPSHOT_PROOF_IDS.get()
+    if connection.vendor == "postgresql" and cache is not None:
+        concrete = all(scope is None or isinstance(scope, (list, tuple)) for scope in (organizations, assets))
+        key = (
+            (
+                tuple(organizations) if organizations is not None else None,
+                tuple(assets) if assets is not None else None,
+            )
+            if concrete
+            else None
+        )
+        if key is not None and key in cache:
+            ids = cache[key]
+        else:
+            ids = list(proofs.order_by().values_list("finding_id", flat=True)[: MAX_LOADED_PROOFS + 1])
+            if key is not None:
+                cache[key] = ids
+        if not ids:
+            return Value(False, output_field=BooleanField())
+        if len(ids) <= MAX_LOADED_PROOFS:
+            return CurrentProofMembership(F("pk"), Value(ids, output_field=ArrayField(BigIntegerField())))
+    return ExpressionWrapper(Q(pk__in=proofs.order_by().values("finding_id")), output_field=BooleanField())
+
+
+def classified(reviews, *, organizations=None, assets=None):
+    if "package_current" in reviews.query.annotations:
+        return reviews
+    if organizations is not None or assets is not None:
+        current = scoped_package_proofs(organizations=organizations, assets=assets)
+        predicate = _scoped_current_expression(current, organizations, assets)
+        return reviews.annotate(package_current=predicate).annotate(queue_bucket=bucket_expression())
     # Correlate the exact match and visible inventory/source, reusing the
     # same proof contract as the host overview's set-based query.
     current = current_package_proofs().filter(

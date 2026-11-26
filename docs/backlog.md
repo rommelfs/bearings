@@ -832,3 +832,7 @@ Implemented the approved host overview with stronger reading text, scoped curren
 Implemented bounded, scoped fix-version previews on asset and CVE views with the vendor-documented channel and checked version. Current Windows Update cache entries supply pending KB titles and links directly in the asset summary. Stale evidence remains accessible with its age and repository availability stays explicit. See [host overview](user-guide/host-overview.md#which-update-addresses-a-finding).
 
 The default machine and software tables now split unique CVEs with affected evidence from CVEs still to verify. The highest CVSS in these tables comes from affected evidence only.
+
+## Whole-workspace navigation audit — 2026-11-26
+
+Measured render completion across the locally reachable links for six user roles and repeated the routes against the revised checkout. Dense package-CVE fixtures exercise the queries behind inventory, infrastructure, attention, asset and Intelligence views. Reduced repeat proof checks and national example hydration and repaired permission- or setup-dependent 404 links. See [navigation audit](performance/navigation-20261126.md).

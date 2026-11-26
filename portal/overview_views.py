@@ -8,12 +8,13 @@ from django.utils import timezone
 from .access import analyst_read_snapshot, audit_organizations, organizations_for
 from .models import Asset, Membership
 from .overview import OverviewEvidence, company_states, priority_assets
-from .overview_queries import overview_queries
+from .overview_queries import overview_queries, read_snapshot
 
 
 @login_required
 @analyst_read_snapshot
 @never_cache
+@read_snapshot()
 def overview(request):
     started = perf_counter()
     with overview_queries(planning_limit=4) as database:
@@ -56,7 +57,9 @@ def _overview_response(request):
     )
     from .review_focus import posture
 
-    machine_postures = posture(request.user, [state["org"].pk for state in companies])["organizations"]
+    machine_postures = posture(request.user, [state["org"].pk for state in companies], scoped_evidence=True)[
+        "organizations"
+    ]
     for state in companies:
         state["posture"] = machine_postures.get(state["org"].pk)
         state["setup_pending"] = not state["org"].overview_has_inventory and not any(

@@ -7,7 +7,7 @@ from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import OperationalError
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.db.models import (
     Case,
     Count,
@@ -21,6 +21,7 @@ from django.db.models import (
     When,
 )
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import get_template
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
@@ -181,10 +182,8 @@ def hosts(request, slug):
         context = _host_context(request, org)
     except ValueError:
         return HttpResponseBadRequest("Unsupported host overview filter or sorting.")
-    response = render(
-        request,
-        "portal/_host_overview.html",
-        {"org": org, **context},
+    response = HttpResponse(
+        get_template("portal/_host_overview.html").render({"request": request, "org": org, **context}),
         status=503 if context.get("host_overview_unavailable") else 200,
     )
     response["Server-Timing"] = (
@@ -354,6 +353,8 @@ def detail(request, slug):
 
 
 @login_required
+@analyst_read_snapshot
+@read_snapshot()
 def asset_detail(request, slug, pk):
     org = organization(request, slug)
     asset = get_object_or_404(

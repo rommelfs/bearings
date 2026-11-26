@@ -170,7 +170,8 @@ def csv_template(request, slug):
 @require_http_methods(["GET"])
 def actions(request):
     started = perf_counter()
-    if request.user.is_superuser or is_analyst(request.user):
+    operator = request.user.is_superuser or is_analyst(request.user)
+    if operator:
         audit(request.user, None, "operator.company_actions")
     orgs = organizations_for(request.user)
     selected = request.GET.get("organization", "")
@@ -191,7 +192,7 @@ def actions(request):
                     request.user,
                     orgs.values_list("pk", flat=True),
                     request.GET.get("page"),
-                    scoped_evidence=bool(selected),
+                    scoped_evidence=bool(selected) or not operator,
                 )
                 render_started = perf_counter()
                 response = private_response(

@@ -3,6 +3,9 @@
 from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.db import OperationalError
+from django.http import HttpResponse
+from django.middleware.csrf import get_token
+from django.template.loader import get_template
 from django.db.models import Case, Count, Value, When
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -70,9 +73,11 @@ def panel(request, section):
                 context = stock_history(request.user)
             else:
                 context = dashboard(request.user, timings=timings, section=section)
-            response = render(request, "portal/circl_panel_" + section + ".html", context)
+            if section == "versions":
+                context["csrf_token"] = get_token(request)
+            response = HttpResponse(get_template("portal/circl_panel_" + section + ".html").render(context))
     except (OperationalError, PendingSnapshot):
-        response = render(request, "portal/circl_panel_error.html", status=503)
+        response = HttpResponse(get_template("portal/circl_panel_error.html").render({}), status=503)
     response["Server-Timing"] = f"national;dur={(perf_counter() - started) * 1000:.1f}"
     if database:
         response["Server-Timing"] += (

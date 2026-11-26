@@ -29,12 +29,15 @@ from .overview_explanations import review_explanation
 from .review_queue import review_bucket
 
 
-def reviews_for(user, *, include_cleared=False):
+def reviews_for(user, *, include_cleared=False, organizations=None):
     from .review_queue import classified
 
-    reviews = classified(
-        visible_findings_for(user).filter(status__in=ACTIVE_REVIEWS, installation__asset__lifecycle="active")
+    reviews = visible_findings_for(user).filter(
+        status__in=ACTIVE_REVIEWS, installation__asset__lifecycle="active"
     )
+    if organizations is not None:
+        reviews = reviews.filter(organization_id__in=organizations)
+    reviews = classified(reviews, organizations=organizations)
     return reviews if include_cleared else reviews.exclude(queue_bucket="cleared")
 
 
@@ -49,7 +52,7 @@ class OverviewEvidence:
     @classmethod
     def for_page(cls, user, orgs):
         ids = [org.pk for org in orgs]
-        all_reviews = reviews_for(user, include_cleared=True).filter(organization_id__in=ids)
+        all_reviews = reviews_for(user, include_cleared=True, organizations=ids)
         return cls(
             all_reviews.exclude(queue_bucket="cleared"),
             visible_issues(user).filter(organization_id__in=ids),

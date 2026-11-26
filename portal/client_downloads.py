@@ -12,7 +12,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 from django.views.decorators.cache import never_cache
-from .access import organizations_for, require
+from .access import require
+from .models import Organization
 from . import agent_fleet_views
 from .agent_enrollment_codes import trusted_origin
 
@@ -71,12 +72,25 @@ def _complete_release(opener, files):
 
 
 def _rollout_organizations(request):
-    organizations = organizations_for(request.user)
+    organizations = Organization.objects.filter(merged_into__isnull=True)
     if not request.user.is_authenticated or not request.user.is_active:
         organizations = organizations.none()
     elif not request.user.is_superuser:
         organizations = organizations.filter(membership__user=request.user, membership__role="admin")
     return organizations.order_by("name", "pk")
+
+
+def rollout_navigation(request, company):
+    """Only link to controls within the same scope as the administration view."""
+    if not request.user.is_authenticated or not request.user.is_active:
+        return {}
+    organizations = _rollout_organizations(request)
+    if company:
+        organizations = organizations.filter(pk=company.pk)
+    return {
+        "client_rollout_allowed": request.user.is_superuser or organizations.exists(),
+        "client_rollout_slug": company.slug if company else "",
+    }
 
 
 @require_GET

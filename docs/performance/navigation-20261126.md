@@ -1,0 +1,22 @@
+# Browser navigation audit · 26 November 2026
+
+## Method and coverage
+
+The baseline was `ad9176eb`. An unchanged copy of that revision and the updated source ran against the same isolated PostgreSQL 17 data. Chromium used a desktop viewport over loopback HTTP with external browser requests blocked. The baseline started at public pages and authenticated entry points for reader, editor, company administrator, CIRCL analyst and platform administrator. It followed the same-origin GET links that the fixture exposed, including pagination, filter links, evidence and detail pages, downloads and Django administration. The follow-up runs replayed the concrete role and URL pairs and inspected the rendered links again.
+
+The small fixture held four organizations, eleven assets, Linux and Windows reports, a CSV import preview and offline integration examples. The larger fixture held 160 organizations, 8,001 assets and 1,656 current Linux package-CVE records concentrated on one host. A copy of that database had 10,656 current records on that host. The scale matrices include the infrastructure, attention, issues, organization inventory and hosts, asset, CVE and national views.
+
+Timing starts before Chromium navigation and ends after window load, font readiness, automatic host and national fragments, national map data and two animation frames. For a file link the timed operation is receipt of the complete local response. Each row records status, render duration, TTFB and SQL time when available, and the status and timing of automatic background requests. Navigation targets reached through a redirect are recorded separately in the same row. A background 503 does not count as a complete successful page.
+
+A second is the investigation threshold. Two seconds is the upper bound for the measured normal navigation. The measurements describe this local runner and fixture. Different runs can overlap on the runner. The matched peak matrix and focused repeat samples give more reliable comparisons than an isolated slow observation during broad discovery.
+
+The link inventory covers the destinations exposed by these fixtures. Links differing only by a return parameter, a signed timestamp for the same case, or an in-page anchor that does not change loading share a target. The organization host and inventory entry anchors retain separate tests. The crawl measures individual sort and filter controls and the fixed stress matrix adds selected combinations. It does not enumerate every possible combination or submit forms. OAuth starts, one-time codes and sign-out are excluded from the read-only crawl. External services and assets at external origins are blocked. A route without an applicable synthetic object or integration configuration is outside browser coverage. The audit creates ordinary local access logs and does not contact a production site.
+
+## What changed
+
+- The infrastructure, asset, attention and CVE views reuse current proof membership in their authorized scope. PostgreSQL reads at most 20,001 proof IDs into one repeatable-read snapshot. Up to 20,000 IDs use a single typed array parameter in later queries and larger scopes use the SQL subquery. The scope and currentness predicates still check the finding, source, asset, installation, device, inventory sequence and vendor rule. The per-request cache is cleared at the end of the snapshot.
+- The host overview aggregates scoped findings directly. The national problem panel ranks narrow example IDs before loading their related display objects. The host and national HTML fragments skip unrelated workspace navigation rendering and retain the retry and CSRF behavior.
+- The asset summary skips the confirmed-fix history query when its scoped records contain no fixed proof. The existing 30-day verified-fix rules remain in effect.
+- Rollout and profile navigation uses the same organization administrator scope as those views. A link to a data-review follow-up appears when that organization has a review schedule. Direct requests continue to enforce authorization and missing-object handling.
+
+An initial cold national test had HTTP 503 on four panels before their projections were prepared. The ordinary projection refresh restored the data. Baseline and follow-up timings use the prepared national state. PostgreSQL execution plans exposed repeated current-proof subplans in the dense cases. A trial using an unnested array in a subquery was rejected after it made the join slower. The retained implementation uses direct array membership.

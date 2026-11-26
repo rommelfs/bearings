@@ -113,7 +113,7 @@ def posture(user, org_ids=None, *, shared_only=False, include_totals=True, scope
     feed_scope = _ready_feed_scope()
     if feed_scope:
         matches = (
-            _scoped_automatic_status(scope.filter(installation__asset_id__in=machines.values("pk")))
+            _scoped_automatic_status(scope.filter(installation__asset_id__in=machines.values("pk")), org_ids)
             if scoped_evidence and org_ids is not None
             else None
         )
@@ -198,10 +198,10 @@ def _automatic_matches(reviews):
     return classified(reviews).filter(package_current=True, distro_match__queue_proof__verdict="affected")
 
 
-def _scoped_automatic_status(reviews):
+def _scoped_automatic_status(reviews, organizations):
     """Validate each proof once and retain only a bounded list of machine IDs by severity."""
     rows = list(
-        _automatic_matches(reviews)
+        _automatic_matches(classified(reviews, organizations=organizations))
         .order_by()
         .values("installation__asset_id")
         .annotate(

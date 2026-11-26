@@ -20,7 +20,7 @@ def decorate(user, rows, *, prepared=False):
         # Examples must describe the same clean subset as the prepared counters.
         candidates = candidates.filter(organization__national_state__dirty=False)
     # Two concrete installations per advisory, in one query, regardless of fleet size.
-    examples = (
+    selected = (
         candidates.filter(record__external_id__in=by_id)
         .annotate(
             example_position=Window(
@@ -38,6 +38,13 @@ def decorate(user, rows, *, prepared=False):
             )
         )
         .filter(example_position__lte=2)
+        .order_by("record__external_id", "example_position")
+        .values_list("pk", flat=True)
+    )
+    ids = list(selected)
+    examples = {
+        finding.pk: finding
+        for finding in candidates.filter(pk__in=ids)
         .select_related(
             "organization",
             "record",
@@ -53,9 +60,11 @@ def decorate(user, rows, *, prepared=False):
             "distro_match__component__device__reported_network",
             "distro_match__component__device__services",
         )
-        .order_by("record__external_id", "example_position")
-    )
-    for finding in examples:
+    }
+    for pk in ids:
+        finding = examples.get(pk)
+        if finding is None:
+            continue
         row = by_id[finding.record.external_id]
         summary = vulnerability_summary(finding.record.payload)
         description = summary["description"] or (

@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.test.utils import CaptureQueriesContext
 from . import agents, distro_cves, distro_oval
 from .models import DistroFeed, DistroMatch, Finding
+from .overview_queries import SNAPSHOT_PROOF_IDS
 from .review_queue import classified
 from .test_distro_cves import DistroTests
 from .test_package_verdicts import save_browser_evidence
@@ -28,7 +29,19 @@ class QueueTests(DistroTests):
         return Finding.objects.get()
 
     def bucket(self):
-        return classified(Finding.objects.all()).values_list("queue_bucket", flat=True).get()
+        findings = Finding.objects.all()
+        bucket = classified(findings).values_list("queue_bucket", flat=True).get()
+        token = SNAPSHOT_PROOF_IDS.set({})
+        try:
+            self.assertEqual(
+                classified(findings, organizations=[self.a.pk], assets=[self.device.asset_id])
+                .values_list("queue_bucket", flat=True)
+                .get(),
+                bucket,
+            )
+        finally:
+            SNAPSHOT_PROOF_IDS.reset(token)
+        return bucket
 
     def test_current_affected_fixed_and_human_conflict_remain_distinct(self):
         finding = self.prepare()

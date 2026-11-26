@@ -6,7 +6,7 @@
 <aside role="status">
   <strong>CVE assessment temporarily unavailable.</strong>
   <p>Assessment filters and totals are unavailable. The inventory preview below uses the host name search only.</p>
-  <a href="{% url 'organization' org.slug %}{% querystring host_filter=request.GET.host_filter|default:'all' %}#hosts">Retry CVE assessment →</a>
+  <a href="{% url 'organization' org.slug %}{% querystring request.GET host_filter=request.GET.host_filter|default:'all' %}#hosts">Retry CVE assessment →</a>
   · <a href="{% url 'intelligence' org.slug %}">Open scoped evidence →</a>
 </aside>
 {% include "portal/_host_inventory_preview.html" %}

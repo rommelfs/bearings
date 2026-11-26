@@ -23,7 +23,8 @@ MACHINE_KINDS = {"server", "vm", "desktop", "laptop", "appliance"}
 def attention_for(user, asset, device, findings, windows_update):
     if not device and asset.kind not in MACHINE_KINDS:
         return {}
-    reviews = classified(findings.order_by())
+    findings = classified(findings, assets=[asset.pk])
+    reviews = findings.order_by()
     saved = Q(
         status__in=[*ACTIVE_REVIEWS, "accepted_risk"],
         analyst_applicability="affected",
@@ -51,6 +52,7 @@ def attention_for(user, asset, device, findings, windows_update):
             version_matches=Count("installation_id", filter=affected, distinct=True),
             conflicts=Count("pk", filter=affected & CONFLICTING),
             fixes=Count("installation_id", filter=affected & Q(vendor_fix=True), distinct=True),
+            fixed_evidence=Count("pk", filter=Q(distro_match__queue_proof__verdict="fixed")),
         )
     result = reviews.aggregate(**counts)
     if windows:
@@ -75,7 +77,8 @@ def attention_for(user, asset, device, findings, windows_update):
     clear = False
     progress = 0
     if linux_evaluable:
-        progress = verified_fix_progress(findings.filter(distro_match__component__device_id=device.pk))
+        if result["fixed_evidence"]:
+            progress = verified_fix_progress(findings.filter(distro_match__component__device_id=device.pk))
         if not has_reviews and positive_package_coverage(device.distro_summary, True):
             machines, _ = machine_coverage(user, [asset.organization_id])
             clear = machines.filter(pk=asset.pk, evaluated=True, partial=False).exists()

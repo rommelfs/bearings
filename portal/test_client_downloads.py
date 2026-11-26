@@ -135,9 +135,22 @@ class DownloadRolloutTests(Fixture):
         )
 
     def test_public_page_contains_login_but_no_private_rollouts(self):
-        self.assertContains(self.client.get(self.legacy_path), "Rollout keys")
+        self.assertNotContains(self.client.get(self.legacy_path), 'href="/downloads/rollout/')
+        self.assertContains(self.client.get("/downloads/windows/"), "Ask your Bearings administrator")
         self.assertEqual(self.client.get(self.path).status_code, 302)
         self.assertEqual(self.create(legacy=True).status_code, 403)
+
+    def test_navigation_only_shows_rollout_controls_within_an_admin_scope(self):
+        path = "/downloads/windows/?organization=alpha"
+        for user in (self.reader, self.editor, self.analyst):
+            self.client.force_login(user)
+            response = self.client.get(path)
+            self.assertNotContains(response, 'href="/downloads/rollout/')
+            self.assertNotContains(response, 'href="/downloads/profiles/')
+        self.client.force_login(self.admin)
+        response = self.client.get(path)
+        self.assertContains(response, 'href="/downloads/rollout/?organization=alpha"')
+        self.assertContains(response, 'href="/downloads/profiles/?organization=alpha"')
 
     def test_admin_creates_once_and_reload_does_not_recover_secret(self):
         from .models import AgentFleet

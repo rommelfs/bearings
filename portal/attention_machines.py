@@ -61,7 +61,7 @@ def page_for(user, org_ids, number, *, scoped_evidence=False):
     ids = [a.pk for a in page]
     teasers = defaultdict(list)
     rows = (
-        classified(findings_for(user).filter(installation__asset_id__in=ids))
+        classified(findings_for(user).filter(installation__asset_id__in=ids), assets=ids)
         .exclude(queue_bucket="cleared")
         .order_by()
         .values("installation__asset_id", "installation__product__name")
