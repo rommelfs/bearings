@@ -1,4 +1,4 @@
-"""Regression for the two publicly documented MISP affected-version formats."""
+"""Regression for publicly documented MISP affected-version formats."""
 
 from copy import deepcopy
 from unittest.mock import patch
@@ -100,6 +100,92 @@ class MispVersionTests(Fixture):
         unverified["containers"]["cna"]["references"][0].pop("tags")
         self.assertEqual(discovery.evaluate(self.watch, self.installation, unverified)[0], "unknown")
 
+    def test_public_formats_classify_current_and_older_releases(self):
+        from .notifications import candidates
+        from .remediation import work
+
+        unspecified, comparator, current = [deepcopy(TOTP) for _ in range(3)]
+        for record, identifier, version, bound, commit in (
+            (unspecified, "CVE-2026-93296", "unspecified", "lessThan", "382188d2f"),
+            (comparator, "CVE-2026-93295", "< 2.5.47", "lessThan", "120813344"),
+            (current, "CVE-2026-132144", "0", "lessThanOrEqual", "a1fe5058dc"),
+        ):
+            record["cveMetadata"]["cveId"] = identifier
+            cna = record["containers"]["cna"]
+            cna["references"][0]["url"] = f"https://github.com/MISP/misp/commit/{commit}"
+            entry = cna["affected"][0]
+            entry["repo"] = "https://github.com/MISP/misp"
+            entry["versions"] = [
+                {
+                    "version": version,
+                    bound: "2.5.51" if record is current else "2.5.47",
+                    "status": "affected",
+                    "versionType": "semver",
+                }
+            ]
+            if record is not current:
+                entry["defaultStatus"] = "unaffected"
+
+        mitre = advisory(
+            "CVE-2025-66384",
+            misp_cves.MITRE,
+            [{"version": "0", "lessThan": "2.5.24", "versionType": "semver", "status": "affected"}],
+            "https://github.com/MISP/MISP/compare/v2.5.23...v2.5.24",
+            defaultStatus="unaffected",
+        )
+        for version in ("2.5.23", "2.5.46", "2.5.47", "2.5.51", "2.5.52"):
+            self.installation.version = version
+            for record, result in (
+                (unspecified, "potential" if version in ("2.5.23", "2.5.46") else "not_affected"),
+                (comparator, "potential" if version in ("2.5.23", "2.5.46") else "not_affected"),
+                (mitre, "potential" if version == "2.5.23" else "not_affected"),
+                (current, "not_affected" if version == "2.5.52" else "potential"),
+            ):
+                with self.subTest(version=version, cve=record["cveMetadata"]["cveId"]):
+                    self.assertEqual(discovery.evaluate(self.watch, self.installation, record)[0], result)
+
+        self.installation.version = "2.5.51"
+        mismatch = deepcopy(comparator)
+        mismatch["containers"]["cna"]["affected"][0]["versions"][0]["version"] = "< 2.5.48"
+        self.assertEqual(discovery.evaluate(self.watch, self.installation, mismatch)[0], "unknown")
+        mismatch["containers"]["cna"] = []
+        self.assertEqual(discovery.evaluate(self.watch, self.installation, mismatch)[0], "unknown")
+
+        self.refresh(unspecified, comparator, mitre, current)
+        for state, expected in (("attention", [current]), ("cleared", [unspecified, comparator, mitre])):
+            response = self.client.get(self.url("intelligence"), {"state": state})
+            self.assertEqual(
+                {row.record.external_id for row in response.context["page"]},
+                {item["cveMetadata"]["cveId"] for item in expected},
+            )
+            if state == "cleared":
+                self.assertNotContains(response, "Notify about this CVE")
+            else:
+                self.assertContains(response, "Notify about this CVE")
+
+        self.assertEqual(
+            list(work(self.analyst, self.a).values_list("record__external_id", flat=True)),
+            ["CVE-2026-132144"],
+        )
+        self.assertFalse(candidates(self.analyst, "circl", {"cve": "CVE-2026-93295"}).exists())
+
+    def test_legacy_mitre_requires_matching_fixed_release_and_placeholder_product(self):
+        record = advisory(
+            "CVE-2024-46918",
+            misp_cves.MITRE,
+            [{"version": "n/a", "status": "affected"}],
+            "https://github.com/MISP/MISP/compare/v2.4.197...v2.4.198",
+        )
+        cna = record["containers"]["cna"]
+        cna["affected"][0].update(vendor="n/a", product="n/a")
+        cna["descriptions"] = [{"lang": "en", "value": "An issue was discovered in MISP before 2.4.198."}]
+        self.assertEqual(discovery.evaluate(self.watch, self.installation, record)[0], "not_affected")
+        self.installation.version = "2.4.197"
+        self.assertEqual(discovery.evaluate(self.watch, self.installation, record)[0], "unknown")
+        self.installation.version = "2.5.51"
+        cna["descriptions"][0]["value"] = "An issue was discovered in MISP before 2.4.199."
+        self.assertEqual(discovery.evaluate(self.watch, self.installation, record)[0], "unknown")
+
     def test_same_version_exclusion_in_review_counts_detail_and_outreach(self):
         from .notifications import candidates
         from .overview import OverviewEvidence
@@ -158,7 +244,10 @@ class MispVersionTests(Fixture):
         current = self.client.get(review)
         self.assertNotContains(current, "CVE-2026-44381")
         self.assertNotContains(current, "CVE-2026-10868")
-        self.assertContains(current, "CVE-2026-900001")
+        self.assertNotContains(current, "CVE-2026-900001")
+        unclear = self.client.get(review, {"state": "unresolved"})
+        self.assertContains(unclear, "CVE-2026-900001")
+        self.assertNotContains(unclear, "Notify about this CVE")
         cleared = self.client.get(review, {"state": "cleared"})
         self.assertContains(cleared, "CVE-2026-44381")
         self.assertContains(cleared, "CVE-2026-10868")

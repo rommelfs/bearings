@@ -6,6 +6,7 @@ import re
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.db.models.functions import Upper
 from django.urls import reverse
 from django.utils import timezone
 
@@ -23,7 +24,7 @@ from .models import (
 )
 from .notifications import digest
 from .presentation import ACTIVE_REVIEWS
-from .review_queue import classified, current_version_exclusion
+from .review_queue import classified, outreach_exclusion
 from .review_update_preview import FIX_FEED, FIX_PROOF, fix_targets
 from .service_mail import mail_subject
 
@@ -83,9 +84,27 @@ def work(actor, org, *, asset=None, cve=None, ids=None):
         qs = qs.filter(pk__in=ids)
     return (
         classified(qs)
-        .exclude(current_version_exclusion())
+        .exclude(outreach_exclusion())
         .select_related("installation__asset__responsible_contact", "installation__asset__source")
         .defer("record__payload")
+    )
+
+
+def eligible_cve_ids(actor, org, findings):
+    requested = {
+        finding.record.external_id.upper()
+        for finding in findings
+        if CVE.fullmatch(finding.record.external_id)
+    }
+    if not requested:
+        return set()
+    return set(
+        work(actor, org)
+        .annotate(cve_id=Upper("record__external_id"))
+        .filter(cve_id__in=requested)
+        .order_by()
+        .values_list("cve_id", flat=True)
+        .distinct()
     )
 
 

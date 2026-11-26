@@ -132,16 +132,19 @@ def decorate_records(records, user):
 @read_snapshot()
 @bounded_list
 def intelligence(request, slug):
-    from .remediation import CVE, notification_access_blocker
+    from .remediation import eligible_cve_ids, notification_access_blocker
 
     org = organization(request, slug)
     notification_blocker = notification_access_blocker(request.user, org)
     can_remediate = not notification_blocker
 
-    def notification_url(finding):
-        if can_remediate and CVE.fullmatch(finding.record.external_id):
-            return reverse("remediation-cve", args=[org.slug, finding.record.external_id])
-        return ""
+    def notification_links(records):
+        if not can_remediate:
+            return {}
+        return {
+            cve: reverse("remediation-cve", args=[org.slug, cve])
+            for cve in eligible_cve_ids(request.user, org, records)
+        }
 
     filters = request.GET.copy()
     filters.pop("page", None)
@@ -175,7 +178,7 @@ def intelligence(request, slug):
                 "finding": finding,
                 "notification_blocker": notification_blocker,
                 "page": evidence_page(visible, finding, request.GET.get("page")),
-                "remediation_url": notification_url(finding),
+                "remediation_url": notification_links([finding]).get(finding.record.external_id.upper()),
                 "return_url": return_url(request) or list_url,
                 "return_label": "Back to intelligence",
                 "record_return_url": request.get_full_path(),
@@ -192,9 +195,9 @@ def intelligence(request, slug):
         if list_filters:
             list_url += "?" + list_filters.urlencode()
         editable = can_edit(request.user, org) or can_operator_review(request.user, org)
+        links = notification_links(page)
         for finding in page:
-            if not finding.discovery_excluded:
-                finding.remediation_url = notification_url(finding)
+            finding.remediation_url = links.get(finding.record.external_id.upper())
         if editable:
             for finding in page:
                 finding.review_form = FindingReviewForm(auto_id=f"review-{finding.pk}-%s")
@@ -217,6 +220,7 @@ def intelligence(request, slug):
         ).annotate(discovery_recheck=Case(When(RECHECK_DISCOVERY, then=Value(True)), default=Value(False)))
         page, _, _, _ = case_page(work, request.GET.get("page"), "all", "", prioritize_assets=False)
         add_case_fix_previews(work, page)
+        links = notification_links(page)
         for finding in page:
             finding.source_summary = vulnerability_summary(finding.record.payload)
             finding.severity_key = finding.source_summary["severity"].lower()
@@ -231,7 +235,7 @@ def intelligence(request, slug):
             params["finding" if finding.evidence_count == 1 else "case"] = finding.pk
             params["return_to"] = request.get_full_path()
             finding.case_url = "?" + params.urlencode()
-            finding.remediation_url = notification_url(finding)
+            finding.remediation_url = links.get(finding.record.external_id.upper())
 
     modes = []
     for key, label in VIEWS.items():

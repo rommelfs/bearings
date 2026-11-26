@@ -367,9 +367,9 @@ def candidates(user, mode, filters):
     ]:
         if filters.get(key):
             qs = qs.filter(**{field: filters[key]})
-    from .review_queue import classified, current_version_exclusion
+    from .review_queue import classified, outreach_exclusion
 
-    qs = classified(qs).exclude(current_version_exclusion())
+    qs = classified(qs).exclude(outreach_exclusion())
     qs = qs.annotate(
         notification_severity=Case(
             *[When(record__source_severity=v, then=Value(i)) for i, v in enumerate(SEVERITIES)],

@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.db.models.fields.json import KT
 from django.db.models.functions import Cast
 from . import distro_oval, distro_results, distro_sources
+from .discovery import RULE as DISCOVERY_RULE
 from .models import DiscoveryRevision, DistroMatch
 from .misp_cves import COMPATIBLE_PROOFS
 from .distro_projection import ComparableJSON
@@ -172,6 +173,15 @@ def classified(reviews, *, organizations=None, assets=None, package_evidence=Tru
 
 
 CLEARED_VERDICTS = ("fixed", "not_matched")
+MISP_CATALOGUE_GAP = Q(
+    rule=DISCOVERY_RULE,
+    status="new",
+    analyst_applicability__in=("unknown", "unassessed"),
+    distro_match__isnull=True,
+    discovery__result="unknown",
+    discovery__watch__vendor__iexact="misp",
+    discovery__watch__product_key__iexact="misp",
+)
 CURRENT_AFFECTED = Q(package_current=True, distro_match__queue_proof__verdict="affected")
 SAVED_AFFECTED = Q(status__in=[*ACTIVE_REVIEWS, "accepted_risk"], analyst_applicability="affected")
 
@@ -219,12 +229,17 @@ def current_version_exclusion():
     )
 
 
+def outreach_exclusion():
+    return current_version_exclusion() | MISP_CATALOGUE_GAP
+
+
 def bucket_expression(*, human="action", affected="action", manual="action"):
     """Use the same evidence precedence for both the queue and grouped cases."""
     return Case(
         When(analyst_applicability="affected", then=Value(human)),
         When(analyst_applicability="not_affected", then=Value("cleared")),
         When(Q(distro_match__isnull=True) & current_discovery_exclusion(), then=Value("cleared")),
+        When(MISP_CATALOGUE_GAP, then=Value("unresolved")),
         When(distro_match__isnull=True, then=Value(manual)),
         When(package_current=False, then=Value("pending")),
         When(distro_match__queue_proof__verdict="affected", then=Value(affected)),

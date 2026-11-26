@@ -131,3 +131,16 @@ After updating the Bearings web and worker services on Ubuntu, open
 Once the refresh completes, check **Vulnerability review → Needs attention**.
 Reviews with a current not-affected version assessment can be opened under
 **Fixed or not affected** or from a saved evidence link.
+
+The MISP comparison accepts CIRCL's published tagged-patch ranges
+with case variants of the official repository URL, explicit exclusive or
+inclusive bounds, and the observed `unspecified` or redundant comparator
+formats. MITRE records can use structured ranges with an explicitly
+unaffected default. An older MITRE record without structured product
+fields can establish a version exclusion when its explicit fixed-release
+statement matches the target of a MISP release comparison.
+
+New, automatically created MISP matches with insufficient version evidence
+are listed under **Assessment → Vendor clarification**. Existing analyst
+assessments retain precedence. A CVE notification action requires at least
+one eligible review for that CVE within the organization.

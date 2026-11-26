@@ -12,7 +12,7 @@ from .models import DistroMatchRevision, Finding, IssueHistory, IssueRevision
 from .presentation import ACTIVE_REVIEWS
 from .query_integrity import consistent
 from .review_cases import CVE_ID, case_identity
-from .review_queue import CURRENT_AFFECTED, SAVED_AFFECTED, classified, current_misp_proof
+from .review_queue import CURRENT_AFFECTED, MISP_CATALOGUE_GAP, SAVED_AFFECTED, classified, current_misp_proof
 
 # A current affected-version match still needs attention after a workflow closure.
 AFFECTED_CVE = Q(record__external_id__iregex=CVE_ID) & (CURRENT_AFFECTED | SAVED_AFFECTED)
@@ -27,7 +27,9 @@ CONFLICTING = CURRENT_AFFECTED & Q(analyst_applicability="not_affected")
 RECHECK_DISCOVERY = Q(discovery__review_required=True, analyst_applicability="not_affected") & ~Q(
     discovery__result="not_affected"
 )
-NEEDS_ATTENTION = (OPEN_WORK & ~Q(queue_bucket="cleared")) | CONFLICTING | RECHECK_DISCOVERY
+NEEDS_ATTENTION = (
+    (OPEN_WORK & ~Q(queue_bucket="cleared") & ~MISP_CATALOGUE_GAP) | CONFLICTING | RECHECK_DISCOVERY
+)
 REVIEW_SCOPES = (
     ("attention", "Needs attention"),
     ("affected", "Affected CVEs only"),

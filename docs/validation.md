@@ -2867,3 +2867,25 @@ The 112 focused PostgreSQL tests passed, including preserved manual
 assessments and sharing restrictions, source binding, refresh failure
 reporting and replay idempotence. Django checks, migration drift and
 Ruff passed. The tests used public advisories and synthetic inventory.
+
+## MISP catalogue audit and notification eligibility
+
+Reviewed the seven public MISP index pages and four separate advisory
+records on 2026-11-26. The previous rules classified 136 of 269 CVE JSON
+records as excluding MISP 2.5.51, 44 as possible version matches and 89
+as unclear. The revised evaluator produced 168 exclusions, 46 possible
+version matches and 55 unclear records. Separate evaluator runs also
+exercised MISP 2.4.197, 2.5.46, 2.5.47 and 2.5.53.
+
+The PostgreSQL replay used those seven pages with a synthetic MISP 2.5.51
+installation and three old unknown reviews. CVE-2026-93295 and
+CVE-2026-93296 clear at 2.5.47, and CVE-2025-66384 clears at 2.5.24.
+CVE-2026-132144 remains a possible match at 2.5.51 because its boundary
+is inclusive. The Needs attention, Fixed or not affected and Vendor
+clarification pages rendered HTTP 200 with 46, 168 and 55 cases in this
+fixture. All three responses took under 0.6 seconds through the Django
+test client. The three excluded CVEs had no eligible notification case.
+CVE-2026-132144 retained the preparation action.
+
+The final focused PostgreSQL run passed all 69 MISP, queue and
+remediation tests. Django checks, migration drift and Ruff passed.
