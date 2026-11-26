@@ -77,12 +77,20 @@ def destination(base, href, origin):
 
 def route_identity(path):
     # Django signs case identity with a timestamp. Keep a working original URL
-    # for navigation while using the payload to recognize the same case again.
+    # while recognizing the same case and the audit's self-generated log rows.
     parts = urlsplit(path)
+    parameters = parse_qsl(parts.query)
+    if parts.path.startswith("/admin/portal/auditevent/") and parts.path.endswith("/change/"):
+        return "/admin/portal/auditevent/sample/change/", "", ""
+    if parts.path == "/admin/portal/auditevent/":
+        parameters = [
+            (key, "page" if key == "p" else value.split(".", 1)[0] if key == "o" else value)
+            for key, value in parameters
+        ]
     query = urlencode(
         [
             (key, value.split(":", 1)[0] if key == "case" and value.count(":") == 2 else value)
-            for key, value in parse_qsl(parts.query)
+            for key, value in parameters
         ]
     )
     return parts.path, query, parts.fragment
@@ -190,6 +198,9 @@ def browser(args):
                                     queue.append(path)
                             known_edges.add((role, url, queued[key]))
                     if len(queued) > args.max_targets:
+                        Path(args.output + ".frontier.json").write_text(
+                            json.dumps({"targets": {role: list(queue)}}, indent=2) + "\n"
+                        )
                         raise SystemExit(f"Coverage guard exceeded for {role}: {len(queued)} targets")
                 except Error as error:
                     row.update(
@@ -305,7 +316,7 @@ def main():
     parser.add_argument(
         "--verify-links", action="store_true", help="Inventory links without changing a replay matrix."
     )
-    parser.add_argument("--max-targets", type=int, default=2500)
+    parser.add_argument("--max-targets", type=int, default=5000)
     parser.add_argument("--browser", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if not args.browser and not args.fixture:

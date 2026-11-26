@@ -150,8 +150,10 @@ def workspace(request, *, show_examples=False, company=None, national=False):
         if company:
             from .access import role_for
 
-            if request.user.is_superuser or role_for(request.user, company) == "admin":
-                sections.append(("Company administration", ["settings", "members"], True))
+            company_admin = role_for(request.user, company) == "admin"
+            if request.user.is_superuser or company_admin:
+                admin_items = ["settings", "members"] if company_admin else ["settings"]
+                sections.append(("Company administration", admin_items, True))
     scoped = {}
     if company:
         query = "?" + urlencode({"organization": company.slug})

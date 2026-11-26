@@ -248,12 +248,18 @@ class CompanyInventoryTests(Fixture):
         response = self.client.get(self.url("asset", pk=corrupt.pk))
         self.assertIsNone(response.context["network_host"])
 
-    def test_domain_code_link_matches_existing_company_admin_and_platform_permissions(self):
-        target = reverse("company-members", args=[self.a.slug]) + "#domain-codes"
-        self.login(self.reader)
-        self.assertNotContains(self.client.get(self.url("organization")), target)
-        self.login(self.platform)
+    def test_domain_code_link_requires_company_administrator_membership(self):
+        destination = reverse("company-members", args=[self.a.slug])
+        target = destination + "#domain-codes"
+        for user in (self.reader, self.platform):
+            self.login(user)
+            page = self.client.get(self.url("organization"))
+            self.assertNotContains(page, target)
+            self.assertNotContains(page, f'href="{destination}"')
+            self.assertEqual(self.client.get(destination).status_code, 403)
+        self.login(self.admin)
         self.assertContains(self.client.get(self.url("organization")), target)
+        self.assertContains(self.client.get(destination), "Members of")
 
     def test_compact_two_hundred_host_inventory_keeps_packages_and_queries_bounded(self):
         self.asset.name = "host-000"
