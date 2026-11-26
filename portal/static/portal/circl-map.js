@@ -91,30 +91,41 @@ if (root) {
     fitPending = false;
   const table = root.querySelector("[data-map-table]"),
     unlocated = root.querySelector("[data-map-unlocated]");
-  function companyContent(point) {
-    const box = element("div");
-    box.append(
-      link(point.name, point.company_url),
-      element("p", names[point.level]),
-    );
+  function problemLinks(point) {
     const problems = element("p");
-    if (point.reviews)
+    if (point.affected_assets)
       problems.append(
-        link(point.reviews + " outstanding CVE reviews", point.reviews_url),
+        link(
+          point.affected_assets +
+            (point.affected_assets === 1 ? " asset with affected CVEs" : " assets with affected CVEs"),
+          point.affected_url,
+        ),
       );
-    if (point.reviews && point.issues) problems.append(element("br"));
+    if (point.affected_assets && point.issues) problems.append(element("br"));
     if (point.issues)
       problems.append(
-        link(point.issues + " other outstanding issues", point.issues_url),
+        link(
+          point.issues + (point.issues === 1 ? " other open issue" : " other open issues"),
+          point.issues_url,
+        ),
       );
-    if (!point.reviews && !point.issues)
+    if (!point.affected_assets && !point.issues)
       problems.append(
         element(
           "span",
           "No open problems recorded; coverage may be incomplete.",
         ),
       );
-    box.append(problems, element("p", point.label));
+    return problems;
+  }
+  function companyContent(point) {
+    const box = element("div");
+    box.append(
+      link(point.name, point.company_url),
+      element("p", names[point.level]),
+      problemLinks(point),
+      element("p", point.label),
+    );
     if (point.location_url)
       box.append(
         link("Position / correct company point →", point.location_url),
@@ -142,8 +153,7 @@ if (root) {
         company = element("td"),
         problems = element("td");
       company.append(link(p.name, p.company_url));
-      const content = companyContent(p);
-      problems.append(content.children[2]);
+      problems.append(problemLinks(p));
       tr.append(
         company,
         element("td", p.label),
@@ -196,7 +206,7 @@ if (root) {
             .filter((p) => p.rank > 0)
             .map((p) => ({
               ...p,
-              weight: Math.min(20, p.reviews + p.issues) * p.rank,
+              weight: Math.min(20, p.affected_assets + p.issues) * p.rank,
             }))
         : [];
     fitPending = fit;
@@ -282,10 +292,11 @@ if (root) {
         const li = element("li");
         li.append(
           link(p.name, p.company_url),
-          " · " + names[p.level] + " · " + (p.reviews + p.issues) + " open",
+          " · " + names[p.level],
         );
         if (p.location_url)
           li.append(" · ", link("Set company point", p.location_url));
+        li.append(problemLinks(p));
         unlocated.append(li);
       });
       if (!payload.unlocated.length)

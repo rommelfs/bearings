@@ -296,6 +296,10 @@ Added one optional address field during signup and a scoped company-admin addres
 
 Implemented an independently loaded [company map and optional heat overlay](user-guide/circl-map.md), highest-current-severity markers, exact problem links and accessible table. Local Luxembourg postal/place centroids and explicitly saved manual points send no addresses externally. Current sharing/source/exposure rules and signed address-bound positioning apply. Unlocated and omitted-company coverage is explicit; map points describe firms, not physical assets. A bounded 2,000-point response prioritizes severity/counts and leaves existing problem lists independent. Public geographic assets and permissive/CC/public-domain notices are retained. Global geocoding, broader response-capacity acceptance and physical asset maps remain separate work.
 
+The National map now shows distinct assets with current affected CVEs and
+standalone open issues. Candidate reviews stay available in the evidence
+workflow. Map color, heat and affected-machine links use the same current scope.
+
 ## Isolate National Overview latency — 2026-11-18
 
 After a reported minute-long blank document and an inconclusive diagnostic failure, removed aggregate queries from the National Overview document. Summary, problem ranking, version distribution and history load independently with current policy, explicit missing-data states and retry. PostgreSQL per-statement timeout and section time budget prevent a slow history/ranking query from holding the whole page. The local failing/slow-section browser acceptance and genuine query cancellation/restoration pass; affected-environment phase diagnostics remain necessary to identify its database bottleneck.

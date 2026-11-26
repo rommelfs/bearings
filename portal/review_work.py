@@ -9,6 +9,7 @@ from django.db.models.functions import Coalesce
 
 from .models import DistroMatchRevision, IssueHistory, IssueRevision
 from .presentation import ACTIVE_REVIEWS
+from .query_integrity import consistent
 from .review_cases import CVE_ID, case_identity
 from .review_queue import classified
 
@@ -47,7 +48,16 @@ def scoped_work(findings, scope):
     if scope == "attention":
         return findings.filter(NEEDS_ATTENTION)
     if scope == "affected":
-        return findings.filter(NEEDS_ATTENTION, AFFECTED_CVE)
+        # Both branches of AFFECTED_CVE already need attention, including
+        # current package matches that conflict with a saved decision.
+        return findings.filter(AFFECTED_CVE, installation__asset__lifecycle="active").filter(
+            consistent(
+                installation__asset__organization_id=F("organization_id"),
+                installation__asset__source__organization_id=F("organization_id"),
+                installation__product__organization_id=F("organization_id"),
+                record__organization_id=F("organization_id"),
+            )
+        )
     if scope == "cleared":
         return findings.filter(queue_bucket=scope).exclude(CONFLICTING | RECHECK_DISCOVERY)
     if scope == "action":

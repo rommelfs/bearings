@@ -2795,3 +2795,18 @@ PostgreSQL tests, Django system and migration checks, Ruff, and local static
 collection. An isolated 0078-to-0079 upgrade retained a synthetic native
 connection and showed its readable default label. A regression test changed
 the label after preview and verified approval against the original connection.
+
+## National map current problems (2026-11-26)
+
+All 44 focused PostgreSQL tests passed across the national dashboard, map,
+snapshot, coordination and organization listing suites. Coverage includes
+distinct affected assets, unconfirmed critical matches, the affected-machine
+drill-down, current and fixed package evidence, scope revocation and standalone
+issues. Django checks, migration drift, Ruff and JavaScript syntax passed.
+
+On an isolated PostgreSQL fixture with 13,000 synthetic review records across
+ten assets, the old map response counted 13,000 reviews at Critical. The new
+response counted two affected assets and one standalone High issue. It ranked
+the company High. Five warm Django HTTP test-client requests per variant
+yielded medians of 48.6 ms and 61.1 ms. These measurements cover the JSON
+endpoint on the fixture.

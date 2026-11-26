@@ -5,10 +5,12 @@ from bisect import insort
 from urllib.parse import quote, urlencode
 from django.db.models import Case, Count, IntegerField, Max, Value, When
 from django.urls import reverse
-from .access import organizations_for
-from .circl import OPEN, findings_for, outstanding
+from .access import organizations_for, visible_findings_for
+from .circl import OPEN
 from .geography import address_digest, local_location
 from .issues import visible_issues
+from .review_queue import classified
+from .review_work import scoped_work
 
 LEVELS = ["no_open", "unrated", "low", "medium", "high", "critical"]
 MAX_POINTS = 2000
@@ -26,7 +28,7 @@ def company_location(org):
     return local_location(org.postal_address)
 
 
-def grouped(qs, field, levels):
+def grouped(qs, field, levels, *, identity):
     rank = Case(
         *[When(**{field: key}, then=Value(value)) for key, value in levels.items()],
         default=Value(1),
@@ -34,26 +36,28 @@ def grouped(qs, field, levels):
     )
     return {
         r["organization_id"]: r
-        for r in qs.order_by().values("organization_id").annotate(total=Count("pk"), rank=Max(rank))
+        for r in qs.order_by()
+        .values("organization_id")
+        .annotate(total=Count(identity, distinct=True), rank=Max(rank))
     }
 
 
 def map_data(user):
-    from .national_snapshots import snapshot_map_reviews
-
-    reviews = snapshot_map_reviews(user)
-    if reviews is None:
-        reviews = grouped(
-            outstanding(findings_for(user)),
-            "record__source_severity",
-            {"critical": 5, "high": 4, "medium": 3, "low": 2},
-        )
+    organizations = organizations_for(user)
+    current = classified(visible_findings_for(user), organizations=organizations.values("pk"))
+    affected = grouped(
+        scoped_work(current, "affected"),
+        "record__source_severity",
+        {"critical": 5, "high": 4, "medium": 3, "low": 2},
+        identity="installation__asset_id",
+    )
     other = grouped(
         visible_issues(user, standalone=True).filter(
             finding__isnull=True, asset__lifecycle="active", status__in=OPEN
         ),
         "priority",
         {"critical": 5, "high": 4, "review": 3, "low": 2},
+        identity="pk",
     )
     summary = {
         "companies": 0,
@@ -66,12 +70,11 @@ def map_data(user):
     unlocated = []
 
     def priority(item):
-        return -item["rank"], -item["reviews"] - item["issues"], item["name"].casefold(), item["id"]
+        return -item["rank"], -item["affected_assets"] - item["issues"], item["name"].casefold(), item["id"]
 
     def markers():
         for org in (
-            organizations_for(user)
-            .select_related("map_location")
+            organizations.select_related("map_location")
             .only(
                 "name",
                 "slug",
@@ -86,16 +89,16 @@ def map_data(user):
         ):
             summary["companies"] += 1
             location = company_location(org)
-            review = reviews.get(org.pk, {})
+            impact = affected.get(org.pk, {})
             issue = other.get(org.pk, {})
-            rank = max(review.get("rank", 0), issue.get("rank", 0))
+            rank = max(impact.get("rank", 0), issue.get("rank", 0))
             item = {
                 "id": org.pk,
                 "name": org.name,
                 "slug": org.slug,
                 "level": LEVELS[rank],
                 "rank": rank,
-                "reviews": review.get("total", 0),
+                "affected_assets": impact.get("total", 0),
                 "issues": issue.get("total", 0),
                 "location_editable": user.is_superuser or org.operator_visibility,
             }
@@ -120,13 +123,14 @@ def map_data(user):
     location_prefix, _, location_suffix = reverse("circl-map-location", args=[slug_slot]).rpartition(
         slug_slot
     )
-    review_route = reverse("circl-findings")
+    evidence_prefix, _, evidence_suffix = reverse("intelligence", args=[slug_slot]).rpartition(slug_slot)
+    affected_query = urlencode({"view": "machine", "state": "affected"})
     issue_route = reverse("issues")
     for item in [*points, *unlocated]:
         slug = quote(item["slug"], safe="")
         item.update(
             company_url=f"{company_prefix}{slug}{company_suffix}",
-            reviews_url=f"{review_route}?" + urlencode({"view": "records", "organization": item["slug"]}),
+            affected_url=f"{evidence_prefix}{slug}{evidence_suffix}?{affected_query}",
             issues_url=f"{issue_route}?" + urlencode({"organization": item["slug"], "state": "map-open"}),
             location_url=f"{location_prefix}{slug}{location_suffix}" if item.pop("location_editable") else "",
         )
