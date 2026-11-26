@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 from threading import Thread
 from time import perf_counter
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
@@ -82,11 +83,17 @@ def route_identity(path):
     parameters = parse_qsl(parts.query)
     if parts.path.startswith("/admin/portal/auditevent/") and parts.path.endswith("/change/"):
         return "/admin/portal/auditevent/sample/change/", "", ""
-    if parts.path == "/admin/portal/auditevent/":
-        parameters = [
-            (key, "page" if key == "p" else value.split(".", 1)[0] if key == "o" else value)
-            for key, value in parameters
-        ]
+    if parts.path.startswith("/admin/"):
+        options = dict(parameters)
+        controls = ("_facets", "o", "p", "all")
+        filters = sorted((key, value) for key, value in parameters if key not in {*controls, "e"})
+        if filters:
+            return parts.path, urlencode(filters[:1]), ""
+        for control in controls:
+            if control in options:
+                value = options[control].split(".", 1)[0] if control == "o" else ""
+                return parts.path, urlencode([(control, value)]), ""
+        return parts.path, "", ""
     query = urlencode(
         [
             (key, value.split(":", 1)[0] if key == "case" and value.count(":") == 2 else value)
@@ -181,7 +188,7 @@ def browser(args):
                     ]
                     if errors:
                         row["javascript_error"] = True
-                    if download or args.replay and not args.verify_links or row["status"] >= 400:
+                    if download or (args.replay and not args.verify_links) or row["status"] >= 400:
                         continue
                     hrefs = page.locator("a[href], area[href]").evaluate_all(
                         "(links) => links.map(a => a.href)"
@@ -266,6 +273,11 @@ def app(args):
                 raise SystemExit("Audit accounts must have unusable passwords")
             client.force_login(user)
         roles[role] = {key: value.value for key, value in client.cookies.items()}
+    mail = TemporaryDirectory(prefix="bearings-nav-mail-")
+    settings.EMAIL_FILE_PATH = mail.name
+    (Path(mail.name) / "synthetic-audit.log").write_text(
+        "To: recipient@example.invalid\nSubject: Synthetic navigation audit\n\nOffline sample message.\n"
+    )
     server = make_server(
         "127.0.0.1",
         0,
@@ -300,6 +312,7 @@ def app(args):
         server.shutdown()
         server.server_close()
         worker.join()
+        mail.cleanup()
 
 
 def main():

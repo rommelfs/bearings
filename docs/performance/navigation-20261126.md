@@ -11,7 +11,7 @@ Timing starts before Chromium navigation and ends after window load, font readin
 A second is the investigation threshold. Two seconds is the upper bound for the measured normal navigation. The measurements describe this local runner and fixture. Different runs can overlap on the runner. The matched peak matrix and focused repeat samples give more reliable comparisons than an isolated slow observation during broad discovery.
 
 The link inventory covers the destinations exposed by these fixtures. Links differing only by a return parameter, a signed timestamp for the same case, or an in-page anchor that does not change loading share a target.
-Access events created by the audit itself are represented by sampled admin event details, list pages and sort columns. The organization host and inventory entry anchors retain separate tests. The crawl measures individual sort and filter controls and the fixed stress matrix adds selected combinations. It does not enumerate every possible combination or submit forms. OAuth starts, one-time codes and sign-out are excluded from the read-only crawl. External services and assets at external origins are blocked. A route without an applicable synthetic object or integration configuration is outside browser coverage. The audit creates ordinary local access logs and does not contact a production site.
+Access events created by the audit itself are represented by sampled admin event details. Django admin list tests cover independent filter and sort controls and representative pagination. The organization host and inventory entry anchors retain separate tests. The crawl measures individual sort and filter controls and the fixed stress matrix adds selected combinations. It does not enumerate every possible combination or submit forms. OAuth starts, one-time codes and sign-out are excluded from the read-only crawl. External services and assets at external origins are blocked. A route without an applicable synthetic object or integration configuration is outside browser coverage. The audit creates ordinary local access logs and does not contact a production site. Its mail preview uses an isolated temporary sink with one controlled synthetic message.
 
 ## What changed
 
@@ -30,6 +30,43 @@ no package proofs and no text search, the reader now selects the authorized
 finding IDs first. The window query ranks those IDs and hydration still uses
 the authorized queryset. The targeted PostgreSQL scale, review and access
 regressions ran 64 cases.
+
+## Workspace-wide link pass
+
+The initial and replayed matrices each contain 6,492 browser targets. The role
+breakdown is 28 public, 436 reader, 461 editor, 480 company administrator,
+3,102 CIRCL analyst and 1,985 platform administrator targets. Links shared by
+roles can use an existing measurement, while role-specific links and different
+synthetic object destinations receive their own measurements.
+
+The broad raw pass had 10 renders over two seconds before and 18 after. It
+overlapped more Chromium workers during replay. The counts are retained in the
+data rather than used as a controlled speed comparison. The first-pass p95s
+were 1.01 s and 1.10 s. No automatic fragment returned an HTTP error or logged
+a browser script error in the paired workspace matrix.
+
+The union of before and after renders above two seconds contained 28 role/URL
+pairs. We repeated each three times per revision with one Chromium client.
+All 84 follow-up requests returned HTTP 200. Their p95 was 0.52 s and their
+maximum was 1.49 s. Neither isolated pass repeated a two-second render. The
+raw comparisons, isolated samples and list above one second are included in
+the accompanying data archive. Two additional matched requests exercised the
+service-mail list and its controlled synthetic message.
+
+Direct replay intentionally retains the old 403/404 destinations. That checks
+that the permission or missing-data rules remain intact after the faulty
+navigation entries disappear. The three underlying issues were organization IDs
+used where rollout links expected slugs, access to company-only membership
+controls, and links to a follow-up for a company without a review schedule.
+
+## Intermediate scale
+
+With one Chromium client and the same 52 role/URL pairs on 8,001 assets, the
+p95 was 0.92 s before and 0.63 s after. The longest render fell from 1.09 s
+to 0.84 s. All pages and automatically loaded fragments returned
+successfully. Two baseline destinations exceeded a second. The repeated
+after run had none above a second. The individual data also retains the
+noisier run that overlapped several browser workers on the same machine.
 
 ## Concentrated package evidence
 
@@ -81,5 +118,7 @@ database and blocks external requests.
 ```
 
 The release changes server modules and templates. The PostgreSQL suite ran
-1,113 tests with five skipped. The update adds no migrations, dependencies or
-client rebuild requirements.
+1,113 tests with five skipped in the broad parallel verification. The serial
+GitHub PostgreSQL suite passed on `def61dd`, including the original
+pagination regression. GitHub SQLite also passed. The update requires the
+reviewed server checkout and a web-service restart.
