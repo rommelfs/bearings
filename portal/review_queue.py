@@ -148,9 +148,11 @@ def _scoped_current_expression(proofs, organizations, assets):
     return ExpressionWrapper(Q(pk__in=proofs.order_by().values("finding_id")), output_field=BooleanField())
 
 
-def classified(reviews, *, organizations=None, assets=None):
+def classified(reviews, *, organizations=None, assets=None, package_evidence=True):
     if "package_current" in reviews.query.annotations:
         return reviews
+    if not package_evidence:
+        return reviews.annotate(package_current=Value(False)).annotate(queue_bucket=bucket_expression())
     if organizations is not None or assets is not None:
         current = scoped_package_proofs(organizations=organizations, assets=assets)
         predicate = _scoped_current_expression(current, organizations, assets)

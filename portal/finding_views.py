@@ -39,7 +39,7 @@ from .overview_queries import bounded_list, read_snapshot
 from .presentation import ACTIVE_REVIEWS, SEVERITY_ORDER, decorate_finding
 from .queue_context import return_url
 from .review_cases import case_identity, case_page, evidence_page
-from .review_queue import BUCKETS
+from .review_queue import BUCKETS, classified
 from .services import (
     lookup_for_installation,
     transition_finding,
@@ -51,9 +51,8 @@ from .services import (
 @read_snapshot()
 @bounded_list
 def home(request):
-    org_page = company_cards(
-        request.user, organizations_for(request.user).order_by("name", "pk"), request.GET.get("org_page")
-    )
+    org_scope = organizations_for(request.user)
+    org_page = company_cards(request.user, org_scope.order_by("name", "pk"), request.GET.get("org_page"))
     orgs = org_page.object_list
     if request.user.is_superuser or is_analyst(request.user):
         audit(request.user, None, "operator.review_queue")
@@ -62,6 +61,10 @@ def home(request):
     if severity not in SEVERITY_ORDER:
         severity = ""
     reviews = visible_findings_for(request.user).filter(status__in=ACTIVE_REVIEWS)
+    has_package_proofs = reviews.filter(distro_match__isnull=False).exists()
+    reviews = classified(
+        reviews, organizations=org_scope.order_by().values("pk"), package_evidence=has_package_proofs
+    )
     search = None
     if query:
         reviews = reviews.annotate(
