@@ -2750,3 +2750,28 @@ only and the fixed-version preview. A fixture with one affected CVE and 1,655
 unverified CVEs measured 0.258 s by machine and 0.108 s by software. Both views
 returned the same disjoint counts and an affected maximum CVSS of 8.9 despite
 unverified scores of 10.0. No production host or live update source was used.
+
+## FlowIntel remediation plans (2026-11-26)
+
+Migration 0078 adds the plan-to-notification relation and durable action
+reservations. The PostgreSQL 17 migration, frozen dependency sync, Django
+checks and Ruff passed. Focused PostgreSQL and SQLite tests used synthetic
+findings and contacts. They exercised both pivots, package/CVE grouping with
+the retained Ubuntu ESM fixture, loss of current package proof, internal-only
+unknown reviews, mitigation previews, verified contact scope, private case
+gating, pre-delivery FlowIntel outage recovery, and the existing reminder
+workflow. A PostgreSQL race between approvals from the two pivots committed
+one reservation and one queued case. The connector tests use the existing
+synthetic FlowIntel API contract.
+
+The final PostgreSQL suite ran 1,121 tests with 5 skips and no failures. The
+34 focused SQLite tests had two PostgreSQL-only skips and no failures. The
+existing SQLite outreach suite also passed all nine tests after correcting the
+PostgreSQL missing-key behavior in its follow-up selection.
+
+A separate bundled lab exercised both remediation entry points and the
+approval view, then crossed the real pinned FlowIntel API using verified
+HTTPS. It checked the private case and two tasks, denied a foreign service
+organization, filed one synthetic message in the local outbox, and kept the
+unresolved review internal. A repeat plan found the existing action claims.
+The test used a fresh isolated lab and the file transport.

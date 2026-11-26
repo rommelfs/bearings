@@ -152,6 +152,20 @@ origin in `BEARINGS_PUBLIC_URL`. Follow the [Windows client guide](../../clients
 for setup, registration with the shared rollout key and periodic reports.
 
 
+### Update for FlowIntel remediation plans
+
+Follow the [pinned upgrade procedure](#updates-and-recovery) using
+the reviewed commit for this feature. Apply Django migration
+`0078_flowintel_remediation` and restart the Bearings web, worker and national
+services. The remediation feature does not require client redistribution.
+Check that the worker's existing `process_flowintel --all --due` and
+`process_notifications` jobs are enabled. Configure the private FlowIntel
+instance's Bearings URL and worker-side credential as described in the
+[FlowIntel guide](../user-guide/flowintel.md#operator-managed-external-connections).
+The file transport supports local acceptance testing. Production SMTP stays
+subject to the existing [notification transport configuration](../user-guide/notifications.md#explicit-smtp-configuration)
+and explicit plan approval.
+
 ### LXC: 502 with systemd `226/NAMESPACE`
 
 If the journal says `Failed to set up mount namespacing: /tmp: Permission denied`, Gunicorn has not started and Nginx cannot find its socket. A root-only sandbox probe can succeed even though the service fails: namespace setup must be checked with an unprivileged user, `NoNewPrivileges=yes` and an empty capability bounding set. The first-install preflight now uses Ubuntu's existing `www-data` account before creating `bearings`; it fails closed without automatically reducing protection.

@@ -942,6 +942,9 @@ class FlowIntelCase(models.Model):
     instance = models.ForeignKey(FlowIntelInstance, on_delete=models.PROTECT)
     finding = models.ForeignKey(Finding, on_delete=models.PROTECT, related_name="flowintel_cases")
     creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    remediation_batch = models.OneToOneField(
+        NotificationBatch, null=True, blank=True, on_delete=models.PROTECT, related_name="remediation_case"
+    )
     snapshot = models.JSONField()
     fingerprint = models.CharField(max_length=64)
     title = models.CharField(max_length=240)
@@ -961,7 +964,11 @@ class FlowIntelCase(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["instance", "finding"], name="unique_flowintel_finding"),
+            models.UniqueConstraint(
+                fields=["instance", "finding"],
+                condition=Q(remediation_batch__isnull=True),
+                name="unique_flowintel_finding",
+            ),
             models.UniqueConstraint(
                 fields=["instance", "remote_id"],
                 condition=Q(remote_id__isnull=False),
@@ -996,6 +1003,13 @@ class FlowIntelTask(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["case", "step"], name="unique_flowintel_step")]
+
+
+class RemediationReservation(models.Model):
+    """A claimed host/CVE/action identity shared by both planning entry points."""
+
+    fingerprint = models.CharField(max_length=64, unique=True)
+    case = models.ForeignKey(FlowIntelCase, on_delete=models.PROTECT, related_name="remediation_reservations")
 
 
 class AssetIssue(models.Model):

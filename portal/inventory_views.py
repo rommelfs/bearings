@@ -356,6 +356,8 @@ def detail(request, slug):
 @analyst_read_snapshot
 @read_snapshot()
 def asset_detail(request, slug, pk):
+    from .remediation import available_to
+
     org = organization(request, slug)
     asset = get_object_or_404(
         org.assets.select_related("source__instance", "network_host"),
@@ -411,6 +413,7 @@ def asset_detail(request, slug, pk):
             "org": org,
             "asset": asset,
             "missing_review_form": MissingReviewForm(),
+            "can_remediate": asset.lifecycle == "active" and available_to(request.user, org),
             "facts": asset_context(asset, workspace=True),
             "network_host": asset.network_host
             if (

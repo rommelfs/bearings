@@ -124,7 +124,10 @@ def decorate_records(records, user):
 @read_snapshot()
 @bounded_list
 def intelligence(request, slug):
+    from .remediation import CVE, available_to
+
     org = organization(request, slug)
+    can_remediate = available_to(request.user, org)
     filters = request.GET.copy()
     filters.pop("page", None)
     findings = scoped_findings(request, org).select_related("installation__asset__source__instance")
@@ -207,6 +210,10 @@ def intelligence(request, slug):
             params["finding" if finding.evidence_count == 1 else "case"] = finding.pk
             params["return_to"] = request.get_full_path()
             finding.case_url = "?" + params.urlencode()
+            if can_remediate and CVE.fullmatch(finding.record.external_id):
+                finding.remediation_url = reverse(
+                    "remediation-cve", args=[org.slug, finding.record.external_id]
+                )
 
     modes = []
     for key, label in VIEWS.items():
@@ -226,6 +233,7 @@ def intelligence(request, slug):
             "org": org,
             "page": page,
             "is_detail": is_detail,
+            "can_remediate": can_remediate,
             "view": view,
             "modes": modes,
             "listing_filters": listing_filters,

@@ -21,6 +21,7 @@ from . import (
     intelligence_views,
     notification_views,
     flowintel_views,
+    remediation_views,
     issue_views,
     rt_views,
     plum_views,
@@ -238,6 +239,16 @@ urlpatterns = [
         "api/v1/organizations/<slug:slug>/issues/<uuid:pk>/evidence/",
         issue_views.api_evidence,
         name="issue-evidence",
+    ),
+    path(
+        "organizations/<slug:slug>/remediation/cve/<str:cve>/",
+        remediation_views.prepare,
+        name="remediation-cve",
+    ),
+    path(
+        "organizations/<slug:slug>/remediation/machine/<uuid:pk>/",
+        remediation_views.prepare,
+        name="remediation-machine",
     ),
     path(
         "organizations/<slug:slug>/findings/<int:pk>/flowintel/new/",

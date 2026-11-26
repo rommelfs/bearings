@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.test import SimpleTestCase
-from . import agents, distro_cves, distro_oval
+from . import agents, distro_cves, distro_oval, remediation
 from .distro_verdicts import update_context
 from .models import DistroFeed, Finding
 from .presentation import vulnerability_summary
@@ -136,6 +136,8 @@ class UbuntuUpdateTests(DistroTests):
         distro_cves.evaluate_device(self.device.pk)
         finding = Finding.objects.get()
         self.assertEqual(finding.distro_match.snapshot["package_check"]["verdict"], "affected")
+        work = remediation.work(self.analyst, self.a, asset=self.device.asset_id)
+        self.assertEqual(remediation.target_rows(work)[finding.pk][0]["version"], "24.0+dfsg-1ubuntu1.3+esm3")
         self.login()
         response = self.client.get("/reviews/")
         for text in [
@@ -179,6 +181,7 @@ class UbuntuUpdateTests(DistroTests):
         old_version = component.version
         component.version = "99"
         component.save(update_fields=["version"])
+        self.assertNotIn(finding.pk, remediation.target_rows(work))
         stale = self.client.get("/circl/findings/?view=records&assessment=pending")
         self.assertEqual(self.client.get("/circl/findings/?view=records").context["page"].paginator.count, 0)
         self.assertContains(stale, "Awaiting current package evaluation")

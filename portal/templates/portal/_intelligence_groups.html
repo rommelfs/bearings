@@ -18,7 +18,7 @@
       {% else %}<td>{{ group.cves }}</td>{% endif %}
       <td>{{ group.related_count }}</td>
       <td>{% if group.max_cvss != None %}{{ group.max_cvss|floatformat:"1u" }}{% else %}—{% endif %}</td>
-      <td><a href="{{ group.url }}">View reviews →</a></td>
+      <td><a href="{{ group.url }}">View reviews →</a>{% if can_remediate and view == "machine" %}<br><a href="{% url 'remediation-machine' org.slug group.group_id %}">Prepare remediation →</a>{% endif %}</td>
     </tr>{% endfor %}</tbody>
   </table>
 </div>

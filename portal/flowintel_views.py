@@ -2,7 +2,7 @@ from datetime import timedelta
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -64,8 +64,10 @@ def binding_for(request, slug, pk):
         FlowIntelCase.objects.select_related("instance", "creator"), pk=pk, finding__organization=org
     )
     binding.finding = flowintel.finding_for(binding.finding_id)
-    if not flowintel.allowed(request.user, binding.finding):
-        raise Http404
+    try:
+        flowintel.require_read(request.user, binding)
+    except PermissionDenied:
+        raise Http404 from None
     audit_operator_access(request.user, org)
     return binding
 
@@ -73,6 +75,10 @@ def binding_for(request, slug, pk):
 @login_required
 def case_detail(request, slug, pk):
     binding = binding_for(request, slug, pk)
+    if binding.remediation_batch_id:
+        from .remediation_views import render_case
+
+        return render_case(request, binding)
     return render(
         request,
         "portal/flowintel_case.html",
@@ -93,11 +99,13 @@ def case_detail(request, slug, pk):
 def approve_case(request, slug, pk):
     binding_for(request, slug, pk)
     try:
-        flowintel.approve(request.user, pk)
-        messages.success(
-            request,
-            "Private case hand-off approved and queued. The worker will create the case and its playbook tasks.",
+        binding = flowintel.approve(request.user, pk)
+        text = (
+            "Remediation plan approved. The worker will verify the private FlowIntel case and tasks before releasing any messages."
+            if binding.remediation_batch_id
+            else "Private case hand-off approved and queued. The worker will create the case and its playbook tasks."
         )
+        messages.success(request, text)
     except ValidationError as exc:
         messages.error(request, "; ".join(exc.messages))
     return redirect("flowintel-case", slug=slug, pk=pk)
@@ -124,7 +132,9 @@ def decorate(finding, user):
     finding.flowintel_allowed = flowintel.allowed(user, finding)
     finding.flowintel_exportable = flowintel.exportable(user, finding)
     finding.flowintel_bindings = (
-        list(finding.flowintel_cases.select_related("instance").all()) if finding.flowintel_allowed else []
+        list(finding.flowintel_cases.select_related("instance").filter(remediation_batch__isnull=True))
+        if finding.flowintel_allowed
+        else []
     )
     finding.flowintel_available = finding.flowintel_exportable and available_instances().exists()
     finding.flowintel_review_url = reverse("flowintel-new", args=[finding.organization.slug, finding.pk])

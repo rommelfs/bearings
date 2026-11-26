@@ -88,7 +88,7 @@ def grouped_page(findings, view, number, filters, return_to, *, show_affected):
         params["view"] = "cve"
         params["asset" if view == "machine" else "product"] = row[key]
         params["return_to"] = return_to
-        row.update(name=row[name], url="?" + params.urlencode())
+        row.update(name=row[name], url="?" + params.urlencode(), group_id=row[key])
         if row.get("affected_cves"):
             params["state"] = "affected"
             row["affected_url"] = "?" + params.urlencode()
