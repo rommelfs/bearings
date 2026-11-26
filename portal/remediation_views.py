@@ -16,9 +16,7 @@ from .models import Contact, Finding, FlowIntelInstance
 
 
 class RemediationForm(forms.Form):
-    instance = forms.ModelChoiceField(
-        queryset=FlowIntelInstance.objects.none(), label="Private FlowIntel destination"
-    )
+    instance = forms.ModelChoiceField(queryset=FlowIntelInstance.objects.none(), label="FlowIntel workspace")
     deadline = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
     recipients = forms.ModelMultipleChoiceField(
         queryset=Contact.objects.none(),

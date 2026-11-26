@@ -34,7 +34,7 @@ def applications(actor):
                 "key": key,
                 "product": product,
                 "label": {"netbox": "NetBox", "flowintel": "FlowIntel", "rt": "RT", "rtir": "RTIR"}[product],
-                "name": instance.name,
+                "name": instance.display_label if product == "flowintel" else instance.name,
                 "url": base + path,
                 "login_url": base + login_path,
                 "origin": app_origin,

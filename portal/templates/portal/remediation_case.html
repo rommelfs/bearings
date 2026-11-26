@@ -38,7 +38,7 @@
 {% if case.state == 'draft' and not can_approve %}<p class="warning">{% if not case.instance.available %}The FlowIntel connection is disabled.{% else %}Only the person who prepared this preview can approve it.{% endif %}</p>{% endif %}
 </article>
 
-<p>FlowIntel case <strong>{{ case.state }}</strong> · {{ case.instance.name }} · Reference {{ case.pk }}</p>
+<p>FlowIntel case <strong>{{ case.state }}</strong> · {{ case.instance.display_label }} · Reference {{ case.pk }}</p>
 {% if case.error %}<p class="warning">{{ case.error }}</p>{% endif %}
 {% if case.instance.available %}
 <div class="actions">

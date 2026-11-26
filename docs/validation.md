@@ -2789,3 +2789,9 @@ The notification access follow-up passed all 57 focused PostgreSQL tests.
 Tests cover the visible explanation for company-only users and disabled CIRCL
 analyst visibility, denial on direct access, and a grouped CVE with restricted
 and shareable sources where only the shareable evidence enters preparation.
+
+The FlowIntel display-name and CVE action layout follow-up passed 66 focused
+PostgreSQL tests, Django system and migration checks, Ruff, and local static
+collection. An isolated 0078-to-0079 upgrade retained a synthetic native
+connection and showed its readable default label. A regression test changed
+the label after preview and verified approval against the original connection.

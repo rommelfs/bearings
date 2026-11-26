@@ -1426,6 +1426,10 @@ input:focus-visible {
   gap: 8px;
   align-items: center;
 }
+.review-next > .review-card-actions {
+  margin-inline-start: auto;
+  justify-content: flex-end;
+}
 .review-expanded {
   border-top: 1px solid var(--line);
   margin-top: 16px;

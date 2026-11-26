@@ -237,7 +237,7 @@ class MOSPAdmin(PlatformAdmin):
 
 @admin.register(FlowIntelInstance)
 class FlowIntelAdmin(PlatformAdmin):
-    list_display = ["name", "base_url", "service_org_id", "enabled"]
+    list_display = ["display_label", "name", "base_url", "service_org_id", "enabled"]
 
     def save_model(self, request, obj, form, change):
         with transaction.atomic():

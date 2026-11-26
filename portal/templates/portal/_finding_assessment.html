@@ -18,7 +18,7 @@
   </aside>
   {% endif %}
   {% for case in finding.flowintel_bindings %}
-  <p><a href="{% url 'flowintel-case' org.slug case.pk %}">FlowIntel hand-off · {{ case.instance.name }} · {{ case.state }}</a>{% if case.summary %} · {{ case.summary.status }} · Last read {{ case.last_success }}{% endif %}</p>
+  <p><a href="{% url 'flowintel-case' org.slug case.pk %}">FlowIntel hand-off · {{ case.instance.display_label }} · {{ case.state }}</a>{% if case.summary %} · {{ case.summary.status }} · Last read {{ case.last_success }}{% endif %}</p>
   {% endfor %}
   <p>Analyst assessment: <span class="assessment-badge assessment-{{ finding.assessment_key }}">{{ finding.analyst_applicability }}</span> · Workflow: {{ finding.status }}</p>
   {% if finding.review_form %}

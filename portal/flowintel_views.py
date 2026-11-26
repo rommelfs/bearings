@@ -24,7 +24,7 @@ def available_instances():
 
 
 class HandoffForm(forms.Form):
-    instance = forms.ModelChoiceField(queryset=FlowIntelInstance.objects.none())
+    instance = forms.ModelChoiceField(queryset=FlowIntelInstance.objects.none(), label="FlowIntel workspace")
     deadline = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
     reason = forms.CharField(
         max_length=3000, widget=forms.Textarea(attrs={"rows": 3}), label="Reason for hand-off"

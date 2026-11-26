@@ -166,6 +166,13 @@ The file transport supports local acceptance testing. Production SMTP stays
 subject to the existing [notification transport configuration](../user-guide/notifications.md#explicit-smtp-configuration)
 and explicit plan approval.
 
+### FlowIntel workspace display names
+
+Apply migration `0079_flowintel_display_name`, collect static files and restart
+the Bearings services using the [pinned update procedure](#updates-and-recovery).
+Set **Display name** in the FlowIntel instance's Django admin entry if you want
+a custom workspace label. The native CIRCL workspace defaults to **CIRCL FlowIntel**.
+
 ### LXC: 502 with systemd `226/NAMESPACE`
 
 If the journal says `Failed to set up mount namespacing: /tmp: Permission denied`, Gunicorn has not started and Nginx cannot find its socket. A root-only sandbox probe can succeed even though the service fails: namespace setup must be checked with an unprivileged user, `NoNewPrivileges=yes` and an empty capability bounding set. The first-install preflight now uses Ubuntu's existing `www-data` account before creating `bearings`; it fails closed without automatically reducing protection.

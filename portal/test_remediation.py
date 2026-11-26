@@ -85,7 +85,13 @@ class RemediationTests(Fixture):
         ]
         landing = self.client.get(self.url("intelligence"), {"view": "machine"})
         self.assertContains(landing, urls[1])
-        self.assertContains(self.client.get(self.url("intelligence")), urls[0])
+        cve_listing = self.client.get(self.url("intelligence"))
+        self.assertContains(cve_listing, 'class="review-card-actions"')
+        self.assertContains(
+            cve_listing,
+            f'<a class="button primary" href="{urls[0]}">Notify about this CVE →</a>',
+            html=True,
+        )
         self.assertContains(landing, "Notify about this machine")
         for query in ({}, {"case": self.finding.pk}, {"finding": self.finding.pk}):
             self.assertContains(self.client.get(self.url("intelligence"), query), "Notify about this CVE")
@@ -105,6 +111,31 @@ class RemediationTests(Fixture):
         self.login(self.admin)
         self.assertEqual(self.client.get(urls[1]).status_code, 403)
         self.assertEqual(self.client.get(self.url("flowintel-case", pk=first.pk)).status_code, 404)
+
+    def test_native_workspace_has_readable_name_and_can_be_renamed_after_preview(self):
+        technical_name = "native-circl-" + self.instance.pk.hex
+        self.instance.name = technical_name
+        self.instance.save(update_fields=["name"])
+        self.login(self.analyst)
+        prepare_url = self.url("remediation-cve", cve=self.finding.record.external_id)
+        response = self.client.get(prepare_url)
+        self.assertContains(response, "CIRCL FlowIntel")
+        self.assertNotContains(response, technical_name)
+
+        case, _ = self.draft()
+        self.instance.display_name = "CIRCL remediation workspace"
+        self.instance.full_clean()
+        self.instance.save(update_fields=["display_name"])
+
+        self.assertContains(self.client.get(prepare_url), self.instance.display_name)
+        self.assertContains(
+            self.client.get(self.url("flowintel-case", pk=case.pk)), self.instance.display_name
+        )
+        flowintel.approve(self.analyst, case.pk)
+        case.refresh_from_db()
+        self.assertEqual(case.state, "queued")
+        self.assertEqual(case.instance_id, self.instance.pk)
+        self.assertEqual(case.instance.name, technical_name)
 
     def test_views_explain_notification_access_blockers(self):
         url = self.url("intelligence")

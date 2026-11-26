@@ -160,6 +160,8 @@ acceptance remain open. CVE and machine pages now expose a notification action, 
 the preview puts the send, test or internal-work button above the task details.
 Missing role or organization visibility is explained in the workspace. The
 CVE entry point supports grouped evidence with mixed sharing permissions.
+The CVE card groups notification and evidence actions, and FlowIntel workspaces
+support a readable display name in migration 0079.
 
 Remaining work: MISP alert ingestion and severity semantics, assignment-name mapping, external-version compatibility, richer playbooks, remote retention/revocation process and production scheduling/egress/SSO/recovery. These are not enabled by the local pilot; notification/product matching and broader remediation remain in #6/#10/#11.
 

@@ -1,3 +1,4 @@
+import re
 import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -873,6 +874,9 @@ class NotificationDeliveryFinding(models.Model):
 class FlowIntelInstance(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
+    display_name = models.CharField(
+        max_length=100, blank=True, help_text="Name shown in Bearings for this FlowIntel connection."
+    )
     base_url = models.URLField(max_length=250)
     browser_url = models.URLField(max_length=250, blank=True)
     bearings_url = models.URLField(
@@ -886,6 +890,16 @@ class FlowIntelInstance(models.Model):
     allow_private = models.BooleanField(default=False)
 
     def __str__(self):
+        return self.display_label
+
+    @property
+    def display_label(self):
+        if self.display_name:
+            return self.display_name
+        if re.fullmatch(r"native-circl-[0-9a-f]{32}", self.name):
+            return "CIRCL FlowIntel"
+        if self.name == "bundled-flowintel":
+            return "FlowIntel development lab"
         return self.name
 
     @property
@@ -899,7 +913,6 @@ class FlowIntelInstance(models.Model):
         )
 
     def clean(self):
-        import re
         from urllib.parse import urlsplit
         from .connectors.http import ConnectorError, validate_base
 
