@@ -3,6 +3,7 @@ from django.conf import settings
 
 
 def deployment(request):
+    from .client_downloads import rollout_navigation
     from .models import DemoDataset
     from .navigation import workspace
     from .workspace_views import remembered_company, view_switch
@@ -20,6 +21,7 @@ def deployment(request):
 
     return {
         "queue_return_url": return_url(request),
+        **rollout_navigation(request, switch.get("navigation_company")),
         **workspace(
             request,
             show_examples=showcase,

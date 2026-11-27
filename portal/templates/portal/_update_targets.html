@@ -1,0 +1,5 @@
+<ul>
+  {% for target in targets %}
+  <li>{% if target.software %}<strong>{{ target.software }}</strong> · {% endif %}Vendor-listed fix: <code>{{ target.version }}</code> ({{ target.basis }}){% if target.installed %} · checked version <code>{{ target.installed }}</code>{% endif %}{% if target.channels %} · {{ target.channels|join:", " }}{% endif %}</li>
+  {% endfor %}
+</ul>

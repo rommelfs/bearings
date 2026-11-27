@@ -58,7 +58,7 @@ python3 scripts/build_linux_client.py
 
 In the retained lab, a focused Bearings image build followed by `up --no-build` is equivalent when reusing unchanged native-service images. Cloud proxy/CA environments have `scripts/cloud_image_build.py`; verification stays enabled. Production endpoints require correctly trusted HTTPS and operator-configured `BEARINGS_PUBLIC_URL`/allowed hosts. Run migrations 0054–0057 before serving the new endpoints.
 
-See the [client guide](../../clients/linux/README.md) for commands, protected enrollment files, systemd, outage behavior and replacement procedure. Source implementation: `portal/agent_protocol.py`, `portal/agents.py`, `portal/agent_views.py`; tests: `portal/test_agents.py`, `portal/test_agent_client.py`, `clients/linux/client_test.go`. Build outputs stay under ignored `.local/`; no release binary, signing key, real customer report or enrollment secret belongs in Git.
+See the [client guide](../../clients/linux/README.md) for commands, protected enrollment files, systemd, outage behavior and replacement procedure. Source implementation: `portal/agent_protocol.py`, `portal/agents.py`, `portal/agent_api.py`, and `portal/agent_views.py`; tests: `portal/test_agents.py`, `portal/test_agent_client.py`, `clients/linux/client_test.go`. Build outputs stay under ignored `.local/`; no release binary, signing key, real customer report or enrollment secret belongs in Git.
 
 
 ## Configured native binary extension — 20 November 2026
@@ -192,6 +192,20 @@ This navigation change requires only source update and `bearings-web` restart.
 No migration, static rebuild, client rebuild or client restart is needed for the
 integrated website. Standalone static sites need a normal website rebuild.
 
+### Deregistration and uninstall
+
+On a standard systemd installation, run `sudo python3 install.py uninstall`
+from the current reviewed release. The command attempts to notify Bearings,
+then removes the managed client, service, account and local queue. Reviewed
+administrator profiles and custom drop-ins remain on disk.
+
+The portal can also revoke the device and request uninstall. The current
+installer adds a root-owned systemd timer. Its helper uses the dedicated
+unprivileged account to check and acknowledge the fixed per-device action
+over the existing signed HTTPS protocol. The privileged phase uses only
+the installation's fixed local paths. A protected checkpoint lets an
+interrupted cleanup finish after its credential files have been removed.
+
 ### Deterministic package-version CVE results
 
 Supported distribution version rules now yield an explicit affected/fixed package
@@ -220,3 +234,8 @@ execute those methods. Manifest evidence has its own field introduced by
 migration 0066. See [configurable application profiles](linux-application-probes.md)
 for JSON fields, RE2 extraction, fixed Git queries, MISP defaults, explicit
 manual-version ownership and failure semantics. Upgrade server before client.
+
+
+### Asset update presentation
+
+The asset page highlights current, authorized package matches with documented vendor fixes and displays vulnerability reviews separately. Repository update availability remains unmeasured. Missing, stale, or restricted evidence cannot supply a current fix count. The technical synchronization states are shown as icons with hover and keyboard-focus explanations.

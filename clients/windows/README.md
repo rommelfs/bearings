@@ -115,3 +115,28 @@ python3 scripts/build_windows_client.py --go /path/to/go --server https://bearin
 ```
 
 This writes architecture-specific EXEs and ZIPs, `SHA256SUMS` and a matching source ZIP into `.local/windows-client`. Distribute the source ZIP with the binary packages. For synthetic native updater tests, run `go test -run "TestSelfUpdate|TestNativeProtectedStateAndLock" ./...` from `clients/windows` on Windows. The full suite also includes a live local registry/WUA collector test; run that only on an authorized pilot. The Python source remains available as a compatibility reference.
+
+
+## Uninstall
+
+Open PowerShell under the Windows account that enrolled and runs Bearings,
+then use the current client executable.
+
+```powershell
+.\bearings-windows.exe uninstall
+```
+
+The client attempts to deregister, then starts a local helper using the
+Windows-provided PowerShell. Once the executable closes, the helper removes
+the matching scheduled task, the installed per-user executable, staged release
+executables and activation record, and the default DPAPI state and unsent reports. Extracted download copies and
+administrator-managed tasks or custom state paths are handled separately.
+If the server could not confirm deregistration, check the device in Bearings.
+
+A company administrator can choose **Deregister and uninstall** on the device
+under **Inventory reports**. Report access is revoked immediately. A current
+client with automatic reporting enabled picks up the request on its next
+scheduled run while signed in. Running `report` or choosing **Send report** or **Check status** under the
+reporting account also checks for a request. The portal records the client's acknowledgment.
+Check Task Scheduler and the installed program path to verify local completion.
+Asset and report history remain in Bearings.

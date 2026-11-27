@@ -8,7 +8,20 @@ from datetime import timedelta
 from urllib.parse import urlencode
 from django.conf import settings
 from django.core import signing
-from django.db.models import Case, CharField, Count, Exists, F, Min, OuterRef, Q, Subquery, Value, When
+from django.db.models import (
+    Case,
+    CharField,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    Min,
+    OuterRef,
+    Q,
+    Subquery,
+    Value,
+    When,
+)
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast, Coalesce, Concat, Lower, Substr
 from django.urls import reverse
@@ -17,14 +30,16 @@ from .access import organizations_for
 from .models import AgentDevice, Asset, DistroFeed
 from .query_integrity import consistent
 from . import distro_cves, distro_results, distro_sources
-from .review_queue import classified
+from .presentation import SEVERITY_ORDER, severity_rank
+from .review_queue import CURRENT_AFFECTED, bucket_expression, classified, current_discovery_match
 
 MACHINE_KINDS = ["server", "desktop", "laptop", "appliance", "vm"]
+MAX_SCOPED_MATCHED_MACHINES = 250
 CASE_FIELDS = ("organization_id", "family", "platform", "manager", "case_kind")
 CASE_LABELS = {
     "version": (
         "Check vendor fixes for this software family",
-        "Current distribution version evidence; inspect the individual fix boundaries and update channels before applying changes.",
+        "Current vendor version evidence; inspect the advisory and any listed fix before applying changes.",
     ),
     "manual": (
         "Check version applicability",
@@ -57,73 +72,67 @@ def ratio(numerator, denominator):
     }
 
 
-def posture(user, org_ids=None, *, shared_only=False, include_totals=True):
-    """One mutually exclusive priority per evaluated machine; explicit unknown coverage."""
-    from .circl import findings_for
-
+def _machine_assets(user, org_ids):
     orgs = organizations_for(user)
     if org_ids is not None:
         orgs = orgs.filter(pk__in=org_ids)
-    machines = Asset.objects.filter(organization__in=orgs, lifecycle="active", kind__in=MACHINE_KINDS).filter(
+    return Asset.objects.filter(organization__in=orgs, lifecycle="active", kind__in=MACHINE_KINDS).filter(
         consistent(source__organization_id=F("organization_id"))
     )
-    reviews = classified(findings_for(user)).filter(installation__asset_id=OuterRef("pk"))
-    if shared_only:
-        reviews = reviews.filter(record__shareable=True)
-    automatic = reviews.filter(package_current=True, distro_match__queue_proof__verdict="affected")
-    devices = AgentDevice.objects.filter(
-        asset_id=OuterRef("pk"),
-        source_id=OuterRef("source_id"),
-        organization_id=OuterRef("organization_id"),
-        enabled=True,
-        expires_at__gt=timezone.now(),
-        last_observed_at__gte=timezone.now() - timedelta(hours=12),
-        last_sequence=F("applied_sequence"),
-        distro_requested=False,
-        distro_checked_at__gte=F("last_observed_at"),
-        distro_summary__state__in=["ready", "partial"],
-        distro_summary__evaluator_version=distro_results.VERSION,
-    )
-    feed_scope = Q(pk__in=[])
-    for feed in DistroFeed.objects.filter(enabled=True, key__in=distro_sources.supported_keys()):
-        if distro_cves.feed_state(feed) != "ready":
-            continue
-        distro, release = feed.key.split(":")
-        versions = Q(os__version=release)
-        if distro != "ubuntu":
-            versions |= Q(os__version__startswith=release + ".")
-        feed_scope |= (
-            Q(os__id=distro, distro_summary__feed=feed.key, distro_summary__generation=str(feed.generation))
-            & versions
-        )
-    devices = devices.filter(feed_scope) if settings.DISTRO_CVE_ENABLED else devices.none()
-    from .presentation import SEVERITY_ORDER
 
-    priority = (
-        automatic.annotate(
-            rank=Case(
-                *[When(record__source_severity=key, then=Value(i)) for i, key in enumerate(SEVERITY_ORDER)],
-                default=Value(len(SEVERITY_ORDER)),
-            )
+
+def machine_coverage(user, org_ids):
+    """Current device coverage independently of package findings."""
+    machines = _machine_assets(user, org_ids)
+    feed_scope = _ready_feed_scope()
+    if feed_scope:
+        devices = _evaluated_devices(feed_scope)
+        machines = machines.annotate(
+            evaluated=Exists(devices),
+            partial=Exists(devices.filter(distro_summary__package_state="partial")),
         )
-        .order_by("rank")
-        .values("rank")[:1]
-    )
-    machines = machines.annotate(
-        source_priority=Case(When(Exists(devices), then=Subquery(priority)), default=Value(None)),
-        evaluated=Exists(devices),
-        partial=Exists(devices.filter(distro_summary__package_state="partial")),
-        version_match=Exists(automatic),
-        critical=Exists(automatic.filter(record__source_severity="critical")),
-        high=Exists(automatic.filter(record__source_severity="high")),
-        manual=Exists(
+    else:
+        machines = machines.annotate(evaluated=Value(False), partial=Value(False))
+    return machines, bool(feed_scope)
+
+
+def posture(user, org_ids=None, *, shared_only=False, include_totals=True, scoped_evidence=False):
+    """One mutually exclusive priority per evaluated machine; explicit unknown coverage."""
+    from .circl import findings_for
+
+    machines = _machine_assets(user, org_ids)
+    scope = findings_for(user)
+    if shared_only:
+        scope = scope.filter(record__shareable=True)
+    reviews = scope.filter(installation__asset_id=OuterRef("pk"))
+    manual = Exists(
+        classified(
             reviews.filter(
                 distro_match__isnull=True, status__in=["new", "under_review", "confirmed", "accepted_risk"]
-            ).exclude(analyst_applicability="not_affected")
-        ),
+            ),
+            package_evidence=False,
+        ).exclude(Q(queue_bucket="cleared") | current_discovery_match())
     )
+    feed_scope = _ready_feed_scope()
+    if feed_scope:
+        matches = (
+            _scoped_automatic_status(scope.filter(installation__asset_id__in=machines.values("pk")), org_ids)
+            if scoped_evidence and org_ids is not None
+            else None
+        )
+        machines = machines.annotate(manual=manual, **_evaluated_machine_status(reviews, feed_scope, matches))
+    else:
+        machines = machines.annotate(
+            manual=manual,
+            source_priority=Value(None, output_field=IntegerField()),
+            evaluated=Value(False),
+            partial=Value(False),
+            version_match=Value(False),
+            critical=Value(False),
+            high=Value(False),
+        )
     if not include_totals:
-        return {"machines": machines}
+        return {"machines": machines, "evaluation_available": bool(feed_scope)}
     result = {}
     for row in (
         machines.order_by()
@@ -170,6 +179,94 @@ def posture(user, org_ids=None, *, shared_only=False, include_totals=True):
     }
 
 
+def _ready_feed_scope():
+    scope = Q()
+    if not settings.DISTRO_CVE_ENABLED:
+        return scope
+    for feed in DistroFeed.objects.filter(enabled=True, key__in=distro_sources.supported_keys()):
+        if distro_cves.feed_state(feed) != "ready":
+            continue
+        scope |= Q(
+            distro_summary__feed=feed.key, distro_summary__generation=str(feed.generation)
+        ) & distro_sources.host_release_filter(feed.key, os_path="os")
+    return scope
+
+
+def _automatic_matches(reviews):
+    return classified(reviews).filter(CURRENT_AFFECTED)
+
+
+def _scoped_automatic_status(reviews, organizations):
+    """Validate each proof once and retain only a bounded list of machine IDs by severity."""
+    rows = list(
+        _automatic_matches(classified(reviews, organizations=organizations))
+        .order_by()
+        .values("installation__asset_id")
+        .annotate(
+            rank=Min(severity_rank("record__source_severity")),
+            high_count=Count("pk", filter=Q(record__source_severity="high")),
+        )[: MAX_SCOPED_MATCHED_MACHINES + 1]
+    )
+    if len(rows) > MAX_SCOPED_MATCHED_MACHINES:
+        return None
+    ids_by_rank = {}
+    for row in rows:
+        ids_by_rank.setdefault(row["rank"], []).append(row["installation__asset_id"])
+    return {
+        "priority": Case(
+            *(When(pk__in=ids, then=Value(rank)) for rank, ids in ids_by_rank.items()),
+            default=Cast(Value(None), IntegerField()),
+            output_field=IntegerField(),
+        ),
+        "version_match": Q(pk__in=[row["installation__asset_id"] for row in rows]),
+        "critical": Q(pk__in=ids_by_rank.get(SEVERITY_ORDER.index("critical"), [])),
+        "high": Q(pk__in=[row["installation__asset_id"] for row in rows if row["high_count"]]),
+    }
+
+
+def _evaluated_devices(feed_scope):
+    return AgentDevice.objects.filter(
+        feed_scope,
+        asset_id=OuterRef("pk"),
+        source_id=OuterRef("source_id"),
+        organization_id=OuterRef("organization_id"),
+        enabled=True,
+        expires_at__gt=timezone.now(),
+        last_observed_at__gte=timezone.now() - timedelta(hours=12),
+        last_sequence=F("applied_sequence"),
+        distro_requested=False,
+        distro_checked_at__gte=F("last_observed_at"),
+        distro_summary__state__in=["ready", "partial"],
+        distro_summary__evaluator_version=distro_results.VERSION,
+    )
+
+
+def _evaluated_machine_status(reviews, feed_scope, matches):
+    devices = _evaluated_devices(feed_scope)
+    if matches is None:
+        automatic = _automatic_matches(reviews)
+        matches = {
+            "priority": Subquery(
+                automatic.annotate(rank=severity_rank("record__source_severity"))
+                .order_by("rank")
+                .values("rank")[:1]
+            ),
+            "version_match": Exists(automatic),
+            "critical": Exists(automatic.filter(record__source_severity="critical")),
+            "high": Exists(automatic.filter(record__source_severity="high")),
+        }
+    return {
+        "source_priority": Case(
+            When(Exists(devices), then=matches["priority"]), default=Cast(Value(None), IntegerField())
+        ),
+        "evaluated": Exists(devices),
+        "partial": Exists(devices.filter(distro_summary__package_state="partial")),
+        "version_match": matches["version_match"],
+        "critical": matches["critical"],
+        "high": matches["high"],
+    }
+
+
 def case_scope(reviews):
     """Identity uses explicit source-package metadata, otherwise exact product identity."""
     return classified(reviews).annotate(
@@ -201,13 +298,7 @@ def case_scope(reviews):
             output_field=CharField(),
         ),
         manager=Coalesce("distro_match__component__manager", Value("application")),
-        case_kind=Case(
-            When(analyst_applicability="affected", then=Value("human")),
-            When(package_current=True, distro_match__queue_proof__verdict="affected", then=Value("version")),
-            When(queue_bucket="action", then=Value("manual")),
-            default=F("queue_bucket"),
-            output_field=CharField(),
-        ),
+        case_kind=bucket_expression(human="human", affected="version", manual="manual"),
     )
 
 

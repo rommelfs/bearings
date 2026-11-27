@@ -8,8 +8,10 @@
 {% if finding.package_verdict %}
 <p><strong>Automatic package check:</strong> {{ finding.package_verdict.heading }}<br>{{ finding.package_verdict.reason|truncatechars:220 }}</p>
 {% if finding.package_verdict.update.targets %}<p>Vendor-listed fix{% if finding.package_verdict.update.channels %} ({{ finding.package_verdict.update.channels|join:', ' }}){% endif %}: {% for target in finding.package_verdict.update.targets|slice:':2' %}{{ target.version }}{% if not forloop.last %}, {% endif %}{% endfor %}. Repository availability has not been checked.</p>{% endif %}
+{% elif finding.queue_bucket == "cleared" %}<p><strong>Cleared by current version evidence or a saved assessment.</strong></p>
 {% else %}<p><strong>Automatic version verdict:</strong> not established here. A linked CVE alone does not prove this version is affected.</p>{% endif %}
 <p>Saved analyst assessment: {{ finding.analyst_applicability }} · workflow: {{ finding.get_status_display }}.</p>
+{% include "portal/_discovery_version.html" %}
 <p><strong>Next step:</strong> {{ finding.next_step }} <a href="{% url 'intelligence' finding.organization.slug %}?finding={{ finding.pk }}#finding-{{ finding.pk }}">Inspect version evidence &amp; review →</a></p>
 </div>
 {% empty %}<p>Current installation examples unavailable. Reopen the case to check current access and refresh state.</p>{% endfor %}

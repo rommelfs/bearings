@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Q
 from django.utils import timezone
-from portal import flowintel
+from portal import flowintel, remediation
 from portal.connectors.http import ConnectorError
 from portal.models import FlowIntelCase
 
@@ -51,6 +51,8 @@ class Command(BaseCommand):
                     if case.state == "uncertain":
                         FlowIntelCase.objects.filter(pk=pk).update(last_attempt=timezone.now())
                     flowintel.reconcile(pk)
+                if case.remediation_batch_id:
+                    remediation.release_notifications(pk)
             except (ConnectorError, ValidationError, PermissionDenied):
                 FlowIntelCase.objects.filter(pk=pk).update(
                     error="FlowIntel permission, verification or transport failed; last-known state retained.",

@@ -134,7 +134,7 @@ func post(client *http.Client, server, path, identity string, key ed25519.Privat
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("server refused request (HTTP %d); local input retained", response.StatusCode)
+		return serverRefusal(response.StatusCode)
 	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 65_537))
 	content, _, _ := mime.ParseMediaType(response.Header.Get("Content-Type"))

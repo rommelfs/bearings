@@ -1,3 +1,4 @@
+import re
 import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -5,7 +6,7 @@ from django.db import models
 from django.db.models import Q, F
 from django.db.models.functions import Coalesce, Upper
 from django.utils import timezone
-from .distro_projection import DistroQueueProofV1
+from .distro_projection import DistroQueueProofV1, DistroVendorFixInputsV1
 
 
 class Organization(models.Model):
@@ -630,14 +631,21 @@ class SourceRecord(models.Model):
         choices=[(v, v.title()) for v in ["critical", "high", "medium", "low", "none", "unknown"]],
     )
 
+    source_cvss = models.FloatField(null=True, editable=False, db_index=True)
+
+    def update_source_ratings(self):
+        from .presentation import vulnerability_summary
+
+        summary = vulnerability_summary(self.payload)
+        self.source_severity = summary["severity"].lower()
+        self.source_cvss = summary["score"]
+
     def save(self, *args, **kwargs):
         fields = kwargs.get("update_fields")
         if self._state.adding or fields is None or "payload" in fields:
-            from .presentation import vulnerability_summary
-
-            self.source_severity = vulnerability_summary(self.payload)["severity"].lower()
+            self.update_source_ratings()
             if fields is not None:
-                kwargs["update_fields"] = set(fields) | {"source_severity"}
+                kwargs["update_fields"] = set(fields) | {"source_severity", "source_cvss"}
         return super().save(*args, **kwargs)
 
     class Meta:
@@ -866,6 +874,9 @@ class NotificationDeliveryFinding(models.Model):
 class FlowIntelInstance(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
+    display_name = models.CharField(
+        max_length=100, blank=True, help_text="Name shown in Bearings for this FlowIntel connection."
+    )
     base_url = models.URLField(max_length=250)
     browser_url = models.URLField(max_length=250, blank=True)
     bearings_url = models.URLField(
@@ -879,6 +890,16 @@ class FlowIntelInstance(models.Model):
     allow_private = models.BooleanField(default=False)
 
     def __str__(self):
+        return self.display_label
+
+    @property
+    def display_label(self):
+        if self.display_name:
+            return self.display_name
+        if re.fullmatch(r"native-circl-[0-9a-f]{32}", self.name):
+            return "CIRCL FlowIntel"
+        if self.name == "bundled-flowintel":
+            return "FlowIntel development lab"
         return self.name
 
     @property
@@ -892,7 +913,6 @@ class FlowIntelInstance(models.Model):
         )
 
     def clean(self):
-        import re
         from urllib.parse import urlsplit
         from .connectors.http import ConnectorError, validate_base
 
@@ -935,6 +955,9 @@ class FlowIntelCase(models.Model):
     instance = models.ForeignKey(FlowIntelInstance, on_delete=models.PROTECT)
     finding = models.ForeignKey(Finding, on_delete=models.PROTECT, related_name="flowintel_cases")
     creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    remediation_batch = models.OneToOneField(
+        NotificationBatch, null=True, blank=True, on_delete=models.PROTECT, related_name="remediation_case"
+    )
     snapshot = models.JSONField()
     fingerprint = models.CharField(max_length=64)
     title = models.CharField(max_length=240)
@@ -954,7 +977,11 @@ class FlowIntelCase(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["instance", "finding"], name="unique_flowintel_finding"),
+            models.UniqueConstraint(
+                fields=["instance", "finding"],
+                condition=Q(remediation_batch__isnull=True),
+                name="unique_flowintel_finding",
+            ),
             models.UniqueConstraint(
                 fields=["instance", "remote_id"],
                 condition=Q(remote_id__isnull=False),
@@ -989,6 +1016,13 @@ class FlowIntelTask(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["case", "step"], name="unique_flowintel_step")]
+
+
+class RemediationReservation(models.Model):
+    """A claimed host/CVE/action identity shared by both planning entry points."""
+
+    fingerprint = models.CharField(max_length=64, unique=True)
+    case = models.ForeignKey(FlowIntelCase, on_delete=models.PROTECT, related_name="remediation_reservations")
 
 
 class AssetIssue(models.Model):
@@ -2181,6 +2215,8 @@ class AgentDevice(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
+    uninstall_requested_at = models.DateTimeField(null=True, blank=True)
+    uninstall_acknowledged_at = models.DateTimeField(null=True, blank=True)
     last_sequence = models.PositiveBigIntegerField(default=0)
     daily_bytes = models.PositiveBigIntegerField(default=0)
     daily_reports = models.PositiveIntegerField(default=0)
@@ -2220,6 +2256,12 @@ class AgentDevice(models.Model):
                 fields=["asset"], condition=Q(enabled=True), name="one_active_agent_per_asset"
             )
         ]
+
+    def uninstall_offer_open(self, at=None):
+        from datetime import timedelta
+
+        at = at or timezone.now()
+        return bool(self.uninstall_requested_at and at - self.uninstall_requested_at <= timedelta(days=30))
 
     @property
     def stale(self):
@@ -2366,11 +2408,15 @@ class DistroMatch(models.Model):
     queue_proof = models.GeneratedField(
         expression=DistroQueueProofV1("snapshot"), output_field=models.JSONField(), db_persist=True
     )
+    vendor_fix_inputs = models.GeneratedField(
+        expression=DistroVendorFixInputsV1("snapshot"), output_field=models.JSONField(), db_persist=True
+    )
     evaluated_at = models.DateTimeField(default=timezone.now)
     review_required = models.BooleanField(default=True)
 
     @property
     def inputs_changed(self):
+        """Check an in-memory match, including edits that have not been saved."""
         from . import distro_cves, distro_results, distro_sources
 
         from .ubuntu_status import proof_current

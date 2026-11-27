@@ -1,6 +1,6 @@
 # Debian-maintained RT 5 with security patches and optional RTIR 5.0.10; native amd64/arm64.
 FROM python:3.12-slim-trixie
-ARG RT_VERSION=5.0.7+dfsg-4+deb13u3
+ARG RT_VERSION=5.0.7+dfsg-4+deb13u4
 RUN --mount=type=secret,id=cloud-ca,mode=0444 \
     set -eu; \
     printf '#!/bin/sh\nexit 101\n' > /usr/sbin/policy-rc.d; chmod 755 /usr/sbin/policy-rc.d; \
@@ -10,7 +10,7 @@ RUN --mount=type=secret,id=cloud-ca,mode=0444 \
     apt-get update; \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       dbconfig-no-thanks msmtp-mta apache2 libapache2-mod-fcgid libapache2-mod-auth-openidc \
-      "rt5-apache2=$RT_VERSION" "rt5-fcgi=$RT_VERSION" "rt5-db-postgresql=$RT_VERSION" \
+      "rt5-apache2=$RT_VERSION" "rt5-fcgi=$RT_VERSION" "rt5-db-postgresql=$RT_VERSION" "rt5-clients=$RT_VERSION" \
       "request-tracker5=$RT_VERSION" ca-certificates make gcc libnet-domain-tld-perl; \
     a2enmod ssl headers auth_openidc fcgid; a2dissite 000-default; \
     rm -rf /var/lib/apt/lists/* /tmp/cloud-apt.conf; \

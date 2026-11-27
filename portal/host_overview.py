@@ -7,69 +7,33 @@ from django.db.models import (
     Case,
     Count,
     F,
-    Func,
     IntegerField,
+    Min,
     OuterRef,
     Q,
     Subquery,
     Value,
     When,
-    BooleanField,
     DateTimeField,
     DurationField,
     ExpressionWrapper,
 )
 from django.db.models.functions import Cast, Coalesce, Now
 from django.utils import timezone
+from django.urls import reverse
 from .circl import findings_for
+from .distro_fix_evidence import HasVendorFix
 from .issues import ACTIVE, visible_issues
 from .models import AgentDevice, Installation
-from .review_focus import posture
-from .review_queue import classified
+from .review_focus import machine_coverage
+from .review_queue import CLEARED_VERDICTS, classified
+from .review_work import positive_package_coverage
+from .presentation import severity_rank
 from .table_sort import TableSort
 from .inventory_presentation import additional_software_filter
 
 
-class HasVendorFix(Func):
-    """Same explicit fixed-note/strict satisfied-bound contract as update_context.
-
-    Evaluate in the database before counts, filtering and pagination; never fetch
-    every retained proof or infer an installable repository candidate.
-    """
-
-    arity = 1
-    output_field = BooleanField()
-
-    def as_postgresql(self, compiler, connection, **extra):
-        source, params = compiler.compile(self.source_expressions[0])
-
-        def array(path):
-            return f"CASE WHEN jsonb_typeof({source} #> '{{package_check,{path}}}') = 'array' THEN {source} #> '{{package_check,{path}}}' ELSE '[]'::jsonb END"
-
-        sql = f"""EXISTS(SELECT 1 FROM jsonb_array_elements({array("comparisons")}) hc(value),
-            jsonb_array_elements({array("vendor_comments")}) hn(value)
-            WHERE jsonb_typeof(hc.value->'vendor_version')='string'
-            AND hc.value->>'vendor_version' <> ''
-            AND hc.value->>'operation'='less than' AND hc.value->'matches'='true'::jsonb
-            AND jsonb_typeof(hn.value)='string'
-            AND strpos(hn.value #>> '{{}}', %s || (hc.value->>'vendor_version') || %s)>0)"""
-        return sql, [*params, *params, *params, *params, "has been fixed (note: '", "')"]
-
-    def as_sqlite(self, compiler, connection, **extra):
-        source, params = compiler.compile(self.source_expressions[0])
-
-        def array(path):
-            return f"CASE WHEN json_type({source}, '$.package_check.{path}')='array' THEN json_extract({source}, '$.package_check.{path}') ELSE '[]' END"
-
-        comparison = "CASE WHEN hc.type='object' THEN hc.value ELSE '{}' END"
-        sql = f"""EXISTS(SELECT 1 FROM json_each({array("comparisons")}) hc,
-            json_each({array("vendor_comments")}) hn
-            WHERE json_type({comparison}, '$.vendor_version')='text'
-            AND json_extract({comparison}, '$.vendor_version') <> ''
-            AND json_extract({comparison}, '$.operation')='less than'
-            AND json_type({comparison}, '$.matches')='true' AND hn.type='text'
-            AND instr(hn.value, %s || json_extract({comparison}, '$.vendor_version') || %s)>0)"""
-        return sql, [*params, *params, *params, *params, "has been fixed (note: '", "')"]
+MAX_GROUPED_PACKAGE_HOSTS = 250
 
 
 def count_for(queryset, field, grouping):
@@ -77,6 +41,85 @@ def count_for(queryset, field, grouping):
         queryset.order_by().values(grouping).annotate(total=Count(field, distinct=True)).values("total")[:1]
     )
     return Coalesce(Subquery(grouped, output_field=IntegerField()), Value(0))
+
+
+def _correlated_package_counts(reviews):
+    reviews = classified(reviews).filter(package_current=True)
+    automatic = reviews.filter(distro_match__queue_proof__verdict="affected")
+    fixes = automatic.annotate(has_vendor_fix=HasVendorFix(F("distro_match__vendor_fix_inputs"))).filter(
+        has_vendor_fix=True
+    )
+    priority = (
+        automatic.annotate(rank=severity_rank("record__source_severity")).order_by("rank").values("rank")[:1]
+    )
+    return {
+        "source_priority": Case(
+            When(evaluated=True, then=Subquery(priority)),
+            default=Cast(Value(None), IntegerField()),
+        ),
+        "affected_packages": Case(
+            When(evaluated=True, then=count_for(automatic, "installation_id", "installation__asset_id")),
+            default=Value(0),
+        ),
+        "fix_packages": Case(
+            When(evaluated=True, then=count_for(fixes, "installation_id", "installation__asset_id")),
+            default=Value(None),
+            output_field=IntegerField(),
+        ),
+        "unresolved_packages": Case(
+            When(
+                evaluated=True,
+                then=count_for(
+                    reviews.filter(queue_bucket="unresolved"), "installation_id", "installation__asset_id"
+                ),
+            ),
+            default=Value(0),
+        ),
+    }
+
+
+def _package_counts(reviews, hosts):
+    """Summarize current proofs once for a bounded organization host cohort."""
+    affected = Q(distro_match__queue_proof__verdict="affected")
+    # Currentness is proven by the outer filter. The unresolved bucket therefore
+    # needs only the verdict and saved-assessment predicates here.
+    unresolved = (
+        ~affected
+        & ~Q(distro_match__queue_proof__verdict__in=CLEARED_VERDICTS)
+        & ~Q(analyst_applicability__in=("affected", "not_affected"))
+    )
+    counts = (
+        classified(reviews, assets=hosts.order_by().values("pk"))
+        .filter(package_current=True)
+        .alias(has_vendor_fix=HasVendorFix(F("distro_match__vendor_fix_inputs")))
+        .order_by()
+        .values("installation__asset_id")
+        .annotate(
+            affected_packages=Count("installation_id", distinct=True, filter=affected),
+            fix_packages=Count("installation_id", distinct=True, filter=affected & Q(has_vendor_fix=True)),
+            unresolved_packages=Count("installation_id", distinct=True, filter=unresolved),
+            source_priority=Min(severity_rank("record__source_severity"), filter=affected),
+        )[: MAX_GROUPED_PACKAGE_HOSTS + 1]
+    )
+    rows = list(counts)
+    if len(rows) > MAX_GROUPED_PACKAGE_HOSTS:
+        return _correlated_package_counts(reviews.filter(installation__asset_id=OuterRef("pk")))
+
+    annotations = {}
+    for field in ("affected_packages", "fix_packages", "unresolved_packages", "source_priority"):
+        default = None if field in {"fix_packages", "source_priority"} else 0
+        by_value = {}
+        for row in rows:
+            value = row[field]
+            if value is not None and (value or field == "source_priority"):
+                by_value.setdefault(value, []).append(row["installation__asset_id"])
+        cases = [When(evaluated=True, pk__in=ids, then=Value(value)) for value, ids in by_value.items()]
+        if field == "fix_packages":
+            cases.append(When(evaluated=True, then=Value(0)))
+        annotations[field] = Case(
+            *cases, default=Cast(Value(default), IntegerField()), output_field=IntegerField()
+        )
+    return annotations
 
 
 def overview(request, org):
@@ -101,13 +144,21 @@ def overview(request, org):
             ("observed", "Last report", "report_time", False),
         ],
     )
-    machine_scope = posture(request.user, [org.pk], include_totals=False)["machines"]
-    reviews = classified(findings_for(request.user).filter(organization=org)).filter(
-        installation__asset_id=OuterRef("pk")
-    )
-    automatic = reviews.filter(package_current=True, distro_match__queue_proof__verdict="affected")
-    fixes = automatic.annotate(has_vendor_fix=HasVendorFix(F("distro_match__snapshot"))).filter(
-        has_vendor_fix=True
+    machines, evaluation_available = machine_coverage(request.user, [org.pk])
+    query = request.GET.get("host_q", "").strip()[:128]
+    if query:
+        machines = machines.filter(name__icontains=query)
+    scoped_reviews = findings_for(request.user).filter(organization=org)
+    reviews = scoped_reviews.filter(installation__asset_id=OuterRef("pk"))
+    package_counts = (
+        _package_counts(scoped_reviews, machines)
+        if evaluation_available
+        else {
+            "source_priority": Cast(Value(None), IntegerField()),
+            "affected_packages": Value(0),
+            "fix_packages": Value(None, output_field=IntegerField()),
+            "unresolved_packages": Value(0),
+        }
     )
     issues = visible_issues(request.user, standalone=True).filter(
         organization=org, asset_id=OuterRef("pk"), status__in=ACTIVE
@@ -150,16 +201,8 @@ def overview(request, org):
         .order_by("rank")
         .values("rank")[:1]
     )
-    machines = machine_scope.annotate(
-        affected_packages=Case(
-            When(evaluated=True, then=count_for(automatic, "installation_id", "installation__asset_id")),
-            default=Value(0),
-        ),
-        fix_packages=Case(
-            When(evaluated=True, then=count_for(fixes, "installation_id", "installation__asset_id")),
-            default=Value(None),
-            output_field=IntegerField(),
-        ),
+    machines = machines.annotate(
+        **package_counts,
         manual_packages=count_for(
             reviews.filter(distro_match__isnull=True, status__in=ACTIVE).exclude(
                 analyst_applicability="not_affected"
@@ -171,17 +214,6 @@ def overview(request, org):
             reviews.filter(analyst_applicability="affected", status__in=[*ACTIVE, "accepted_risk"]),
             "installation_id",
             "installation__asset_id",
-        ),
-        unresolved_packages=Case(
-            When(
-                evaluated=True,
-                then=count_for(
-                    reviews.filter(package_current=True, queue_bucket="unresolved"),
-                    "installation_id",
-                    "installation__asset_id",
-                ),
-            ),
-            default=Value(0),
         ),
         mapping_gaps=count_for(unmapped.filter(asset_id=OuterRef("pk")), "pk", "asset_id"),
         issue_count=count_for(issues, "pk", "asset_id"),
@@ -218,9 +250,6 @@ def overview(request, org):
             default=Value(False),
         ),
     )
-    query = request.GET.get("host_q", "").strip()[:128]
-    if query:
-        machines = machines.filter(name__icontains=query)
     stats = machines.order_by().aggregate(
         total=Count("pk"),
         problems=Count("pk", filter=Q(has_problems=True)),
@@ -316,18 +345,21 @@ def overview(request, org):
                 else "source"
             )
         else:
+            clear = (
+                not host.has_problems
+                and not host.has_gaps
+                and positive_package_coverage(summary, host.evaluated and not host.partial)
+            )
             host.priority_label = (
-                "No current version matches"
-                if host.evaluated and not host.partial and not host.has_gaps
+                "✓ No open vulnerabilities in checked scope"
+                if clear
                 else "Assessment incomplete"
                 if host.evaluated
                 else "Assessment unavailable"
             )
             if host.saved_affected:
                 host.priority_label = "Saved affected assessment"
-            host.priority_tone = (
-                "clear" if host.evaluated and not host.has_gaps and not host.saved_affected else "unknown"
-            )
+            host.priority_tone = "clear" if clear else "unknown"
             host.priority_origin = ""
     metric_definitions = [
         ("all", "total", "Active hosts"),
@@ -350,7 +382,7 @@ def overview(request, org):
         "host_stats": stats,
         "host_metrics": metrics,
         "host_query": query,
-        "host_return_url": request.path + sorting.url(return_to=None),
+        "host_return_url": reverse("organization", args=[org.slug]) + sorting.url(return_to=None),
         "host_filter": filter_key,
         **{"host_" + key: value for key, value in sorting.context(page).items()},
     }

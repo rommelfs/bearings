@@ -333,55 +333,6 @@ def snapshot_panel(user, section):
     return result
 
 
-def snapshot_map_reviews(user):
-    """Only substitute a complete currently clean audience; otherwise use live map evidence."""
-    from django.db.models.functions import Greatest
-
-    try:
-        scoped = snapshot_scope(user)
-    except PendingSnapshot:
-        return None
-    if scoped is None:
-        return None
-    states, coverage = scoped
-    pending = []
-    stable = READ_SNAPSHOT.get()
-    if coverage["pending"]:
-        if not stable:
-            return None
-        pending = list(
-            organizations_for(user)
-            .exclude(pk__in=states.values("organization_id"))
-            .values_list("pk", flat=True)[:1001]
-        )
-        if len(pending) > 1000:
-            return None
-    rows = (
-        NationalProblem.objects.filter(organization__in=states.values("organization_id"))
-        .filter(audience(user))
-        .order_by()
-        .values("organization_id")
-        .annotate(total=Sum("reviews"), rank=Greatest(Value(1), Value(5) - Min("severity_rank")))
-    )
-    result = {row["organization_id"]: row for row in rows}
-    # Recheck freshness after aggregation; don't turn a newly dirty company into green.
-    if pending:
-        from .circl_map import grouped
-        from .circl import findings_for, outstanding
-
-        live = outstanding(findings_for(user)).filter(
-            organization_id__in=pending,
-            installation__asset__organization_id__in=pending,
-            record__organization_id__in=pending,
-        )
-        result.update(
-            grouped(live, "record__source_severity", {"critical": 5, "high": 4, "medium": 3, "low": 2})
-        )
-    if not stable and states.count() != coverage["total"]:
-        return None
-    return result
-
-
 def research_projection(user, data):
     try:
         scoped = snapshot_scope(user)

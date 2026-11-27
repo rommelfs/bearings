@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
-from .access import require
+from .access import require, organization
 from .circl_views import private_response
 from .inventory_review import (
     configure_review,
@@ -19,7 +19,6 @@ from .inventory_review import (
 )
 from .models import InventoryReviewPolicy
 from .registration_forms import InventoryReviewForm, InventoryReviewSettingsForm
-from .views import organization
 
 
 @login_required

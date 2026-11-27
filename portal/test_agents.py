@@ -130,6 +130,70 @@ class AgentTests(Fixture):
             last_received_at=timezone.now() - timedelta(seconds=11)
         )
 
+    def test_uninstall_requires_company_admin_and_signed_device_acknowledgment(self):
+        self.enroll()
+        report = self.send()
+        self.assertEqual(report.status_code, 202)
+        path = "/api/v1/agent/uninstall/"
+        message = {"schema": "bearings.agent.uninstall.v1", "action": "check"}
+        self.assertEqual(self.post(path, message).json()["action"], "none")
+
+        form = {"action": "uninstall", "device": str(self.device.pk), "confirm_uninstall": "on"}
+        center = self.url("agent-center")
+        self.login(self.reader)
+        self.assertEqual(self.client.post(center, form).status_code, 403)
+        self.login(self.admin)
+        self.assertEqual(self.client.post(self.url("agent-center", self.b), form).status_code, 404)
+        rejected = self.client.post(center, {**form, "confirm_uninstall": ""})
+        self.assertContains(rejected, "Confirm removal of the client")
+        self.device.refresh_from_db()
+        self.assertTrue(self.device.enabled)
+
+        self.assertEqual(self.client.post(center, form).status_code, 302)
+        self.device.refresh_from_db()
+        self.assertFalse(self.device.enabled)
+        self.assertIsNotNone(self.device.uninstall_requested_at)
+        self.assertIsNone(self.device.uninstall_acknowledged_at)
+        self.assertEqual(AgentReport.objects.get(pk=report.json()["report_id"]).status, "rejected")
+        self.assertEqual(self.send().status_code, 403)
+        self.assertEqual(self.post(path, message).json()["action"], "uninstall")
+        self.assertContains(self.client.get(center), "Waiting for the client")
+        self.assertEqual(self.post(path, message, key=Ed25519PrivateKey.generate()).status_code, 403)
+        self.assertEqual(self.post(path, {**message, "action": "arbitrary"}).status_code, 403)
+
+        ack = {**message, "action": "acknowledge"}
+        for _ in range(2):
+            self.assertEqual(self.post(path, ack).json()["device_id"], str(self.device.pk))
+        self.device.refresh_from_db()
+        self.assertIsNotNone(self.device.uninstall_acknowledged_at)
+        self.assertContains(self.client.get(center), "Client acknowledged removal")
+        self.asset.refresh_from_db()
+        self.assertEqual(self.asset.organization_id, self.a.pk)
+
+    def test_local_uninstall_revokes_device_and_only_offered_retirements_can_be_acked(self):
+        self.enroll()
+        path = "/api/v1/agent/uninstall/"
+        message = {"schema": "bearings.agent.uninstall.v1", "action": "acknowledge"}
+        self.assertEqual(self.post(path, message).status_code, 403)
+        for _ in range(2):
+            self.assertEqual(self.post(path, {**message, "action": "local"}).status_code, 200)
+        self.device.refresh_from_db()
+        self.assertFalse(self.device.enabled)
+        self.assertIsNone(self.device.uninstall_requested_at)
+        self.assertIsNotNone(self.device.uninstall_acknowledged_at)
+
+    def test_expired_remote_uninstall_request_can_be_renewed(self):
+        self.enroll()
+        path = "/api/v1/agent/uninstall/"
+        message = {"schema": "bearings.agent.uninstall.v1", "action": "check"}
+        agents.request_uninstall(self.admin, self.a, self.device.pk)
+        AgentDevice.objects.filter(pk=self.device.pk).update(
+            uninstall_requested_at=timezone.now() - timedelta(days=31)
+        )
+        self.assertEqual(self.post(path, message).status_code, 403)
+        agents.request_uninstall(self.admin, self.a, self.device.pk)
+        self.assertEqual(self.post(path, message).json()["action"], "uninstall")
+
     def test_public_key_bound_one_use_enrollment_and_lost_ack(self):
         data = self.enroll()
         r = self.post(

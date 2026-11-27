@@ -165,7 +165,67 @@ vendor version condition includes the installed version, affected/fixed bound
 and native comparison. The tabs separately expose **Vendor clarification
 needed**, **Awaiting current evaluation**, **Fixed / not affected / assessed**
 and **All retained open reviews**. Severity counts apply to the selected tab
-and search, before pagination. Counts are CVE–installation review records.
+and search, before pagination. Each case groups the visible open records for one
+normalized CVE on one inventory server. Other identifiers are grouped only
+within the same source record on that server. The case takes the first
+applicable category in this order: actionable, vendor clarification, awaiting
+evaluation, and fixed or not affected. The source severity of the selected
+record controls the case's severity filter.
+
+When a case spans multiple installations, its compact card lists up to six
+distinct software names and gives the number of additional names. **View
+software & evidence** opens the complete paginated records with the software
+version, edition and build where known, the source, package result, and saved
+assessment. Searching for one software name finds the server case with all its
+visible software. Different review categories and saved assessments are flagged
+on the card.
+
+The organization's **Asset → Vulnerability → Risk** list uses the same
+CVE-and-host grouping within its current filters, including retained decisions.
+All reviews use the same compact card. A single record links directly to its
+review details. A grouped case links to paginated evidence.
+Use **By CVE** for one card per CVE and host, **By machine** for per-host
+summaries, or **By software** for per-product summaries. Machine and software
+rows count distinct CVE IDs, display the highest CVSS to one decimal place,
+and link to filtered CVE cards. The same search and
+filters apply in each view. Filters include a minimum CVSS score (inclusive),
+Ubuntu vendor priority above a selected level (exclusive), and workflow status.
+An active threshold requires a known rating from that source. Combined filters
+must match the same evidence record. Recorded associations and workflow state
+remain separate from confirmed package applicability.
+
+### What needs work and what is complete
+
+Intelligence starts with **Needs attention**, covering open reviews, current
+affected matches and incomplete package evidence. **Fixed or not affected**
+shows retained decisions and original source severity. **All evidence** includes
+closed workflow records. A current affected version that conflicts with a saved
+not-affected assessment stays visible for review. The selected assessment scope
+applies to CVE cards and to machine and software counts. Direct evidence links
+continue to open retained records. An empty work list is a result for the selected
+records and filters. Review machine coverage before interpreting it.
+
+The host overview or asset review shows **No open vulnerabilities in checked
+scope** only for a current complete Linux package evaluation with actual packages
+checked and no relevant visible findings. The positive statement is scoped to
+checked evidence. The host overview also keeps its application and inventory gaps
+visible. Partial, stale, unavailable or unsupported coverage remains explicitly
+incomplete. Windows update backlog evidence stays separate from package-CVE
+coverage.
+
+On an asset, verified fixes from the past 30 days count distinct CVE and
+installation pairs with current fixed evidence whose preceding recorded proof
+showed affectedness under the same package identity, OS, feed and vendor rule.
+A comparable version change counts as progress. Workflow closure alone does
+not count. Automatically generated issue entries for cleared findings leave
+active issue and grouped action lists. Explicit work, including assigned
+deadlines and recorded actions, remains available. Retained issue history and
+source records stay accessible.
+
+Existing direct finding links open the individual assessment and risk mapping.
+The assessment and workflow controls sit side by side where space allows.
+The reason field starts at three lines and can be expanded.
+The review-decision timeline still counts recorded transitions.
 
 An updated package with a proven vendor fix leaves the default queue after
 automatic reevaluation. Its review history and analyst assessment remain.
@@ -433,3 +493,12 @@ Company overview cards now emphasize machine-based match and evaluation-coverage
 ## Compact review workflow
 
 The company card now shows three primary next steps and folds detailed reasons, network/evidence previews and monitoring limitations. Filter chips and case return paths preserve your selected work. See [usability improvements](usability-improvements.md) for the implemented behavior and validation limits.
+
+### Organization host inventory while assessment loads
+
+The organization page renders an inventory preview of up to 25 active hosts
+before the separate CVE assessment request completes. Inventory links stay
+available after a timeout, redirect, or other failed response. Retry CVE
+assessment to recover the evaluated priorities and counts, or follow **Open
+full inventory** for the full retained inventory. A preview reflects the
+authorized inventory and carries no package or assessment totals.

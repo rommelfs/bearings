@@ -24,16 +24,20 @@ from .models import (
     IssueHistory,
 )
 from .notifications import contact_policy
-from .presentation import ACTIVE_REVIEWS, SEVERITY_ORDER
+from .presentation import ACTIVE_REVIEWS, severity_rank
 from .overview_explanations import review_explanation
+from .review_work import without_unworked_issue_shells
 
 
-def reviews_for(user, *, include_cleared=False):
+def reviews_for(user, *, include_cleared=False, organizations=None):
     from .review_queue import classified
 
-    reviews = classified(
-        visible_findings_for(user).filter(status__in=ACTIVE_REVIEWS, installation__asset__lifecycle="active")
+    reviews = visible_findings_for(user).filter(
+        status__in=ACTIVE_REVIEWS, installation__asset__lifecycle="active"
     )
+    if organizations is not None:
+        reviews = reviews.filter(organization_id__in=organizations)
+    reviews = classified(reviews, organizations=organizations)
     return reviews if include_cleared else reviews.exclude(queue_bucket="cleared")
 
 
@@ -48,7 +52,7 @@ class OverviewEvidence:
     @classmethod
     def for_page(cls, user, orgs):
         ids = [org.pk for org in orgs]
-        all_reviews = reviews_for(user, include_cleared=True).filter(organization_id__in=ids)
+        all_reviews = reviews_for(user, include_cleared=True, organizations=ids)
         return cls(
             all_reviews.exclude(queue_bucket="cleared"),
             visible_issues(user).filter(organization_id__in=ids),
@@ -69,20 +73,22 @@ class OverviewEvidence:
             .values(
                 "organization_id",
                 "installation__asset_id",
-                "queue_bucket",
                 "package_current",
                 "analyst_applicability",
                 "record__source_severity",
                 "distro_match__queue_proof__verdict",
+                "queue_bucket",
             )
             .annotate(total=Count("pk"))
         )
         for row in bins:
             counts = companies.setdefault(row["organization_id"], _review_counts())
             total = row["total"]
-            if row["package_current"] and row["distro_match__queue_proof__verdict"] == "affected":
+            verdict = row["distro_match__queue_proof__verdict"]
+            if row["package_current"] and verdict == "affected":
                 counts["automatic_affected"] += total
-            if row["queue_bucket"] == "cleared":
+            bucket = row["queue_bucket"]
+            if bucket == "cleared":
                 counts["review_cleared"] += total
                 continue
             asset_counts = assets.setdefault(
@@ -90,7 +96,7 @@ class OverviewEvidence:
             )
             counts["reviews"] += total
             asset_counts["reviews"] += total
-            counts["review_" + row["queue_bucket"]] += total
+            counts["review_" + bucket] += total
             if row["analyst_applicability"] == "affected":
                 counts["affected"] += total
                 asset_counts["affected"] += total
@@ -103,7 +109,7 @@ class OverviewEvidence:
 
     @cached_property
     def active_issues(self):
-        return (
+        return without_unworked_issue_shells(
             self.issues.filter(asset__lifecycle="active")
             .filter(active_filter())
             .exclude(finding__analyst_applicability="not_affected")
@@ -151,14 +157,6 @@ class OverviewEvidence:
         return companies, assets, previews
 
 
-def _severity_cases(prefix):
-    return Case(
-        *[When(**{prefix: value}, then=Value(index)) for index, value in enumerate(SEVERITY_ORDER)],
-        default=Value(len(SEVERITY_ORDER)),
-        output_field=IntegerField(),
-    )
-
-
 def _ranked_issues(issues):
     return issues.annotate(
         assessment_order=Case(
@@ -169,7 +167,7 @@ def _ranked_issues(issues):
             default=Value(3),
             output_field=IntegerField(),
         ),
-        severity_order=_severity_cases("finding__record__source_severity"),
+        severity_order=severity_rank("finding__record__source_severity"),
         urgent_order=Case(
             When(action_due__lt=timezone.localdate(), then=Value(0)),
             default=Value(1),
@@ -524,7 +522,7 @@ def priority_assets(user, orgs, *, timings=None, evidence=None):
                 default=Value(2),
                 output_field=IntegerField(),
             ),
-            severity_order=_severity_cases("record__source_severity"),
+            severity_order=severity_rank("record__source_severity"),
             position=Window(
                 expression=RowNumber(),
                 partition_by=[F("installation__asset_id")],

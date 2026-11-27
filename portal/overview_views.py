@@ -5,15 +5,16 @@ from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from .access import analyst_read_snapshot, audit, is_analyst, organizations_for
+from .access import analyst_read_snapshot, audit_organizations, organizations_for
 from .models import Asset, Membership
 from .overview import OverviewEvidence, company_states, priority_assets
-from .overview_queries import overview_queries
+from .overview_queries import overview_queries, read_snapshot
 
 
 @login_required
-@never_cache
 @analyst_read_snapshot
+@never_cache
+@read_snapshot()
 def overview(request):
     started = perf_counter()
     with overview_queries(planning_limit=4) as database:
@@ -45,19 +46,7 @@ def _overview_response(request):
     page.object_list = list(
         page.object_list.select_related("inventory_source__instance", "inventory_review_policy")
     )
-    if request.user.is_superuser:
-        audited_orgs = page.object_list
-    elif is_analyst(request.user):
-        member_ids = set(
-            Membership.objects.filter(user=request.user, organization__in=page.object_list).values_list(
-                "organization_id", flat=True
-            )
-        )
-        audited_orgs = [org for org in page if org.pk not in member_ids]
-    else:
-        audited_orgs = []
-    for org in audited_orgs:
-        audit(request.user, org, "operator.access")
+    audit_organizations(request.user, page.object_list)
     scoped = perf_counter()
     evidence = OverviewEvidence.for_page(request.user, page.object_list)
     companies = company_states(request.user, page.object_list, evidence=evidence)
@@ -68,7 +57,9 @@ def _overview_response(request):
     )
     from .review_focus import posture
 
-    machine_postures = posture(request.user, [state["org"].pk for state in companies])["organizations"]
+    machine_postures = posture(request.user, [state["org"].pk for state in companies], scoped_evidence=True)[
+        "organizations"
+    ]
     from .software_coverage import inventory, accounting, observation_counts
 
     software_accounting = accounting(inventory(request.user, [s["org"].pk for s in companies]))

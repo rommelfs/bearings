@@ -116,6 +116,7 @@ def bounded_list(view):
 
 
 READ_SNAPSHOT = ContextVar("bearings_read_snapshot", default=False)
+SNAPSHOT_PROOF_IDS = ContextVar("bearings_snapshot_proof_ids", default=None)
 
 
 @contextmanager
@@ -128,7 +129,9 @@ def read_snapshot():
         with connection.cursor() as cursor:
             cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         token = READ_SNAPSHOT.set(True)
+        cached_proofs = SNAPSHOT_PROOF_IDS.set({})
         try:
             yield
         finally:
+            SNAPSHOT_PROOF_IDS.reset(cached_proofs)
             READ_SNAPSHOT.reset(token)

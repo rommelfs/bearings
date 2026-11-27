@@ -1,6 +1,6 @@
 # FlowIntel: private case hand-off
 
-Bearings can prepare and approve a private FlowIntel case for an existing vulnerability review, create four follow-up tasks and read back workflow status. This is an optional local pilot. It does not discover vulnerabilities, send notifications, patch machines or automatically resolve findings.
+Bearings can prepare and approve a private FlowIntel case for an existing vulnerability review, create four follow-up tasks and read back workflow status. The same connector also coordinates [remediation plans by CVE or machine](#plan-remediation-by-cve-or-machine). Case and task status are separate from verified remediation.
 
 ## Start the bundled lab
 
@@ -92,8 +92,71 @@ This fix is in the bind-mounted `docker/flowintel/start.py`, so the already buil
 
 Platform superusers can configure **FlowIntel instances** in Django administration: approved credential-free HTTPS API/browser bases, an optional Bearings browser base, a `FLOWINTEL_*TOKEN` environment-variable name, the expected service organization ID, private-destination approval and enabled policy. Supply the key only through server-side secret configuration. Use the API user's own organization and an editor role with access to the intended private cases; do not default to an unrestricted admin key. Native/custom workers need the same key/trust configuration.
 
+Set **Display name** on the FlowIntel instance to choose the label shown in
+Bearings. The native CIRCL connection defaults to **CIRCL FlowIntel** and the
+bundled instance to **FlowIntel development lab**. Existing custom connection
+names serve as the fallback. The display field only labels the workspace.
+
 Once a preview exists, API base, credential reference and service organization identity cannot be repointed underneath it. Browser origins can be changed by the operator without sending credentials there. Only fixed case/task creation and read routes are supported. Generic GET crawling is prohibited because some upstream GET routes mutate state. Cases retain their own source-bound identities and are never synchronized into NetBox.
 
 ## Shared sign-in
 
 With `python3 scripts/dev.py up --sso --flowintel`, use `circl-analyst` through **Sign in with SSO** in Bearings and FlowIntel. The existing provider session avoids another password prompt; the FlowIntel CIRCL account keeps its current organization and role. Company users cannot enter the CIRCL case workspace. Local emergency login remains available. See [SSO operation](../operations/sso.md) for certificate trust, revocation and session limits.
+
+## Plan remediation by CVE or machine
+
+A CIRCL analyst or platform administrator can open **Vulnerability review** in
+an organization that grants operator visibility. Choose **Notify about this
+CVE** on a CVE card or evidence page, or **Notify about this machine** in
+**By machine** or on the machine detail page. Each plan uses
+one organization's open, shareable CVE reviews. Review-list filters do not
+silently narrow the plan. A plan supports up to 2,000 reviews, 150 tasks and 25
+recipients. For larger selections, start with a narrower CVE or machine.
+
+If the notification action is unavailable, the workspace explains the
+required role or the organization's CIRCL analyst visibility setting.
+Platform administrators can open the organization settings from the notice.
+A CVE may have evidence from several sources. The preparation screen checks
+which open reviews in the organization are approved for sharing.
+
+1. Select an enabled private FlowIntel instance with a configured **Bearings
+   URL**, an optional deadline and the verified contacts that should receive
+   the actions. Technical contacts receive only actions for hosts assigned to
+   them. Security contacts can receive the company's full actionable plan.
+   Where company policy requires it, select an eligible DPO as well. Leave the
+   selection empty for a private case without mail.
+2. A current affected-package comparison and an explicit vendor fix create one
+   update task per host and installation. Several CVEs can share that task.
+   It lists the fixed versions and recorded Ubuntu ESM channels. The
+   administrator checks the candidate in the host's repositories, plans the
+   change and verifies it with fresh inventory. To supply a reviewed
+   workaround for an affected review, enter its review ID, the concrete
+   change, an advisory/runbook reference and a verification step.
+3. Reviews with no actionable fix or mitigation generate an internal
+   verification task per host. They stay out of the outgoing message. Fixed,
+   unaffected, closed and restricted findings are excluded. The preview shows
+   each task and the exact mail to be sent to each contact.
+4. Choose **Preview notification**. The recipient and message previews appear
+   above the task details. Choose **Send notification** to approve and queue
+   delivery, **Queue test notification** for the local outbox, or **Create
+   internal FlowIntel tasks** for a plan without recipients. PostgreSQL
+   reserves the same host/CVE/action across both
+   entry points. The worker creates, then verifies, the private FlowIntel case
+   and its tasks over HTTPS. The case links to the Bearings delivery and
+   verification record. Bearings releases the approved mail through its
+   configured notification transport only after this check. Customer email
+   addresses are used by the Bearings transport. FlowIntel retains the private
+   coordination case.
+5. Follow **Open private FlowIntel case** to assign and track work. Bearings
+   shows FlowIntel task completion, notification hand-off/acknowledgement and
+   the current evidence for each review. A local file is a test record.
+   SMTP acceptance records hand-off to the relay. Confirm actual remediation
+   with a current vendor comparison or a recorded Bearings assessment.
+
+A changed assessment, lost scope, stale proof, recipient change or transport
+change can invalidate the approval. A temporary FlowIntel read failure before
+mail can be rechecked by the worker. Uncertain case/task POSTs and uncertain
+mail attempts retain their claims for investigation. Scheduled generic
+outreach reminders do not send follow-ups for these plans. Pinned Windows
+build/edition-to-KB fix rules and on-host repository availability are outside
+this release. A reviewed Windows workaround can use the same mitigation form.

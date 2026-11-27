@@ -4,6 +4,7 @@ from django.db.models import Case, F, IntegerField, Value, When, Window
 from django.db.models.functions import RowNumber
 from .distro_verdicts import decorate_package_verdict
 from .presentation import vulnerability_summary
+from .review_queue import classified, discovery_version_status
 
 
 def decorate(user, rows, *, prepared=False):
@@ -20,7 +21,7 @@ def decorate(user, rows, *, prepared=False):
         # Examples must describe the same clean subset as the prepared counters.
         candidates = candidates.filter(organization__national_state__dirty=False)
     # Two concrete installations per advisory, in one query, regardless of fleet size.
-    examples = (
+    selected = (
         candidates.filter(record__external_id__in=by_id)
         .annotate(
             example_position=Window(
@@ -38,6 +39,14 @@ def decorate(user, rows, *, prepared=False):
             )
         )
         .filter(example_position__lte=2)
+        .order_by("record__external_id", "example_position")
+        .values_list("pk", flat=True)
+    )
+    ids = list(selected)
+    examples = {
+        finding.pk: finding
+        for finding in classified(candidates.filter(pk__in=ids))
+        .annotate(discovery_version=discovery_version_status())
         .select_related(
             "organization",
             "record",
@@ -53,9 +62,11 @@ def decorate(user, rows, *, prepared=False):
             "distro_match__component__device__reported_network",
             "distro_match__component__device__services",
         )
-        .order_by("record__external_id", "example_position")
-    )
-    for finding in examples:
+    }
+    for pk in ids:
+        finding = examples.get(pk)
+        if finding is None:
+            continue
         row = by_id[finding.record.external_id]
         summary = vulnerability_summary(finding.record.payload)
         description = summary["description"] or (
@@ -74,6 +85,10 @@ def decorate(user, rows, *, prepared=False):
                 finding.next_step = "Inspect the unsupported or missing conditions in the evidence."
         elif verdict:
             finding.next_step = "Refresh inventory and vendor evaluation before deciding on remediation."
+        elif finding.discovery_version == "affected":
+            finding.next_step = "Check the vendor advisory for a fix or mitigation and review local exposure."
+        elif finding.queue_bucket == "cleared":
+            finding.next_step = "Review retained evidence and the saved assessment."
         else:
             finding.next_step = (
                 "Verify this installed version against the advisory's affected-version conditions."

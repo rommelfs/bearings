@@ -92,7 +92,7 @@ class DistroTests(Fixture):
         self.installation.refresh_from_db()
         self.assertEqual(self.installation.version, "")
         self.login()
-        response = self.client.get("/organizations/alpha/intelligence/")
+        response = self.client.get("/organizations/alpha/intelligence/", {"finding": finding.pk})
         self.assertContains(response, "Automatic distribution CVE check")
 
     def test_no_initial_finding_for_fixed_version(self):

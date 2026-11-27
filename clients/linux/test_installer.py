@@ -281,6 +281,73 @@ class InstallerTests(unittest.TestCase):
         download.assert_not_called()
         self.assertEqual(status.call_args.kwargs["result"], "awaiting_enrollment")
 
+    def test_remote_uninstall_resumes_after_the_credentials_are_removed(self):
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as contexts:
+            root = Path(directory)
+            bindings = {
+                "CLIENT": root / "bin/client",
+                "UNIT": root / "units/bearings-linux.service",
+                "STATE": root / "state",
+                "CONFIG": root / "config",
+                "UPDATER": root / "lib/update.py",
+                "UPDATE_CONFIG": root / "config/update.json",
+                "UPDATE_STATE": root / "update-state",
+                "REMOVE_HELPER": root / "lib/uninstall.py",
+                "REMOVE_UNIT": root / "units/bearings-linux-uninstall.service",
+                "REMOVE_TIMER": root / "units/bearings-linux-uninstall.timer",
+            }
+            for key, value in bindings.items():
+                contexts.enter_context(patch.object(installer, key, value))
+            for path in (installer.CLIENT, installer.REMOVE_HELPER, installer.REMOVE_TIMER):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("synthetic executable or unit")
+            installer.STATE.mkdir()
+            (installer.STATE / "key").write_text("synthetic key")
+            installer.CONFIG.mkdir()
+            custom = installer.CONFIG / "application-probes.json"
+            custom.write_text("administrator-owned profile")
+            checkpoint = root / "bearings-linux-uninstall.pending"
+            for name in ("safe_parent", "check_state"):
+                contexts.enter_context(patch.object(installer, name))
+            contexts.enter_context(
+                patch.object(installer, "regular", side_effect=lambda path, **_: path.is_file())
+            )
+            contexts.enter_context(patch.object(installer, "lookup_account", return_value=object()))
+            contexts.enter_context(patch.object(installer, "enrolled", return_value=True))
+            contexts.enter_context(patch.object(installer, "service_flag", return_value=False))
+            contexts.enter_context(
+                patch.object(installer, "atomic", side_effect=lambda path, data, mode: path.write_bytes(data))
+            )
+            systemctl = contexts.enter_context(patch.object(installer, "systemctl"))
+            run = contexts.enter_context(
+                patch.object(
+                    installer,
+                    "run",
+                    side_effect=[
+                        b"none",
+                        b"uninstall",
+                        b"uninstall",
+                        installer.InstallError("account busy"),
+                        b"",
+                    ],
+                )
+            )
+            installer.uninstall(remote=True)
+            self.assertTrue(installer.CLIENT.exists())
+            self.assertFalse(checkpoint.exists())
+            with self.assertRaises(installer.InstallError):
+                installer.uninstall(remote=True)
+            self.assertFalse(installer.CLIENT.exists())
+            self.assertFalse(installer.STATE.exists())
+            self.assertTrue(checkpoint.exists())
+            self.assertTrue(installer.REMOVE_TIMER.exists())
+            installer.uninstall(remote=True)
+            self.assertFalse(checkpoint.exists())
+            self.assertFalse(installer.REMOVE_TIMER.exists())
+            self.assertTrue(custom.exists())
+            self.assertEqual(run.call_count, 5)
+            systemctl.assert_any_call("disable", "--now", installer.REMOVE_TIMER.name)
+
     def test_cli_requires_root_before_touching_system(self):
         with patch("sys.argv", ["install.py"]), patch.object(installer.os, "geteuid", return_value=1000):
             with patch.object(installer, "systemctl") as command, self.assertRaises(installer.InstallError):

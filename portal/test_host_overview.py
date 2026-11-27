@@ -9,8 +9,10 @@ from django.utils import timezone
 from unittest.mock import patch
 from .tests import Fixture
 from . import test_ubuntu_status as fixture
-from .host_overview import HasVendorFix
-from .models import Asset, AssetIssue, Finding, SourceRecord
+from .distro_fix_evidence import HasVendorFix
+from .distro_projection import DistroVendorFixInputsV1
+from .distro_verdicts import vendor_fix_targets
+from .models import Asset, AssetIssue, DistroMatch, Finding, SourceRecord
 
 
 class HostOverviewTests(Fixture):
@@ -26,7 +28,7 @@ class HostOverviewTests(Fixture):
 
     def page(self, **params):
         self.login(self.reader)
-        response = self.client.get(self.url("organization"), params)
+        response = self.client.get(self.url("organization-hosts"), params)
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("host_overview_unavailable", response.context)
         return response
@@ -39,6 +41,12 @@ class HostOverviewTests(Fixture):
         self.assertEqual(host.affected_packages, 1)
         self.assertEqual(host.fix_packages, 1)
         self.assertEqual(response.context["host_stats"]["fixes"], 1)
+        self.assertIn("dbmax;dur=", response["Server-Timing"])
+        with patch("portal.host_overview.MAX_GROUPED_PACKAGE_HOSTS", 0):
+            fallback = self.page()
+        old_host = next(h for h in fallback.context["host_page"] if h.pk == self.device.asset_id)
+        self.assertEqual((old_host.affected_packages, old_host.fix_packages), (1, 1))
+        self.assertEqual(response.context["host_stats"], fallback.context["host_stats"])
         self.assertContains(response, "Repository updates: not checked")
         self.assertContains(response, "Fixed version explicitly documented")
         # A second advisory/record for the same installation never multiplies packages.
@@ -65,6 +73,30 @@ class HostOverviewTests(Fixture):
         self.assertIsNone(host.source_priority)
         self.assertNotEqual(host.priority_tone, "clear")
 
+    def test_linux_asset_prioritizes_current_fix_and_excludes_private_or_stale_evidence(self):
+        from .test_package_verdicts import save_browser_evidence
+
+        self.cached()
+        self.prepare()
+        self.login(self.reader)
+        url = self.url("asset", pk=self.device.asset_id)
+        page = self.client.get(url)
+        self.assertContains(page, "1 package with documented vendor fixes")
+        self.assertContains(page, "Repository update availability has not been checked")
+        self.assertContains(page, "1 package with current affected-version matches")
+        self.assertContains(page, 'aria-label="Reports received.')
+        save_browser_evidence("asset-attention-linux", page)
+        SourceRecord.objects.update(shareable=False)
+        page = self.client.get(url)
+        self.assertNotContains(page, "package with documented vendor fixes")
+        self.assertNotContains(page, "1 package with current affected-version matches")
+        SourceRecord.objects.update(shareable=True)
+        self.device.expires_at = timezone.now() - timedelta(minutes=1)
+        self.device.save(update_fields=["expires_at"])
+        page = self.client.get(url)
+        self.assertContains(page, "Update backlog unknown")
+        self.assertNotContains(page, "current affected package-version match")
+
     def test_private_intelligence_and_foreign_source_do_not_supply_priorities(self):
         self.cached()
         self.prepare()
@@ -74,7 +106,7 @@ class HostOverviewTests(Fixture):
         self.assertIsNone(host.source_priority)
         self.assertEqual(host.fix_packages, 0)
         self.login(self.platform)
-        response = self.client.get(self.url("organization"))
+        response = self.client.get(self.url("organization-hosts"))
         host = next(h for h in response.context["host_page"] if h.pk == self.device.asset_id)
         self.assertEqual(host.source_priority, 0)
         bad = Asset.objects.create(
@@ -128,13 +160,40 @@ class HostOverviewTests(Fixture):
         self.assertEqual(host.issue_count, 0)
         self.assertIsNone(host.host_priority)
 
-    def test_timeout_has_retry_state_and_keeps_full_inventory(self):
-        with patch("portal.host_overview.overview", side_effect=OperationalError("synthetic timeout")):
-            self.login(self.reader)
-            response = self.client.get(self.url("organization"))
-        self.assertContains(response, "Host overview temporarily unavailable")
-        self.assertContains(response, self.asset.name)
-        self.assertNotContains(response, "0 matching hosts")
+    def test_inventory_is_independent_of_host_overview_and_fragment_stays_scoped(self):
+        self.login(self.reader)
+        with patch(
+            "portal.host_overview.overview", side_effect=OperationalError("synthetic timeout")
+        ) as overview:
+            document = self.client.get(self.url("organization"))
+            self.assertContains(document, self.asset.name)
+            self.assertContains(document, "data-host-panel=")
+            self.assertContains(document, "Host inventory preview")
+            self.assertEqual(
+                [row["pk"] for row in document.context["host_inventory_preview"]], [self.asset.pk]
+            )
+            self.assertNotContains(document, self.other.name)
+            self.assertNotContains(document, "0 matching hosts")
+            self.assertIn("company;dur=", document["Server-Timing"])
+            overview.assert_not_called()
+            panel = self.client.get(self.url("organization-hosts"))
+            self.assertContains(panel, "CVE assessment temporarily unavailable", status_code=503)
+            self.assertContains(panel, "Retry CVE assessment", status_code=503)
+            self.assertContains(panel, self.asset.name, status_code=503)
+            self.assertNotContains(panel, "0 matching hosts", status_code=503)
+            self.assertNotContains(panel, self.other.name, status_code=503)
+            self.assertIn("hosts;dur=", panel["Server-Timing"])
+            self.assertIn("dbmax;dur=", panel["Server-Timing"])
+            self.assertEqual(panel["X-Bearings-Host-Error"], "database")
+            self.assertIn("no-store", panel["Cache-Control"])
+            self.assertEqual(self.client.get(self.url("organization-hosts", self.b)).status_code, 404)
+            overview.assert_called_once()
+            inline = self.client.get(self.url("organization"), {"host_filter": "fixes", "host_q": "alpha"})
+            self.assertContains(inline, "CVE assessment temporarily unavailable")
+            self.assertContains(inline, "?host_filter=fixes&amp;host_q=alpha#hosts")
+            self.assertEqual([row["pk"] for row in inline.context["host_inventory_preview"]], [self.asset.pk])
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url("organization-hosts")).status_code, 302)
 
     def test_vendor_fix_contract_matches_exact_bound_and_ignores_malformed_evidence(self):
         row = SourceRecord.objects.create(
@@ -157,11 +216,30 @@ class HostOverviewTests(Fixture):
                 SourceRecord.objects.filter(pk=row.pk).update(payload={"package_check": proof})
                 actual = (
                     SourceRecord.objects.filter(pk=row.pk)
-                    .annotate(fixed=HasVendorFix(F("payload")))
-                    .values_list("fixed", flat=True)
+                    .annotate(
+                        fixed=HasVendorFix(F("payload")),
+                        projected=HasVendorFix(DistroVendorFixInputsV1(F("payload"))),
+                    )
+                    .values_list("fixed", "projected")
                     .get()
                 )
-                self.assertEqual(actual, expected)
+                self.assertEqual(actual, (expected, expected))
+                self.assertEqual(bool(vendor_fix_targets(proof, "ubuntu:24.04")), expected)
+
+    def test_bulk_snapshot_update_recomputes_vendor_fix_without_losing_affectedness(self):
+        self.cached()
+        self.prepare()
+        match = DistroMatch.objects.get()
+        snapshot = copy.deepcopy(match.snapshot)
+        snapshot["package_check"].pop("vendor_comments")
+        DistroMatch.objects.filter(pk=match.pk).update(snapshot=snapshot)
+        response = self.page(host_filter="affected")
+        host = response.context["host_page"][0]
+        self.assertEqual(host.affected_packages, 1)
+        self.assertEqual(host.fix_packages, 0)
+        self.assertEqual(response.context["host_stats"]["fixes"], 0)
+        match.refresh_from_db()
+        self.assertIsNone(match.vendor_fix_inputs["package_check"]["vendor_comments"])
 
     def test_analyst_read_snapshot_rechecks_revocation_on_the_next_request(self):
         from django.contrib.auth.models import Group

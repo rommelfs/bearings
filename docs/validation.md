@@ -2620,3 +2620,391 @@ This change makes recorded coverage gaps and retained version-rule evidence
 navigable. It does not add manufacturer rules or establish complete software/CVE
 coverage. Windows servicing lines and unsupported product tracks remain explicit
 gaps. See the [software coverage guide](user-guide/software-coverage.md).
+
+### Linux and Windows client removal
+
+Migration 0075 records separately when a scoped administrator requests
+removal and when the enrolled key acknowledges it. PostgreSQL tests cover
+immediate revocation, rejection of queued reports, company separation, an
+expired request, idempotent acknowledgment and the Linux client's signed
+exchange over a real loopback HTTPS connection. The full suite ran 1,073
+tests with five conditional skips. The Linux installer test simulates a
+cleanup interrupted after removal of its key and verifies that a retry
+completes while keeping an administrator-managed profile.
+
+Portable Windows Go tests cover the scoped request, older servers and
+rejection of an acknowledgment for a different device. The Windows tests
+cross-compile for x64, ARM64 and x86. A native test covers ownership of
+the local files and detection of a changed registration. The actual Windows
+helper and Linux cleanup on a running systemd installation still require
+native acceptance. Acknowledgment records delivery of the request.
+
+### Portal modularization and scoped performance
+
+The portal views are separated by inventory, edits, contacts and scope,
+review, and organization API. Signed inventory-client routes moved to the
+agent API module. The full PostgreSQL 17 regression passed 1,094 of 1,099
+cases with five conditional skips, including real loopback Linux client
+HTTPS interoperability. Frozen dependency sync, migrations, Django checks,
+migration drift, Ruff and whitespace checks passed.
+
+With 48 and 48,000 synthetic assets, all functional checks and four-client
+HTTP probes passed. A sixteen-client loopback check using three Gunicorn
+workers and two threads per worker completed 420/420 requests at 922 ms p95
+while synthetic writes and snapshot refreshes ran. Chromium loaded three
+authenticated pages, all five national panels and the map. The threaded
+diagnostic completed without timeouts in the final repeat but remained slow
+at 5.53 s p95. See [methods, paired timings, and limits](performance/maintenance-20261125.md).
+
+### Asset update and vulnerability summary
+
+The PostgreSQL suite ran 1,101 tests with five conditional skips, including
+the existing asset page query budget and the loopback Linux HTTPS client
+tests. Synthetic asset tests cover current and historical Windows backlog
+counts and current, stale, and restricted Linux vendor-fix evidence.
+Chromium verified the summary placement and status explanations on both
+platforms at 1,280 and 390 pixels, using both pointer hover and keyboard focus.
+
+### Independent company inventory and host evaluation
+
+The company inventory and scoped host fragment pass the complete PostgreSQL
+regression (1,096 passed, five conditional skips), including explicit host
+sorting and filters, Windows inventory, and the injected timeout response.
+On the retained 48,000-asset database the company document median was 42.4 ms
+over five warm requests. Chromium opened the existing inventory anchor in
+439 ms with an eight-second synthetic host delay and fetched the host panel
+only on request. Django checks, migration drift, Ruff, JavaScript syntax and
+static-file discovery passed. See [the timings and boundaries](performance/company-inventory.md).
+
+## Scoped infrastructure and attention latency (2026-11-25)
+
+Paired complete authenticated responses on PostgreSQL 17 with 1,000 machines,
+10,000 current synthetic package-CVE proofs and linked issues measured warm
+medians of 751 to 625 ms for infrastructure and 1,593 to 595 ms for the
+attention machine list. Both responses preserve full scoped counters, current
+evidence and unknown coverage. The attention result is still paginated and
+reports a numeric Server-Timing header. See
+[fixture, results and post-update verification](performance/scoped-overview-and-attention.md).
+
+## Grouped cases in Vulnerability review
+
+The synthetic queue regression supplies 31 authorized records for the same CVE
+and installation. One action case appears, with an evidence comparison showing
+25 records on the first evidence page and six on the second. Differing package
+results retain their original status. Additional regressions cover mixed-case
+CVE identifiers, a distinct installation, conflicting saved assessments,
+restricted evidence counts, denied direct evidence links and case pagination.
+The grouping is read-only and requires no migration or client package.
+
+A loopback PostgreSQL 17 fixture with 10,000 current synthetic package proofs
+for one installation and CVE produced one case in four HTTP 200 responses
+(0.53–0.94 s via Django's test client). The comparison exposed all 400 evidence
+pages of 25 records. Chromium verified the case count, comparison pagination
+and return navigation. The fixture did not use production records.
+
+## Server-wide cases in Vulnerability review
+
+A second grouping pass replaces the installation key with the scoped inventory
+asset key. Synthetic coverage includes the same CVE on different software and
+versions on one server and on another server. Searching one affected package
+retains the whole case. A restricted package is absent from search, preview,
+counts and direct evidence access. A seven-package-plus-original fixture
+verifies the six-name preview limit and the complete detail count. No schema or
+client package changes are needed.
+
+On loopback PostgreSQL 17, a synthetic case with two software names and 10,001
+visible review records returned one compact card in 0.35–0.44 s on four Django
+test-client requests. The details exposed 401 pages, including the last
+record. Chromium verified the card, evidence pagination and return link.
+
+## Organization Intelligence and host overview
+
+The organization Intelligence list groups visible evidence by host and CVE
+under the original filters. The comparison includes retained closed records,
+links the original assessments, and preserves the per-record API and decision
+timeline. Tests cover distinct software, restricted evidence, filtered return
+navigation and direct access to a retained record.
+
+With 1,000 hosts and 10,001 synthetic review records on loopback PostgreSQL 17,
+the full host panel went from 4.35 s to 2.32 s. A temporary 1.6 s per-statement
+stress limit produced HTTP 503 with the previous query and HTTP 200 with the
+grouped query, retaining the exact package counts. The deployed statement
+limit remains 5 s. Chromium checked the asynchronous host panel and followed
+a single Intelligence case through paginated evidence and an individual
+review, then returned to the list. These observations are synthetic and do
+not establish the cause of a live failure.
+
+## Compact assessment and host preview during gateway failure
+
+SQLite and PostgreSQL tests validate unique field labels per finding, the
+three-line required reason field, read permissions, and a scoped inventory
+preview independent of the full host assessment. The fallback retains the
+host search and retry context after an injected database error, with no CVE
+counts in the preview.
+
+Chromium on loopback verified side-by-side controls at 1,440 px and stacked
+controls at 390 px. The reason field measured 94 px high. The organization
+document displayed inventory before a deliberately delayed HTTP 504. The
+preview stayed visible and the next attempt loaded the full host assessment.
+The exercise does not identify the cause of any live gateway failure.
+
+## Host CVE assessment query and timeout diagnosis
+
+The scoped host panel uses one set-based query for current package proofs,
+affected/unresolved counts, documented fixes and source priority. It shares
+the proof-currentness predicates used by the review queue and preserves the
+independent evaluation-coverage check. Migration 0076 adds a stored generated
+projection of comparisons and vendor comments. The original evidence is
+retained and the projection follows bulk writes. HTTP 503 includes a sanitized
+application error category and numeric timing headers.
+
+On PostgreSQL with seven synthetic hosts and 20,000 package proofs, the full
+response went from 3.27 s to 0.94 s for the platform operator and 2.92 s to
+0.90 s for an organization reader. Both roles went from HTTP 503 to HTTP 200
+under a locally tightened one-second statement limit. Complete host counts,
+package counts and priority were checked. These are synthetic measurements
+and do not identify the cause of the CIRCL production response.
+
+Increasing only the retained synthetic context to 100 KB per proof reproduced
+HTTP 503 with the normal five-second database statement limit. On that same
+database the updated reader request returned HTTP 200 in 0.84 s with the
+same complete host and vendor-fix counts. Migration 0076 was exercised as
+an upgrade on the populated fixture before this test.
+
+## Uniform Intelligence overview cards
+
+The organization Intelligence overview uses the same compact card for one
+or multiple evidence records. Single cards link directly to the original
+review and grouped cards link to scoped evidence comparison. Filtered return
+links, source severity, evidence visibility, assessment forms and the
+per-record API remain covered by the synthetic review tests.
+
+## Intelligence grouping and rating filters
+
+SQLite and PostgreSQL tests cover counts across machines and products,
+multiple records for a CVE, access revocation, search scope, numeric CVSS
+boundaries, Canonical Ubuntu priority thresholds, unknown ratings and status
+filters. Migration 0077 was applied to a PostgreSQL fixture containing a
+retained CVSS 9.8 record, then the indexed rating was verified. Chromium
+verified all three views, both active rating filters, a group drill-down and
+return to the filtered group. These checks use synthetic records.
+
+## Vulnerability work, coverage and verified progress
+
+The organization Intelligence worklist, asset summary, host summary and
+active/grouped issue lists were checked against the same principle. Known
+cleared evidence is available in history, current conflicts need attention, and
+missing evaluation coverage cannot produce a positive badge. The existing
+infrastructure preview and machine attention queue already keep cleared
+evidence apart from action previews and show coverage independently. Raw
+evidence, direct links, activity histories and explicit asset tasks retain
+their distinct scopes.
+
+Synthetic tests transition an installed package from affected to awaiting
+evaluation and then fixed. They verify all three Intelligence pivots, the
+archived record, removal of the automatically generated work item, preservation
+of an explicitly dated task, and safe handling of an expired device or a
+non-comparable historical proof. The positive status is limited to evaluated
+Linux packages. Verified fixes count distinct CVE and installation pairs over
+the last 30 days.
+
+Chromium verified the archived record and the checked-scope status and fix
+count after an actual synthetic package reevaluation. A PostgreSQL fixture
+with 10,000 retained cleared proofs produced HTTP 200 with zero results in
+Intelligence, active issues and grouped actions in 0.40, 0.24 and 0.32 seconds
+respectively. Reopened evidence with a saved closed workflow is covered by
+the existing continuous-discovery acceptance tests.
+
+## Known update versions and grouped CVE counts
+
+Current distribution evidence shows an explicit vendor fixed version, checked
+version and any version-bound Ubuntu ESM channel in scoped asset and CVE
+summaries. Tests use the retained Canonical pip fixture and verify that stale
+inputs remove the preview and move the CVE from affected to unverified. The
+Windows signed-report fixture verifies a pending KB in the update summary,
+HTML escaping and suppression of the current preview for historical receipts.
+Linux host repository candidates remain unknown.
+
+Chromium on local PostgreSQL verified the machine counts, link to affected CVEs
+only and the fixed-version preview. A fixture with one affected CVE and 1,655
+unverified CVEs measured 0.258 s by machine and 0.108 s by software. Both views
+returned the same disjoint counts and an affected maximum CVSS of 8.9 despite
+unverified scores of 10.0. No production host or live update source was used.
+
+## FlowIntel remediation plans (2026-11-26)
+
+Migration 0078 adds the plan-to-notification relation and durable action
+reservations. The PostgreSQL 17 migration, frozen dependency sync, Django
+checks and Ruff passed. Focused PostgreSQL and SQLite tests used synthetic
+findings and contacts. They exercised both pivots, package/CVE grouping with
+the retained Ubuntu ESM fixture, loss of current package proof, internal-only
+unknown reviews, mitigation previews, verified contact scope, private case
+gating, pre-delivery FlowIntel outage recovery, and the existing reminder
+workflow. A PostgreSQL race between approvals from the two pivots committed
+one reservation and one queued case. The connector tests use the existing
+synthetic FlowIntel API contract.
+
+The final PostgreSQL suite ran 1,121 tests with 5 skips and no failures. The
+34 focused SQLite tests had two PostgreSQL-only skips and no failures. The
+existing SQLite outreach suite also passed all nine tests after correcting the
+PostgreSQL missing-key behavior in its follow-up selection.
+
+A separate bundled lab exercised both remediation entry points and the
+approval view, then crossed the real pinned FlowIntel API using verified
+HTTPS. It checked the private case and two tasks, denied a foreign service
+organization, filed one synthetic message in the local outbox, and kept the
+unresolved review internal. A repeat plan found the existing action claims.
+The test used a fresh isolated lab and the file transport.
+
+### Notification entry points and approval visibility
+
+All 55 focused PostgreSQL tests passed. They covered the notification action on
+CVE cards, grouped evidence, individual evidence, the machine list and asset
+details. The test outbox approval appears above the task list and passes through
+the existing FlowIntel gate. The SMTP label was exercised with a synthetic
+transport configuration. The internal-only and missing-configuration states
+were also checked. Django migration, system and Ruff checks passed.
+
+The notification access follow-up passed all 57 focused PostgreSQL tests.
+Tests cover the visible explanation for company-only users and disabled CIRCL
+analyst visibility, denial on direct access, and a grouped CVE with restricted
+and shareable sources where only the shareable evidence enters preparation.
+
+The FlowIntel display-name and CVE action layout follow-up passed 66 focused
+PostgreSQL tests, Django system and migration checks, Ruff, and local static
+collection. An isolated 0078-to-0079 upgrade retained a synthetic native
+connection and showed its readable default label. A regression test changed
+the label after preview and verified approval against the original connection.
+
+## National map current problems (2026-11-26)
+
+All 44 focused PostgreSQL tests passed across the national dashboard, map,
+snapshot, coordination and organization listing suites. Coverage includes
+distinct affected assets, unconfirmed critical matches, the affected-machine
+drill-down, current and fixed package evidence, scope revocation and standalone
+issues. Django checks, migration drift, Ruff and JavaScript syntax passed.
+
+On an isolated PostgreSQL fixture with 13,000 synthetic review records across
+ten assets, the old map response counted 13,000 reviews at Critical. The new
+response counted two affected assets and one standalone High issue. It ranked
+the company High. Five warm Django HTTP test-client requests per variant
+yielded medians of 48.6 ms and 61.1 ms. These measurements cover the JSON
+endpoint on the fixture.
+
+## MISP release ranges and active issue queues (2026-11-26)
+
+Checked the published CNA version fields of CVE-2026-44381 (MISP GitHub
+advisory, before 2.5.37) and CVE-2026-10868 (CIRCL CNA, through 2.5.38).
+Regression fixtures passed on both sides of the version boundaries, including
+2.5.51, unsupported rules, changed inventory, grouped actions, active issues,
+retained evidence and manual assessments. The PostgreSQL suite passed all
+129 focused tests. The SQLite suite passed seven tests. Django checks, migration
+drift and Ruff passed. The public advisory reads and synthetic tests used no
+production inventory.
+
+## Shared current review classification and CIRCL MISP ranges
+
+Reviewed the published CNA applicability fields for CVE-2026-103655
+(exclusive upper bound 2.5.48) and CVE-2026-90961 (exclusive upper bound
+2.5.46). The fixture copies the relevant structured version fields,
+repository identity and patch reference. Boundary tests also keep unverified
+or incomplete inputs out of current exclusions.
+
+The code review traced the review queue, company CVE and machine views,
+national review records and coordination examples, overview counters, grouped
+actions, asset issue details and both notification paths. The previous
+Python dashboard bucket classifier and view-level MISP exclusion rules were
+replaced with the shared query classification. Saved assessments retain
+precedence in review views. A current version exclusion prevents outreach.
+Persisted package verdict displays consume the same currentness annotation
+as the lists. The model's in-memory check remains available for unsaved
+evidence edits. Workflow-history reads retain their workflow meaning.
+
+On PostgreSQL with 13,002 synthetic review records, three warm Django
+test-client requests per route gave medians of 175 ms for the CVE list,
+201 ms for the machine list, 455 ms for Infrastructure and 93 ms for grouped
+actions. All responses completed with HTTP 200. The two MISP fixtures stayed
+out of the active responses. These are fixture response times.
+
+The full PostgreSQL suite ran 1,134 tests with five skips and no failures.
+After the final coordination-label update, all 149 focused PostgreSQL tests
+passed. The SQLite regression selection ran 89 tests with two PostgreSQL-only
+skips and no failures. Django checks, migration drift and Ruff passed.
+
+## Reassessment of retained MISP reviews
+
+Captured seven public MISP product index pages and the separate
+CVE-2026-103655 record. The second index page contained the same CVE JSON
+and the exclusive 2.5.48 version bound. Replayed the captured pages
+against synthetic MISP 2.5.51 on PostgreSQL, first unmodified (269 CVE JSON
+records) and then with this record omitted from the CVE JSON source
+(268 records). In both runs the legacy unknown review moved out of
+Needs attention and remained visible under Fixed or not affected. The
+second run used retained evidence and recorded one local reassessment.
+Both filtered responses returned HTTP 200.
+
+The 112 focused PostgreSQL tests passed, including preserved manual
+assessments and sharing restrictions, source binding, refresh failure
+reporting and replay idempotence. Django checks, migration drift and
+Ruff passed. The tests used public advisories and synthetic inventory.
+
+## MISP catalogue audit and notification eligibility
+
+Reviewed the seven public MISP index pages and four separate advisory
+records on 2026-11-26. The previous rules classified 136 of 269 CVE JSON
+records as excluding MISP 2.5.51, 44 as possible version matches and 89
+as unclear. The revised evaluator produced 168 exclusions, 46 possible
+version matches and 55 unclear records. Separate evaluator runs also
+exercised MISP 2.4.197, 2.5.46, 2.5.47 and 2.5.53.
+
+The PostgreSQL replay used those seven pages with a synthetic MISP 2.5.51
+installation and three old unknown reviews. CVE-2026-93295 and
+CVE-2026-93296 clear at 2.5.47, and CVE-2025-66384 clears at 2.5.24.
+CVE-2026-132144 remains a possible match at 2.5.51 because its boundary
+is inclusive. The Needs attention, Fixed or not affected and Vendor
+clarification pages rendered HTTP 200 with 46, 168 and 55 cases in this
+fixture. All three responses took under 0.6 seconds through the Django
+test client. The three excluded CVEs had no eligible notification case.
+CVE-2026-132144 retained the preparation action.
+
+The final focused PostgreSQL run passed all 69 MISP, queue and
+remediation tests. Django checks, migration drift and Ruff passed.
+
+## Current MISP matches in review views
+
+The PostgreSQL replay used the 269 captured public MISP advisories with a
+synthetic 2.5.51 installation. CVE-2026-132144 showed the current affected
+range in the cross-company review queue, affected-CVE list, finding detail
+and evidence table. The machine summary counted 46 current affected-version
+matches. The Needs attention, Fixed or not affected and Vendor clarification
+responses had 46, 168 and 55 cases respectively and each rendered in under
+0.5 seconds through the Django test client. Changing the recorded version
+to 2.5.52 withdrew the positive classification for CVE-2026-132144 before
+another watch refresh. Existing proof snapshots were sufficient, with
+generic discovery fallbacks excluded from the current MISP match predicate.
+
+The focused PostgreSQL run passed 82 tests. Django checks, migration drift
+and Ruff passed. Distribution coverage retains its distribution-feed scope.
+
+## CVE evaluation duplication review
+
+Reviewed manual and scheduled CVE discovery, Linux package and runtime
+kernel checks, Windows product/build discovery, Windows Update evidence,
+organization and national review projections, notification candidates, and
+FlowIntel verification. Linux CVE evaluation uses the shared OVAL evaluator
+with package and runtime kernel inputs. Windows version rules are evaluated
+through the product watch. Windows Update inventory is evidence of local
+update state and uses its own data model.
+
+The Linux inventory display and coverage examples had independently checked
+the evaluator version, feed generation and input fingerprint of package
+receipts. Both now use the same validation. The host coverage and review
+queries share the database predicate for the releases covered by a feed. The fix preview and remediation
+plan share the current affected-package predicate. FlowIntel verification
+now also reads the current MISP version proof from the review classifier.
+
+The database computes package-proof freshness and vendor-fix existence for
+filtering and aggregation before pagination. The in-memory freshness check
+also supports unsaved evidence, and fix rendering reads the version and
+channel details. The regression suite compares these implementations for
+changed package inputs and exact or malformed vendor fix evidence.

@@ -161,9 +161,7 @@ def decorate(user, products, installation_ids=None, finding_scope=None):
             and not c.missing_since
             and agents.current(c.device)
             and c.device.distro_summary.get("state") not in {"error", "unsupported", "pending", "stale"}
-            and receipt.get("version") == distro_results.VERSION
-            and receipt.get("generation") == str(c.vendor_feed.generation)
-            and receipt.get("input_hash") == distro_results.inputs(c, c.device)
+            and distro_results.receipt_matches_inputs(c, c.device, c.vendor_feed)
             and status_flags.get(c.pk, True)
         )
         if not c.check_current:

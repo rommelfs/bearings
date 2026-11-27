@@ -88,3 +88,45 @@ func TestRolloutRegistersNewHostAndResumesEnrollment(t *testing.T) {
 		t.Fatal("retry repeated bootstrap or changed the exact enrollment input")
 	}
 }
+
+func TestUninstallExchangeUsesTheConfiguredDevice(t *testing.T) {
+	s := initialState()
+	s.DeviceID = identifier()
+	var calls int
+	var mu sync.Mutex
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls++
+		var body map[string]string
+		if r.URL.Path != "/api/v1/agent/uninstall/" ||
+			r.Header.Get("X-Bearings-Key") != "device:"+s.DeviceID ||
+			r.Header.Get("Signature") == "" || json.NewDecoder(r.Body).Decode(&body) != nil {
+			t.Error("uninstall request did not use the enrolled device signature")
+		}
+		if calls == 1 {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		result := map[string]string{"schema": body["schema"], "device_id": s.DeviceID, "action": "uninstall"}
+		if body["action"] != "check" {
+			result["device_id"] = identifier()
+		}
+		json.NewEncoder(w).Encode(result)
+	}))
+	defer server.Close()
+	s.URL, s.CAFile = server.URL, filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(s.CAFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := uninstallRequest(&s, "check"); err != nil || result != "none" {
+		t.Fatalf("older servers must leave reporting enabled: %q, %v", result, err)
+	}
+	if result, err := uninstallRequest(&s, "check"); err != nil || result != "uninstall" {
+		t.Fatalf("own request was not delivered: %q, %v", result, err)
+	}
+	if _, err := uninstallRequest(&s, "acknowledge"); err == nil {
+		t.Fatal("accepted an acknowledgment for another device")
+	}
+}

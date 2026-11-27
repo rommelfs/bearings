@@ -6,7 +6,7 @@ import os
 import re
 from django import forms
 from django.conf import settings
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.mail import EmailMessage
 from django.core.mail.backends.filebased import EmailBackend
 from .smtp import EmailBackend as SMTPBackend
@@ -26,6 +26,7 @@ from .access import (
     visible_findings_for,
 )
 from .asset_context import asset_context
+from .connectors.http import ConnectorError
 from .models import (
     AssetIssue,
     Contact,
@@ -366,6 +367,9 @@ def candidates(user, mode, filters):
     ]:
         if filters.get(key):
             qs = qs.filter(**{field: filters[key]})
+    from .review_queue import classified, outreach_exclusion
+
+    qs = classified(qs).exclude(outreach_exclusion())
     qs = qs.annotate(
         notification_severity=Case(
             *[When(record__source_severity=v, then=Value(i)) for i, v in enumerate(SEVERITIES)],
@@ -489,6 +493,13 @@ def campaign_audience(user, mode, filters, *, reviews=None, recipient_counts=Non
 
 
 def authorized_audience(user, batch):
+    if batch.filters.get("remediation"):
+        from .flowintel import load, require_read
+
+        try:
+            require_read(user, load(batch.remediation_case.pk))
+        except (PermissionDenied, NotificationBatch.remediation_case.RelatedObjectDoesNotExist):
+            return False
     ids = {row["organization_id"] for row in batch.audience_report.get("rows", [])}
     if ids and scoped_organizations(user, batch.mode).filter(pk__in=ids).count() != len(ids):
         return False
@@ -771,6 +782,8 @@ def claim_batch(user, batch_id, selected, *, queued=False):
     batch = NotificationBatch.objects.select_for_update().get(pk=batch_id)
     require(batch.creator_id == user.pk and user.is_active)
     require(authorized_audience(user, batch))
+    if batch.filters.get("remediation"):
+        raise ValidationError("Approve the linked FlowIntel remediation plan to release its notifications.")
     require_transport(batch)
     if batch.status != "draft":
         raise ValidationError("This batch was already approved. Create a new preview for further messages.")
@@ -864,26 +877,31 @@ def deliver_claimed(ids):
                 or not scoped_organizations(user, d.batch.mode).filter(pk=d.organization_id).exists()
             ):
                 raise ValidationError("Current visibility no longer permits this message.")
-            contact = eligible_contacts(d.organization, d.batch.filters).filter(pk=d.contact_id).first()
-            current = list(
-                candidates(user, d.batch.mode, d.batch.filters).filter(
-                    pk__in=[f["id"] for f in d.snapshot["findings"]]
+            if d.batch.filters.get("remediation"):
+                from .remediation import require_delivery
+
+                require_delivery(d)
+            else:
+                contact = eligible_contacts(d.organization, d.batch.filters).filter(pk=d.contact_id).first()
+                current = list(
+                    candidates(user, d.batch.mode, d.batch.filters).filter(
+                        pk__in=[f["id"] for f in d.snapshot["findings"]]
+                    )
                 )
-            )
-            if (
-                contact is None
-                or bool(recipient_blocker(d.organization, d.batch.filters))
-                or message_snapshot(
-                    d.batch.mode,
-                    contact,
-                    current,
-                    d.batch.subject_template,
-                    d.batch.body_template,
-                    d.batch.filters,
-                )[1]
-                != d.fingerprint
-            ):
-                raise ValidationError("Preview is stale.")
+                if (
+                    contact is None
+                    or bool(recipient_blocker(d.organization, d.batch.filters))
+                    or message_snapshot(
+                        d.batch.mode,
+                        contact,
+                        current,
+                        d.batch.subject_template,
+                        d.batch.body_template,
+                        d.batch.filters,
+                    )[1]
+                    != d.fingerprint
+                ):
+                    raise ValidationError("Preview is stale.")
             # The reviewed batch pins the transport; changing EMAIL_BACKEND alone cannot send outreach.
             transport = require_transport(d.batch)
             backend = (
@@ -903,7 +921,12 @@ def deliver_claimed(ids):
             if sent != 1:
                 raise OSError("Local file backend did not confirm writing the message.")
             d.status, d.filed_at = ("filed" if transport == "file" else "accepted"), timezone.now()
-        except (OSError, ValidationError, ValueError):
+        except ConnectorError:
+            # FlowIntel failed before the mail backend was opened. A verified read can release this claim again.
+            d.status = "flowintel_wait"
+        except (PermissionDenied, ValidationError):
+            d.status = "blocked" if d.batch.filters.get("remediation") else "uncertain"
+        except (OSError, ValueError):
             d.status = "uncertain"
         d.save(update_fields=["status", "filed_at"])
         audit(

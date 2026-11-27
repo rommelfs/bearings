@@ -1,6 +1,7 @@
 from contextvars import ContextVar
 from functools import wraps
 from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
 from django.db.models import Q, Exists, OuterRef
 from .models import AuditEvent, Organization, Membership
 
@@ -79,6 +80,14 @@ def audit_operator_access(user, org):
         audit(user, org, "operator.access")
 
 
+def organization(request, slug):
+    """Resolve the visible company and share its identity with request navigation."""
+    org = get_object_or_404(organizations_for(request.user), slug=slug)
+    audit_operator_access(request.user, org)
+    request._navigation_organization = org
+    return org
+
+
 def visible_findings(user, org):
     findings = org.findings.select_related(
         "organization",
@@ -126,8 +135,14 @@ def audit_organizations(user, orgs):
     orgs = list({org.pk: org for org in orgs}.values())
     if not user.is_superuser and not is_analyst(user):
         return
-    member_ids = set(
-        Membership.objects.filter(user=user, organization__in=orgs).values_list("organization_id", flat=True)
+    member_ids = (
+        set()
+        if user.is_superuser
+        else set(
+            Membership.objects.filter(user=user, organization__in=orgs).values_list(
+                "organization_id", flat=True
+            )
+        )
     )
     AuditEvent.objects.bulk_create(
         [

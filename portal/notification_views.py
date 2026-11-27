@@ -253,6 +253,8 @@ def own_batch(request, pk):
 @login_required
 def batch_detail(request, pk):
     batch, deliveries = own_batch(request, pk)
+    if batch.filters.get("remediation"):
+        return redirect("flowintel-case", slug=batch.organization.slug, pk=batch.remediation_case.pk)
     organization_groups = {}
     for delivery in deliveries:
         organization_groups.setdefault(

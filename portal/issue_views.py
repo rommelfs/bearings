@@ -14,6 +14,8 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 from . import issues
 from .access import (
+    analyst_read_snapshot,
+    organization,
     audit_organizations,
     audit,
     is_analyst,
@@ -21,14 +23,15 @@ from .access import (
     require,
     can_edit,
     can_operator_review,
+    visible_findings_for,
 )
 from .asset_context import asset_context
 from .pagination import object_page
 from .issue_forms import IssueForm, RiskForm
 from .models import Asset, AssetIssue, IssueRiskLink, Membership
 from .presentation import vulnerability_summary
-from .views import organization
 from .queue_context import with_return
+from .review_work import without_unworked_issue_shells
 from .inventory_presentation import decorate_addresses, host_network_summary
 
 
@@ -49,6 +52,7 @@ def decorate(issue):
 
 
 @login_required
+@analyst_read_snapshot
 @bounded_list
 def board(request):
     orgs = organizations_for(request.user).order_by("name")
@@ -144,7 +148,9 @@ def board(request):
             finding__isnull=True, asset__lifecycle="active", status__in=[*issues.ACTIVE, "accepted_risk"]
         )
     elif state == "active":
-        base = base.filter(issues.active_filter())
+        base = without_unworked_issue_shells(
+            base.filter(issues.active_filter()), visible_findings_for(request.user)
+        )
     elif state == "closed":
         base = base.exclude(issues.active_filter())
     else:
@@ -185,21 +191,11 @@ def board(request):
     else:
         timing = ""
     ordering = ("priority_order", F("deadline_order").asc(nulls_last=True), "-updated_at", "pk")
-    key_source = None
-    if not org_id:
-        key_source = (
-            AssetIssue.objects.filter(organization__in=orgs)
-            .annotate(deadline_order=Coalesce("action_due", "event_date"), priority_order=priority_order)
-            .order_by(*ordering)
-        )
-    # A single-company list can order its already filtered IDs directly.
-    # The broader queue retains its ordered candidate scan.
     page = object_page(
         base.order_by(*ordering),
         25,
         request.GET.get("page"),
         count=counts[timing] if timing else counts["total"],
-        key_source=key_source,
     )
     decorate_addresses([issue.asset for issue in page])
     for issue in page:
@@ -278,13 +274,22 @@ def detail(request, slug, pk):
     can_rt_export = any(
         rt.can_write(request.user, issue, instance) for instance in instances(request.user, issue)
     )
+    from .review_queue import classified, current_version_exclusion
     from .scenario_suggestions import draft_scenario
+
+    version_excluded = bool(
+        issue.finding_id
+        and classified(visible_findings_for(request.user).filter(pk=issue.finding_id))
+        .filter(current_version_exclusion())
+        .exists()
+    )
 
     return render(
         request,
         "portal/issue.html",
         {
             "issue": issue,
+            "version_excluded": version_excluded,
             "org": issue.organization,
             "asset": issue.asset,
             "facts": issue.facts,

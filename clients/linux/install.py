@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Install/update the Linux client from reviewed local artifacts or a trusted HTTPS origin."""
+"""Install, update or remove the Linux client from reviewed local artifacts or a trusted HTTPS origin."""
 
 import argparse
 import base64
@@ -16,6 +16,7 @@ import platform
 import pwd
 import re
 import stat
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -38,6 +39,9 @@ UPDATE_CONFIG = CONFIG / "update.json"
 UPDATE_STATE = Path("/var/lib/bearings-linux-updater")
 UPDATE_UNIT = UNIT.with_name("bearings-linux-update.service")
 UPDATE_TIMER = UNIT.with_name("bearings-linux-update.timer")
+REMOVE_HELPER = UPDATER.with_name("uninstall.py")
+REMOVE_UNIT = UNIT.with_name("bearings-linux-uninstall.service")
+REMOVE_TIMER = UNIT.with_name("bearings-linux-uninstall.timer")
 ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C", "LANG": "C"}
 LXC_OVERRIDE = b"[Service]\nPrivateTmp=no\nPrivateDevices=no\nProtectSystem=no\nProtectHome=no\nProtectKernelTunables=no\nProtectKernelModules=no\nProtectControlGroups=no\nProtectKernelLogs=no\nProtectClock=no\nProtectHostname=no\nReadWritePaths=\n"
 READ = """import os,stat,sys
@@ -927,6 +931,116 @@ def disable_updates():
     print("Automatic updates disabled; installed client and reporting remain unchanged.")
 
 
+def enable_remote_uninstall():
+    atomic(REMOVE_HELPER, running_installer_source(), 0o644)
+    atomic(
+        REMOVE_UNIT,
+        b"[Unit]\nDescription=Check approved Bearings Linux removal\n"
+        b"[Service]\nType=oneshot\n"
+        b"ExecStart=/usr/bin/python3 -I /usr/local/lib/bearings-linux/uninstall.py remote-uninstall\n",
+    )
+    atomic(
+        REMOVE_TIMER,
+        b"[Unit]\nDescription=Check for a Bearings client removal request\n"
+        b"[Timer]\nOnActiveSec=5min\nOnUnitActiveSec=15min\nRandomizedDelaySec=2min\n"
+        b"[Install]\nWantedBy=timers.target\n",
+    )
+    systemctl("daemon-reload")
+    systemctl("enable", "--now", REMOVE_TIMER.name)
+
+
+def uninstall_pending():
+    return regular(STATE.parent / "bearings-linux-uninstall.pending", private=True)
+
+
+def uninstall(remote=False):
+    account = lookup_account()
+    safe_parent(STATE.parent)
+    check_state(account)
+    if STATE.exists() and (os.path.ismount(STATE) or not shutil.rmtree.avoids_symlink_attacks):
+        raise InstallError("Cannot safely remove the client state directory")
+    safe_parent(UPDATE_STATE)
+    if UPDATE_STATE.exists() and os.path.ismount(UPDATE_STATE):
+        raise InstallError("Cannot remove a mounted updater state directory")
+    installed = regular(CLIENT)
+    if regular(UNIT) and not reviewed_unit(installed_source(UNIT, 16384)):
+        raise InstallError("Client unit differs from the bundled version; review it before removal")
+    unit_names = (
+        "bearings-linux.service",
+        "bearings-linux-update.timer",
+        "bearings-linux-update.service",
+        "bearings-linux-update-recover.service",
+        "bearings-linux-update-retry.timer",
+        "bearings-linux-update-recover-boot.service",
+        REMOVE_TIMER.name,
+        REMOVE_UNIT.name,
+    )
+    files = [UNIT.with_name(name) for name in unit_names]
+    files.extend(
+        [
+            CLIENT,
+            UPDATER,
+            REMOVE_HELPER,
+            UPDATE_CONFIG,
+            CONFIG / "update-ca.pem",
+            UNIT.with_name(UNIT.name + ".d") / "auto-update-recovery.conf",
+            UNIT.with_name(UNIT.name + ".d") / "bearings-lxc.conf",
+        ]
+    )
+    for path in files:
+        safe_parent(path.parent)
+        regular(path)
+    checkpoint = STATE.parent / "bearings-linux-uninstall.pending"
+    if not uninstall_pending():
+        if remote:
+            if not (installed and account and enrolled(account)):
+                return
+            result = run([CLIENT, "retirement", "check", STATE], account=account, capture=True)
+            if result.strip() != b"uninstall":
+                return
+            result = run([CLIENT, "retirement", "acknowledge", STATE], account=account, capture=True)
+            if result.strip() != b"uninstall":
+                raise InstallError("Server did not acknowledge the removal")
+        elif installed and account:
+            try:
+                if enrolled(account):
+                    run([CLIENT, "retirement", "local", STATE], account=account, capture=True)
+            except InstallError:
+                print(
+                    "Server deregistration could not be confirmed. Check the device in Bearings.",
+                    file=sys.stderr,
+                )
+        atomic(checkpoint, b"remove\n", 0o600)
+    for name in unit_names:
+        path = UNIT.with_name(name)
+        if not path.exists() or name in {REMOVE_UNIT.name, REMOVE_TIMER.name}:
+            continue
+        if service_flag("is-active", name) or service_flag("is-failed", name):
+            systemctl("stop", name)
+        if service_flag("is-enabled", name):
+            systemctl("disable", name)
+    for path in files:
+        if path not in {REMOVE_HELPER, REMOVE_TIMER, REMOVE_UNIT}:
+            path.unlink(missing_ok=True)
+    for path in (STATE, UPDATE_STATE):
+        if path.exists():
+            shutil.rmtree(path)
+    if account:
+        run(["/usr/sbin/userdel", ACCOUNT])
+    if regular(REMOVE_TIMER):
+        systemctl("disable", "--now", REMOVE_TIMER.name)
+    for path in (REMOVE_TIMER, REMOVE_UNIT, REMOVE_HELPER):
+        path.unlink(missing_ok=True)
+    systemctl("daemon-reload")
+    for path in (CONFIG, UPDATER.parent, UNIT.with_name(UNIT.name + ".d")):
+        try:
+            path.rmdir()
+        except OSError:
+            pass  # Preserve directories containing administrator-managed files.
+    checkpoint.unlink()
+    print("Bearings Linux client and local state removed.")
+
+
 def identity():
     account = lookup_account()
     if account is None or not regular(STATE / "key", account.pw_uid, private=True):
@@ -1068,6 +1182,8 @@ def main():
             "auto-update-recover",
             "auto-update-recover-boot",
             "auto-update-retry",
+            "uninstall",
+            "remote-uninstall",
         ],
         default="install",
     )
@@ -1152,6 +1268,9 @@ def main():
         )
     activate_install_updates = False
     os.umask(0o077)
+    removing = args.action in {"uninstall", "remote-uninstall"}
+    if not removing and uninstall_pending():
+        raise InstallError("Finish the interrupted uninstall before changing the client")
     if args.action in {
         "install",
         "enroll",
@@ -1175,6 +1294,8 @@ def main():
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise InstallError("Another installer is running") from exc
+        if not removing and uninstall_pending():
+            raise InstallError("Finish the interrupted uninstall before changing the client")
         systemctl("show", "--property=Version", "--value", capture=True)
         if args.action == "install":
             recover_update()
@@ -1218,6 +1339,8 @@ def main():
                     }
                 )
             )
+        elif args.action in {"uninstall", "remote-uninstall"}:
+            uninstall(remote=args.action == "remote-uninstall")
         elif args.action == "identity":
             identity()
         elif args.action == "start":
@@ -1225,6 +1348,7 @@ def main():
         else:
             systemctl("status", "--no-pager", "bearings-linux.service")
         if args.action == "install":
+            enable_remote_uninstall()
             if selected_updates:
                 configure_updates(args.server, args.ca_file, require_enrolled=False)
                 activate_install_updates = True
