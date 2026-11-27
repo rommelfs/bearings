@@ -17,6 +17,8 @@ from http_message_signatures import HTTPMessageVerifier, HTTPSignatureKeyResolve
 MAX_BYTES = 1_000_000
 MAX_COMPONENTS = 5000
 TAG = "bearings.agent.v1"
+INVENTORY_CHECK = "bearings.agent.inventory-check.v1"
+INVENTORY_GAPS = {"packages", "network", "applications"}
 COVERED = ("@method", "@path", "@authority", "content-digest", "content-type", "x-bearings-key")
 
 
@@ -148,6 +150,40 @@ def package_scope(name, scope):
     )
 
 
+def observation_time(data):
+    if type(data["sequence"]) is not int or not 1 <= data["sequence"] <= 2**63 - 1:
+        raise ValueError("Invalid sequence")
+    identifier(data["report_id"])
+    observed = parse_datetime(data["observed_at"])
+    if not observed or timezone.is_naive(observed) or observed > timezone.now() + timedelta(minutes=5):
+        raise ValueError("Invalid observation time")
+    return observed
+
+
+def inventory_gaps(values):
+    if (
+        not isinstance(values, list)
+        or len(values) > len(INVENTORY_GAPS)
+        or any(not isinstance(value, str) or value not in INVENTORY_GAPS for value in values)
+        or len(set(values)) != len(values)
+    ):
+        raise ValueError("Invalid inventory coverage")
+
+
+def inventory_check_data(data):
+    exact(
+        data,
+        ("schema", "report_id", "sequence", "observed_at", "gaps"),
+        ("baseline_id",),
+    )
+    inventory_gaps(data["gaps"])
+    if "baseline_id" in data:
+        identifier(data["baseline_id"])
+    elif data["gaps"] != ["packages"]:
+        raise ValueError("A completed capture requires an inventory baseline")
+    return observation_time(data)
+
+
 def report_data(data):
     exact(
         data,
@@ -161,16 +197,16 @@ def report_data(data):
             "os",
             "components",
             "services",
-            *(("host",) if "host" in data else ()),
-            *(("applications",) if "applications" in data else ()),
         ),
+        ("host", "applications", "gaps"),
     )
-    if data["schema"] != TAG or type(data["sequence"]) is not int or not 1 <= data["sequence"] <= 2**63 - 1:
-        raise ValueError("Invalid version or sequence")
-    identifier(data["report_id"])
-    observed = parse_datetime(data["observed_at"])
-    if not observed or timezone.is_naive(observed) or observed > timezone.now() + timedelta(minutes=5):
-        raise ValueError("Invalid observation time")
+    if data["schema"] != TAG:
+        raise ValueError("Invalid report schema")
+    if "gaps" in data:
+        inventory_gaps(data["gaps"])
+        if data["scope"] != "system-packages" or "packages" in data["gaps"]:
+            raise ValueError("Invalid full inventory coverage")
+    observed = observation_time(data)
     if (
         data["scope"]
         not in (

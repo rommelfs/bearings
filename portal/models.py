@@ -2229,6 +2229,15 @@ class AgentDevice(models.Model):
     last_received_at = models.DateTimeField(null=True, blank=True)
     last_observed_at = models.DateTimeField(null=True, blank=True)
     last_complete_at = models.DateTimeField(null=True, blank=True)
+    inventory_admitted_sequence = models.PositiveBigIntegerField(null=True, editable=False)
+    inventory_baseline_id = models.UUIDField(null=True, editable=False)
+    inventory_baseline_gaps = models.JSONField(default=list, blank=True)
+    inventory_success_at = models.DateTimeField(null=True, blank=True)
+    inventory_fingerprint = models.CharField(max_length=64, blank=True, editable=False)
+    inventory_verified_at = models.DateTimeField(null=True, blank=True)
+    inventory_changed_at = models.DateTimeField(null=True, blank=True)
+    inventory_capture_at = models.DateTimeField(null=True, blank=True)
+    inventory_capture_gaps = models.JSONField(default=list, blank=True)
     reported_network = models.JSONField(default=dict, blank=True)
     os = models.JSONField(default=dict, blank=True)
     services = models.JSONField(default=list, blank=True)
@@ -2264,10 +2273,19 @@ class AgentDevice(models.Model):
         return bool(self.uninstall_requested_at and at - self.uninstall_requested_at <= timedelta(days=30))
 
     @property
+    def inventory_is_applied(self):
+        sequence = self.inventory_admitted_sequence
+        return self.applied_sequence == (self.last_sequence if sequence is None else sequence)
+
+    @property
+    def inventory_fresh_at(self):
+        return self.inventory_verified_at or self.last_observed_at
+
+    @property
     def stale(self):
         from datetime import timedelta
 
-        return not self.last_observed_at or self.last_observed_at < timezone.now() - timedelta(hours=12)
+        return not self.inventory_fresh_at or self.inventory_fresh_at < timezone.now() - timedelta(hours=12)
 
     @property
     def runtime_services(self):
@@ -2339,7 +2357,15 @@ class AgentComponent(models.Model):
     def stale(self):
         from datetime import timedelta
 
-        return self.observed_at < timezone.now() - timedelta(hours=12)
+        cutoff = timezone.now() - timedelta(hours=12)
+        if self.observed_at >= cutoff:
+            return False
+        device = self.device
+        return not (
+            self.last_report_id == device.inventory_baseline_id
+            and device.inventory_verified_at
+            and device.inventory_verified_at >= cutoff
+        )
 
     class Meta:
         indexes = [
@@ -2448,7 +2474,7 @@ class DistroMatch(models.Model):
             or not self.component.device.enabled
             or self.component.device.expires_at <= timezone.now()
             or self.component.device.distro_requested
-            or self.component.device.last_sequence != self.component.device.applied_sequence
+            or not self.component.device.inventory_is_applied
             or self.component.device.distro_summary.get("state")
             in {"error", "pending", "stale", "unsupported"}
         )

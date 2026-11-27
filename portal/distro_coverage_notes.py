@@ -1,11 +1,10 @@
 """Explain recorded coverage limits without inventing host remediation or CVE verdicts."""
 
-from datetime import timedelta
 from urllib.parse import urlencode
 from django.conf import settings
 from django.db.models import Q
 from django.urls import reverse
-from django.utils import timezone
+from .agent_freshness import recent_component
 from . import distro_results
 from .models import AgentReport
 
@@ -147,9 +146,9 @@ def examples(device, summary, feed):
         selection |= Q(package_source={})
     candidates = (
         device.components.filter(
+            recent_component(),
             selection,
             missing_since__isnull=True,
-            observed_at__gte=timezone.now() - timedelta(hours=12),
             manager__in=["dpkg", "rpm"],
             installation__asset_id=device.asset_id,
             installation__asset__source_id=device.source_id,

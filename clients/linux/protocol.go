@@ -85,6 +85,10 @@ func transport(caFile string) (*http.Client, error) {
 	}}, nil
 }
 func send(client *http.Client, server, path, identity string, key ed25519.PrivateKey, body []byte, bearer string) ([]byte, int, error) {
+	return sendWithHeaders(client, server, path, identity, key, body, bearer, nil)
+}
+
+func sendWithHeaders(client *http.Client, server, path, identity string, key ed25519.PrivateKey, body []byte, bearer string, headers *http.Header) ([]byte, int, error) {
 	if len(body) > maxBody {
 		return nil, 0, errors.New("report exceeds one-megabyte contract; no partial report sent")
 	}
@@ -101,6 +105,9 @@ func send(client *http.Client, server, path, identity string, key ed25519.Privat
 		return nil, 0, errors.New("HTTPS delivery failed; check connectivity, trusted CA and configured proxy")
 	}
 	defer response.Body.Close()
+	if headers != nil {
+		*headers = response.Header
+	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 65537))
 	if err != nil || len(raw) > 65536 {
 		return nil, response.StatusCode, errors.New("invalid or oversized server response")

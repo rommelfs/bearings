@@ -707,6 +707,13 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
   Explicit local updater refresh; deployment/status/disable/recovery instructions
   in [Linux client updates](operations/linux-client-updates.md).
 
+- Implemented signed 15-minute Linux inventory checks. Unchanged captures verify
+  the latest applied snapshot, while changed captures send the full inventory.
+  Coverage gaps preserve retained evidence and last successful check times.
+  Deploy migration 0080 before publishing the artifacts, then refresh the
+  reviewed installer once for the new systemd unit. Fleet-capacity validation
+  remains pending. See [Linux reporting](integrations/linux-agent.md#frequent-inventory-checks).
+
 - Fixed updater activation from `/root` with inherited `SUDO_UID`: self-copy uses
   its own execution trust while user-provided input restrictions remain intact.
   Regression acceptance and a scoped older-installer retry are documented in

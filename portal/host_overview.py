@@ -21,6 +21,7 @@ from django.db.models import (
 from django.db.models.functions import Cast, Coalesce, Now
 from django.utils import timezone
 from django.urls import reverse
+from .agent_freshness import recent_component
 from .circl import findings_for
 from .distro_fix_evidence import HasVendorFix
 from .issues import ACTIVE, visible_issues
@@ -187,7 +188,7 @@ def overview(request, org):
         )
         | Q(version="")
         | Q(agent_component__missing_since__isnull=False)
-        | Q(agent_component__observed_at__lt=timezone.now() - timedelta(hours=12))
+        | (Q(agent_component__isnull=False) & ~recent_component("agent_component__"))
     )
     issue_order = (
         issues.annotate(
@@ -218,7 +219,11 @@ def overview(request, org):
         mapping_gaps=count_for(unmapped.filter(asset_id=OuterRef("pk")), "pk", "asset_id"),
         issue_count=count_for(issues, "pk", "asset_id"),
         issue_priority=Subquery(issue_order, output_field=IntegerField()),
-        report_time=Subquery(devices.order_by("-last_observed_at").values("last_observed_at")[:1]),
+        report_time=Subquery(
+            devices.annotate(fresh_at=Coalesce("inventory_verified_at", "last_observed_at"))
+            .order_by("-fresh_at")
+            .values("fresh_at")[:1]
+        ),
     ).annotate(
         host_priority=Case(
             When(source_priority__isnull=True, then=F("issue_priority")),
@@ -299,7 +304,7 @@ def overview(request, org):
             asset_id__in=[host.pk for host in page],
             source_id=F("asset__source_id"),
             enabled=True,
-        ).only("asset_id", "os", "last_observed_at", "expires_at", "distro_summary")
+        ).only("asset_id", "os", "last_observed_at", "inventory_verified_at", "expires_at", "distro_summary")
     }
     for host in page:
         device = device_map.get(host.pk)

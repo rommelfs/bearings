@@ -11,6 +11,7 @@ from django.conf import settings
 from django.db import transaction, connection, OperationalError
 from django.db.models import Q
 from django.utils import timezone
+from .agent_freshness import recent_component, recent_device
 from . import agents, distro_oval, distro_sources, distro_results, distro_errors
 from .connectors.http import ConnectorError
 from .intelligence import digest, snapshot_evidence
@@ -205,7 +206,7 @@ def evaluate_device(pk):
         return None
     components = list(
         device.components.select_related("installation__product").filter(
-            observed_at__gte=timezone.now() - timedelta(hours=12), missing_since__isnull=True
+            recent_component(), missing_since__isnull=True
         )
     )
     facts = defaultdict(list)
@@ -538,16 +539,16 @@ def run(limit=5):
     # Correct the obsolete RHEL 10 OVAL claim on existing pending receipts once.
     old_evaluator |= Q(distro_summary__feed="rhel:10", distro_summary__state__in=["pending", "stale"])
     AgentDevice.objects.filter(
+        recent_device(),
         enabled=True,
         distro_requested=False,
-        last_observed_at__gte=timezone.now() - timedelta(hours=12),
         expires_at__gt=timezone.now(),
     ).filter(old_evaluator).update(distro_requested=True)
     pending = list(
         AgentDevice.objects.filter(
+            recent_device(),
             enabled=True,
             distro_requested=True,
-            last_observed_at__gte=timezone.now() - timedelta(hours=12),
             expires_at__gt=timezone.now(),
             organization__merged_into__isnull=True,
         ).order_by("pk")[:limit]
@@ -647,7 +648,7 @@ def coverage(device):
             settings.DISTRO_CVE_ENABLED
             and summary["state"] not in {"stale", "pending", "error", "unsupported"}
             and not device.distro_requested
-            and device.last_sequence == device.applied_sequence
+            and device.inventory_is_applied
             and feed
             and kernel.get("generation") == str(feed.generation)
             and kernel.get("input_hash")

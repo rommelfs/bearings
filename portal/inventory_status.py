@@ -52,6 +52,12 @@ def synchronization_status(asset, device):
                 "detail": "The client credential is revoked or expired.",
                 "tone": "warning",
             }
+        elif device.inventory_capture_gaps:
+            client = {
+                "label": "Inventory check incomplete",
+                "detail": "Last check could not verify " + ", ".join(device.inventory_capture_gaps) + ".",
+                "tone": "warning",
+            }
         elif not device.last_observed_at:
             client = {
                 "label": "Waiting for first report",
@@ -61,7 +67,7 @@ def synchronization_status(asset, device):
         elif device.stale:
             client = {
                 "label": "Reports outdated",
-                "detail": "The last processed observation is more than 12 hours old.",
+                "detail": "The last verified inventory is more than 12 hours old.",
                 "tone": "warning",
             }
         else:

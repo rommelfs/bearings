@@ -4,7 +4,6 @@ No risk score, product-name affectedness inference, historical interpolation or
 cross-company merging. Package/CVE multiplicity never multiplies machine counts.
 """
 
-from datetime import timedelta
 from urllib.parse import urlencode
 from django.conf import settings
 from django.core import signing
@@ -26,6 +25,7 @@ from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast, Coalesce, Concat, Lower, Substr
 from django.urls import reverse
 from django.utils import timezone
+from .agent_freshness import inventory_applied, recent_device
 from .access import organizations_for
 from .models import AgentDevice, Asset, DistroFeed
 from .query_integrity import consistent
@@ -227,13 +227,13 @@ def _scoped_automatic_status(reviews, organizations):
 def _evaluated_devices(feed_scope):
     return AgentDevice.objects.filter(
         feed_scope,
+        recent_device(),
+        inventory_applied(),
         asset_id=OuterRef("pk"),
         source_id=OuterRef("source_id"),
         organization_id=OuterRef("organization_id"),
         enabled=True,
         expires_at__gt=timezone.now(),
-        last_observed_at__gte=timezone.now() - timedelta(hours=12),
-        last_sequence=F("applied_sequence"),
         distro_requested=False,
         distro_checked_at__gte=F("last_observed_at"),
         distro_summary__state__in=["ready", "partial"],

@@ -174,11 +174,11 @@ func loadApplicationConfiguration(config string) ([]applicationProbe, error) {
 	}
 	return cfg.Applications, nil
 }
-func collectApplications(config string) []component {
+func collectApplications(config string) ([]component, bool) {
 	probes, err := applicationProbes(config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "application probe configuration unavailable:", err, "; previous observations retained")
-		return nil
+		return nil, false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -201,7 +201,7 @@ func collectApplications(config string) []component {
 		}
 		out = append(out, c)
 	}
-	return out
+	return out, len(out) == len(probes)
 }
 
 func validApplicationProbe(p applicationProbe) bool {

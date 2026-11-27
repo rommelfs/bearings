@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q, F, Exists, OuterRef
 from django.utils import timezone
+from .agent_freshness import recent_device
 from .connectors.http import ConnectorError, UpstreamHTTPError, approved_base, request_json
 from .models import UbuntuCVEStatus, AgentDevice, UbuntuStatusUse
 from .intelligence import digest
@@ -159,11 +160,11 @@ def refresh_due(limit=16):
         | Q(status__last_success__lt=timezone.now() - TTL, content_hash__gt="")
     )
     AgentDevice.objects.filter(
+        recent_device(),
         enabled=True,
         os__id="ubuntu",
         distro_requested=False,
         distro_checked_at__lt=timezone.now() - timedelta(minutes=2),
-        last_observed_at__gte=timezone.now() - timedelta(hours=12),
         expires_at__gt=timezone.now(),
     ).filter(Exists(changed)).update(distro_requested=True)
 

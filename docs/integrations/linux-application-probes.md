@@ -3,7 +3,7 @@
 The Linux client supplements Debian/RPM package inventory with bounded application
 observations. Profiles are local administrator/collector-controlled JSON, not
 commands supplied through the web application. They run during the ordinary
-`--inventory` capture, including the default six-hour watcher. Package coverage
+`--inventory` capture, including the default 15-minute watcher on a compatible receiver. Package coverage
 and application observations remain separate: a complete package database is not
 complete application discovery or runtime attestation.
 

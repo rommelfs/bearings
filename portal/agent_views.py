@@ -206,6 +206,7 @@ def center(request, slug):
 
         report_os = {}
         for component in components:
+            component.device = selected
             if component.manager == "win-reg" and component.last_report.device_id == selected.pk:
                 if component.last_report_id not in report_os:
                     report_os[component.last_report_id] = json.loads(bytes(component.last_report.body))["os"]

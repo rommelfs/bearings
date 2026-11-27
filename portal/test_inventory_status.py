@@ -77,6 +77,21 @@ class InventoryStatusTests(Fixture):
         response = self.client.get(self.url("asset", pk=self.asset.pk))
         self.assertNotContains(response, "Latest applied Linux-client observation")
 
+    def test_last_success_and_inventory_change_are_visible_with_coverage_gaps(self):
+        AgentDevice.objects.filter(pk=self.device.pk).update(
+            inventory_capture_at=timezone.now(),
+            inventory_capture_gaps=["applications"],
+            inventory_success_at=timezone.now() - timedelta(hours=1),
+            inventory_changed_at=timezone.now() - timedelta(days=1),
+        )
+        self.login(self.reader)
+        response = self.client.get(self.url("asset", pk=self.asset.pk))
+        self.assertContains(response, "Last successful check")
+        self.assertContains(response, "Last inventory change")
+        self.assertContains(response, "Inventory check incomplete")
+        self.assertContains(response, "incomplete (applications)")
+        self.assertNotContains(response, "Reports received")
+
     def test_current_historical_pending_failed_and_inventory_only_receipts_are_distinct(self):
         self.sa.agent_export_policy = {"inventory": True, "vrf": 7}
         self.sa.save()

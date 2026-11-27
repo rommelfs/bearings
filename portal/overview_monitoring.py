@@ -1,9 +1,9 @@
 """Recorded distro-check summaries, kept separate from product-watch freshness."""
 
-from datetime import timedelta
 from django.db.models import Case, Count, Exists, F, IntegerField, Max, OuterRef, Q, Value, When, Window
 from django.utils import timezone
 from django.db.models.functions import RowNumber
+from .agent_freshness import recent_device
 from .models import AgentComponent, AgentDevice, AgentReport
 
 
@@ -31,11 +31,7 @@ def reporter_query(org_ids):
     queued = Q(distro_requested=True) | Q(
         Exists(AgentReport.objects.filter(device_id=OuterRef("pk"), status="pending"))
     )
-    unavailable = (
-        Q(expires_at__lte=now)
-        | Q(last_observed_at__isnull=True)
-        | Q(last_observed_at__lt=now - timedelta(hours=12))
-    )
+    unavailable = Q(expires_at__lte=now) | ~recent_device(now=now)
     uncertain = (
         Q(distro_checked_at__isnull=True)
         | Q(distro_summary__state__isnull=True)
@@ -92,6 +88,7 @@ def attention_devices(org_ids):
             "source_id",
             "expires_at",
             "last_observed_at",
+            "inventory_verified_at",
             "last_received_at",
             "distro_summary",
             "distro_checked_at",

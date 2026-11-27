@@ -13,7 +13,7 @@ from django.utils import timezone
 from http_message_signatures import HTTPMessageSigner, HTTPSignatureKeyResolver, algorithms
 from .tests import Fixture
 from . import agents
-from .agent_protocol import COVERED, TAG
+from .agent_protocol import COVERED, INVENTORY_CHECK, TAG
 from .models import (
     AgentDevice,
     AgentReport,
@@ -129,6 +129,157 @@ class AgentTests(Fixture):
         AgentDevice.objects.filter(pk=self.device.pk).update(
             last_received_at=timezone.now() - timedelta(seconds=11)
         )
+
+    def inventory_check(self, sequence, *, baseline=None, gaps=()):
+        data = {
+            "schema": INVENTORY_CHECK,
+            "report_id": str(uuid.uuid4()),
+            "sequence": sequence,
+            "observed_at": timezone.now().isoformat(),
+            "gaps": list(gaps),
+        }
+        if baseline is not None:
+            data["baseline_id"] = baseline
+        return data
+
+    def test_unchanged_check_refreshes_only_components_in_the_applied_baseline(self):
+        from .agent_freshness import inventory_applied, recent_component
+
+        self.enroll()
+        full = self.data()
+        full["gaps"] = []
+        observed = timezone.now() - timedelta(hours=13)
+        full["observed_at"] = observed.isoformat()
+        response = self.send(full)
+        self.assertEqual(response.status_code, 202, response.content)
+        self.assertEqual(response.headers["Bearings-Inventory-Check"], "1")
+        with patch("portal.agents.timezone.now", return_value=observed):
+            agents.process_pending()
+        component = self.device.components.get()
+        self.assertTrue(component.stale)
+        self.assertFalse(self.device.components.filter(recent_component()).exists())
+        self.device.refresh_from_db()
+        changed_at = self.device.inventory_changed_at
+        AgentDevice.objects.filter(pk=self.device.pk).update(distro_requested=False)
+        self.relax()
+        check = self.inventory_check(2, baseline=full["report_id"])
+        with patch("portal.package_inventory.project") as project:
+            first = self.send(check)
+            self.assertEqual(first.status_code, 200, first.content)
+            self.assertEqual(first.json()["status"], "applied")
+            self.assertEqual(self.send(check).json(), first.json())
+            project.assert_not_called()
+        self.device.refresh_from_db()
+        component.refresh_from_db()
+        self.assertFalse(component.stale)
+        self.assertFalse(self.device.distro_requested)
+        self.assertEqual(self.device.applied_sequence, 1)
+        self.assertEqual(self.device.last_sequence, 2)
+        self.assertEqual(self.device.daily_reports, 2)
+        self.assertEqual(self.device.inventory_changed_at, changed_at)
+        self.assertGreater(self.device.inventory_success_at, changed_at)
+        self.assertEqual(self.device.last_observed_at, changed_at)
+        self.assertEqual(component.observed_at, changed_at)
+        self.assertEqual(str(component.last_report_id), full["report_id"])
+        self.assertTrue(self.device.components.filter(recent_component()).exists())
+        self.assertTrue(AgentDevice.objects.filter(inventory_applied(), pk=self.device.pk).exists())
+        self.assertFalse(self.device.reports.filter(status="pending").exists())
+
+    def test_unapplied_or_missing_baseline_requires_full_inventory(self):
+        self.enroll()
+        full = {**self.data(), "gaps": []}
+        self.assertEqual(self.send(full).status_code, 202)
+        self.relax()
+        check = self.inventory_check(2, baseline=full["report_id"])
+        response = self.send(check)
+        self.assertEqual(response.json()["status"], "rejected")
+        self.assertEqual(response.json()["error"], agents.FULL_INVENTORY_REQUIRED)
+        self.assertEqual(self.send(check).json(), response.json())
+        self.device.refresh_from_db()
+        self.assertIsNone(self.device.inventory_verified_at)
+        self.assertFalse(self.device.inventory_is_applied)
+        agents.process_pending()
+        self.device.refresh_from_db()
+        self.assertTrue(self.device.inventory_is_applied)
+        self.relax()
+        AgentDevice.objects.filter(pk=self.device.pk).update(inventory_baseline_id=None)
+        response = self.send(self.inventory_check(3, baseline=full["report_id"]))
+        self.assertEqual(response.json()["error"], agents.FULL_INVENTORY_REQUIRED)
+        self.relax()
+        same = {**self.data(sequence=4), "gaps": []}
+        self.assertEqual(self.send(same).status_code, 202)
+        agents.process_pending()
+        changed_at = self.device.inventory_changed_at
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.inventory_changed_at, changed_at)
+        self.assertEqual(str(self.device.inventory_baseline_id), same["report_id"])
+
+    def test_stale_full_arrival_cannot_be_revived_without_projection(self):
+        self.enroll()
+        full = {**self.data(), "gaps": []}
+        full["observed_at"] = (timezone.now() - timedelta(hours=13)).isoformat()
+        self.assertEqual(self.send(full).status_code, 202)
+        agents.process_pending()
+        self.device.refresh_from_db()
+        self.assertIsNone(self.device.inventory_baseline_id)
+        self.relax()
+        check = self.inventory_check(2, baseline=full["report_id"])
+        self.assertEqual(self.send(check).json()["error"], agents.FULL_INVENTORY_REQUIRED)
+        self.assertTrue(self.device.components.get().stale)
+
+    def test_failed_and_partial_checks_keep_prior_success_and_omitted_data(self):
+        from .agent_freshness import recent_component
+
+        self.enroll()
+        full = {**self.data(), "gaps": []}
+        observed = timezone.now() - timedelta(hours=13)
+        full["observed_at"] = observed.isoformat()
+        full["applications"] = [
+            {
+                "key": "manifest:misp:all",
+                "manager": "manifest",
+                "name": "MISP",
+                "version": "2.5.53",
+                "architecture": "all",
+                "manifest": {
+                    "method": "misp-version-json",
+                    "path": "/opt/MISP/VERSION.json",
+                    "sha256": "a" * 64,
+                },
+            }
+        ]
+        self.assertEqual(self.send(full).status_code, 202)
+        with patch("portal.agents.timezone.now", return_value=observed):
+            agents.process_pending()
+        self.device.refresh_from_db()
+        success = self.device.inventory_success_at
+        self.relax()
+        failed = self.inventory_check(2, gaps=("packages",))
+        self.assertEqual(self.send(failed).json()["status"], "applied")
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.inventory_capture_gaps, ["packages"])
+        self.assertEqual(self.device.inventory_verified_at, success)
+        self.assertEqual(self.device.inventory_success_at, success)
+        self.assertGreater(self.device.inventory_capture_at, success)
+        self.relax()
+        partial = {**self.data(sequence=3), "gaps": ["applications"]}
+        self.assertEqual(self.send(partial).status_code, 202)
+        agents.process_pending()
+        self.relax()
+        check = self.inventory_check(4, baseline=partial["report_id"], gaps=("applications",))
+        self.assertEqual(self.send(check).json()["status"], "applied")
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.inventory_capture_gaps, ["applications"])
+        self.assertEqual(self.device.inventory_success_at, success)
+        self.assertGreater(self.device.inventory_verified_at, success)
+        self.assertEqual(
+            list(self.device.components.filter(recent_component()).values_list("manager", flat=True)),
+            ["dpkg"],
+        )
+        app = self.device.components.get(manager="manifest")
+        self.assertEqual(app.version, "2.5.53")
+        self.assertTrue(app.stale)
+        self.assertIsNone(app.missing_since)
 
     def test_uninstall_requires_company_admin_and_signed_device_acknowledgment(self):
         self.enroll()

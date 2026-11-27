@@ -13,6 +13,7 @@ import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
+from uuid import uuid4
 from unittest.mock import patch
 from socketserver import ThreadingMixIn
 from wsgiref.simple_server import WSGIServer, WSGIRequestHandler
@@ -287,6 +288,70 @@ class AgentClientTests(TransactionTestCase):
         device.refresh_from_db()
         self.assertFalse(device.enabled)
         self.assertIsNotNone(device.uninstall_acknowledged_at)
+
+    def test_native_flush_sends_compact_inventory_receipts_over_https(self):
+        self.enroll()
+        # Seed deterministic local collector output so the HTTPS test needs no host package data.
+        full_id = str(uuid4())
+        body = {
+            "schema": "bearings.agent.v1",
+            "report_id": full_id,
+            "sequence": 1,
+            "observed_at": timezone.now().isoformat(),
+            "scope": "system-packages",
+            "complete": True,
+            "os": {
+                "id": "ubuntu",
+                "version": "24.04",
+                "architecture": "x86_64",
+                "kernel": "6.8.0-example",
+                "reboot_hint": "not_observed",
+            },
+            "components": [
+                {
+                    "key": "dpkg:synthetic:amd64",
+                    "manager": "dpkg",
+                    "name": "synthetic",
+                    "version": "1.0",
+                    "architecture": "amd64",
+                }
+            ],
+            "services": [],
+            "gaps": [],
+        }
+
+        def flush_document(document):
+            path = self.state / "outbox" / f"{document['sequence']:020d}_{document['report_id']}.json"
+            path.write_text(json.dumps(document))
+            path.chmod(0o600)
+            receipt = json.loads(self.cli("flush").stdout)
+            self.assertFalse(path.exists())
+            self.assertEqual(receipt["report_id"], document["report_id"])
+            return receipt
+
+        self.assertEqual(flush_document(body)["status"], "pending")
+        agents.process_pending()
+        cached = json.loads((self.state / "inventory-baseline.json").read_text())
+        self.assertEqual(cached["report_id"], full_id)
+        self.device.refresh_from_db()
+        initial = self.device.inventory_success_at
+        AgentDevice.objects.filter(pk=self.device.pk).update(
+            last_received_at=timezone.now() - timedelta(seconds=11)
+        )
+        check = {
+            "schema": "bearings.agent.inventory-check.v1",
+            "report_id": str(uuid4()),
+            "sequence": 2,
+            "observed_at": timezone.now().isoformat(),
+            "baseline_id": full_id,
+            "gaps": [],
+        }
+        self.assertEqual(flush_document(check)["status"], "applied")
+        self.assertEqual(json.loads(self.cli("status").stdout)["report_id"], check["report_id"])
+        self.device.refresh_from_db()
+        self.assertGreater(self.device.inventory_success_at, initial)
+        self.assertEqual(self.device.inventory_changed_at, initial)
+        self.assertEqual(self.device.applied_sequence, 1)
 
     def test_actual_client_enrollment_report_receipt_and_explicit_projection(self):
         self.enroll()

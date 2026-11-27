@@ -1,9 +1,8 @@
 """Project new manifest observations without adopting an existing manual version."""
 
-from datetime import timedelta
 from django.db.models import Q
-from django.utils import timezone
 from django.core.exceptions import ValidationError
+from .agent_freshness import recent_component
 from .models import Installation, Product
 from .access import audit
 from .product_matching import ensure_watch
@@ -38,11 +37,11 @@ def project(device):
     if not device.auto_software:
         return 0
     candidates = device.components.filter(
+        recent_component(),
         manager="manifest",
         installation__isnull=True,
         inventory_excluded=False,
         missing_since__isnull=True,
-        observed_at__gte=timezone.now() - timedelta(hours=12),
     ).order_by("pk")[:16]
     count = 0
     for component in candidates:

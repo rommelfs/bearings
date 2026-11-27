@@ -18,13 +18,56 @@ Package namespaces are derived from the reported host OS (including `rhel` → `
 
 Inventory assignment and CVE applicability are separate: dpkg/RPM versions are never reduced to upstream SemVer, and the generic automatic watch enrollment excludes distro package PURLs rather than guessing upstream products from display names. Existing explicit watches/bindings remain. Automatic supported Ubuntu/Debian/RHEL OVAL evaluation now runs in the worker with exact native version comparisons and reported Debian source-package versions. See [distribution advisory matching](distro-cves.md) for release support, cache health and partial/unknown conditions. Repository provenance and running-code verification remain unproven; this is a bounded OVAL subset. Manual/CSV editing cannot overwrite owned version fields, and no observation closes findings or sends notifications.
 
+## Frequent inventory checks
+
+The Linux system inventory service captures locally every 15 minutes with up to
+90 seconds of added jitter and the watcher's normal polling delay. The first
+capture after service start is randomized. An older receiver keeps the full
+inventory cadence at six hours or the configured interval, whichever is longer.
+Explicitly scoped foreground probes and Windows keep their existing protocols.
+
+A receiver advertises support with `Bearings-Inventory-Check: 1` on the usual
+report receipt. The watcher first establishes a full baseline with explicit
+coverage (`gaps`). It hashes the observed inventory and coverage locally without
+the report UUID, sequence or observation timestamp. A changed payload is queued
+as a full report. An unchanged capture queues a signed
+`bearings.agent.inventory-check.v1` message containing the full report UUID,
+the capture time, its coverage gaps and its own report identity and sequence.
+Full and compact messages use the same signature, exact-byte receipts,
+deduplication, device admission limits and durable outbox.
+
+The receiver accepts a check against the device's latest applied eligible full
+report and matching coverage. A snapshot received too late to project bound
+versions cannot serve as that baseline. A rejected check with `Full inventory required`
+clears the client's baseline so the next attempt sends a new full snapshot. A
+package collection failure can be recorded without a baseline after negotiation.
+Network and application probe failures disclose their coverage categories. The
+receiver retains evidence, and only components present in the verified full
+snapshot gain freshness from a check. The compact receipt and device status
+are recorded without rewriting components, exporting to NetBox or requesting
+CVE evaluation. Vendor advisory changes can still trigger evaluation. Receipt
+`applied` means that the check status was recorded, including when the run had
+a coverage gap.
+
+Host and client pages show the last successful check, the last inventory change
+and gaps from the latest capture. An unreachable client cannot deliver its gap
+status. The previous last-known inventory stays visible.
+
+Deploy the reviewed server first with migration 0080. Publish the matching
+client artifacts afterwards. The managed systemd unit changes, so existing
+automatic updaters require one reviewed installer refresh; their existing
+device keys, configuration, queue and drop-ins are preserved. See
+[Linux client updates](../operations/linux-client-updates.md#upgrade-to-15-minute-inventory-checks).
+Before manually downgrading the client to a pre-check build, stop its watcher and
+flush its queue with the current binary so pending compact messages are handled.
+
 ## Ingress contract
 
 POST-only HTTPS endpoints:
 
 * `/api/v1/agent/bootstrap/`: bounded company rollout bearer plus proof of the new device key; returns a one-use grant only.
 * `/api/v1/agent/enroll/`: public-key-bound bearer grant plus signed request.
-* `/api/v1/agent/reports/`: signed device observations; durable receipt before background processing.
+* `/api/v1/agent/reports/`: signed observations and inventory checks; durable receipt for both, with full inventory processed in the background.
 * `/api/v1/agent/status/`: signed query for that device's own receipt only.
 
 Cookies/SSO sessions do not authenticate these machine endpoints. They intentionally use signature authentication rather than browser CSRF. Management forms at `/organizations/<slug>/agents/` retain normal session authorization/CSRF and current organization scope; operator reads and all grants/bindings/revocations are audited. No CORS grant is added. Machine responses are private/no-store and do not return advisory intelligence.

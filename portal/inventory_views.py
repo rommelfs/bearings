@@ -1,7 +1,6 @@
 """Company and asset inventory pages."""
 
 import logging
-from datetime import timedelta
 from time import perf_counter
 
 from django.contrib.auth.decorators import login_required
@@ -26,6 +25,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
+from .agent_freshness import recent_component
 from .access import (
     analyst_read_snapshot,
     audit_organizations,
@@ -239,7 +239,7 @@ def detail(request, slug):
                     ),
                     overview_version_stale=Case(
                         When(
-                            Q(agent_component__observed_at__lt=timezone.now() - timedelta(hours=12))
+                            (Q(agent_component__isnull=False) & ~recent_component("agent_component__"))
                             | Q(agent_component__missing_since__isnull=False)
                             | Q(agent_component__device__enabled=False)
                             | Q(agent_component__device__expires_at__lte=timezone.now()),
@@ -263,7 +263,7 @@ def detail(request, slug):
                 "agent_devices",
                 queryset=AgentDevice.objects.filter(
                     organization=org, source_id=F("asset__source_id"), enabled=True
-                ).only("asset_id", "os", "last_observed_at", "expires_at"),
+                ).only("asset_id", "os", "last_observed_at", "inventory_verified_at", "expires_at"),
                 to_attr="os_devices",
             ),
         )

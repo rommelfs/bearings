@@ -20,6 +20,7 @@ from django.db.models import (
 from django.utils import timezone
 from django.db.models.fields.json import KT
 from django.db.models.functions import Cast
+from .agent_freshness import inventory_applied, recent_component
 from . import distro_oval, distro_results, distro_sources
 from .discovery import RULE as DISCOVERY_RULE
 from .models import DiscoveryRevision, DistroMatch
@@ -56,6 +57,8 @@ def current_package_proofs():
             saved_ubuntu_cve=KT("queue_proof__ubuntu_cve"),
         )
         .filter(
+            recent_component("component__"),
+            inventory_applied("component__device__"),
             queue_proof__evaluator_version=distro_results.VERSION,
             queue_proof__schema="bearings.package-check.v2",
             saved_version=F("component__version"),
@@ -65,11 +68,9 @@ def current_package_proofs():
             saved_sequence=Cast("component__device__applied_sequence", CharField()),
             saved_feed=F("advisory__feed__key"),
             saved_rule=F("advisory__content_hash"),
-            component__observed_at__gte=timezone.now() - timedelta(hours=12),
             component__missing_since__isnull=True,
             component__device__enabled=True,
             component__device__distro_requested=False,
-            component__device__last_sequence=F("component__device__applied_sequence"),
             component__device__expires_at__gt=timezone.now(),
             advisory__feed__enabled=True,
             advisory__feed__generation__isnull=False,

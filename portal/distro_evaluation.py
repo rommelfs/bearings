@@ -111,7 +111,7 @@ def state(device, lookup, feed=None):
         key, message = "stale", "Awaiting a current inventory report; retained evaluation is historical."
     elif not settings.DISTRO_CVE_ENABLED:
         key, message = "disabled", "Automatic package evaluation is disabled by the operator."
-    elif device.last_sequence != device.applied_sequence:
+    elif not device.inventory_is_applied:
         key, message = (
             "report_pending",
             "A newer client report awaits processing; retained evaluation is historical.",

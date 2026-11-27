@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -189,22 +190,38 @@ func flush(s *store) error {
 	if err != nil {
 		return err
 	}
+	baseline, err := s.readInventoryBaseline()
+	if err != nil {
+		return err
+	}
 	for _, name := range names {
 		path := filepath.Join(s.dir, "outbox", name)
 		raw, err := safeRead(path, maxBody)
 		if err != nil {
 			return err
 		}
-		var pending report
-		if err = decode(raw, &pending); err != nil {
+		pending, err := readPendingObservation(raw)
+		if err != nil {
 			return err
 		}
 		expectedName := fmt.Sprintf("%020d_%s.json", pending.Sequence, pending.ReportID)
-		if pending.Schema != tag || !uuidPattern.MatchString(pending.ReportID) || pending.Sequence < 1 || name != expectedName {
+		if !uuidPattern.MatchString(pending.ReportID) || pending.Sequence < 1 || name != expectedName {
 			return errors.New("invalid local report identity")
 		}
-		response, status, err := send(client, s.config.URL, reportPath, "device:"+s.config.DeviceID, s.key, raw, "")
+		var headers http.Header
+		response, status, err := sendWithHeaders(client, s.config.URL, reportPath, "device:"+s.config.DeviceID, s.key, raw, "", &headers)
+		supportsChecks := headers.Get("Bearings-Inventory-Check") == "1"
 		if err != nil {
+			// A legacy receiver cannot admit the new format. Only automatic observations use it.
+			if status == http.StatusForbidden && !supportsChecks && (pending.Check || pending.Extended) {
+				if err = s.writeInventoryBaseline(inventoryBaseline{}); err != nil {
+					return err
+				}
+				if err = removeQueuedReport(path); err != nil {
+					return err
+				}
+				return errors.New("receiver requires legacy full inventory; a new capture is needed")
+			}
 			return err
 		}
 		var ack receipt
@@ -217,14 +234,18 @@ func flush(s *store) error {
 		if status == 202 && ack.Status != "pending" {
 			return errors.New("inconsistent server receipt")
 		}
+		nextBaseline := pending.baselineAfterReceipt(baseline, supportsChecks, ack)
+		if nextBaseline != baseline {
+			if err = s.writeInventoryBaseline(nextBaseline); err != nil {
+				return err
+			}
+			baseline = nextBaseline
+		}
 		saved, _ := json.Marshal(ack)
 		if err = writePrivate(filepath.Join(s.dir, "receipt.json"), saved); err != nil {
 			return err
 		}
-		if err = os.Remove(path); err != nil {
-			return err
-		}
-		if err = syncDir(filepath.Dir(path)); err != nil {
+		if err = removeQueuedReport(path); err != nil {
 			return err
 		}
 		if err = output(ack); err != nil {
@@ -236,6 +257,13 @@ func flush(s *store) error {
 	}
 	return nil
 }
+func removeQueuedReport(path string) error {
+	if err := os.Remove(path); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(path))
+}
+
 func validStatus(value string) bool {
 	return value == "pending" || value == "applied" || value == "rejected" || value == "superseded"
 }
@@ -334,6 +362,7 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
+		r.Gaps = nil
 		return output(r)
 	}
 	s, err := openStore(*state, args[0] == "init")
@@ -375,6 +404,7 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
+		r.Gaps = nil
 		if err = s.enqueue(r); err != nil {
 			return err
 		}
@@ -437,10 +467,12 @@ func watch(dir string, inventory bool, selected []string, serviceName string, bi
 		if err == nil && len(names) == 0 && !now.Before(nextCapture) && !now.Before(retryAt) {
 			var r *report
 			r, err = collectConfigured(inventory, selected, serviceName, binariesFile)
-			if err == nil {
+			if inventory {
+				err = s.enqueueInventoryCapture(r, err)
+			} else if err == nil {
 				err = s.enqueue(r)
-				captured = err == nil
 			}
+			captured = err == nil
 		}
 		if err == nil && !now.Before(retryAt) && (len(names) > 0 || captured) {
 			err = flush(s)
@@ -448,7 +480,14 @@ func watch(dir string, inventory bool, selected []string, serviceName string, bi
 				backoff = 15 * time.Second
 				retryAt = time.Now()
 				if captured {
-					nextCapture = time.Now().Add(interval + time.Duration(rand.Int64N(int64(interval/10))))
+					cadence := interval
+					if inventory && cadence < 6*time.Hour {
+						baseline, err := s.readInventoryBaseline()
+						if err != nil || !baseline.Supported {
+							cadence = 6 * time.Hour
+						}
+					}
+					nextCapture = time.Now().Add(cadence + time.Duration(rand.Int64N(int64(cadence/10))))
 				} else {
 					nextCapture = time.Now().Add(15 * time.Second)
 				}

@@ -11,7 +11,16 @@ from django.db import transaction, OperationalError
 from . import package_inventory
 from django.utils import timezone
 from .access import audit, require, role_for
-from .agent_protocol import public_key, package_scope, report_data, identifier
+from .agent_freshness import recent_device
+from .agent_protocol import (
+    INVENTORY_CHECK,
+    decode,
+    identifier,
+    inventory_check_data,
+    package_scope,
+    public_key,
+    report_data,
+)
 from .models import (
     AgentEnrollment,
     AgentDevice,
@@ -307,12 +316,13 @@ def receive(device_id, raw, signature_input, signature, request_url, content_typ
     )
     if not current(device):
         raise ValueError("Device unavailable")
-    from .agent_protocol import decode
-
     data = decode(raw)
-    observed = report_data(data)
+    check = data.get("schema") == INVENTORY_CHECK
+    if check and device.os.get("id") == "windows":
+        raise ValueError("Inventory checks require a Linux client")
+    observed = inventory_check_data(data) if check else report_data(data)
     digest = hashlib.sha256(raw).hexdigest()
-    existing = AgentReport.objects.filter(pk=data["report_id"]).first()
+    existing = AgentReport.objects.filter(pk=data["report_id"]).defer("body").first()
     if existing:
         if existing.device_id != device.pk or not hmac.compare_digest(existing.body_hash, digest):
             raise ValueError("Report identity conflict")
@@ -326,8 +336,19 @@ def receive(device_id, raw, signature_input, signature, request_url, content_typ
         raise OverflowError("Daily device admission budget exceeded")
     if device.last_received_at and timezone.now() - device.last_received_at < timedelta(seconds=10):
         raise OverflowError("Reports must be at least ten seconds apart")
-    if device.reports.filter(status="pending").count() >= 10:
+    if not check and device.reports.filter(status="pending").count() >= 10:
         raise OverflowError("Pending queue full")
+    now = timezone.now()
+    fields = ["last_sequence", "last_received_at", "daily_reports", "daily_bytes"]
+    status, error = "pending", ""
+    if check:
+        status, error = _apply_inventory_check(device, data, observed, fields)
+        if device.inventory_admitted_sequence is None:
+            device.inventory_admitted_sequence = device.last_sequence
+            fields.append("inventory_admitted_sequence")
+    else:
+        device.inventory_admitted_sequence = data["sequence"]
+        fields.append("inventory_admitted_sequence")
     row = AgentReport.objects.create(
         id=data["report_id"],
         device=device,
@@ -340,14 +361,85 @@ def receive(device_id, raw, signature_input, signature, request_url, content_typ
         request_url=request_url,
         content_type=content_type,
         public_key=device.public_key,
-        component_count=len(data["components"]) + len(data.get("applications", [])),
+        component_count=0 if check else len(data["components"]) + len(data.get("applications", [])),
+        status=status,
+        error=error,
+        processed_at=now if check else None,
     )
     device.daily_reports += 1
     device.daily_bytes += len(raw)
     device.last_sequence = data["sequence"]
-    device.last_received_at = timezone.now()
-    device.save(update_fields=["last_sequence", "last_received_at", "daily_reports", "daily_bytes"])
+    device.last_received_at = now
+    device.save(update_fields=fields)
     return row
+
+
+FULL_INVENTORY_REQUIRED = "Full inventory required"
+CAPTURE_FIELDS = ["inventory_capture_at", "inventory_capture_gaps"]
+
+
+def _apply_inventory_check(device, data, observed, fields):
+    last_capture = max(filter(None, (device.inventory_capture_at, device.last_observed_at)), default=None)
+    if last_capture and observed < last_capture:
+        return "rejected", "Observation clock moved backwards; explicit review required"
+    if "baseline_id" in data and (
+        not device.inventory_is_applied
+        or identifier(data["baseline_id"]) != device.inventory_baseline_id
+        or sorted(data["gaps"]) != sorted(device.inventory_baseline_gaps)
+    ):
+        return "rejected", FULL_INVENTORY_REQUIRED
+    device.inventory_capture_at = observed
+    device.inventory_capture_gaps = data["gaps"]
+    fields.extend(CAPTURE_FIELDS)
+    if "baseline_id" in data:
+        device.inventory_verified_at = observed
+        fields.append("inventory_verified_at")
+        if not data["gaps"]:
+            device.inventory_success_at = observed
+            fields.append("inventory_success_at")
+    return "applied", ""
+
+
+def _apply_full_inventory_metadata(device, data, row):
+    # A scoped observation can replace some component rows. It ends the previous baseline.
+    device.inventory_baseline_id = None
+    device.inventory_baseline_gaps = []
+    device.inventory_verified_at = None
+    fields = ["inventory_baseline_id", "inventory_baseline_gaps", "inventory_verified_at"]
+    if not data["complete"] or data["scope"] != "system-packages":
+        return fields
+    inventory = {
+        key: value
+        for key, value in data.items()
+        if key not in {"schema", "report_id", "sequence", "observed_at", "gaps"}
+    }
+    for key in ("components", "applications"):
+        if inventory.get(key):
+            inventory[key] = sorted(inventory[key], key=lambda item: item["key"])
+        elif key == "applications":
+            inventory.pop(key, None)
+    fingerprint = hashlib.sha256(json.dumps(inventory, sort_keys=True).encode()).hexdigest()
+    if fingerprint != device.inventory_fingerprint:
+        device.inventory_fingerprint = fingerprint
+        device.inventory_changed_at = row.observed_at
+        fields.extend(["inventory_fingerprint", "inventory_changed_at"])
+    if "gaps" not in data:
+        return fields
+    gaps = data["gaps"]
+    if not device.inventory_capture_at or row.observed_at >= device.inventory_capture_at:
+        device.inventory_capture_at = row.observed_at
+        device.inventory_capture_gaps = gaps
+        fields.extend(CAPTURE_FIELDS)
+    if not gaps:
+        device.inventory_success_at = row.observed_at
+        fields.append("inventory_success_at")
+    # A delayed report can retain observations without updating bound versions.
+    # Require a new full snapshot before a compact check can make them current.
+    if row.observed_at >= timezone.now() - timedelta(hours=12):
+        device.inventory_baseline_id = row.pk
+        device.inventory_baseline_gaps = gaps
+        device.inventory_verified_at = row.observed_at
+    return fields
 
 
 def receipt(row):
@@ -398,7 +490,7 @@ def process_one(device_id, report_id):
     elif row.sequence <= device.applied_sequence:
         row.status = "superseded"
         row.error = "A newer observation has already been applied"
-    elif device.last_observed_at and row.observed_at < device.last_observed_at:
+    elif device.inventory_fresh_at and row.observed_at < device.inventory_fresh_at:
         row.status = "rejected"
         row.error = "Observation clock moved backwards; explicit review required"
     else:
@@ -536,8 +628,10 @@ def process_one(device_id, report_id):
                 device.last_complete_at = row.observed_at
             device.last_observed_at = row.observed_at
             device.applied_sequence = row.sequence
+            inventory_fields = _apply_full_inventory_metadata(device, data, row)
             device.save(
                 update_fields=[
+                    *inventory_fields,
                     "os",
                     "services",
                     "last_observed_at",
@@ -585,11 +679,11 @@ def process_pending(limit=25):
             continue
     # Backfill already received reports after upgrade, in bounded indexed batches.
     for pk in AgentDevice.objects.filter(
+        recent_device(),
         enabled=True,
         auto_software=True,
         software_sync_pending=True,
         applied_sequence__gt=0,
-        last_observed_at__gte=timezone.now() - timedelta(hours=12),
         expires_at__gt=timezone.now(),
         organization__merged_into__isnull=True,
     ).values_list("pk", flat=True)[:limit]:

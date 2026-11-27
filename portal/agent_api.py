@@ -184,7 +184,9 @@ def reports(request):
             request.build_absolute_uri(),
             request.headers["Content-Type"],
         )
-        return private(JsonResponse(agents.receipt(row), status=202 if row.status == "pending" else 200))
+        response = private(JsonResponse(agents.receipt(row), status=202 if row.status == "pending" else 200))
+        response["Bearings-Inventory-Check"] = "1"
+        return response
     except OverflowError:
         response = private(JsonResponse({"error": "Device backlog full; retry later"}, status=429))
         response["Retry-After"] = "60"
@@ -198,11 +200,13 @@ def reports(request):
         HTTPMessageSignaturesException,
         IntegrityError,
     ):
-        return private(
+        response = private(
             JsonResponse(
                 {"error": "Report rejected; check device, signature, schema and sequence"}, status=403
             )
         )
+        response["Bearings-Inventory-Check"] = "1"
+        return response
     except OperationalError:
         return private(JsonResponse({"error": "Temporarily unavailable"}, status=503))
 

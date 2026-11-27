@@ -3,8 +3,7 @@
 import re
 import json
 from urllib.parse import quote, urlencode
-from datetime import timedelta
-from django.utils import timezone
+from .agent_freshness import recent_component
 from .models import AgentComponent, AgentReport, Installation, Product
 from .access import audit
 
@@ -87,11 +86,11 @@ def project(device):
         return 0
     candidates = (
         device.components.filter(
+            recent_component(),
             installation__isnull=True,
             inventory_excluded=False,
             manager__in=["dpkg", "rpm", "win-reg"],
             missing_since__isnull=True,
-            observed_at__gte=timezone.now() - timedelta(hours=12),
         )
         .exclude(package_identity__has_key="unsupported")
         .order_by("pk")

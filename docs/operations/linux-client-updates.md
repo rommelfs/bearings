@@ -62,6 +62,27 @@ never restarts reporting. Disabling the timer also persists disabled policy;
 already scheduled retry processes exit without downloading. Ordinary reporting
 and boot recovery remain installed. No web command channel is added.
 
+## Upgrade to 15-minute inventory checks
+
+After installing the reviewed server release and applying migration 0080, publish
+the new packages with `python3 deploy/ubuntu24/ecosystem.py prepare-clients`.
+The revised unit is part of the reviewed update. An updater installed before
+this change cannot accept the new unit on its own. On enrolled clients, download
+the current installer from your Bearings server and refresh once:
+
+```sh
+cd /root
+curl --fail --show-error --proto '=https' \
+  https://bearings.example.org/downloads/linux/install.py -o bearings-install.py &&
+sudo python3 bearings-install.py install --server https://bearings.example.org --auto-update
+systemctl is-active bearings-linux.service
+```
+
+Use the same configured Bearings origin and CA policy. Retain any intentional
+systemd drop-in or updater opt-out policy. Omit rollout and enrollment options
+on existing enrolled devices. See the
+[inventory check contract](../integrations/linux-agent.md#frequent-inventory-checks).
+
 ## Transaction and recovery contract
 
 The manual installer, scheduled updater and recovery actions share the same

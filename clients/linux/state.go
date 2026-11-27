@@ -201,6 +201,10 @@ func (s *store) queue() ([]string, int64, error) {
 	return names, size, nil
 }
 func (s *store) enqueue(r *report) error {
+	return s.enqueueObservation(r.ReportID, &r.Sequence, r)
+}
+
+func (s *store) enqueueObservation(id string, seq *int64, observation any) error {
 	names, size, err := s.queue()
 	if err != nil {
 		return err
@@ -212,8 +216,8 @@ func (s *store) enqueue(r *report) error {
 		return errors.New("sequence exhausted; explicit reenrollment required")
 	}
 	s.config.Counter++
-	r.Sequence = s.config.Counter
-	raw, err := json.Marshal(r)
+	*seq = s.config.Counter
+	raw, err := json.Marshal(observation)
 	if err != nil {
 		return err
 	}
@@ -223,5 +227,5 @@ func (s *store) enqueue(r *report) error {
 	if err = s.save(); err != nil {
 		return err
 	}
-	return writePrivate(filepath.Join(s.dir, "outbox", fmt.Sprintf("%020d_%s.json", r.Sequence, r.ReportID)), raw)
+	return writePrivate(filepath.Join(s.dir, "outbox", fmt.Sprintf("%020d_%s.json", *seq, id)), raw)
 }

@@ -128,17 +128,19 @@ p.write_text(json.dumps(s));sys.exit(code)
     assert (private / "key").read_bytes() == key_before
     assert not json.loads(state.read_text())["enabled"]
 
-    # Upgrade only the exact prior reviewed unit, preserving private state and stopped state.
+    # Upgrade both exact prior reviewed units, preserving private state and stopped state.
     unit_path = Path("/etc/systemd/system/bearings-linux.service")
     current_unit = unit_path.read_bytes()
-    old_unit = current_unit.replace(
+    previous_unit = current_unit.replace(b"--interval 15m", b"--interval 6h")
+    older_unit = previous_unit.replace(
         b"# AF_NETLINK is required to read local interface/address metadata without probing.\n", b""
     ).replace(b"AF_INET6 AF_NETLINK", b"AF_INET6")
-    unit_path.write_bytes(old_unit)
-    call("--binary", "/test-client")
-    assert unit_path.read_bytes() == current_unit
-    assert (private / "key").read_bytes() == key_before
-    assert not json.loads(state.read_text())["active"]
+    for old_unit in (previous_unit, older_unit):
+        unit_path.write_bytes(old_unit)
+        call("--binary", "/test-client")
+        assert unit_path.read_bytes() == current_unit
+        assert (private / "key").read_bytes() == key_before
+        assert not json.loads(state.read_text())["active"]
 
     # Explicit LXC compatibility does not rewrite the hardened unit or device key.
     unit_before = Path("/etc/systemd/system/bearings-linux.service").read_bytes()
@@ -333,7 +335,7 @@ p.write_text(json.dumps(s));sys.exit(code)
                 "--bootstrap-stdin",
                 stdin=fleet_token.encode(),
                 ok=False,
-                error_contains="bootstrap failed (exit 1); existing device state is retained. Server refused registration (HTTP 403)",
+                error_contains="Rollout key rejected (HTTP 403). Check whether the key is invalid or expired",
             )
             assert (private / "key").read_bytes() == key_before
             assert not bootstraps and not received

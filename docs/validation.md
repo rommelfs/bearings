@@ -3038,3 +3038,14 @@ x64, ARM64 and x86. The native Windows workflow exercises DPAPI archival of
 the public retry context with the existing device key retained. The command
 acts on local state. An administrator checks the server reservation before
 switching rollout keys.
+
+### Compact Linux inventory checks
+
+Synthetic receiver tests cover exact retries, pending/missing baseline recovery,
+retention of failed application evidence, stable CVE input sequences and
+independent last-success/last-change timestamps. A native Go client sends the
+queued full snapshot and the compact check over verified loopback HTTPS to
+PostgreSQL 17; the usual signed status endpoint returns the compact receipt.
+Go tests exercise the capture fingerprint and coverage outcomes. The installer
+test verifies the new unit digest and both previously distributed unit digests.
+No production reporting or fleet-capacity measurement was performed.

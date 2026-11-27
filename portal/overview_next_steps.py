@@ -91,7 +91,7 @@ def decorate(states):
                     "Device credential has expired. Re-enroll this host before expecting new inventory or package results.",
                     "Company administrator",
                 )
-            elif not device.last_observed_at or device.last_observed_at < now - timedelta(hours=12):
+            elif not device.inventory_fresh_at or device.inventory_fresh_at < now - timedelta(hours=12):
                 if device.last_received_at and device.last_received_at >= now - timedelta(hours=12):
                     title, reason, owner = (
                         "Check receipt processing and report timestamps",
@@ -188,7 +188,7 @@ def decorate(states):
                 "clients",
                 priority=1,
                 host=device.asset.name,
-                observed_at=device.last_observed_at,
+                observed_at=device.inventory_fresh_at,
                 received_at=device.last_received_at,
                 attempted_at=device.distro_checked_at,
             )

@@ -72,7 +72,7 @@ func TestApplicationProbeConfigurationIsExplicitAndReadOnly(t *testing.T) {
 	os.WriteFile(path, []byte(`{"major":2,"minor":5,"hotfix":52}`), 0600)
 	raw := `{"schema":"bearings.application-probes.v1","applications":[{"id":"misp-main","method":"misp-version-json","path":"` + path + `"}]}`
 	os.WriteFile(config, []byte(raw), 0600)
-	got := collectApplications(config)
+	got, _ := collectApplications(config)
 	if len(got) != 1 || got[0].Version != "2.5.52" {
 		t.Fatalf("bad configured collection: %+v", got)
 	}

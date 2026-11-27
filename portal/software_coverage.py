@@ -5,7 +5,6 @@ empty advisory index never establishes full evaluation or a safe installation.
 """
 
 from collections import defaultdict
-from datetime import timedelta
 from urllib.parse import urlencode
 
 from django.db.models import Case, CharField, Count, F, OuterRef, Q, Subquery, Value, When, Window
@@ -14,6 +13,7 @@ from django.db.models.fields.json import KT
 from django.urls import reverse
 from django.utils import timezone
 
+from .agent_freshness import inventory_applied, recent_component, recent_device
 from .access import organizations_for, visible_findings_for
 from .models import DiscoveryMatch, DiscoveryRevision, Installation
 from .query_integrity import consistent
@@ -54,10 +54,9 @@ def inventory(user, org_ids=None):
         Q(agent_component__missing_since__isnull=False)
         | Q(agent_component__device__enabled=False)
         | Q(agent_component__device__expires_at__lte=timezone.now())
-        | Q(agent_component__observed_at__lt=timezone.now() - timedelta(hours=12))
-        | Q(agent_component__device__last_observed_at__isnull=True)
-        | Q(agent_component__device__last_observed_at__lt=timezone.now() - timedelta(hours=12))
-        | ~Q(agent_component__device__last_sequence=F("agent_component__device__applied_sequence"))
+        | (Q(agent_component__isnull=False) & ~recent_component("agent_component__"))
+        | ~recent_device("agent_component__device__")
+        | ~inventory_applied("agent_component__device__")
         | ~Q(agent_component__last_report__status="applied")
     )
     package = Q(product__identifier__startswith="pkg:deb/") | Q(product__identifier__startswith="pkg:rpm/")

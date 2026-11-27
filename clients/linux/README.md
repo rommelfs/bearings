@@ -43,9 +43,9 @@ sudo python3 bearings-install.py status
 sudo journalctl -u bearings-linux -f
 ```
 
-Installation without a bootstrap option makes no enrollment request; `--server` downloads public artifacts. Starting the enrolled service authorizes its existing periodic reporting profile. The default unit collects system packages every six hours. Use reviewed systemd drop-ins for another scope; the installer preserves them.
+Installation without a bootstrap option makes no enrollment request; `--server` downloads public artifacts. Starting the enrolled service authorizes its existing periodic reporting profile. The default unit captures inventory every 15 minutes plus up to 90 seconds of jitter after negotiating inventory checks. An older receiver keeps the six-hour full-report cadence. Use reviewed systemd drop-ins for another scope; the installer preserves them.
 
-For offline/local-source installation, build once below and use `sudo python3 clients/linux/install.py`, or copy the generated distribution directory to the target and run its `install.py`. `--binary /approved/local/client` explicitly selects another reviewed artifact. Build output includes installer, unit, license, checksums, source note and corresponding client/installer source archive. Checksums provide consistency over trusted HTTPS; they are not independent release signatures. This is not an automatic self-updater or an arbitrary downgrade/revocation/renewal mechanism.
+For offline/local-source installation, build once below and use `sudo python3 clients/linux/install.py`, or copy the generated distribution directory to the target and run its `install.py`. `--binary /approved/local/client` explicitly selects another reviewed artifact. Build output includes installer, unit, license, checksums, source note and corresponding client/installer source archive. Checksums provide consistency over trusted HTTPS; they are not independent release signatures. For scheduled client updates, see the [Linux updater](../../docs/operations/linux-client-updates.md).
 
 ### Existing roll-out processes
 
@@ -163,10 +163,12 @@ Any failed, excessive, nonzero, ambiguous or timed-out query fails the collectio
 ```sh
 bearings-linux enqueue --service nginx
 bearings-linux flush
-bearings-linux watch --inventory --interval 6h
+bearings-linux watch --inventory --interval 15m
 ```
 
 `enqueue` durably stages locally without network access, suitable for a nonblocking deployment hook. `flush` sends pending reports in sequence and removes each only after an exact durable receipt. Duplicate/lost-ack retries do not repeat publication. Watch checks the outbox roughly every 30–35 seconds, captures at the chosen interval with jitter, and retries failed delivery with bounded backoff. It releases its state lock between operations so foreground hooks can coexist. Busy locks defer work. Recovery from a backlog triggers a fresh capture instead of treating old data as newly observed.
+
+With a compatible receiver, the system inventory watcher sends a full snapshot when the observed content or its coverage changes. Unchanged captures send a signed check referencing the last full snapshot. A package collection failure sends a check with a coverage gap; optional network or application failures retain the last available evidence. The receiver requires the referenced snapshot to be applied and requests a new full snapshot if the baseline is unavailable. Manual `report` and `enqueue` keep sending full or explicitly scoped reports. See [the reporting contract](../../docs/integrations/linux-agent.md#frequent-inventory-checks) for deployment and recovery.
 
 Limits: 1,000,000 bytes / 5,000 components per report; 120 characters per native version; 64 pending local reports / approximately 64 MB with no silent eviction. The server admits at most ten pending reports, one new report per ten seconds and 200 reports / 32 MiB per UTC day per device. Exact idempotent retries do not consume another allowance. Larger scopes need a future paginated contract; no silent truncation is performed. An expired/revoked credential does not flush through a new identity automatically.
 
@@ -174,7 +176,7 @@ Limits: 1,000,000 bytes / 5,000 components per report; 120 characters per native
 
 Review [systemd/bearings-linux.service](systemd/bearings-linux.service), install the locally built binary under `/usr/local/bin`, create a dedicated `bearings-linux` system account and a mode-0700 `/var/lib/bearings-linux` owned by it. Initialize/enroll **as that same account**, consistently adding `--state-dir /var/lib/bearings-linux`. Install the reviewed unit and enable it with your normal service-management process. Keep a custom CA at an administrator-managed readable path such as `/etc/bearings/ca.pem`; the hardened unit cannot read home directories. The service has no Linux capabilities and does not grant ptrace or Docker access. NGINX runtime data may remain unavailable under this account; this is disclosed.
 
-If elevated collection is operationally necessary, review that privilege separately. Do not make a private state directory world-readable to let another account use its key. Root compromise remains outside any self-report's truth guarantee. There is no self-updater; distribute reviewed builds through the organization's existing trusted software deployment.
+If elevated collection is operationally necessary, review that privilege separately. Do not make a private state directory world-readable to let another account use its key. Root compromise remains outside any self-report's truth guarantee. Use the [Linux updater](../../docs/operations/linux-client-updates.md) or distribute reviewed builds through the organization's trusted software deployment.
 
 ## Expiry, revoke and replace
 
