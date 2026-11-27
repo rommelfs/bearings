@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestInventoryCaptureQueuesFullOnlyWhenChanged(t *testing.T) {
@@ -77,5 +79,37 @@ func TestInventoryCaptureQueuesFullOnlyWhenChanged(t *testing.T) {
 	recovery := pendingObservation{Check: true}.baselineAfterReceipt(baseline, true, receipt{Status: "rejected", Error: fullInventoryRequired})
 	if !recovery.Supported || recovery.ReportID != "" {
 		t.Fatalf("expected a fresh full report after a baseline miss, got %+v", recovery)
+	}
+}
+
+func TestStockUnitEnablesFastInventoryWithoutAUnitUpgrade(t *testing.T) {
+	unit, err := os.ReadFile("systemd/bearings-linux.service")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := digest(unit); got != "aad8acca2d848bd8bf016d3fb30cb94a22cbda96025800f2a897c541b24b5a17" {
+		t.Fatalf("previously installed updater would reject this unit digest: %s", got)
+	}
+	entry := ""
+	for _, line := range strings.Split(string(unit), "\n") {
+		if strings.HasPrefix(line, "ExecStart=") {
+			entry = line
+			break
+		}
+	}
+	fields := strings.Fields(entry)
+	if len(fields) < 2 {
+		t.Fatal("missing stock executable and arguments")
+	}
+	args := fields[1:]
+	if got := inventoryWatchInterval(args, 6*time.Hour, true); got != 15*time.Minute {
+		t.Fatalf("stock systemd cadence = %v", got)
+	}
+	if got := inventoryWatchInterval(args, 6*time.Hour, false); got != 6*time.Hour {
+		t.Fatalf("standalone cadence = %v", got)
+	}
+	custom := append(slices.Clone(args[:len(args)-2]), "--interval=6h")
+	if got := inventoryWatchInterval(custom, 6*time.Hour, true); got != 6*time.Hour {
+		t.Fatalf("explicit systemd override cadence = %v", got)
 	}
 }

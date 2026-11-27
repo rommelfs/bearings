@@ -131,8 +131,8 @@ p.write_text(json.dumps(s));sys.exit(code)
     # Upgrade both exact prior reviewed units, preserving private state and stopped state.
     unit_path = Path("/etc/systemd/system/bearings-linux.service")
     current_unit = unit_path.read_bytes()
-    previous_unit = current_unit.replace(b"--interval 15m", b"--interval 6h")
-    older_unit = previous_unit.replace(
+    previous_unit = current_unit.replace(b"--interval 6h", b"--interval 15m")
+    older_unit = current_unit.replace(
         b"# AF_NETLINK is required to read local interface/address metadata without probing.\n", b""
     ).replace(b"AF_INET6 AF_NETLINK", b"AF_INET6")
     for old_unit in (previous_unit, older_unit):
@@ -414,7 +414,21 @@ p.write_text(json.dumps(s));sys.exit(code)
         service["units"]["bearings-linux-update-recover-boot.service"]["active"] = False
         state.write_text(json.dumps(service))
         publication["suffix"] = b"synthetic-new-publication"
-        call("auto-update")
+        previous_updater = os.environ.get("BEARINGS_TEST_PREVIOUS_UPDATER")
+        if previous_updater:
+            current_installer = installer
+            prior = Path(previous_updater).read_bytes()
+            installed_updater.write_bytes(prior)
+            try:
+                installer = installed_updater
+                call("auto-update")
+                assert installed_updater.read_bytes() == prior
+                assert unit_path.read_bytes() == current_unit
+            finally:
+                installer = current_installer
+                installed_updater.write_bytes(installer.read_bytes())
+        else:
+            call("auto-update")
         installed = Path("/usr/local/bin/bearings-linux")
         accepted_binary = installed.read_bytes()
         assert accepted_binary == Path("/test-client").read_bytes() + publication["suffix"]

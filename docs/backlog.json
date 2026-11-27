@@ -173,7 +173,7 @@
       },
       {
         "title": "Send compact checks for unchanged Linux inventory",
-        "body": "Implemented signed 15-minute inventory checks with full snapshots on changes, applied-baseline recovery, coverage gaps and exact durable receipts. Preserve freshness only for components in the verified baseline and keep existing CVE evidence until its inputs change. Hosts show last successful check and last inventory change. Receiver migration 0080 precedes republishing artifacts; the revised systemd unit requires a one-time reviewed installer refresh. Legacy receivers keep the six-hour cadence. Fleet-capacity validation remains pending."
+        "body": "Implemented signed 15-minute inventory checks with full snapshots on changes, applied-baseline recovery, coverage gaps and exact durable receipts. Preserve freshness only for components in the verified baseline and keep existing CVE evidence until its inputs change. Hosts show last successful check and last inventory change. Receiver migration 0080 precedes republishing artifacts. The original systemd unit digest lets existing enabled auto-updaters install the binary and negotiate the faster cadence. Legacy receivers keep the six-hour cadence. Fleet-capacity validation remains pending."
       },
       {
         "title": "Fix root-private updater activation with inherited sudo identity",

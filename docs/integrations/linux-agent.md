@@ -54,9 +54,10 @@ and gaps from the latest capture. An unreachable client cannot deliver its gap
 status. The previous last-known inventory stays visible.
 
 Deploy the reviewed server first with migration 0080. Publish the matching
-client artifacts afterwards. The managed systemd unit changes, so existing
-automatic updaters require one reviewed installer refresh; their existing
-device keys, configuration, queue and drop-ins are preserved. See
+client artifacts afterwards. Publishing the original systemd unit bytes lets
+already enabled updaters install the new binary. The new binary selects the
+negotiated interval for the stock systemd invocation. Device keys,
+configuration, queue and drop-ins are preserved. See
 [Linux client updates](../operations/linux-client-updates.md#upgrade-to-15-minute-inventory-checks).
 Before manually downgrading the client to a pre-check build, stop its watcher and
 flush its queue with the current binary so pending compact messages are handled.

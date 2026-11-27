@@ -25,10 +25,10 @@ import ssl
 import urllib.request
 from urllib.parse import urlsplit
 
-UNIT_SHA256 = "33eb882c3cd2c80f6b1c8dc97ac3f8e2d90c978a63f9e7e73f85ed67c79df954"
+UNIT_SHA256 = "aad8acca2d848bd8bf016d3fb30cb94a22cbda96025800f2a897c541b24b5a17"
 # Only exact previously distributed units may be replaced or restored.
 PREVIOUS_UNIT_SHA256 = {
-    "aad8acca2d848bd8bf016d3fb30cb94a22cbda96025800f2a897c541b24b5a17",
+    "33eb882c3cd2c80f6b1c8dc97ac3f8e2d90c978a63f9e7e73f85ed67c79df954",
     "cbbc6eb75f24bd7ee356dc6718afa271e08fe24c2686fd3c638fc93675562ea1",
 }
 ACCOUNT = "bearings-linux"

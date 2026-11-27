@@ -3047,5 +3047,8 @@ independent last-success/last-change timestamps. A native Go client sends the
 queued full snapshot and the compact check over verified loopback HTTPS to
 PostgreSQL 17; the usual signed status endpoint returns the compact receipt.
 Go tests exercise the capture fingerprint and coverage outcomes. The installer
-test verifies the new unit digest and both previously distributed unit digests.
+tests verify the original unit digest, the exact stock systemd invocation and
+preservation of explicitly configured reporting intervals. The isolated installer
+fixture can run the previously published updater unchanged against the new
+binary and the original unit digest.
 No production reporting or fleet-capacity measurement was performed.

@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -425,10 +426,20 @@ func run(args []string) error {
 		dir := s.dir
 		s.close()
 		s.lock = nil
-		return watch(dir, *inventory, selected, *serviceName, *binariesFile, *interval)
+		return watch(dir, *inventory, selected, *serviceName, *binariesFile, inventoryWatchInterval(args, *interval, os.Getenv("INVOCATION_ID") != ""))
 	default:
 		return errors.New("unknown command")
 	}
+}
+
+// Keep the shipped unit byte-for-byte compatible with the installed updater.
+// Only the exact stock systemd invocation opts into the negotiated cadence.
+func inventoryWatchInterval(args []string, interval time.Duration, systemd bool) time.Duration {
+	stock := []string{"watch", "--state-dir", "/var/lib/bearings-linux", "--inventory", "--interval", "6h"}
+	if systemd && slices.Equal(args, stock) {
+		return 15 * time.Minute
+	}
+	return interval
 }
 
 // watch releases the state lock between operations so CLI update hooks can coexist.

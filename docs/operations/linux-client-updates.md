@@ -66,22 +66,24 @@ and boot recovery remain installed. No web command channel is added.
 
 After installing the reviewed server release and applying migration 0080, publish
 the new packages with `python3 deploy/ubuntu24/ecosystem.py prepare-clients`.
-The revised unit is part of the reviewed update. An updater installed before
-this change cannot accept the new unit on its own. On enrolled clients, download
-the current installer from your Bearings server and refresh once:
+The published systemd unit matches the unit shipped before compact inventory
+checks, including its exact digest. Enrolled hosts using that unit and with
+automatic updates enabled receive the new binary on their normal randomized
+schedule. The binary selects the faster cadence for the stock service invocation
+after the server advertises support. No client-side installer run is required for
+this fleet path.
 
-```sh
-cd /root
-curl --fail --show-error --proto '=https' \
-  https://bearings.example.org/downloads/linux/install.py -o bearings-install.py &&
-sudo python3 bearings-install.py install --server https://bearings.example.org --auto-update
-systemctl is-active bearings-linux.service
-```
+Sites that already installed the short-lived unit with `--interval 15m` from
+commit `a0c9fa2` have an updater pinned to that unit's different digest. Use the
+current reviewed installer once via your normal software distribution to return
+those hosts to the published unit. Preserve their original CA and updater policy.
+No rollout or enrollment options are needed.
 
-Use the same configured Bearings origin and CA policy. Retain any intentional
-systemd drop-in or updater opt-out policy. Omit rollout and enrollment options
-on existing enrolled devices. See the
-[inventory check contract](../integrations/linux-agent.md#frequent-inventory-checks).
+The unchanged stock unit still shows `--interval 6h` in `systemctl cat`. On
+compatible servers the new binary uses 15 minutes for that stock systemd
+invocation. Sites wanting to explicitly hold six hours can use
+`--interval=6h` in their systemd drop-in. Other invocations keep the configured
+interval. See the [inventory check contract](../integrations/linux-agent.md#frequent-inventory-checks).
 
 ## Transaction and recovery contract
 

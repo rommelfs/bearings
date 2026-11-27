@@ -710,9 +710,9 @@ Implemented company-scoped inventory/review/rollout/monitoring/action/risk links
 - Implemented signed 15-minute Linux inventory checks. Unchanged captures verify
   the latest applied snapshot, while changed captures send the full inventory.
   Coverage gaps preserve retained evidence and last successful check times.
-  Deploy migration 0080 before publishing the artifacts, then refresh the
-  reviewed installer once for the new systemd unit. Fleet-capacity validation
-  remains pending. See [Linux reporting](integrations/linux-agent.md#frequent-inventory-checks).
+  Deploy migration 0080 before publishing the artifacts. The original systemd
+  unit digest keeps the rollout compatible with existing enabled auto-updaters.
+  Fleet-capacity validation remains pending. See [Linux reporting](integrations/linux-agent.md#frequent-inventory-checks).
 
 - Fixed updater activation from `/root` with inherited `SUDO_UID`: self-copy uses
   its own execution trust while user-provided input restrictions remain intact.

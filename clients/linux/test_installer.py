@@ -102,8 +102,8 @@ class InstallerTests(unittest.TestCase):
 
     def test_only_exact_reviewed_units_can_be_upgraded(self):
         current = (Path(__file__).parent / "systemd/bearings-linux.service").read_bytes()
-        previous = current.replace(b"--interval 15m", b"--interval 6h")
-        older = previous.replace(
+        previous = current.replace(b"--interval 6h", b"--interval 15m")
+        older = current.replace(
             b"# AF_NETLINK is required to read local interface/address metadata without probing.\n",
             b"",
         ).replace(b"AF_INET6 AF_NETLINK", b"AF_INET6")

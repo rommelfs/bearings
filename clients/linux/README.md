@@ -43,7 +43,7 @@ sudo python3 bearings-install.py status
 sudo journalctl -u bearings-linux -f
 ```
 
-Installation without a bootstrap option makes no enrollment request; `--server` downloads public artifacts. Starting the enrolled service authorizes its existing periodic reporting profile. The default unit captures inventory every 15 minutes plus up to 90 seconds of jitter after negotiating inventory checks. An older receiver keeps the six-hour full-report cadence. Use reviewed systemd drop-ins for another scope; the installer preserves them.
+Installation without a bootstrap option makes no enrollment request; `--server` downloads public artifacts. Starting the enrolled service authorizes its existing periodic reporting profile. The stock systemd invocation captures inventory every 15 minutes plus up to 90 seconds of jitter after negotiating inventory checks. It retains its published unit bytes for automatic updates. An older receiver keeps the six-hour full-report cadence. To explicitly pin six hours in a systemd drop-in, use `--interval=6h`. Use reviewed systemd drop-ins for another scope; the installer preserves them.
 
 For offline/local-source installation, build once below and use `sudo python3 clients/linux/install.py`, or copy the generated distribution directory to the target and run its `install.py`. `--binary /approved/local/client` explicitly selects another reviewed artifact. Build output includes installer, unit, license, checksums, source note and corresponding client/installer source archive. Checksums provide consistency over trusted HTTPS; they are not independent release signatures. For scheduled client updates, see the [Linux updater](../../docs/operations/linux-client-updates.md).
 
