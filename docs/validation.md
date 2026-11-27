@@ -3008,3 +3008,18 @@ filtering and aggregation before pagination. The in-memory freshness check
 also supports unsaved evidence, and fix rendering reads the version and
 channel details. The regression suite compares these implementations for
 changed package inputs and exact or malformed vendor fix evidence.
+
+## Combined 0.1.0 pilot candidate
+
+The candidate combines the main-line software coverage ledger and Windows
+bootstrap with the vulnerability-review and FlowIntel changes. Resolving the
+merge exposed an overview query-budget regression. The two independent ledger
+aggregates now return in one database query, and superusers skip an unnecessary
+membership lookup. The original 33-query limit passes, along with focused
+software coverage and pagination regressions.
+
+Debian's RT packages are pinned together at `5.0.7+dfsg-4+deb13u4`. The
+optional combined RT/RTIR image built with the official package sources. The
+Go client cross-builds for Windows x64, ARM64 and x86. The native Windows
+updater workflow includes a synthetic release cleanup and file preservation
+test for the combined client. All fixtures use synthetic state.

@@ -107,7 +107,7 @@ try {
                 }
             }
         }
-        Remove-ClientFile $program
+        if ([IO.File]::Exists($program)) { Remove-ClientFile $program }
         if ($task) { $folder.DeleteTask($name, 0) }
         if ([IO.File]::Exists($protected)) { [IO.File]::Delete($protected) }
         if ($lock) {
