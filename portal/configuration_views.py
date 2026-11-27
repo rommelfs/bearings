@@ -11,10 +11,9 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
-from .access import require, can_review_contact
+from .access import require, can_review_contact, organization
 from .circl_views import private_response
 from .models import ConfigurationSection
-from .views import organization
 from .configuration import (
     FORMS,
     SECTIONS,

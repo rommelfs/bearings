@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import httpx
 from django.conf import settings
+from django.db.models import Q
 from .connectors.http import ConnectorError, approved_base
 
 UBUNTU = {"20.04": "focal", "22.04": "jammy", "24.04": "noble", "26.04": "resolute"}
@@ -17,7 +18,10 @@ RHEL = {"8", "9"}
 
 def unsupported_reason(os):
     if os.get("id") == "windows":
-        return "Windows inventory is recorded; automatic Microsoft CVE/KB applicability is not implemented."
+        return (
+            "Windows CVE discovery uses supported product and build mappings. "
+            "Windows Update evidence is reported separately."
+        )
     if os.get("id") == "rhel" and os.get("version", "").split(".")[0] == "10":
         return (
             "RHEL 10 requires Red Hat CSAF/VEX data, which Bearings does not yet evaluate. "
@@ -40,6 +44,16 @@ def key_for(os):
     if distro == "rhel" and version.split(".")[0] in RHEL:
         return "rhel:" + version.split(".")[0]
     return None
+
+
+def host_release_filter(key, *, os_path):
+    """Select reported OS releases covered by this supported vendor feed."""
+    distro, release = key.split(":")
+    version_path = f"{os_path}__version"
+    version = Q(**{version_path: release})
+    if distro != "ubuntu":
+        version |= Q(**{f"{version_path}__startswith": release + "."})
+    return Q(**{f"{os_path}__id": distro}) & version
 
 
 def url_for(key):

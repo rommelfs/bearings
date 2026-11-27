@@ -8,10 +8,16 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from . import plum
-from .access import audit_operator_access, can_edit, can_operator_review, organizations_for, require
+from .access import (
+    audit_operator_access,
+    can_edit,
+    can_operator_review,
+    organizations_for,
+    require,
+    organization,
+)
 from .connectors.http import ConnectorError
 from .models import PlumInstance
-from .views import organization
 
 
 class ImportForm(forms.Form):

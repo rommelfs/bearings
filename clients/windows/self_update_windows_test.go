@@ -264,3 +264,43 @@ func TestSelfUpdateActivationWhileBootstrapRuns(t *testing.T) {
 		t.Fatal("bootstrap did not survive activation")
 	}
 }
+
+func TestSelfUpdateRemovalKeepsUnrelatedFiles(t *testing.T) {
+	root := t.TempDir()
+	programDir, stateDir := filepath.Join(root, "program"), filepath.Join(root, "state")
+	for _, dir := range []string{programDir, stateDir} {
+		if err := os.Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	program := filepath.Join(programDir, "bearings-windows.exe")
+	release := filepath.Join(programDir, "bearings-windows-release-123-"+strings.Repeat("a", 64)+".exe")
+	activation := filepath.Join(programDir, activationName)
+	protected := filepath.Join(stateDir, "state.dpapi")
+	unrelated := filepath.Join(programDir, "bearings-windows-release-local-copy.exe")
+	raw := []byte("synthetic uninstall fixture")
+	for _, path := range []string{program, release, activation, protected, unrelated} {
+		if err := os.WriteFile(path, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	system, err := windows.GetSystemDirectory()
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := reporterTask{
+		program: program, scheduler: filepath.Join(system, "schtasks.exe"),
+		name: "Bearings fixture " + digest([]byte(root))[:12],
+	}
+	if err := removeWindowsInstallation(task, stateDir, digest(raw), 0, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{program, release, activation, stateDir} {
+		if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected %s to be removed: %v", filepath.Base(path), err)
+		}
+	}
+	if kept, err := os.ReadFile(unrelated); err != nil || !bytes.Equal(kept, raw) {
+		t.Fatalf("unrelated file changed: %v", err)
+	}
+}

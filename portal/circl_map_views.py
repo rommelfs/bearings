@@ -9,14 +9,13 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
-from .access import audit, require
+from .access import analyst_read_snapshot, audit, require, organization
 from .circl_map import company_location, map_data
 from .circl_views import authorize, private_response
 from .geography import address_digest
 from .inventory_review import can_configure_review
 from .models import Organization, OrganizationLocation
 from .overview_queries import overview_queries, read_snapshot
-from .views import organization
 from .map_configuration import map_options
 
 SALT = "company-map-address/v1"
@@ -30,6 +29,7 @@ class LocationForm(forms.Form):
 
 @login_required
 @never_cache
+@analyst_read_snapshot
 @require_GET
 def data(request):
     authorize(request, "operator.national_map")

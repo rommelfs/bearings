@@ -1,10 +1,10 @@
 # CIRCL company severity map
 
-Open **National overview** (`/circl/`). The **Company locations and open problems** map loads independently of the existing counters/tables. No additional data processing blocks the initial overview response. Use severity filtering, zoom/pan, **Fit shown companies**, or **Heatmap + markers**. Clicking a marker opens company and exact problem-list links. Co-located/near-identical rounded points form one marker with the highest severity and a multi-company details panel. A searchable 50-row-page accessible table provides direct links without map interaction.
+Open **National overview** (`/circl/`). The **Company locations and current problems** map loads independently of the existing counters/tables. No additional data processing blocks the initial overview response. Use severity filtering, zoom/pan, **Fit shown companies**, or **Heatmap + markers**. Clicking a marker opens company and exact problem-list links. Co-located/near-identical rounded points form one marker with the highest severity and a multi-company details panel. A searchable 50-row-page accessible table provides direct links without map interaction.
 
 ## What the colors mean
 
-The highest currently visible outstanding value at a company determines its marker:
+The highest currently visible severity of an affected CVE or open issue determines its marker:
 
 | Color | Recorded value |
 | --- | --- |
@@ -15,9 +15,14 @@ The highest currently visible outstanding value at a company determines its mark
 | Purple | Unrated/unknown/informational source value |
 | Grey | No open problems recorded in permitted active inventory |
 
-Vulnerability counts use the canonical review, including legacy reviews without a common issue. Its common issue proxy is not counted twice. Other issues use explicit priority, not a fabricated CVSS score. Accepted risk stays outstanding; resolved, false-positive and not-affected vulnerability reviews are excluded. Retired inventory and malformed source/organization/product lineage are excluded. Exposure-linked issues retain current observation/source/claim visibility. These colors do not prove installed patches, exploitation, compromise or complete coverage; grey is not a safety assessment.
+Each active asset with a current affected-version match or an open analyst
+assessment of affected counts once. Its CVE link opens the company's affected
+machine list. Technical review records remain available in Vulnerability review.
+The other issue count includes standalone open issues with their recorded
+priority. Accepted risk stays outstanding. A current affected-version match
+can also flag a conflict with a saved assessment or closed workflow. Retired inventory and malformed source/organization/product lineage are excluded. Exposure-linked issues retain current observation/source/claim visibility. These colors do not prove installed patches, exploitation, compromise or complete coverage; grey is not a safety assessment.
 
-The heatmap shows relative weighted concentration at company locations: severity weights 1–5 multiplied by problem count capped at 20 per company. Weights are normalized against the highest company weight in the filtered view. No-open companies contribute no heat. Density, zoom and co-location affect intensity; it is not a national risk probability or a historical trend. Markers remain clickable in heat mode.
+The heatmap shows relative weighted concentration at company locations: severity weights 1–5 multiplied by the sum of affected assets and other open issues, capped at 20 per company. Weights are normalized against the highest company weight in the filtered view. No-open companies contribute no heat. Density, zoom and co-location affect intensity; it is not a national risk probability or a historical trend. Markers remain clickable in heat mode.
 
 ## Local address lookup and manual points
 
@@ -37,7 +42,7 @@ The authenticated `/circl/map/data/` request independently enforces current oper
 
 Set `BEARINGS_MAP_TILE_URL=` to disable external tiles, or supply an operator-controlled HTTPS XYZ template. Credentials, query strings, fragments and malformed placeholders are rejected. Restart the web service after changing this setting. Failed tiles leave the local country geometry visible with an unavailable message. A failed renderer leaves the searchable company table usable. Public geography provenance: [map notices](../../portal/data/README.md).
 
-Database work is grouped by organization and points are streamed through a bounded highest-priority selection, with no per-company database/geocoder request. At most **2,000 located company markers** are returned. Higher-severity and then higher-count companies come first; status explicitly reports omitted located companies. This is a transparent response bound, not an exhaustive geographic view beyond that limit. Exact per-company problem lists remain available independently. Map failures/timeouts clear stale markers and show a retry message while the ordinary overview remains usable. The overview's existing 60-second refresh updates the map too; **Refresh map** rereads current permissions immediately.
+The map evaluates current affectedness under the scoped read policy. Database work is grouped by organization and points are streamed through a bounded highest-priority selection, with no per-company database/geocoder request. At most **2,000 located company markers** are returned. Higher-severity and then higher-count companies come first; status explicitly reports omitted located companies. This is a transparent response bound, not an exhaustive geographic view beyond that limit. Exact per-company problem lists remain available independently. Map failures/timeouts clear stale markers and show a retry message while the ordinary overview remains usable. The overview's existing 60-second refresh updates the map too; **Refresh map** rereads current permissions immediately.
 
 The SVG map scales with its container rather than retaining a stale canvas size. Zoom and center survive filtering; **Fit shown companies** explicitly recenters. Coverage cards describe permitted, located, unlocated and filtered company counts, not vulnerability counts or security scores. Selected companies appear below the map; the table remains available for keyboard navigation and dense/co-located points.
 

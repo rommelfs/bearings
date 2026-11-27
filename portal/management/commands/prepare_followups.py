@@ -19,6 +19,7 @@ class Command(BaseCommand):
             NotificationDelivery.objects.filter(
                 status__in=["filed", "accepted"], batch__followup__isnull=True
             )
+            .exclude(batch__filters__has_key="remediation")
             .filter(
                 Q(organization__outreach_policy__reminder_days__gt=0)
                 | Q(organization__outreach_policy__escalation_days__gt=0)

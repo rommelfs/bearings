@@ -17,10 +17,9 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
-from .access import audit, require
+from .access import audit, require, organization
 from .agents import administrator
 from .client_downloads import open_artifact
-from .views import organization
 
 SCHEMA = "bearings.application-probes.v1"
 

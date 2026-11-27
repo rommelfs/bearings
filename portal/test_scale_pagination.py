@@ -45,6 +45,11 @@ class ScalePaginationTests(Fixture):
         self.assertEqual(r.context["org_page"].paginator.count, 121)
         self.assertLessEqual(len(initialized), 25)
         self.assertLessEqual(len(queries), 45)
+        ranking_sql = next(
+            query["sql"] for query in queries if query["sql"].lstrip().startswith("WITH evidence")
+        )
+        self.assertNotIn('"portal_membership"', ranking_sql)
+        self.assertNotIn('"portal_organization"', ranking_sql)
         self.assertTrue(
             AuditEvent.objects.filter(actor=self.analyst, action="operator.review_queue").exists()
         )

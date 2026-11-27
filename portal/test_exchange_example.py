@@ -146,7 +146,15 @@ class ExchangeExampleTests(Fixture):
         finding = self.seed()
         self.login(self.analyst)
         home = self.client.get(reverse("home"))
-        for text in [CVE, "High", "8.1", BUILD, "Manual assessment", "confidential email", "No exploitation"]:
+        for text in [
+            CVE,
+            "High",
+            "8.1",
+            BUILD,
+            "Version applicability needs review",
+            "confidential email",
+            "No exploitation",
+        ]:
             self.assertContains(home, text)
         links = [urlsplit(unescape(link)) for link in re.findall(r'href="([^"]+)"', home.content.decode())]
         self.assertTrue(

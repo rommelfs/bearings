@@ -7,7 +7,15 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from .tests import Fixture
-from .models import AssetIssue, Membership, Organization, InventorySource, OrganizationLocation
+from .models import (
+    AssetIssue,
+    Finding,
+    Membership,
+    Organization,
+    InventorySource,
+    OrganizationLocation,
+    SourceRecord,
+)
 from .geography import address_digest, local_location
 from .circl_map_views import SALT
 
@@ -68,6 +76,7 @@ class CIRCLMapTests(Fixture):
         }
         finding.record.save()
         finding.status = "accepted_risk"
+        finding.analyst_applicability = "affected"
         finding.save()
         # CVE issue proxies are not counted twice.
         AssetIssue.objects.get_or_create(
@@ -91,9 +100,10 @@ class CIRCLMapTests(Fixture):
             status="accepted_risk",
         )
         point = self.data().json()["points"][0]
-        self.assertEqual((point["level"], point["reviews"], point["issues"]), ("critical", 1, 1))
-        reviews = self.client.get(point["reviews_url"])
-        self.assertEqual(reviews.context["page"].paginator.count, 1)
+        self.assertEqual((point["level"], point["affected_assets"], point["issues"]), ("critical", 1, 1))
+        machines = self.client.get(point["affected_url"])
+        self.assertEqual(machines.context["page"].paginator.count, 1)
+        self.assertEqual(machines.context["page"][0]["group_id"], self.asset.pk)
         issues = self.client.get(point["issues_url"])
         self.assertEqual([i.pk for i in issues.context["page"]], [other.pk])
         finding.analyst_applicability = "not_affected"
@@ -103,8 +113,51 @@ class CIRCLMapTests(Fixture):
         other.save()
         self.assertEqual(self.data().json()["points"][0]["level"], "no_open")
 
+    def test_distinct_affected_assets_ignore_unconfirmed_critical_matches(self):
+        critical = self.record_finding()
+        critical.record.payload = {
+            "containers": {"cna": {"metrics": [{"cvssV3_1": {"version": "3.1", "baseScore": 10.0}}]}}
+        }
+        critical.record.save()
+        point = self.data().json()["points"][0]
+        self.assertEqual((point["affected_assets"], point["level"]), (0, "no_open"))
+
+        for number in range(2):
+            record = SourceRecord.objects.create(
+                organization=self.a,
+                source="fixture://affected",
+                external_id=f"CVE-2025-{90001 + number}",
+                shareable=True,
+                payload={
+                    "containers": {"cna": {"metrics": [{"cvssV3_1": {"version": "3.1", "baseScore": 5.0}}]}}
+                },
+            )
+            Finding.objects.create(
+                organization=self.a,
+                installation=self.installation,
+                record=record,
+                analyst_applicability="affected",
+            )
+
+        point = self.data().json()["points"][0]
+        self.assertEqual((point["affected_assets"], point["level"]), (1, "medium"))
+        response = self.client.get(point["affected_url"])
+        self.assertEqual(response.context["page"].paginator.count, 1)
+        reviews = self.client.get(
+            reverse("intelligence", args=[self.a.slug]),
+            {
+                "asset": self.asset.pk,
+                "state": "affected",
+            },
+        )
+        self.assertContains(reviews, "CVE-2025-90001")
+        self.assertContains(reviews, "CVE-2025-90002")
+        self.assertNotContains(reviews, critical.record.external_id)
+
     def test_membership_does_not_leak_restricted_source_derived_severity(self):
         finding = self.record_finding(shareable=False)
+        finding.analyst_applicability = "affected"
+        finding.save(update_fields=["analyst_applicability"])
         finding.record.payload = {
             "containers": {"cna": {"metrics": [{"cvssV3_1": {"version": "3.1", "baseScore": 10.0}}]}}
         }
@@ -122,7 +175,7 @@ class CIRCLMapTests(Fixture):
         self.a.save()
         Membership.objects.create(user=self.analyst, organization=self.a, role="reader")
         point = self.data().json()["points"][0]
-        self.assertEqual((point["reviews"], point["issues"], point["level"]), (0, 0, "no_open"))
+        self.assertEqual((point["affected_assets"], point["issues"], point["level"]), (0, 0, "no_open"))
         self.assertEqual(point["location_url"], "")
         Membership.objects.filter(user=self.analyst).delete()
         self.assertEqual(self.data().json()["summary"]["companies"], 0)
@@ -163,17 +216,19 @@ class CIRCLMapTests(Fixture):
 
     def test_inactive_assets_foreign_source_and_point_limit_priority(self):
         finding = self.record_finding()
+        finding.analyst_applicability = "affected"
+        finding.save(update_fields=["analyst_applicability"])
         finding.record.payload = {
             "containers": {"cna": {"metrics": [{"cvssV3_1": {"version": "3.1", "baseScore": 10.0}}]}}
         }
         finding.record.save()
         self.asset.lifecycle = "retired"
         self.asset.save()
-        self.assertEqual(self.data().json()["points"][0]["reviews"], 0)
+        self.assertEqual(self.data().json()["points"][0]["affected_assets"], 0)
         self.asset.lifecycle = "active"
         self.asset.source = self.sb
         self.asset.save()
-        self.assertEqual(self.data().json()["points"][0]["reviews"], 0)
+        self.assertEqual(self.data().json()["points"][0]["affected_assets"], 0)
         self.asset.source = self.sa
         self.asset.save()
         for i in range(3):

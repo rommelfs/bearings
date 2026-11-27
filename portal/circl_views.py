@@ -3,13 +3,16 @@
 from time import perf_counter
 from django.contrib.auth.decorators import login_required
 from django.db import OperationalError
+from django.http import HttpResponse
+from django.middleware.csrf import get_token
+from django.template.loader import get_template
 from django.db.models import Case, Count, Value, When
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET, require_http_methods
-from .access import audit, is_analyst, require, organizations_for
+from .access import analyst_read_snapshot, audit, is_analyst, require, organizations_for
 from .circl import dashboard, findings_for, outstanding, research
 from .circl_forms import ResearchForm
 from .overview_queries import overview_queries, bounded_list, read_snapshot
@@ -70,9 +73,11 @@ def panel(request, section):
                 context = stock_history(request.user)
             else:
                 context = dashboard(request.user, timings=timings, section=section)
-            response = render(request, "portal/circl_panel_" + section + ".html", context)
+            if section == "versions":
+                context["csrf_token"] = get_token(request)
+            response = HttpResponse(get_template("portal/circl_panel_" + section + ".html").render(context))
     except (OperationalError, PendingSnapshot):
-        response = render(request, "portal/circl_panel_error.html", status=503)
+        response = HttpResponse(get_template("portal/circl_panel_error.html").render({}), status=503)
     response["Server-Timing"] = f"national;dur={(perf_counter() - started) * 1000:.1f}"
     if database:
         response["Server-Timing"] += (
@@ -189,7 +194,7 @@ def _finding_response(request, org=None):
                 },
             )
         )
-    from .review_queue import classified, BUCKETS
+    from .review_queue import classified, discovery_version_status, BUCKETS
 
     assessment = request.GET.get("assessment", "action")
     if assessment not in dict(BUCKETS):
@@ -215,7 +220,7 @@ def _finding_response(request, org=None):
                 ("asset", "Company / asset", "installation__asset__name", False),
                 ("installation", "Installation", "installation__product__name", False),
                 ("priority", "Source priority", "source_severity_order", True),
-                ("assessment", "Automatic package assessment / next step", "queue_bucket", False),
+                ("assessment", "Automatic version assessment / next step", "queue_bucket", False),
                 ("decision", "Saved analyst decision", "analyst_applicability", False),
             ],
         )
@@ -225,7 +230,7 @@ def _finding_response(request, org=None):
         )
     page = object_page(
         severity_first(
-            qs.select_related(
+            qs.annotate(discovery_version=discovery_version_status()).select_related(
                 "organization",
                 "record",
                 "installation__product",
@@ -372,6 +377,7 @@ def coverage_records(request):
 @login_required
 @never_cache
 @require_GET
+@analyst_read_snapshot
 @bounded_list
 def machine_records(request, slug=None):
     from .review_focus import posture
@@ -382,7 +388,7 @@ def machine_records(request, slug=None):
         authorize(request, "operator.machine_indicators")
     else:
         audit(request.user, org, "inventory.machine_indicators")
-    scope = posture(request.user, [org.pk] if org else None)["machines"]
+    scope = posture(request.user, [org.pk] if org else None, include_totals=False)["machines"]
     focus = request.GET.get("focus", "all")
     filters = {
         "all": {},

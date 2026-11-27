@@ -204,7 +204,7 @@ class AgentClientTests(TransactionTestCase):
                 original_redeem(*a, **kw)
                 raise RuntimeError("SYNTHETIC lost device receipt")
 
-            with patch("portal.agent_views.agents.redeem", side_effect=lose_enrollment):
+            with patch("portal.agent_api.agents.redeem", side_effect=lose_enrollment):
                 self.assertNotEqual(self.cli("bootstrap", *args, stdin=token, ok=False).returncode, 0)
             self.assertEqual(AgentDevice.objects.count(), 1)
             self.assertTrue((self.state / "bootstrap-grant.json").exists())
@@ -265,6 +265,29 @@ class AgentClientTests(TransactionTestCase):
             self.assertEqual(AgentFleetRegistration.objects.count(), 3)
             self.assertFalse(InventoryWrite.objects.exists())
 
+    def test_native_linux_client_acknowledges_own_removal_over_https(self):
+        self.enroll()
+        device = AgentDevice.objects.get(asset=self.asset)
+
+        def retirement(action):
+            result = subprocess.run(
+                [str(CLIENT), "retirement", action, str(self.state)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return result.stdout.strip()
+
+        self.assertEqual(retirement("check"), "none")
+        agents.request_uninstall(self.admin, self.org, device.pk)
+        self.assertEqual(retirement("check"), "uninstall")
+        self.assertEqual(retirement("acknowledge"), "uninstall")
+        self.assertEqual(retirement("acknowledge"), "uninstall")
+        device.refresh_from_db()
+        self.assertFalse(device.enabled)
+        self.assertIsNotNone(device.uninstall_acknowledged_at)
+
     def test_actual_client_enrollment_report_receipt_and_explicit_projection(self):
         self.enroll()
         raw = self.cli("report", "--package", "bash").stdout
@@ -293,7 +316,7 @@ class AgentClientTests(TransactionTestCase):
     def test_lost_ack_keeps_outbox_and_retry_does_not_duplicate(self):
         self.enroll()
         with patch(
-            "portal.agent_views.agents.receipt", side_effect=RuntimeError("SYNTHETIC lost acknowledgment")
+            "portal.agent_api.agents.receipt", side_effect=RuntimeError("SYNTHETIC lost acknowledgment")
         ):
             result = self.cli("report", "--package", "bash", ok=False)
         self.assertNotEqual(result.returncode, 0)

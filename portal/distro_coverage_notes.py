@@ -177,11 +177,7 @@ def examples(device, summary, feed):
         if not status_flags.get(component.pk, True):
             continue
         receipt = component.distro_check
-        if (
-            receipt.get("version") != distro_results.VERSION
-            or receipt.get("generation") != str(feed.generation)
-            or receipt.get("input_hash") != distro_results.inputs(component, device)
-        ):
+        if not distro_results.receipt_matches_inputs(component, device, feed):
             continue
         missing = source_missing and not component.package_source
         result.append(

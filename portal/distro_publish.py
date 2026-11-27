@@ -24,7 +24,6 @@ from .models import (
     AssetIssue,
     IssueRevision,
 )
-from .presentation import vulnerability_summary
 
 BATCH_SIZE = 200
 
@@ -77,21 +76,15 @@ def publish_many(device, feed, rows, deadline):
                 raise ConnectorError("Definition source identity too long")
             wanted[source, cve] = payload(advisory, cve, feed)
         query = exact_pairs(("source", "external_id"), wanted)
-        SourceRecord.objects.bulk_create(
-            [
-                SourceRecord(
-                    organization=device.organization,
-                    source=source,
-                    external_id=cve,
-                    payload=data,
-                    shareable=True,
-                    source_severity=vulnerability_summary(data)["severity"].lower(),
-                )
-                for (source, cve), data in wanted.items()
-            ],
-            ignore_conflicts=True,
-            batch_size=BATCH_SIZE,
-        )
+        new_records = [
+            SourceRecord(
+                organization=device.organization, source=source, external_id=cve, payload=data, shareable=True
+            )
+            for (source, cve), data in wanted.items()
+        ]
+        for record in new_records:
+            record.update_source_ratings()
+        SourceRecord.objects.bulk_create(new_records, ignore_conflicts=True, batch_size=BATCH_SIZE)
         records = {
             (r.source, r.external_id): r
             for r in SourceRecord.objects.filter(query, organization=device.organization)
@@ -108,7 +101,7 @@ def publish_many(device, feed, rows, deadline):
             revisions[record.pk, digest(data)] = data
             if record.payload != data:
                 record.payload = data
-                record.source_severity = vulnerability_summary(data)["severity"].lower()
+                record.update_source_ratings()
                 record.ingested_at = timezone.now()
                 changed_records.append(record)
         SourceRecordRevision.objects.bulk_create(
@@ -120,7 +113,9 @@ def publish_many(device, feed, rows, deadline):
             batch_size=BATCH_SIZE,
         )
         SourceRecord.objects.bulk_update(
-            changed_records, ["payload", "source_severity", "ingested_at"], batch_size=BATCH_SIZE
+            changed_records,
+            ["payload", "source_severity", "source_cvss", "ingested_at"],
+            batch_size=BATCH_SIZE,
         )
         evidence = {
             (r.record_id, r.content_hash): r

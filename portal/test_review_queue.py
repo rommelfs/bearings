@@ -8,9 +8,11 @@ from pathlib import Path
 from datetime import timedelta
 from django.utils import timezone
 from django.db import connection
+from django.urls import reverse
 from django.test.utils import CaptureQueriesContext
 from . import agents, distro_cves, distro_oval
 from .models import DistroFeed, DistroMatch, Finding
+from .overview_queries import SNAPSHOT_PROOF_IDS
 from .review_queue import classified
 from .test_distro_cves import DistroTests
 from .test_package_verdicts import save_browser_evidence
@@ -27,7 +29,19 @@ class QueueTests(DistroTests):
         return Finding.objects.get()
 
     def bucket(self):
-        return classified(Finding.objects.all()).values_list("queue_bucket", flat=True).get()
+        findings = Finding.objects.all()
+        bucket = classified(findings).values_list("queue_bucket", flat=True).get()
+        token = SNAPSHOT_PROOF_IDS.set({})
+        try:
+            self.assertEqual(
+                classified(findings, organizations=[self.a.pk], assets=[self.device.asset_id])
+                .values_list("queue_bucket", flat=True)
+                .get(),
+                bucket,
+            )
+        finally:
+            SNAPSHOT_PROOF_IDS.reset(token)
+        return bucket
 
     def test_current_affected_fixed_and_human_conflict_remain_distinct(self):
         finding = self.prepare()
@@ -55,6 +69,58 @@ class QueueTests(DistroTests):
         finding.save()
         self.assertEqual(self.bucket(), "action")
         self.assertContains(self.client.get("/reviews/"), "saved analyst assessment says affected")
+
+    def test_fix_moves_to_retained_evidence_and_rewards_verified_progress(self):
+        finding = self.prepare()
+        url = reverse("intelligence", args=[self.a.slug])
+        asset = self.url("asset", pk=self.device.asset_id)
+        cve = finding.record.external_id
+        self.assertContains(self.client.get(url), cve)
+        self.assertNotContains(self.client.get(asset), "verified fix")
+        self.relax()
+        self.send(self.data(sequence=2, version="1:1.24.0-2ubuntu7.9"))
+        agents.process_pending()
+        self.assertContains(self.client.get(url), cve)
+        self.assertNotContains(self.client.get(asset), "No open vulnerabilities in checked scope")
+        distro_cves.evaluate_device(self.device.pk)
+        self.assertEqual(self.bucket(), "cleared")
+        for view in ("cve", "machine", "software"):
+            self.assertEqual(self.client.get(url, {"view": view}).context["page"].paginator.count, 0)
+            self.assertEqual(
+                self.client.get(url, {"view": view, "state": "cleared"}).context["page"].paginator.count, 1
+            )
+        self.assertContains(self.client.get(url, {"finding": finding.pk}), "includes the vendor fix")
+        issues_url = reverse("issues")
+        self.assertEqual(self.client.get(issues_url).context["page"].paginator.count, 0)
+        self.assertEqual(self.client.get(issues_url, {"state": "all"}).context["page"].paginator.count, 1)
+        groups_url = reverse("company-actions")
+        self.assertEqual(
+            self.client.get(groups_url, {"view": "groups", "organization": self.a.slug})
+            .context["page"]
+            .paginator.count,
+            0,
+        )
+        issue = finding.asset_issue
+        issue.action_due = timezone.localdate()
+        issue.save(update_fields=["action_due"])
+        self.assertEqual(self.client.get(issues_url).context["page"].paginator.count, 1)
+        response = self.client.get(asset)
+        self.assertContains(response, "1 verified fix")
+        self.assertContains(response, "No open vulnerabilities in checked scope")
+        DistroMatch.objects.filter(pk=finding.distro_match.pk).update(input_hash="different")
+        self.assertNotContains(self.client.get(asset), "verified fix")
+        self.device.expires_at = timezone.now() - timedelta(minutes=1)
+        self.device.save(update_fields=["expires_at"])
+        self.assertNotContains(self.client.get(asset), "No open vulnerabilities in checked scope")
+
+    def test_saved_disagreement_keeps_current_affected_evidence_in_the_worklist(self):
+        finding = self.prepare()
+        Finding.objects.filter(pk=finding.pk).update(analyst_applicability="not_affected", status="resolved")
+        url = reverse("intelligence", args=[self.a.slug])
+        self.assertContains(
+            self.client.get(url), "Current affected version conflicts with a saved assessment"
+        )
+        self.assertEqual(self.client.get(url, {"state": "cleared"}).context["page"].paginator.count, 0)
 
     def test_currentness_matches_model_for_all_relevant_inputs(self):
         finding = self.prepare()
@@ -129,21 +195,24 @@ class QueueTests(DistroTests):
         match = DistroMatch.objects.get()
         snapshot, revisions = match.snapshot, DistroMatchRevision.objects.count()
         original_status = finding.status
+        fix_inputs = match.vendor_fix_inputs
         # TestCase holds fixture inserts in a transaction; resolve their deferred
         # FK events before DDL, as a real upgrade starts after committed writes.
         with connection.cursor() as cursor:
             cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
         executor = MigrationExecutor(connection)
+        current_targets = executor.loader.graph.leaf_nodes()
         try:
             executor.migrate([("portal", "0071_ubuntu_status_queue_index")])
         finally:
-            MigrationExecutor(connection).migrate([("portal", "0072_generated_distribution_queue_proof")])
+            MigrationExecutor(connection).migrate(current_targets)
             with connection.cursor() as cursor:
                 cursor.execute("SET CONSTRAINTS ALL DEFERRED")
         match.refresh_from_db()
         finding.refresh_from_db()
         self.assertEqual(match.snapshot, snapshot)
         self.assertEqual(match.queue_proof["version"], snapshot["version"])
+        self.assertEqual(match.vendor_fix_inputs, fix_inputs)
         self.assertEqual(DistroMatchRevision.objects.count(), revisions)
         self.assertEqual(finding.status, original_status)
         self.assertEqual(self.bucket(), "action")
@@ -266,7 +335,7 @@ class QueueTests(DistroTests):
         self.assertContains(response, "includes the vendor fix")
         save_browser_evidence("queue-needrestart-fixed", response)
 
-    def test_status_counts_precede_pagination_and_restricted_records_are_hidden(self):
+    def test_cases_group_before_pagination_and_evidence_keeps_distinct_results(self):
         finding = self.prepare()
         for i in range(30):
             extra = copy.copy(finding)
@@ -280,19 +349,25 @@ class QueueTests(DistroTests):
             match.snapshot["package_check"]["verdict"] = "unresolved"
             match.save()
         with CaptureQueriesContext(connection) as queries:
-            response = self.client.get("/reviews/?state=unresolved")
+            response = self.client.get("/reviews/")
         # Includes constant session/policy checks and bounded-list PostgreSQL guards.
         self.assertLessEqual(len(queries), 42)
-        self.assertEqual(response.context["review_total"], 30)
-        self.assertEqual(len(response.context["review_page"]), 25)
-        self.assertEqual(self.client.get("/reviews/").context["review_total"], 1)
-        with CaptureQueriesContext(connection) as short_queries:
-            second = self.client.get("/reviews/?state=unresolved&review_page=2")
-        self.assertEqual(len(second.context["review_page"]), 5)
-        self.assertLessEqual(len(queries), len(short_queries) + 1)
+        self.assertEqual(response.context["review_total"], 1)
+        self.assertEqual([item.pk for item in response.context["review_page"]], [finding.pk])
+        self.assertContains(response, "Compare 31 evidence records")
+        self.assertContains(response, "Different review categories")
+        self.assertEqual(self.client.get("/reviews/?state=unresolved").context["review_total"], 0)
+        url = reverse("review-evidence", args=[finding.pk])
+        detail = self.client.get(url)
+        self.assertContains(detail, "Affected version")
+        self.assertContains(detail, "Vendor clarification needed")
+        self.assertEqual(detail.context["page"].paginator.count, 31)
+        self.assertEqual(len(detail.context["page"]), 25)
+        self.assertEqual(len(self.client.get(url, {"page": 2}).context["page"]), 6)
         finding.record.shareable = False
         finding.record.save(update_fields=["shareable"])
         self.login(self.reader)
         response = self.client.get("/reviews/?state=all")
         self.assertEqual(response.context["review_total"], 0)
         self.assertTrue(all(state["count"] == 0 for state in response.context["queue_states"]))
+        self.assertEqual(self.client.get(url).status_code, 404)

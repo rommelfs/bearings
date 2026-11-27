@@ -1,0 +1,5 @@
+{% load ui_icons %}
+<span class="technical-status technical-status-{{ tone }}" tabindex="0" role="img" aria-label="{{ label }}. {{ detail }}">
+  {% ui_icon icon %}
+  <span class="technical-status-tip" aria-hidden="true"><strong>{{ label }}</strong>{{ detail }}</span>
+</span>

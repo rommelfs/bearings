@@ -5,9 +5,9 @@
 <section class="client-downloads" aria-labelledby="windows-client">
   {% include "portal/_client_platform_links.html" with platform="windows" %}
   <h1 id="windows-client" class="icon-heading">{% ui_icon "clients" %}Bearings Windows client</h1>
-  <p>Send the Windows build and machine-installed software inventory to Bearings. The executable includes its runtime and runs under an ordinary Windows account. Create a key under <a href="{% url 'client-rollouts' %}{% if request.GET.organization %}?organization={{ request.GET.organization|urlencode }}{% endif %}">Rollout keys</a>, or ask your Bearings administrator for one.</p>
+  <p>Send the Windows build and machine-installed software inventory to Bearings. The executable includes its runtime and runs under an ordinary Windows account. {% if client_rollout_allowed %}Create a key under <a href="{% url 'client-rollouts' %}{% if client_rollout_slug %}?organization={{ client_rollout_slug|urlencode }}{% endif %}">Rollout keys</a>.{% else %}Ask your Bearings administrator for a rollout key.{% endif %}</p>
   <nav aria-label="Windows client guide">
-    <a href="#download">Download</a> · <a href="#install">Install and enroll</a> · <a href="#rollout">Rollout</a> · <a href="#periodic">Periodic reports</a> · <a href="#update">Update</a>
+    <a href="#download">Download</a> · <a href="#install">Install and enroll</a> · <a href="#rollout">Rollout</a> · <a href="#periodic">Periodic reports</a> · <a href="#update">Update</a> · <a href="#uninstall">Uninstall</a>
   </nav>
   <h2 id="download">Download</h2>
   <p>Open <strong>Settings → System → About</strong> on the Windows computer and look for <strong>System type</strong>.</p>
@@ -69,5 +69,7 @@
     <li>Keep the reporting account, profile and state directory. The default state is <code>%LOCALAPPDATA%\Bearings\Windows</code>. Updating the executable preserves the enrollment and queued reports, including state from the Python reference client. Device credentials expire after 90 days. Ask your administrator to review expired credentials.</li>
     <li>Run <code>report</code> and <code>status</code> with the replacement and confirm the new report was applied. Re-enable the schedule and run it once. For later automatic updates, preserve the publisher signing key on the server. Investigate update errors separately; never delete enrollment state to retry.</li>
   </ol>
+  <h2 id="uninstall">Uninstall</h2>
+  <p>Run <code>.\bearings-windows.exe uninstall</code> in PowerShell under the reporting account. To request removal centrally, choose <strong>Deregister and uninstall</strong> for this device in <strong>Inventory reports</strong>. The Windows client checks for the request on its next scheduled report.</p>
 </section>
 {% endblock %}

@@ -81,22 +81,46 @@ def inventory(user, org_ids=None):
     )
 
 
-def accounting(qs):
-    """One disjoint category per retained installation, including invalid links."""
+def _installation_totals(qs):
+    return (
+        qs.order_by()
+        .values("asset__organization_id", "coverage_category")
+        .annotate(total=Count("pk"))
+        .values_list("asset__organization_id", "coverage_category", "total")
+    )
+
+
+def _summarize(rows):
     groups = defaultdict(dict)
-    for row in (
-        qs.order_by().values("asset__organization_id", "coverage_category").annotate(total=Count("pk"))
-    ):
-        groups[row["asset__organization_id"]][row["coverage_category"]] = row["total"]
+    for org_id, category, total in rows:
+        groups[org_id][category] = total
     return {
         org_id: {
-            "total": sum(counts.values()),
+            "total": sum(counts.get(key, 0) for key in CATEGORIES),
             "categories": [
                 {"key": key, "label": label, "count": counts.get(key, 0)} for key, label in CATEGORIES.items()
             ],
+            "unlinked": counts.get("unlinked", 0),
         }
         for org_id, counts in groups.items()
     }
+
+
+def accounting(qs):
+    """One disjoint category per retained installation, including invalid links."""
+    return _summarize(_installation_totals(qs))
+
+
+def overview_accounting(user, org_ids):
+    """Count installations and unlinked observations independently in one query."""
+    unlinked = (
+        observations(user, org_ids)
+        .order_by()
+        .values("device__organization_id")
+        .annotate(category=Value("unlinked"), total=Count("pk"))
+        .values_list("device__organization_id", "category", "total")
+    )
+    return _summarize(_installation_totals(inventory(user, org_ids)).union(unlinked, all=True))
 
 
 def url(slug, **filters):
@@ -312,14 +336,4 @@ def observations(user, org_ids=None):
                 output_field=DateTimeField(),
             ),
         )
-    )
-
-
-def observation_counts(user, org_ids):
-    return dict(
-        observations(user, org_ids)
-        .order_by()
-        .values("device__organization_id")
-        .annotate(total=Count("pk"))
-        .values_list("device__organization_id", "total")
     )

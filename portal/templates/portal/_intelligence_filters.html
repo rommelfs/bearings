@@ -1,0 +1,12 @@
+<nav class="actions" aria-label="Vulnerability views">
+  {% for mode in modes %}
+  <a class="button{% if view == mode.key %} primary{% endif %}" href="{{ mode.url }}"{% if view == mode.key %} aria-current="page"{% endif %}>{{ mode.label }}</a>
+  {% endfor %}
+</nav>
+<p class="muted">Use Assessment to see fixed or not-affected evidence and MISP matches that need vendor clarification.</p>
+<form method="get" class="host-filters" aria-label="Vulnerability filters">
+  <input type="hidden" name="view" value="{{ view }}">
+  {% for key, value in listing_scope %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+  {% for field in listing_filters %}<div>{{ field.as_field_group }}</div>{% endfor %}
+  <div class="actions"><button class="primary">Apply filters</button><a href="{{ reset_filters_url }}">Clear filters</a></div>
+</form>

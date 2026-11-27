@@ -1,4 +1,4 @@
-"""Small first-party pictograms: allowlisted SVG only, always paired with visible text."""
+"""Small first-party pictograms: allowlisted SVG only, used with meaningful text or accessible labels."""
 
 from django import template
 from django.utils.html import format_html
@@ -8,6 +8,8 @@ register = template.Library()
 
 PATHS = {
     "software": '<path d="m12 3 9 5v9l-9 5-9-5V8l9-5ZM3 8l9 5 9-5M12 13v9M7.5 5.5l9 5"/>',
+    "status-check": '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+    "status-info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
     "download": '<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
     "overview": '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
     "national": '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z"/>',

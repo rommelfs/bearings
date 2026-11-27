@@ -12,7 +12,7 @@ from django.db import connection, close_old_connections, connections
 from django.test import TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
-from . import tests, flowintel
+from . import tests, flowintel, remediation
 from .connectors.http import ConnectorError
 from .connectors import flowintel as connector
 from .models import FlowIntelInstance, FlowIntelCase, AuditEvent
@@ -144,7 +144,8 @@ class FlowIntelTests(tests.Fixture):
         with self.assertRaises(PermissionDenied):
             self.preview()
         self.login(self.analyst)
-        self.assertNotContains(self.client.get(self.url("intelligence")), "Prepare private FlowIntel case")
+        detail = self.client.get(self.url("intelligence"), {"finding": self.finding.pk})
+        self.assertNotContains(detail, "Prepare private FlowIntel case")
         self.mock.assert_not_called()
 
     def test_private_case_playbook_and_read_only_status_leave_finding_unchanged(self):
@@ -429,7 +430,7 @@ class FlowIntelTests(tests.Fixture):
 
 @skipUnless(connection.vendor == "postgresql", "PostgreSQL concurrent FlowIntel outbox claims")
 class FlowIntelConcurrencyTests(TransactionTestCase):
-    def test_two_workers_make_only_one_case_post(self):
+    def setUp(self):
         from django.contrib.auth import get_user_model
         from django.contrib.auth.models import Group
         from .access import ANALYST_GROUP
@@ -460,6 +461,12 @@ class FlowIntelConcurrencyTests(TransactionTestCase):
             token_env_var="FLOWINTEL_TEST_TOKEN",
             service_org_id=3,
         )
+        self.actor, self.finding, self.instance = actor, finding, instance
+        self.instance.bearings_url = "https://bearings.example.invalid"
+        self.instance.save(update_fields=["bearings_url"])
+
+    def test_two_workers_make_only_one_case_post(self):
+        actor, finding, instance = self.actor, self.finding, self.instance
         binding = flowintel.preview(actor, finding, instance, None, "Test concurrent claim")
         flowintel.approve(actor, binding.pk)
         entered, release = Event(), Event()
@@ -490,3 +497,32 @@ class FlowIntelConcurrencyTests(TransactionTestCase):
             first.result(timeout=10)
         self.assertEqual(len(fake.writes), 1)
         self.assertEqual(FlowIntelCase.objects.get(pk=binding.pk).remote_id, 7)
+
+    def test_two_overlapping_remediation_approvals_reserve_once(self):
+        actor, finding, instance = self.actor, self.finding, self.instance
+        opts = dict(instance=instance, deadline=None, contact_ids=[], mitigation=None)
+        first, _ = remediation.preview(
+            actor, finding.organization, asset=finding.installation.asset_id, cve=None, **opts
+        )
+        second, _ = remediation.preview(
+            actor, finding.organization, asset=None, cve=finding.record.external_id, **opts
+        )
+        from threading import Barrier
+
+        gate = Barrier(2)
+
+        def approve(case):
+            close_old_connections()
+            try:
+                gate.wait(timeout=5)
+                flowintel.approve(actor, case.pk)
+            except ValidationError:
+                return False
+            finally:
+                connections.close_all()
+            return True
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            approvals = list(pool.map(approve, [first, second]))
+        self.assertEqual(sorted(approvals), [False, True])
+        self.assertEqual(FlowIntelCase.objects.filter(state="queued").count(), 1)

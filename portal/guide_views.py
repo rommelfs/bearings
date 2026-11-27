@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, render
 from django.http import Http404
 from .access import (
+    organization,
     visible_findings_for,
     visible_findings,
     organizations_for,
@@ -17,7 +18,6 @@ from .models import FindingHistory
 from .notifications import eligible_contacts
 from .presentation import decorate_finding
 from .intelligence import visible_links, link_state
-from .views import organization
 
 STEPS = [
     ("asset", "Find the machine"),

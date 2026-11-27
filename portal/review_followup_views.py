@@ -8,12 +8,11 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
-from .access import is_analyst, organizations_for, require, audit
+from .access import is_analyst, organizations_for, require, audit, organization
 from .circl_views import private_response
 from .inventory_review import can_configure_review, reminder_recipients
 from .models import InventoryReviewPolicy, InventoryReviewDelivery
 from .review_followup import deliveries_for, delivery_label, preview_token, queue_followup, record_feedback
-from .views import organization
 
 
 @login_required

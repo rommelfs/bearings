@@ -61,13 +61,20 @@ type windowMessage struct {
 	private       uint32
 }
 
+var removalStarted = errors.New("local removal started")
+
+type setupResult struct {
+	text  string
+	close bool
+}
+
 type setupWindow struct {
 	window, code, note  uintptr
 	buttons             []uintptr
 	dir                 string
 	font, instance, dpi uintptr
 	busy                bool
-	results             chan string
+	results             chan setupResult
 }
 
 func utf16Text(value string) *uint16 {
@@ -129,6 +136,15 @@ func (w *setupWindow) operation(action uintptr, code string) (string, error) {
 		return "", err
 	}
 	defer s.close()
+	if action == sendReport || action == checkReport {
+		started, err := remoteUninstall(s)
+		if err != nil {
+			return "", err
+		}
+		if started {
+			return "", removalStarted
+		}
+	}
 	switch action {
 	case enrollKey:
 		hostname, err := os.Hostname()
@@ -233,7 +249,7 @@ func (w *setupWindow) event(hwnd uintptr, message uint32, word, param uintptr) u
 				if err != nil {
 					result = err.Error()
 				}
-				w.results <- result
+				w.results <- setupResult{text: result, close: errors.Is(err, removalStarted)}
 				postMessage.Call(hwnd, wmResult, 0, 0)
 			}()
 			return 0
@@ -241,8 +257,11 @@ func (w *setupWindow) event(hwnd uintptr, message uint32, word, param uintptr) u
 	case wmResult:
 		select {
 		case result := <-w.results:
-			w.response(result)
+			w.response(result.text)
 			w.setBusy(false)
+			if result.close {
+				postMessage.Call(hwnd, wmClose, 0, 0)
+			}
 		default:
 		}
 		return 0
@@ -293,7 +312,7 @@ func setupGUI() error {
 	if proc := user32.NewProc("SetProcessDPIAware"); proc.Find() == nil {
 		proc.Call()
 	}
-	w := &setupWindow{dir: dir, dpi: 96, results: make(chan string, 1)}
+	w := &setupWindow{dir: dir, dpi: 96, results: make(chan setupResult, 1)}
 	if proc := user32.NewProc("GetDpiForSystem"); proc.Find() == nil {
 		if dpi, _, _ := proc.Call(); dpi != 0 {
 			w.dpi = dpi

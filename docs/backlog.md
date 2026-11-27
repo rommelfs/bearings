@@ -14,6 +14,53 @@ Implemented signed release manifests with a stable protected publisher key, same
 
 Documentation and user guides are always maintained in English, regardless of the chat language. Translate the Windows Update installation guide, use its language-neutral path and retain an English legacy-link notice. Installation commands and runtime behavior are unchanged; all guide links and command blocks were checked.
 
+## Evidence-backed vulnerability work and progress
+
+Default the Intelligence worklist to current matches, open reviews and
+coverage gaps. Retain fixed and not-affected evidence with its source
+severity. Keep explicitly tracked operational work and distinguish verified
+package fixes from workflow closure. Show positive status only for checked
+scope with current, complete coverage.
+
+## Organization Intelligence views and filters
+
+Add CVE, machine and software pivots with scoped drill-down. Search across
+CVE, host and software, and filter by CVSS threshold, Ubuntu vendor priority
+and workflow. Grouped tables display the highest CVSS to one decimal place.
+Migration 0077 backfills source CVSS for existing evidence.
+
+## Host CVE assessment query and timeout diagnosis
+
+The host overview aggregates current package evidence, severity and documented fixes together. Migration 0076 stores just the JSON inputs needed for the vendor-fix check and updates them on snapshot writes. The HTTP error response distinguishes an application database timeout or failure from an upstream response. See [validation](validation.md#host-cve-assessment-query-and-timeout-diagnosis).
+
+## Compact assessments and independent host inventory preview
+
+Place assessment and workflow side by side on wider screens. Keep a short, resizable reason field and accessible labels for each review. Render up to 25 inventory hosts with the organization page and retain them when the independent CVE summary fails. Retry and full inventory links remain available.
+
+## Organization Intelligence and host panel
+
+Apply the same compact card to all cases on the organization Intelligence page. Single records link directly to their review. Grouped cases keep the scoped evidence list, exact finding URLs and the per-record API. Aggregate current package evidence for the host panel before counting and pagination. Query failures retain an explicit retry state with server timing and a sanitized log reason.
+
+## One case per CVE and server in Vulnerability review
+
+Group visible open findings per inventory server before searching, counting and pagination. Compact multi-installation cards summarize distinct software names. The paginated detail lists versions, sources and individual decisions. Different servers and organization boundaries stay separate. See [Vulnerability review](user-guide/infrastructure-overview.md#distribution-package-verdicts-in-vulnerability-review).
+
+## Company infrastructure and attention latency — 2026-11-25
+
+Reuse grouped review proof facts for infrastructure counters and aggregate visible current package matches once for the selected company's attention list. Preserve the complete results, ranking and analyst decisions. The paired PostgreSQL fixture measured 751 → 625 ms and 1,593 → 595 ms respectively. Attention now emits numeric Server-Timing. Production latency still needs post-update verification. See [measurements](performance/scoped-overview-and-attention.md).
+
+## Direct inventory response — 2026-11-25
+
+The existing company inventory link now reaches the inventory without waiting for the host attention cohort. The dedicated, scoped panel retains the full assessment and has independent timing and retry. Synthetic tests verified an injected eight-second host delay. See [company inventory measurements](performance/company-inventory.md).
+
+## Asset update and vulnerability presentation — 2026-11-25
+
+Lead the machine detail page with pending Windows cache entries, documented Linux vendor fixes, and visible vulnerability reviews. Show last-known Windows results separately from current evidence and expose technical synchronization and cache-query status through labeled icons with hover and keyboard support.
+
+## Portal maintenance and response times — 2026-11-25
+
+Split the main views by domain, separated the signed device API, and made grouped review cases honor saved applicability decisions. Corrected the scale harness and reduced repeated query and template work. Both synthetic workloads passed the functional checks. At 48,000 assets the three-worker Gunicorn run handled 420 requests from sixteen callers alongside writes and refreshes, with 922 ms p95 and no HTTP failures. Production timings and dense package fixtures remain open. See [performance report](performance/maintenance-20261125.md).
+
 ## Vendor evidence bounds — 2026-11-24
 
 Rule v3 bounds manufacturer URLs and repeated rule samples, preserves original source advisories and rejects malformed explicit intervals. The final Windows/CVE regression run passes 51 tests; CI validates the published head before merge.
@@ -32,7 +79,7 @@ Implemented first Windows CVE increment: versioned publisher/product catalog, co
 
 ## Windows inventory increment — 2026-11-24
 
-- **Deliver Windows OS and machine software inventory client**: Standalone x64, ARM64 and x86 Go executables include their runtime and share Linux’s new-host rollout and support authenticated enrollment, signed HTTPS reporting/status, DPAPI-encrypted durable state/outbox, OS build/UBR/edition/release and 32/64-bit machine uninstall registry observations. Separate software/OS projection retains unknown versions, missing evidence and human ownership. Migration 0073 and all focused Windows receiver and local HTTPS tests passed on cloud PostgreSQL 17 with synthetic registry data. Inventory clients lists Linux, Windows, shared rollout keys and application version profiles. The Windows portal page gives server-specific download commands and documents installation, rollout, updates and scheduling. The native setup window verifies the six-hour Windows task separately from report status and displays Task Scheduler creation errors. Native installation and upgrades build and activate both client releases with checksums and matching source. The Windows build embeds the server HTTPS origin. Windows uses the same bounded rollout key as Linux to register a new host and automatically schedule reports. The upgrade from `6acb4c8` retains the scoped host overview and passed migration and cross-feature tests on PostgreSQL. The user reported one real Windows report as applied; corrected Task Scheduler execution and broader native Windows/fleet acceptance remain pending. Microsoft CVE/KB applicability, per-user/Store/portable inventory, Authenticode signing and fleet-scale native Windows acceptance remain planned. See [Windows integration](integrations/windows-agent.md).
+- **Deliver Windows OS and machine software inventory client**: Standalone x64, ARM64 and x86 Go executables include their runtime and share Linux’s new-host rollout and support authenticated enrollment, signed HTTPS reporting/status, DPAPI-encrypted durable state/outbox, OS build/UBR/edition/release and 32/64-bit machine uninstall registry observations. Separate software/OS projection retains unknown versions, missing evidence and human ownership. Migration 0073 and all focused Windows receiver and local HTTPS tests passed on cloud PostgreSQL 17 with synthetic registry data. Inventory clients lists Linux, Windows, shared rollout keys and application version profiles. The Windows portal page gives server-specific download commands and documents installation, rollout, updates and scheduling. The native setup window verifies the six-hour Windows task separately from report status and displays Task Scheduler creation errors. Native installation and upgrades build and activate both client releases with checksums and matching source. The Windows build embeds the server HTTPS origin. Windows uses the same bounded rollout key as Linux to register a new host and automatically schedule reports. Linux and Windows both support local uninstall and a company-scoped deregistration and uninstall request, with acknowledgment recorded separately from cleanup. The upgrade from `6acb4c8` retains the scoped host overview and passed migration and cross-feature tests on PostgreSQL. The user reported one real Windows report as applied; corrected Task Scheduler execution and broader native Windows/fleet acceptance remain pending. Microsoft CVE/KB applicability, per-user/Store/portable inventory, Authenticode signing and fleet-scale native Windows acceptance remain planned. See [Windows integration](integrations/windows-agent.md).
 
 ## Implementation update — 2026-10-20
 
@@ -61,7 +108,7 @@ Add evidence-backed intelligence without unsafe inference
 
 - **Validate live Vulnerability-Lookup and canonical aliases**: Live CVE retrieval and immutable evidence revisions are implemented. Canonical aliases, broader schema adapters, deployed-version capture and freshness remain in #5.
 - **Completed [#18](https://github.com/rommelfs/bearings/issues/18): Connect NetBox assets, Vulnerability-Lookup evidence and MOSP risk scenarios**: Public CC0 catalog refresh, justified links, pinned evidence, withdrawal history and joined tenant-scoped views are implemented. See [contract and workflow](integrations/mosp.md). Company-local scoring/treatment/acceptance is now delivered in [continuous review](user-guide/continuous-review.md); native MONARC assessment synchronization remains future work.
-- **Implement explicit product/version applicability**: Scheduled explicit vendor/product watches and conservative exact/release-SemVer affected-release checks are implemented with separate automated input/evidence history and changed-review cues. Unknown versions, broader ecosystems, backports and configuration remain review work; severity, EPSS, exploitation and analyst decisions stay separate. [Workflow and bounds](user-guide/continuous-review.md).
+- **Implement explicit product/version applicability**: Scheduled explicit vendor/product watches and conservative exact/release-SemVer affected-release checks are implemented with separate automated input/evidence history and changed-review cues. Unknown versions, broader ecosystems, backports and configuration remain review work; severity, EPSS, exploitation and analyst decisions stay separate. [Workflow and bounds](user-guide/continuous-review.md). MISP GitHub/CIRCL version boundaries now clear releases outside the published ranges. Catalogue-only automatic findings stay out of active issues and grouped actions. The shared review classifier feeds review cards, software cases, counters and notification eligibility. CIRCL patch-linked MISP ranges include CVE-2026-103655 and CVE-2026-90961. MISP refresh also reevaluates changed inputs for retained reviews from the watched source when the product index omits their CVEs. Public CIRCL and MITRE version formats are evaluated centrally; unverified MISP catalogue hits remain available under vendor clarification. Current MISP affected-range proofs also drive review badges and affected-CVE aggregation. Application version proofs also feed FlowIntel verification; Linux inventory displays share the package receipt input check.
 - **Implement MISP ingestion with redistribution policy**: Inspect selected release API, paginate/retry safely, preserve event/object roles and markings. Enforce distribution, sharing groups and operator policy for raw and derived data. Test default-deny behavior and common origins.
 - **Implement Plum Island historical observation adapter**: Verify authentication/permissions/schema and InfoIP time/404/empty semantics. Preserve tcp/udp, report-level tags, hostname context and uncertainty. Investigate network/domain export; never enumerate large ranges blindly or launch scans.
 - **Generalize observations, relationships and explained priorities**: Keep categories and assessment dimensions distinct. Match historical/shared claims, preserve rule versions, observation/ingestion/evaluation times, evidence provenance and independent origins.
@@ -115,6 +162,18 @@ The Exchange setup entry point now uses the complete `scripts/dev.py example-exc
 ## Optional FlowIntel pilot (2026-10-20)
 
 Implemented [#22](https://github.com/rommelfs/bearings/issues/22): [private case hand-off](user-guide/flowintel.md) with a compact pinned upstream source build, separate database/keys/TLS, optional retained lab profile, CIRCL-only approval, four follow-up tasks and read-only status feedback. Approved asset IP/DNS/rack/CVE/assessment/risk context stays source-bound. Durable claims, current visibility/content revalidation and bounded read-only reconciliation stop uncertain POST retries; case completion never resolves a finding or sends mail. Both synthetic RO/RW NetBox organizations were exercised against real FlowIntel, including unrelated-organization denial and browser navigation. [Source analysis](integrations/flowintel.md) and [validation](validation.md) record boundaries and exact outcomes.
+
+The [remediation workflow](user-guide/flowintel.md#plan-remediation-by-cve-or-machine)
+adds CVE and machine entry points, grouped vendor fixes and reviewed
+mitigations, internal evidence tasks and contact-scoped mail after verified
+private FlowIntel hand-off. It tracks delivery, external completion and
+Bearings evidence independently. Windows KB matching and production delivery
+acceptance remain open. CVE and machine pages now expose a notification action, and
+the preview puts the send, test or internal-work button above the task details.
+Missing role or organization visibility is explained in the workspace. The
+CVE entry point supports grouped evidence with mixed sharing permissions.
+The CVE card groups notification and evidence actions, and FlowIntel workspaces
+support a readable display name in migration 0079.
 
 Remaining work: MISP alert ingestion and severity semantics, assignment-name mapping, external-version compatibility, richer playbooks, remote retention/revocation process and production scheduling/egress/SSO/recovery. These are not enabled by the local pilot; notification/product matching and broader remediation remain in #6/#10/#11.
 
@@ -248,6 +307,10 @@ Added one optional address field during signup and a scoped company-admin addres
 ## CIRCL severity map — 2026-11-18
 
 Implemented an independently loaded [company map and optional heat overlay](user-guide/circl-map.md), highest-current-severity markers, exact problem links and accessible table. Local Luxembourg postal/place centroids and explicitly saved manual points send no addresses externally. Current sharing/source/exposure rules and signed address-bound positioning apply. Unlocated and omitted-company coverage is explicit; map points describe firms, not physical assets. A bounded 2,000-point response prioritizes severity/counts and leaves existing problem lists independent. Public geographic assets and permissive/CC/public-domain notices are retained. Global geocoding, broader response-capacity acceptance and physical asset maps remain separate work.
+
+The National map now shows distinct assets with current affected CVEs and
+standalone open issues. Candidate reviews stay available in the evidence
+workflow. Map color, heat and affected-machine links use the same current scope.
 
 ## Isolate National Overview latency — 2026-11-18
 
@@ -791,3 +854,13 @@ rollback; retain the existing overview/list query budgets and evidence checks.
 ## Host-first organization view — 2026-11-24
 
 Implemented the approved host overview with stronger reading text, scoped current version/issue priorities, application-discovery/evaluation gaps, exact vendor-fix counts, freshness, search/sort/page controls and expandable retained administration/inventory. Preserve original host context through asset/evidence navigation. Keep missing/stale proof and repository update availability explicit. Bounded queries/hydration and next-request analyst revocation are tested; no migrations, writes or operational deployments. Actual repository candidate/update/entitlement collection remains planned. See [host overview and update steps](user-guide/host-overview.md).
+
+## Show the update alongside the finding — 2026-11-25
+
+Implemented bounded, scoped fix-version previews on asset and CVE views with the vendor-documented channel and checked version. Current Windows Update cache entries supply pending KB titles and links directly in the asset summary. Stale evidence remains accessible with its age and repository availability stays explicit. See [host overview](user-guide/host-overview.md#which-update-addresses-a-finding).
+
+The default machine and software tables now split unique CVEs with affected evidence from CVEs still to verify. The highest CVSS in these tables comes from affected evidence only.
+
+## Whole-workspace navigation audit — 2026-11-26
+
+Measured render completion across the locally reachable links for six user roles and repeated the routes against the revised checkout. Dense package-CVE fixtures exercise the queries behind inventory, infrastructure, attention, asset and Intelligence views. Reduced repeat proof checks and national example hydration and repaired permission- or setup-dependent 404 links. See [navigation audit](performance/navigation-20261126.md).

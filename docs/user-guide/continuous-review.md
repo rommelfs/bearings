@@ -89,3 +89,73 @@ These screenshots show a fictional company, `.invalid` contacts and a synthetic 
 ![Private DPO and technical-contact message previews](../images/continuous-review-dpo.png)
 
 The [infrastructure overview](infrastructure-overview.md) is now the login landing page. The vulnerability review queue remains available at `/reviews/`.
+
+
+### MISP release ranges and active issues
+
+The product watch recognizes the MISP GitHub CNA's explicit upper bounds
+and CIRCL CNA's structured SemVer intervals when the record references the
+MISP repository and supports a definite version decision. CIRCL records that
+name affected modules and link a tagged MISP patch can establish that a release
+exceeds their upper version bounds. For example, CVE-2026-103655 affects
+versions before 2.5.48 and CVE-2026-90961 versions before 2.5.46.
+CVE-2026-44381 concerns releases before 2.5.37 and CVE-2026-10868 concerns
+releases through 2.5.38. MISP 2.5.51 is outside these published ranges. Missing
+versions, unsupported ranges and ambiguous evidence remain technical review
+work. A change in inventory or source evidence invalidates the old exclusion.
+
+Automatically created catalogue-only rows with unknown or non-affected
+results stay available in the evidence views. They do not appear as open
+Asset issues or Grouped actions unless someone has recorded operational
+work. Existing manual assessments, tasks and evidence history are retained.
+After updating, open **Automatic CVE discovery**, find the MISP product and
+choose **Refresh CVEs** to queue a fresh evaluation of stored and current
+public advisory data for the configured product watch.
+
+The shared review classifier supplies the current category for Vulnerability
+review, infrastructure and machine counts, national review records and
+software cases. Asset issue filtering and notification eligibility use the
+same current version proof. Open workflow totals and retained history record
+analyst work. They are not counts of affected installations.
+
+The MISP refresh also replays saved reviews for the exact watched product,
+organization and advisory source when their evaluation inputs changed.
+An advisory can be available by CVE ID while missing from the product index.
+The local replay can still use previously retained publisher evidence. It
+keeps the original source observation date, analyst assessment and sharing
+policy. A failed product-index request is still shown as a source error.
+The refresh reports any saved reviews it reevaluated.
+
+After updating the Bearings web and worker services on Ubuntu, open
+**Automatic CVE discovery**, find the MISP watch and select **Refresh CVEs**.
+Once the refresh completes, check **Vulnerability review → Needs attention**.
+Reviews with a current not-affected version assessment can be opened under
+**Fixed or not affected** or from a saved evidence link.
+
+The MISP comparison accepts CIRCL's published tagged-patch ranges
+with case variants of the official repository URL, explicit exclusive or
+inclusive bounds, and the observed `unspecified` or redundant comparator
+formats. MITRE records can use structured ranges with an explicitly
+unaffected default. An older MITRE record without structured product
+fields can establish a version exclusion when its explicit fixed-release
+statement matches the target of a MISP release comparison.
+
+New, automatically created MISP matches with insufficient version evidence
+are listed under **Assessment → Vendor clarification**. Existing analyst
+assessments retain precedence. A CVE notification action requires at least
+one eligible review for that CVE within the organization.
+
+A current MISP affected-range match is shown in the review cards and evidence
+details, and contributes to the **Affected CVEs only** filter and its grouped
+counts. The installed release, product identity and current advisory must
+match the saved evaluation. The range match and any saved analyst decision
+are both visible when they disagree. Distribution coverage remains measured
+against distribution feeds.
+
+Linux inventory and coverage examples share the same check that a saved
+package result was produced for the current input, evaluator and feed
+generation. FlowIntel verification uses the same current version evidence
+as review pages, including supported MISP affected-range decisions. A
+vendor-listed fixed version remains separate from the availability of that
+update on the host. Windows product/build discovery and Windows Update
+evidence are separate checks.

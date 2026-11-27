@@ -60,12 +60,17 @@ func watch(dir string, seconds int) error {
 	}
 	for {
 		updated := false
+		var removing bool
 		err := func() error {
 			s, err := openStore(dir, false)
 			if err != nil {
 				return err
 			}
 			defer s.close()
+			removing, err = remoteUninstall(s)
+			if err != nil || removing {
+				return err
+			}
 			result, err := reportNow(s)
 			updated = s.updated
 			if err != nil {
@@ -75,6 +80,9 @@ func watch(dir string, seconds int) error {
 		}()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error()+". Retry next interval.")
+		}
+		if removing && err == nil {
+			return nil
 		}
 		if updated {
 			return restartWatcher()
@@ -99,7 +107,7 @@ func consoleCode() (string, error) {
 
 func run(args []string) error {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
-		fmt.Println("Bearings Windows " + version + "\nUsage: bearings-windows.exe <setup|init|enroll|collect|report|flush|status|watch|update> [options]\nUse <command> --help to list options.")
+		fmt.Println("Bearings Windows " + version + "\nUsage: bearings-windows.exe <setup|init|enroll|collect|report|flush|status|watch|update|uninstall> [options]\nUse <command> --help to list options.")
 		return nil
 	}
 	if args[0] == "--version" {
@@ -110,6 +118,12 @@ func run(args []string) error {
 		return outputBuildInfo()
 	}
 	command := args[0]
+	if command == "uninstall" {
+		if len(args) != 1 {
+			return errors.New("use uninstall without options under the reporting account")
+		}
+		return localUninstall()
+	}
 	switch command {
 	case "init", "enroll", "collect", "report", "flush", "status", "watch", "update":
 	default:
@@ -188,6 +202,11 @@ func run(args []string) error {
 	case "report", "flush":
 		var result *receipt
 		if command == "report" {
+			var started bool
+			started, err = remoteUninstall(s)
+			if started || err != nil {
+				return err
+			}
 			result, err = reportNow(s)
 		} else {
 			result, err = flush(&s.state, s.save)

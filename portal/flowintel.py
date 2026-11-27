@@ -126,6 +126,7 @@ def preview(actor, finding, instance, deadline, reason):
     binding, created = FlowIntelCase.objects.get_or_create(
         instance=instance,
         finding=finding,
+        remediation_batch=None,
         defaults={
             "creator": actor,
             "snapshot": data,
@@ -188,7 +189,21 @@ def load(pk):
     return binding
 
 
+def require_read(actor, binding):
+    if binding.remediation_batch_id:
+        from .remediation import require_access
+
+        require_access(actor, binding)
+    else:
+        require(allowed(actor, binding.finding))
+
+
 def require_write(binding):
+    if binding.remediation_batch_id:
+        from .remediation import require_current
+
+        require_current(binding)
+        return
     require(exportable(binding.creator, binding.finding) and binding.instance.available)
     if digest(current_snapshot(binding)) != binding.fingerprint:
         raise ValidationError(
@@ -200,10 +215,15 @@ def require_write(binding):
 def approve(actor, pk):
     FlowIntelCase.objects.select_for_update().get(pk=pk)
     binding = load(pk)
-    require(binding.creator_id == actor.pk and exportable(actor, binding.finding))
+    require(binding.creator_id == actor.pk)
+    require_read(actor, binding)
     if binding.state != "draft":
         raise ValidationError("This preview has already been approved or attempted.")
     require_write(binding)
+    if binding.remediation_batch_id:
+        from .remediation import reserve
+
+        reserve(binding)
     binding.state, binding.approved_at = "queued", timezone.now()
     binding.save(update_fields=["state", "approved_at"])
     audit(actor, binding.finding.organization, "flowintel.approved", binding.pk)
@@ -279,6 +299,8 @@ def claim(pk):
             "Current permission or export snapshot no longer permits writing.",
         )
         binding.save(update_fields=["state", "error"])
+        if binding.remediation_batch_id and not binding.attempted_at:
+            binding.remediation_reservations.all().delete()
         audit(binding.creator, binding.finding.organization, "flowintel.blocked", binding.pk)
         return None
     task = None
@@ -359,7 +381,8 @@ def process(pk):
 def reconcile(pk, actor=None):
     binding = load(pk)
     actor = actor or binding.creator
-    require(allowed(actor, binding.finding) and binding.instance.available)
+    require(binding.instance.available)
+    require_read(actor, binding)
     if (
         binding.state in {"creating", "working"}
         and binding.last_attempt
@@ -393,7 +416,7 @@ def reconcile(pk, actor=None):
     rows = remote_tasks(binding)
     with transaction.atomic():
         current = FlowIntelCase.objects.select_for_update().get(pk=pk)
-        require(allowed(actor, finding_for(current.finding_id)))
+        require_read(actor, load(current.pk))
         if (
             current.state in {"creating", "working"}
             and current.last_attempt
@@ -430,7 +453,8 @@ def reconcile(pk, actor=None):
 def refresh(pk, actor=None):
     binding = load(pk)
     actor = actor or binding.creator
-    require(allowed(actor, binding.finding) and binding.instance.available)
+    require(binding.instance.available)
+    require_read(actor, binding)
     if not binding.remote_id:
         raise ValidationError("Case identity has not been confirmed. Reconcile first.")
     FlowIntelCase.objects.filter(pk=pk).update(last_attempt=timezone.now())
@@ -454,7 +478,7 @@ def refresh(pk, actor=None):
             tasks.append(
                 {
                     "id": task.remote_id,
-                    "title": PLAYBOOK[task.step - 1][0],
+                    "title": task.label,
                     "completed": row["completed"],
                     "status": names.get(row.get("status_id"), "Unknown")
                     if type(row.get("status_id")) is int
@@ -471,7 +495,7 @@ def refresh(pk, actor=None):
             "tasks": tasks,
         }
         # Recheck current policy before retaining any newly read external data.
-        require(allowed(actor, finding_for(binding.finding_id)))
+        require_read(actor, load(pk))
         FlowIntelCase.objects.filter(pk=pk).update(
             summary=summary, remote_uuid=binding.remote_uuid, last_success=timezone.now(), error=""
         )

@@ -23,6 +23,8 @@ def prepare_followups(pk):
         .select_related("batch__creator", "organization", "contact")
         .get(pk=pk)
     )
+    if original.batch.filters.get("remediation"):
+        return 0
     original.followup_checked_at = timezone.now()
     original.save(update_fields=["followup_checked_at"])
     if original.batch_id and NotificationFollowup.objects.filter(batch_id=original.batch_id).exists():

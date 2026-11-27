@@ -247,3 +247,25 @@ sudo python3 /usr/local/lib/bearings-linux/update.py auto-update-disable
 ```
 
 See [update operations, recovery and limits](../../docs/operations/linux-client-updates.md).
+
+
+## Uninstall
+
+On the Linux host, use the current installer with administrative rights.
+
+```sh
+sudo python3 install.py uninstall
+```
+
+The command attempts to deregister the device, stops reporting and updates,
+and removes the managed program, systemd units, dedicated account, local key,
+and unsent queue. It preserves administrator-managed profiles and drop-ins.
+If the server cannot confirm deregistration, check the device in Bearings.
+
+A company administrator can also choose **Deregister and uninstall** on
+the device under **Inventory reports**. The device loses report access
+immediately. The systemd timer installed by the current installer polls
+for its own removal about every 15 minutes. Hosts installed before this
+feature need the current installer to add the timer. The portal shows
+the acknowledgment separately from local cleanup. Asset and report history
+remain in Bearings.

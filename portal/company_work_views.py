@@ -1,3 +1,4 @@
+from time import perf_counter
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -14,13 +15,22 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 from . import inventory_csv, issues
-from .access import audit, can_review_contact, organizations_for, require, is_analyst
+from .access import (
+    analyst_read_snapshot,
+    audit,
+    can_review_contact,
+    organizations_for,
+    require,
+    is_analyst,
+    organization,
+    visible_findings_for,
+)
 from .circl_views import private_response
 from .models import InventoryCSVBatch, InventorySource, InfrastructureClaim, AssetIssue
-from .overview_queries import overview_queries
+from .overview_queries import overview_queries, read_snapshot
 from .scope import normalize
-from .views import organization
 from .queue_context import with_return
+from .review_work import without_unworked_issue_shells
 from django.urls import reverse
 
 
@@ -156,9 +166,12 @@ def csv_template(request, slug):
 
 @login_required
 @never_cache
+@analyst_read_snapshot
 @require_http_methods(["GET"])
 def actions(request):
-    if request.user.is_superuser or is_analyst(request.user):
+    started = perf_counter()
+    operator = request.user.is_superuser or is_analyst(request.user)
+    if operator:
         audit(request.user, None, "operator.company_actions")
     orgs = organizations_for(request.user)
     selected = request.GET.get("organization", "")
@@ -171,11 +184,28 @@ def actions(request):
         from .attention_machines import page_for
 
         try:
-            with overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4):
-                page = page_for(request.user, orgs.values_list("pk", flat=True), request.GET.get("page"))
-                return private_response(
+            with (
+                read_snapshot(),
+                overview_queries(query_timeout_ms=5000, budget_ms=12000, planning_limit=4) as database,
+            ):
+                page = page_for(
+                    request.user,
+                    orgs.values_list("pk", flat=True),
+                    request.GET.get("page"),
+                    scoped_evidence=bool(selected) or not operator,
+                )
+                render_started = perf_counter()
+                response = private_response(
                     render(request, "portal/attention_machines.html", {"page": page, "selected": selected})
                 )
+                render_ms = (perf_counter() - render_started) * 1000
+            response["Server-Timing"] = (
+                f"actions;dur={(perf_counter() - started) * 1000:.1f}, "
+                f"database;dur={database.seconds * 1000:.1f}, "
+                f"dbmax;dur={database.slowest * 1000:.1f}, "
+                f"render;dur={render_ms:.1f}"
+            )
+            return response
         except OperationalError:
             return private_response(
                 render(
@@ -190,10 +220,9 @@ def actions(request):
         .filter(issues.active_filter(), asset__lifecycle="active")
         .exclude(finding__analyst_applicability="not_affected")
     )
-    selected = request.GET.get("organization", "")
     if selected:
-        org = get_object_or_404(orgs, slug=selected)
-        base = base.filter(organization=org)
+        base = base.filter(organization__in=orgs)
+    base = without_unworked_issue_shells(base, visible_findings_for(request.user))
     try:
         with overview_queries(query_timeout_ms=3000, budget_ms=8000, planning_limit=4):
             severity = Case(

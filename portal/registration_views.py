@@ -16,7 +16,7 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
-from .access import audit, is_analyst, require, organizations_for
+from .access import audit, is_analyst, require, organizations_for, organization
 from .circl_views import private_response
 from .models import InfrastructureRegistration, Organization, Membership
 from .overview_queries import QueryTiming
@@ -355,7 +355,6 @@ def correct_scope(request, slug, pk):
     from .access import can_edit
     from .forms import ClaimForm
     from .models import InfrastructureClaim
-    from .views import organization
 
     org = organization(request, slug)
     require(can_edit(request.user, org))
@@ -402,7 +401,6 @@ def company_address(request, slug):
     from .access import can_review_contact
     from .models import Organization
     from .registration_forms import CompanyAddressForm
-    from .views import organization
 
     org = organization(request, slug)
     require(can_review_contact(request.user, org))

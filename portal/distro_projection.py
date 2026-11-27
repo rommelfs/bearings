@@ -73,3 +73,29 @@ class DistroQueueProofV1(Func):
 
     def as_sql(self, compiler, connection, **extra_context):
         raise NotSupportedError("Distribution queue proofs require PostgreSQL or SQLite")
+
+
+class DistroVendorFixInputsV1(Func):
+    """Compact the exact JSON paths used to confirm documented vendor fixes."""
+
+    arity = 1
+    output_field = JSONField()
+
+    def as_postgresql(self, compiler, connection, **extra_context):
+        source, params = compiler.compile(self.source_expressions[0])
+        sql = f"""jsonb_set('{{}}'::jsonb, '{{package_check}}', jsonb_set(
+            jsonb_set('{{}}'::jsonb, '{{comparisons}}',
+                      COALESCE({source} #> '{{package_check,comparisons}}', 'null'::jsonb)),
+            '{{vendor_comments}}',
+            COALESCE({source} #> '{{package_check,vendor_comments}}', 'null'::jsonb)))"""
+        return sql, [*params, *params]
+
+    def as_sqlite(self, compiler, connection, **extra_context):
+        source, params = compiler.compile(self.source_expressions[0])
+        sql = f"""JSON_OBJECT('package_check', JSON_OBJECT(
+            'comparisons', JSON_EXTRACT({source}, '$.package_check.comparisons'),
+            'vendor_comments', JSON_EXTRACT({source}, '$.package_check.vendor_comments')))"""
+        return sql, [*params, *params]
+
+    def as_sql(self, compiler, connection, **extra_context):
+        raise NotSupportedError("Distribution vendor fix inputs require PostgreSQL or SQLite")
