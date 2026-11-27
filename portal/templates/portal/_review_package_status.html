@@ -6,6 +6,7 @@
 {% if finding.package_verdict.update.channels %}<br><strong>{{ finding.package_verdict.update.channels|join:', ' }}</strong>. An entitlement and enabled repository may be required. Standard APT repositories can offer no update even when this fix exists.{% endif %}
 <br>Update availability on this host: not checked.
 <details><summary>What to check on this host</summary>{% if finding.package_verdict.update.channels %}<p>Ask the system administrator to check <code>pro status</code> and the listed ESM service.</p>{% endif %}{% if finding.package_verdict.update.check_command %}<pre><code>{{ finding.package_verdict.update.check_command }}</code></pre>{% endif %}<p>If Candidate equals Installed and is below the listed fix, the current package lists offer no upgrade. Check repository access, support entitlement and package policy; alternatively plan migration to a supported release. After updating, await a fresh client report and evaluation.</p></details>
+{% elif finding.package_verdict.vendor_no_fix_status %}<br><strong>No Ubuntu fix published.</strong> {{ finding.package_verdict.vendor_no_fix_status }} for this release and source package.
 {% elif finding.package_verdict.verdict == 'unresolved' %}<br>No usable fixed-version decision is established. Open the evidence to inspect the missing condition or vendor clarification.
 {% endif %}
 {% else %}<br>Retained evidence awaits a current evaluation; no current fix recommendation is shown.

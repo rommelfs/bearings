@@ -13,6 +13,13 @@ from .intelligence import digest
 from . import distro_oval, distro_sources
 
 TTL = timedelta(hours=12)
+NO_FIX_REASON_LABELS = {
+    "vendor_unfixed": "Ubuntu marks the package vulnerable",
+    "vendor_deferred": "Ubuntu has deferred the fix",
+    "vendor_ignored": "Ubuntu has marked the issue ignored",
+    "vendor_fix_pending": "Ubuntu has a fix pending publication",
+}
+
 STATUSES = {"released", "not-affected", "needed", "needs-triage", "pending", "ignored", "deferred", "dne"}
 
 

@@ -75,6 +75,10 @@ class DistroQueueProofV1(Func):
         raise NotSupportedError("Distribution queue proofs require PostgreSQL or SQLite")
 
 
+class DistroQueueProofV2(DistroQueueProofV1):
+    paths = (*DistroQueueProofV1.paths, ("uncertainty_reason", ("package_check", "uncertainty_reason")))
+
+
 class DistroVendorFixInputsV1(Func):
     """Compact the exact JSON paths used to confirm documented vendor fixes."""
 

@@ -8,9 +8,10 @@ from django.db.models.functions import Cast, Least, Upper
 from .presentation import SEVERITY_ORDER, severity_first, severity_rank
 from .review_queue import BUCKETS, classified, discovery_version_status
 from .review_update_preview import FIX_FEED, FIX_PROOF, fix_targets
+from .ubuntu_status import NO_FIX_REASON_LABELS
 
 CVE_ID = r"^CVE-[0-9]{4}-[0-9]{4,}$"
-BUCKET_ORDER = ("action", "unresolved", "pending", "cleared")
+BUCKET_ORDER = tuple(key for key, _ in BUCKETS if key != "all")
 PAGE_SIZE = 25
 SOFTWARE_PREVIEW_LIMIT = 6
 SMALL_CASE_SCOPE_LIMIT = 250
@@ -65,14 +66,15 @@ def case_page(reviews, number, bucket, severity, search=None, *, prioritize_asse
         requested = 1
     # The bounded numeric input keeps even malformed/out-of-range page links portable.
     requested = min(max(requested, 0), 2**31 - 1)
+    # A group containing actionable evidence keeps its higher-ranked representative.
+    ranking = " ".join(f"WHEN %s THEN {rank}" for rank, _ in enumerate(BUCKET_ORDER[:-1]))
     with connection.cursor() as cursor:
         cursor.execute(
             f"""
             WITH evidence AS ({sql}),
             prioritized AS (
                 SELECT evidence.*,
-                       CASE queue_bucket WHEN %s THEN 0 WHEN %s THEN 1 WHEN %s THEN 2
-                            ELSE 3 END AS bucket_rank
+                       CASE queue_bucket {ranking} ELSE {len(BUCKET_ORDER) - 1} END AS bucket_rank
                 FROM evidence
             ),
             ranked AS (
@@ -148,7 +150,7 @@ def case_page(reviews, number, bucket, severity, search=None, *, prioritize_asse
             """,
             (
                 *params,
-                *BUCKET_ORDER[:3],
+                *BUCKET_ORDER[:-1],
                 bucket_rank,
                 bucket_rank,
                 severity_rank_filter,
@@ -228,6 +230,7 @@ def evidence_page(visible, finding, number):
             "package_current",
             "distro_match__pk",
             "distro_match__queue_proof__verdict",
+            "distro_match__queue_proof__uncertainty_reason",
             "analyst_applicability",
             "status",
             FIX_PROOF,
@@ -248,6 +251,8 @@ def evidence_page(visible, finding, number):
             row["result"] = verdicts.get(
                 row["distro_match__queue_proof__verdict"], "Vendor clarification needed"
             )
+            if row["queue_bucket"] == "vendor_no_fix":
+                row["result"] = NO_FIX_REASON_LABELS[row["distro_match__queue_proof__uncertainty_reason"]]
             if row["distro_match__queue_proof__verdict"] == "affected":
                 row["update_targets"] = fix_targets(row)
         elif row["distro_match__pk"]:

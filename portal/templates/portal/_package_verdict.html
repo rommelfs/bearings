@@ -1,6 +1,7 @@
 {% load ui_time %}<aside class="package-verdict" role="status">
 <p class="eyebrow">Automatic distribution CVE check</p><h4>{{ finding.package_verdict.heading }}</h4>
 <p>{{ finding.package_verdict.reason }}</p>
+{% if finding.package_verdict.vendor_no_fix_status %}<p><strong>No Ubuntu fix published.</strong> {{ finding.package_verdict.vendor_no_fix_status }} for this release and source package.</p>{% endif %}
 {% if finding.package_verdict.ubuntu_status %}<section><h4>Supplementary official Ubuntu status</h4><p>{{ finding.package_verdict.ubuntu_status.release }} · source package <code>{{ finding.package_verdict.ubuntu_status.source_package }}</code> · source version <code>{{ finding.package_verdict.ubuntu_status.source_version }}</code></p>{% for status in finding.package_verdict.ubuntu_status.statuses %}<p>{{ status.status }} · {{ status.pocket }} · {{ status.description }}</p>{% endfor %}<p>Retrieved {{ finding.package_verdict.ubuntu_status.checked_at|display_time }} · <a href="{{ finding.package_verdict.ubuntu_status.source }}">Official Canonical JSON →</a></p>{% if finding.package_verdict.ubuntu_status_refresh_error %}<p class="warning">Ubuntu status refresh failed. The retained response is still within the verification window; inspect its date.</p>{% endif %}</section>{% endif %}
 {% if finding.package_verdict.update.targets %}
 <section aria-label="Vendor fix and update availability"><h4>Which update addresses this package?</h4>

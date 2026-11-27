@@ -3,7 +3,7 @@
   <a class="button{% if view == mode.key %} primary{% endif %}" href="{{ mode.url }}"{% if view == mode.key %} aria-current="page"{% endif %}>{{ mode.label }}</a>
   {% endfor %}
 </nav>
-<p class="muted">Use Assessment to see fixed or not-affected evidence and MISP matches that need vendor clarification.</p>
+<p class="muted">Use Assessment to see cases with no Ubuntu fix published, fixed or not-affected evidence, and matches that need vendor clarification.</p>
 <form method="get" class="host-filters" aria-label="Vulnerability filters">
   <input type="hidden" name="view" value="{{ view }}">
   {% for key, value in listing_scope %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}

@@ -51,7 +51,10 @@ def vulnerability_summary(payload):
     if (
         isinstance(distro, dict)
         and distro.get("schema") == "bearings.distro-oval.v1"
-        and distro.get("severity") in {"critical", "high", "medium", "low", "none"}
+        and (
+            distro.get("severity") in {"critical", "high", "medium", "low", "none"}
+            or (distro.get("severity") == "negligible" and str(distro.get("feed", "")).startswith("ubuntu:"))
+        )
     ):
         result["severity"] = distro["severity"].title()
         result["vendor_priority"] = True

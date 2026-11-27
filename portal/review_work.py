@@ -14,6 +14,7 @@ from .query_integrity import consistent
 from .review_cases import CVE_ID, case_identity
 from .review_queue import (
     MISP_CATALOGUE_GAP,
+    NON_ACTION_BUCKETS,
     SAVED_AFFECTED,
     classified,
     current_affected,
@@ -34,7 +35,9 @@ RECHECK_DISCOVERY = Q(discovery__review_required=True, analyst_applicability="no
     discovery__result="not_affected"
 )
 NEEDS_ATTENTION = (
-    (OPEN_WORK & ~Q(queue_bucket="cleared") & ~MISP_CATALOGUE_GAP) | CONFLICTING | RECHECK_DISCOVERY
+    (OPEN_WORK & ~Q(queue_bucket__in=NON_ACTION_BUCKETS) & ~MISP_CATALOGUE_GAP)
+    | CONFLICTING
+    | RECHECK_DISCOVERY
 )
 REVIEW_SCOPES = (
     ("attention", "Needs attention"),
@@ -42,6 +45,7 @@ REVIEW_SCOPES = (
     ("action", "Version matches and reviews"),
     ("unresolved", "Vendor clarification"),
     ("pending", "Awaiting evaluation"),
+    ("vendor_no_fix", "No Ubuntu fix published"),
     ("cleared", "Fixed or not affected"),
     ("all", "All evidence"),
 )
@@ -64,7 +68,7 @@ def scoped_work(findings, scope):
                 record__organization_id=F("organization_id"),
             )
         )
-    if scope == "cleared":
+    if scope in NON_ACTION_BUCKETS:
         return findings.filter(queue_bucket=scope).exclude(CONFLICTING | RECHECK_DISCOVERY)
     if scope == "action":
         return findings.filter(Q(OPEN_WORK, queue_bucket=scope) | CONFLICTING | RECHECK_DISCOVERY)
@@ -88,8 +92,10 @@ def without_unworked_issue_shells(issues, findings=None):
         Q(finding__discovery__result__in=["unknown", "not_affected"]) | Q(Exists(stale_misp))
     )
     if findings is not None:
-        cleared = classified(findings.filter(pk=OuterRef("finding_id"))).filter(queue_bucket="cleared")
-        hidden_evidence |= Q(Exists(cleared.exclude(CONFLICTING | RECHECK_DISCOVERY)))
+        non_actionable = classified(findings.filter(pk=OuterRef("finding_id"))).filter(
+            queue_bucket__in=NON_ACTION_BUCKETS
+        )
+        hidden_evidence |= Q(Exists(non_actionable.exclude(CONFLICTING | RECHECK_DISCOVERY)))
     shell = Q(
         kind="vulnerability",
         status="new",

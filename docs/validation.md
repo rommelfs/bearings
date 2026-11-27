@@ -3061,3 +3061,13 @@ direct route scope across tabs, administrator visibility and the active
 client submenu. Chromium at 1440 and 390 pixels verifies keyboard and pointer
 disclosures, the switch between national and company pages and the active
 Windows link on mobile using rendered test fixtures.
+
+### Ubuntu evidence without a published fix
+
+Migration 0081 projects the existing uncertainty reason from retained package
+proofs. Synthetic Ubuntu fixtures cover ignored, deferred, vulnerable without
+a fix, and pending publication. The tests exercise all three review groupings,
+automatic remediation and issue filtering, the detail label, saved affected
+assessments, and publication of a versioned fix. The full PostgreSQL suite
+ran 1,167 tests with five skips. The new classification cases also passed
+on SQLite. No production inventory or notifications were used.

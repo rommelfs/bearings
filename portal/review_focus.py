@@ -53,6 +53,10 @@ CASE_LABELS = {
         "Monitor vendor clarification",
         "Grouped unresolved package decisions; monitor vendor changes and inspect common missing facts. These are not individual repair tasks.",
     ),
+    "vendor_no_fix": (
+        "Monitor Ubuntu fix availability",
+        "Ubuntu has not published a fix for the recorded release and source package. Keep the vendor evidence for monitoring.",
+    ),
     "pending": (
         "Restore current evaluation",
         "Inspect inventory freshness, vendor coverage and evaluator diagnostics. Retained evidence is not a current result.",

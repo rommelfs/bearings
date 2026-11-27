@@ -27,6 +27,7 @@ from .notifications import contact_policy
 from .presentation import ACTIVE_REVIEWS, severity_rank
 from .overview_explanations import review_explanation
 from .review_work import without_unworked_issue_shells
+from .review_queue import NON_ACTION_BUCKETS
 
 
 def reviews_for(user, *, include_cleared=False, organizations=None):
@@ -38,7 +39,7 @@ def reviews_for(user, *, include_cleared=False, organizations=None):
     if organizations is not None:
         reviews = reviews.filter(organization_id__in=organizations)
     reviews = classified(reviews, organizations=organizations)
-    return reviews if include_cleared else reviews.exclude(queue_bucket="cleared")
+    return reviews if include_cleared else reviews.exclude(queue_bucket__in=NON_ACTION_BUCKETS)
 
 
 @dataclass(frozen=True)
@@ -54,7 +55,7 @@ class OverviewEvidence:
         ids = [org.pk for org in orgs]
         all_reviews = reviews_for(user, include_cleared=True, organizations=ids)
         return cls(
-            all_reviews.exclude(queue_bucket="cleared"),
+            all_reviews.exclude(queue_bucket__in=NON_ACTION_BUCKETS),
             visible_issues(user).filter(organization_id__in=ids),
             all_reviews,
         )
@@ -88,15 +89,14 @@ class OverviewEvidence:
             if row["package_current"] and verdict == "affected":
                 counts["automatic_affected"] += total
             bucket = row["queue_bucket"]
-            if bucket == "cleared":
-                counts["review_cleared"] += total
+            counts["review_" + bucket] += total
+            if bucket in NON_ACTION_BUCKETS:
                 continue
             asset_counts = assets.setdefault(
                 row["installation__asset_id"], {"reviews": 0, "affected": 0, "critical": 0}
             )
             counts["reviews"] += total
             asset_counts["reviews"] += total
-            counts["review_" + bucket] += total
             if row["analyst_applicability"] == "affected":
                 counts["affected"] += total
                 asset_counts["affected"] += total
@@ -197,6 +197,7 @@ def _review_counts():
             "review_action",
             "review_pending",
             "review_unresolved",
+            "review_vendor_no_fix",
             "automatic_affected",
             "critical",
             "high",
@@ -350,6 +351,7 @@ def _company_state(org, watches, counts):
             "review_action",
             "review_pending",
             "review_unresolved",
+            "review_vendor_no_fix",
             "automatic_affected",
             "review_cleared",
             "critical",
@@ -401,6 +403,8 @@ def _company_state(org, watches, counts):
         state.update(status="Current evaluation pending", tone="incomplete")
     elif state["review_unresolved"]:
         state.update(status="Vendor clarification pending", tone="incomplete")
+    elif state["review_vendor_no_fix"] and not state["coverage_gaps"]:
+        state.update(status="Monitoring vendor fixes", tone="recorded")
     elif not state["assets"]:
         state.update(status="No active inventory", tone="incomplete")
     elif state["coverage_gaps"]:

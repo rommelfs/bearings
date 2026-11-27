@@ -29,6 +29,7 @@ from .review_cases import case_identity, case_page, evidence_page
 from .review_queue import classified, discovery_version_status
 from .review_update_preview import add_case_fix_previews
 from .review_work import RECHECK_DISCOVERY, scoped_work
+from .ubuntu_status import NO_FIX_REASON_LABELS
 
 
 def vulnerability_url(finding):
@@ -174,7 +175,11 @@ def intelligence(request, slug):
                 "finding": finding,
                 "notification_blocker": notification_blocker,
                 "page": evidence_page(visible, finding, request.GET.get("page")),
-                "remediation_url": notification_links([finding]).get(finding.record.external_id.upper()),
+                "remediation_url": (
+                    notification_links([finding]).get(finding.record.external_id.upper())
+                    if assessment_scope != "vendor_no_fix"
+                    else None
+                ),
                 "return_url": return_url(request) or list_url,
                 "return_label": "Back to intelligence",
                 "record_return_url": request.get_full_path(),
@@ -193,7 +198,8 @@ def intelligence(request, slug):
         editable = can_edit(request.user, org) or can_operator_review(request.user, org)
         links = notification_links(page)
         for finding in page:
-            finding.remediation_url = links.get(finding.record.external_id.upper())
+            if finding.queue_bucket != "vendor_no_fix":
+                finding.remediation_url = links.get(finding.record.external_id.upper())
         if editable:
             for finding in page:
                 finding.review_form = FindingReviewForm(auto_id=f"review-{finding.pk}-%s")
@@ -224,13 +230,18 @@ def intelligence(request, slug):
                 finding.discovery_version == "affected"
                 or (finding.package_current and finding.distro_match.queue_proof.get("verdict") == "affected")
             )
+            if finding.queue_bucket == "vendor_no_fix":
+                proof = finding.distro_match.queue_proof
+                finding.vendor_no_fix_status = NO_FIX_REASON_LABELS[proof["uncertainty_reason"]]
+                finding.vendor_no_fix_source = proof["source_package"]["name"]
             if not finding.software_preview:
                 finding.software_preview = [(finding.installation.product.name, finding.queue_bucket)]
             params = filters.copy()
             params["finding" if finding.evidence_count == 1 else "case"] = finding.pk
             params["return_to"] = request.get_full_path()
             finding.case_url = "?" + params.urlencode()
-            finding.remediation_url = links.get(finding.record.external_id.upper())
+            if finding.queue_bucket != "vendor_no_fix":
+                finding.remediation_url = links.get(finding.record.external_id.upper())
 
     modes = []
     for key, label in VIEWS.items():

@@ -270,6 +270,13 @@ class ExactUbuntuCaseTests(DistroTests):
         self.assertEqual(summary["severity"], "High")
         self.assertTrue(summary["vendor_priority"])
 
+        payload = Finding.objects.get().record.payload
+        payload["bearings_distro"]["severity"] = "negligible"
+        summary = vulnerability_summary(payload)
+        self.assertEqual(summary["severity"], "Negligible")
+        self.assertEqual(summary["score"], 6.9)
+        self.assertEqual(summary["priority_source"], "Ubuntu")
+
     def test_new_report_invalidates_context_but_identical_proof_does_not_reopen_review(self):
         self.enroll()
         self.send()

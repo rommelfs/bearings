@@ -14,6 +14,23 @@ These are fixed operator-controlled HTTPS destinations. Availability/lifecycle o
 
 The updated client adds optional dpkg source metadata to the existing report schema. Deploy server dependencies and migration **0060** before rebuilding/publishing clients. Existing Ubuntu/RPM reports remain usable; legacy Debian reports show missing source metadata until an updated client reports. Reinstalling the official installer preserves host identity, registration, key and queues. Third-party repository origin/signature is not attested by a host OS label.
 
+
+### Ubuntu cases without a published fix
+
+In Vulnerability review, use **Assessment → No Ubuntu fix published** to
+inspect current Canonical evidence for the reported Ubuntu release and source
+package. This includes packages Canonical marks vulnerable without a fix,
+deferred fixes, ignored issues and fixes pending publication. These cases stay
+in evidence and monitoring. They leave the default **Needs attention** queue
+and automatic remediation selection. A saved affected assessment or an
+explicitly worked issue remains visible in its workflow.
+
+Missing, conflicting and expired vendor evidence retains its own review or
+evaluation state. If Canonical publishes a versioned fix, normal evaluation
+returns older affected installations to the queue. Ubuntu priority and CVSS
+are displayed independently, including Ubuntu's Negligible priority.
+Apply migration 0081 on the Bearings server before enabling the new views.
+
 ## Scheduling and failure semantics
 
 `run_worker` invokes `sync_distro_cves` after agent processing by default (`BEARINGS_DISTRO_CVE_ENABLED=1`). The command refreshes at most one needed feed and evaluates at most five queued devices per invocation; `--limit` accepts 1–100. Reports and changed vendor generations queue evaluations. Successful feeds refresh after six hours, failures retry after fifteen minutes, and twelve-hour-old caches are marked stale. An indexed pending-device queue and feed/package lookup avoid an upstream request per package/host. Initial download, parsing and cache population happen in the background and can take minutes; registration/public pages do not wait for them.

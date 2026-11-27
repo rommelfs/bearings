@@ -679,6 +679,10 @@ See [case and implementation audit](audits/2026-11-21-package-cve-correctness.md
 
 Implemented scoped SQL classification before queue aggregation/pagination: current affected versions/manual assessments, vendor uncertainty, pending current evaluations, fixed/not-matched/explicit human not-affected, and all retained workflows. Native Canonical CVE-2026-124757/needrestart 3.6-7ubuntu4.6 regression verifies the equal fixed boundary leaves the actionable list without closing human reviews. Proof operands/reasons/currentness are shown directly, analyst conflicts preserved, same-source NetBox assigned IP/DNS batched and searchable. Freshness and privacy/pagination/query-budget regressions; docs/audits/2026-11-21-package-cve-correctness.md. No schema/client/dependency changes.
 
+### Separate Ubuntu CVEs without a published fix from actionable reviews
+
+Implemented a dedicated evidence filter for current Canonical statuses without a published fix. Saved assessments and worked issues are preserved. Ubuntu Negligible priority is displayed separately from CVSS. Migration 0081 adds the retained status reason to the compact review projection. See [distribution advisory matching](integrations/distro-cves.md).
+
 ### Explain vendor ESM fix paths and separate CVSS from distributor priority
 
 Implemented independent CVSS severity/color and named vendor priority with explicit sorting semantics; current package reviews pair satisfied version predicates with explicit vendor fixed-version notes and ESM Apps channel. Read-only APT candidate/Pro diagnostic, explicit unverified host update availability, narrow audited Ubuntu pip bundled-urllib3 context, preserved human assessments. Actual CVE-2025-66471 Noble pip-whl +esm3 fixture, independent public Ubuntu tracker evidence, PostgreSQL and browser regressions. APT candidate, repository and entitlement collection remain future protocol work; no automatic enablement/subscription or package installation. See docs/audits/2026-11-21-package-cve-correctness.md.

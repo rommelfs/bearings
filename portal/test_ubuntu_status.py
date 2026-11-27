@@ -3,6 +3,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 from django.test import override_settings
+from django.urls import reverse
 from django.utils import timezone
 from .tests import Fixture
 from . import agents, distro_cves, ubuntu_status
@@ -95,6 +96,60 @@ class UbuntuStatusTests(Fixture):
         self.device.components.update(package_source={})
         summary = distro_cves.evaluate_device(self.device.pk)
         self.assertEqual(summary["uncertainty_reasons"], {"source_metadata_missing": 1})
+
+    def test_confirmed_no_fix_stays_in_evidence_and_reenters_work_when_a_fix_is_published(self):
+        from . import remediation
+        from .review_queue import classified
+        from .review_work import scoped_work
+
+        self.cached(status="ignored", version="")
+        self.prepare()
+        url = reverse("intelligence", args=[self.a.slug])
+        self.login(self.admin)
+
+        for status, label in (
+            ("ignored", "Ubuntu has marked the issue ignored"),
+            ("deferred", "Ubuntu has deferred the fix"),
+            ("needed", "Ubuntu marks the package vulnerable"),
+            ("pending", "Ubuntu has a fix pending publication"),
+        ):
+            with self.subTest(status=status):
+                self.cached(status=status, version="")
+                distro_cves.evaluate_device(self.device.pk)
+                finding = classified(Finding.objects.all()).get()
+                self.assertEqual(finding.queue_bucket, "vendor_no_fix")
+                self.assertEqual(finding.analyst_applicability, "unassessed")
+                self.assertFalse(remediation.work(self.admin, self.a).exists())
+                self.assertFalse(scoped_work(Finding.objects.all(), "cleared").exists())
+                for view in ("cve", "machine", "software"):
+                    response = self.client.get(url, {"view": view})
+                    self.assertEqual(response.context["page"].paginator.count, 0)
+                    response = self.client.get(url, {"view": view, "state": "vendor_no_fix"})
+                    self.assertEqual(response.context["page"].paginator.count, 1)
+                evidence = self.client.get(url, {"state": "vendor_no_fix"})
+                self.assertContains(evidence, label)
+                self.assertNotContains(evidence, "Notify about this CVE")
+                self.assertContains(self.client.get(url, {"finding": finding.pk}), label)
+                self.assertEqual(self.client.get(reverse("issues")).context["page"].paginator.count, 0)
+
+        self.cached()
+        self.assertEqual(classified(Finding.objects.all()).get().queue_bucket, "pending")
+        distro_cves.evaluate_device(self.device.pk)
+        self.assertEqual(classified(Finding.objects.all()).get().queue_bucket, "action")
+        self.assertContains(self.client.get(url), CVE)
+        self.assertTrue(remediation.work(self.admin, self.a).exists())
+
+    def test_no_fix_evidence_keeps_a_saved_affected_assessment_actionable(self):
+        from .review_queue import classified
+        from .review_work import scoped_work
+
+        self.cached(status="deferred", version="")
+        self.prepare()
+        finding = Finding.objects.get()
+        finding.analyst_applicability = "affected"
+        finding.save(update_fields=["analyst_applicability"])
+        self.assertEqual(classified(Finding.objects.all()).get().queue_bucket, "action")
+        self.assertTrue(scoped_work(Finding.objects.all(), "attention").exists())
 
     def test_status_cannot_bypass_unsupported_oval_guard(self):
         self.cached()

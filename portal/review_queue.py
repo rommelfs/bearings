@@ -28,12 +28,14 @@ from .misp_cves import COMPATIBLE_PROOFS, MATCHED_RANGE
 from .distro_projection import ComparableJSON
 from .overview_queries import SNAPSHOT_PROOF_IDS
 from .presentation import ACTIVE_REVIEWS
+from .ubuntu_status import NO_FIX_REASON_LABELS
 
 
 BUCKETS = (
     ("action", "Version matches & cases to assess"),
     ("unresolved", "Vendor clarification needed"),
     ("pending", "Awaiting current evaluation"),
+    ("vendor_no_fix", "No Ubuntu fix published"),
     ("cleared", "Fixed or not affected"),
     ("all", "All retained open reviews"),
 )
@@ -166,6 +168,13 @@ def classified(reviews, *, organizations=None, assets=None, package_evidence=Tru
 
 
 CLEARED_VERDICTS = ("fixed", "not_matched")
+NO_FIX_EVIDENCE = Q(
+    distro_match__queue_proof__verdict="unresolved",
+    distro_match__queue_proof__feed__startswith="ubuntu:",
+    distro_match__queue_proof__ubuntu_missing=False,
+    distro_match__queue_proof__uncertainty_reason__in=tuple(NO_FIX_REASON_LABELS),
+)
+NON_ACTION_BUCKETS = ("cleared", "vendor_no_fix")
 MISP_CATALOGUE_GAP = Q(
     rule=DISCOVERY_RULE,
     status="new",
@@ -243,7 +252,7 @@ def current_version_exclusion():
 
 
 def outreach_exclusion():
-    return current_version_exclusion() | MISP_CATALOGUE_GAP
+    return current_version_exclusion() | MISP_CATALOGUE_GAP | Q(queue_bucket="vendor_no_fix")
 
 
 def bucket_expression(*, human="action", affected="action", manual="action"):
@@ -259,6 +268,7 @@ def bucket_expression(*, human="action", affected="action", manual="action"):
         When(package_current=False, then=Value("pending")),
         When(distro_match__queue_proof__verdict="affected", then=Value(affected)),
         When(distro_match__queue_proof__verdict__in=CLEARED_VERDICTS, then=Value("cleared")),
+        When(NO_FIX_EVIDENCE, then=Value("vendor_no_fix")),
         default=Value("unresolved"),
         output_field=CharField(),
     )

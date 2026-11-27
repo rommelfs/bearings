@@ -27,7 +27,7 @@ from .distro_fix_evidence import HasVendorFix
 from .issues import ACTIVE, visible_issues
 from .models import AgentDevice, Installation
 from .review_focus import machine_coverage
-from .review_queue import CLEARED_VERDICTS, classified
+from .review_queue import CLEARED_VERDICTS, NO_FIX_EVIDENCE, classified
 from .review_work import positive_package_coverage
 from .presentation import severity_rank
 from .table_sort import TableSort
@@ -87,6 +87,7 @@ def _package_counts(reviews, hosts):
     unresolved = (
         ~affected
         & ~Q(distro_match__queue_proof__verdict__in=CLEARED_VERDICTS)
+        & ~NO_FIX_EVIDENCE
         & ~Q(analyst_applicability__in=("affected", "not_affected"))
     )
     counts = (

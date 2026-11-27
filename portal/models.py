@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models import Q, F
 from django.db.models.functions import Coalesce, Upper
 from django.utils import timezone
-from .distro_projection import DistroQueueProofV1, DistroVendorFixInputsV1
+from .distro_projection import DistroQueueProofV2, DistroVendorFixInputsV1
 
 
 class Organization(models.Model):
@@ -2432,7 +2432,7 @@ class DistroMatch(models.Model):
     input_hash = models.CharField(max_length=64)
     snapshot = models.JSONField(default=dict)
     queue_proof = models.GeneratedField(
-        expression=DistroQueueProofV1("snapshot"), output_field=models.JSONField(), db_persist=True
+        expression=DistroQueueProofV2("snapshot"), output_field=models.JSONField(), db_persist=True
     )
     vendor_fix_inputs = models.GeneratedField(
         expression=DistroVendorFixInputsV1("snapshot"), output_field=models.JSONField(), db_persist=True
