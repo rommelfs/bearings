@@ -4,7 +4,7 @@
 {% url 'issues' as issues_url %}
 {% url 'discovery' as discovery_url %}
 
-<article class="overview-company overview-{{ state.tone }}"><div class="row"><h2><a href="{% url 'overview' %}?organization={{ state.org.slug }}">{{ state.org.name }}</a></h2><span class="badge overview-status">{{ state.status }}</span></div>
+<article class="overview-company overview-{{ state.tone }}"><div class="row"><h2><a href="{% url 'overview' %}?organization={{ state.org.slug }}">{{ state.org.name }}</a></h2><span class="badge overview-status">{{ state.status }}</span></div>{% if workspace_national %}<a class="button" href="{% url 'overview' %}?organization={{ state.org.slug|urlencode }}">Open company workspace →</a>{% endif %}
 {% if state.synthetic %}<p class="muted">Synthetic inventory · for exploration</p>{% endif %}
 {% include 'portal/_software_accounting.html' with accounting=state.software_accounting %}
 {% include 'portal/_machine_posture.html' with posture=state.posture machine_org=state.org.slug %}

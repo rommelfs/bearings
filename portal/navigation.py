@@ -14,8 +14,11 @@ AREAS = {
     "registrations": ("Registrations", "registration-applications", ""),
     "national": ("National overview", "circl-overview", ""),
     "overview": ("Infrastructure overview", "overview", ""),
+    "infrastructure-status": ("Company infrastructure status", "overview", ""),
+    "organizations": ("Organizations", "inventory", "inventory"),
+    "national-evidence": ("Vulnerability evidence", "circl-findings", "assess"),
     "start": ("Start here", "getting-started", ""),
-    "inventory": ("Inventory & organizations", "inventory", "inventory"),
+    "inventory": ("Hosts & software", "inventory", "inventory"),
     "clients": ("Inventory clients", "client-platforms", "inventory"),
     "review": ("Vulnerability review", "home", "assess"),
     "discovery": ("Automatic CVE discovery", "discovery", "assess"),
@@ -28,7 +31,7 @@ AREAS = {
     "companies": ("Federated company reports", "companies", "inventory"),
     "explore": ("Explore scenarios", "demo-explore", ""),
     "administration": ("Synthetic data", "demo-data", ""),
-    "platform": ("Platform administration", "admin:index", ""),
+    "platform": ("Platform settings", "admin:index", ""),
     "applications": ("Applications", "applications", ""),
 }
 
@@ -65,6 +68,7 @@ ROUTES = {
         "windows-client-downloads",
         "agent-fleets",
         "agent-center",
+        "kernel-evidence",
         "application-profiles",
     },
     "inventory": {
@@ -124,29 +128,41 @@ def workspace(request, *, show_examples=False, company=None, national=False):
         area = "members"
     elif national and route == "circl-research":
         area = "research"
-    elif national and route in {"review-followups", "review-followup"}:
-        area = "followups"
-    label, target, stage = AREAS[area]
+    elif route in {"review-followups", "review-followup"}:
+        area = "followups" if national else "inventory"
+    elif national and route == "overview":
+        area = "infrastructure-status"
+    elif national and route == "inventory":
+        area = "organizations"
+    elif national and route in {"circl-findings", "home"}:
+        area = "national-evidence"
+    elif route == "index" and request.resolver_match.namespace == "admin":
+        area = "platform"
+    label, _, stage = AREAS[area]
     if route in {"flowintel-new", "flowintel-case"}:
         stage = "respond"
+    landing = "national" if national else "overview"
     if national:
         sections = [
-            ("National operations", ["national", "research", "followups"], False),
-            ("Organizations & evidence", ["inventory", "clients", "review", "risks", "exposure"], False),
-            ("Response", ["notifications", "response"], False),
-            ("Integrations", ["applications", "misp", "companies"], True),
+            ("National operations", ["research"]),
+            (
+                "Organizations & evidence",
+                ["organizations", "infrastructure-status", "followups", "national-evidence"],
+            ),
+            ("Response", ["notifications", "response"]),
+            ("Integrations", ["applications", "misp", "companies"]),
         ]
         administration = ["registrations"] + (
             ["platform", "merges", "administration"] if request.user.is_superuser else []
         )
-        sections.append(("Administration", administration, True))
+        sections.append(("Platform administration", administration))
     else:
         sections = [
-            ("Overview", ["overview", "actions"], False),
-            ("Inventory", ["inventory", "clients", "issues"], False),
-            ("Security", ["review", "discovery", "risks", "exposure"], False),
-            ("Response", ["notifications"], False),
-            ("My integrations", ["misp"], True),
+            ("Overview", ["actions"]),
+            ("Inventory", ["inventory", "issues", "clients"]),
+            ("Security", ["review", "discovery", "risks", "exposure"]),
+            ("Response", ["notifications"]),
+            ("My integrations", ["misp"]),
         ]
         if company:
             from .access import role_for
@@ -154,7 +170,7 @@ def workspace(request, *, show_examples=False, company=None, national=False):
             company_admin = role_for(request.user, company) == "admin"
             if request.user.is_superuser or company_admin:
                 admin_items = ["settings", "members"] if company_admin else ["settings"]
-                sections.append(("Company administration", admin_items, True))
+                sections.append(("Company administration", admin_items))
     scoped = {}
     if company:
         query = "?" + urlencode({"organization": company.slug})
@@ -173,43 +189,39 @@ def workspace(request, *, show_examples=False, company=None, national=False):
             + urlencode({"organization": company.pk, "mode": "company"}),
             "settings": reverse("configuration", args=[company.slug]),
             "members": reverse("company-members", args=[company.slug]),
-            "misp": reverse("misp-connections") + "?workspace=company",
-            "start": reverse("getting-started") + "?workspace=company",
+            "misp": reverse("misp-connections") + query,
+            "start": reverse("getting-started") + query,
+            "explore": reverse("demo-explore") + query,
         }
 
     def item_url(key):
-        url = scoped.get(key, reverse(AREAS[key][1]))
-        if national and key not in {
-            "platform",
-            "national",
-            "research",
-            "followups",
-            "registrations",
-            "merges",
-            "administration",
-        }:
-            url += ("&" if "?" in url else "?") + "workspace=national"
-        return url
+        return scoped.get(key) or reverse(AREAS[key][1])
 
     sections.append(
-        ("Help & examples", ["start"] + (["explore"] if show_examples or area == "explore" else []), True)
+        ("Help & examples", ["start"] + (["explore"] if show_examples or area == "explore" else []))
     )
+
+    def item(key):
+        return {"label": AREAS[key][0], "url": item_url(key), "key": key, "active": key == area}
+
     return {
-        "workspace_home_url": scoped.get("overview", reverse("circl-overview" if national else "overview")),
+        "workspace_home_url": item_url(landing),
+        "workspace_scope_label": f"{company.name} infrastructure"
+        if company
+        else "National"
+        if national
+        else "Company workspaces",
         "workspace_area": area,
         "workspace_label": label,
-        "workspace_url": reverse(target),
+        "workspace_url": item_url(area),
+        "workspace_landing": item(landing),
         "workflow_stage": stage,
         "navigation_groups": [
             {
                 "label": heading,
-                "collapsible": collapsible,
-                "active": area in keys,
-                "items": [
-                    {"label": AREAS[key][0], "url": item_url(key), "key": key, "active": key == area}
-                    for key in keys
-                ],
+                "open": area in keys or (area == landing and index == 0),
+                "items": [item(key) for key in keys],
             }
-            for heading, keys, collapsible in sections
+            for index, (heading, keys) in enumerate(sections)
         ],
     }

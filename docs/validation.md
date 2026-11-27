@@ -3052,3 +3052,12 @@ preservation of explicitly configured reporting intervals. The isolated installe
 fixture can run the previously published updater unchanged against the new
 binary and the original unit digest.
 No production reporting or fleet-capacity measurement was performed.
+
+
+### Company and national navigation
+
+Synthetic workspace tests verify the separate menus, explicit company links,
+direct route scope across tabs, administrator visibility and the active
+client submenu. Chromium at 1440 and 390 pixels verifies keyboard and pointer
+disclosures, the switch between national and company pages and the active
+Windows link on mobile using rendered test fixtures.

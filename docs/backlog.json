@@ -161,7 +161,7 @@
       },
       {
         "title": "Make company and national workspace navigation context-specific",
-        "body": "Implemented company-scoped inventory/review/rollout/monitoring/action/risk links and company administration, distinct national research/data-review/evidence/coordination/platform menu, shared desktop/mobile lists and reauthorized company selection. Explicit scoped links survive another tab changing preference; global unscoped collections remain wide. Personal account tools retain personal scope. No roles, memberships or endpoint policy change. Workspace/denial/query-budget tests and 390/1440 Chromium toggle flows passed. See docs/user-guide/infrastructure-overview.md."
+        "body": "Implemented company-scoped inventory/review/rollout/monitoring/action/risk links and company administration, distinct national research/data-review/evidence/coordination/platform menu, shared desktop/mobile lists and reauthorized company selection. Explicit scoped links survive another tab changing preference; global unscoped collections remain wide. Personal account tools retain personal scope. No roles, memberships or endpoint policy change. Workspace/denial/query-budget tests and 390/1440 Chromium toggle flows passed. Follow-up: keep separate company and national workspace landing links, move client administration and company risk into company navigation, add collapsible groups and a nested client menu, and label wide infrastructure status and company transitions explicitly. See docs/user-guide/infrastructure-overview.md."
       },
       {
         "title": "Author application profiles in a scoped GUI and export local PR proposals",

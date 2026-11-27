@@ -1,0 +1,2 @@
+{% load ui_icons %}
+<a class="workspace-link area-{{ item.key }}{% if item.active %} is-active{% endif %}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{% ui_icon item.key %}<span class="nav-label">{{ item.label }}</span></a>

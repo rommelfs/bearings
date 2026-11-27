@@ -1,7 +1,21 @@
 {% load ui_icons %}
+{% include "portal/_workspace_link.html" with item=workspace_landing only %}
 {% for group in navigation_groups %}
-{% if group.collapsible %}<details class="nav-group nav-disclosure"{% if group.active %} open{% endif %}><summary>{{ group.label }}</summary>{% else %}<div class="nav-group"><p class="nav-group-label">{{ group.label }}</p>{% endif %}
-{% for item in group.items %}<a class="workspace-link area-{{ item.key }}{% if item.active %} is-active{% endif %}" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{% ui_icon item.key %}<span class="nav-label">{{ item.label }}</span></a>{% if item.key == 'clients' %}
-{% include 'portal/_client_platform_links.html' with sidebar=True %}
-{% endif %}{% endfor %}
-{% if group.collapsible %}</details>{% else %}</div>{% endif %}{% endfor %}
+  <details class="nav-group nav-disclosure"{% if group.open %} open{% endif %}>
+    <summary>{{ group.label }}</summary>
+    <ul class="nav-items">
+    {% for item in group.items %}
+      <li>
+        {% if item.key == "clients" %}
+          <details class="nav-client-group"{% if item.active %} open{% endif %}>
+            <summary class="workspace-link{% if item.active %} is-active{% endif %}">{% ui_icon "clients" %}<span class="nav-label">{{ item.label }}</span></summary>
+            {% include "portal/_client_platform_links.html" with sidebar=True clients_url=item.url %}
+          </details>
+        {% else %}
+          {% include "portal/_workspace_link.html" with item=item only %}
+        {% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  </details>
+{% endfor %}

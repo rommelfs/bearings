@@ -252,20 +252,24 @@ vendor evaluation refresh the automatic result without closing human history.
 
 ### Company and national navigation contexts
 
-The top switch also changes both desktop and mobile navigation. Company mode
-shows local inventory/software, Linux clients, actions, monitoring, risk and
-company administration. Its inventory/review links go directly to the selected
-organization; shared views use their supported organization filter. Account-level
-personal MISP tools remain personal tools, not an impersonated company identity.
+The header switch selects **National** or the selected company infrastructure.
+The workspace name and current section also appear above the page. Both desktop
+and mobile menus keep the workspace landing page visible and open the group
+containing the current page. **Inventory clients** is an expandable company
+submenu with the client overview, Linux, Windows and the administration links
+allowed by the user's role.
 
-National mode shows cross-company research/evidence, data-review follow-ups,
-coordination and permitted platform administration. Linux rollout and local
-company settings are reached by switching to a company first. Global collection
-pages without an organization scope remain the wide view. Explicitly scoped
-company links restore that context even if another tab last visited National.
-The remembered company is reauthorized on each request; navigation preferences
-do not add memberships, change roles, grant sharing or replace endpoint policy.
+Company mode groups inventory, vulnerability review and discovery, company
+risk and exposure history, and local notifications. National mode groups
+research, organization directories and data reviews, cross-company vulnerability
+evidence and incident coordination. Its **Company infrastructure status** page
+lists permitted companies and provides explicit **Open company workspace** links.
+Platform actions remain available according to the operator's role.
 
+Company links carry the organization in the path or query. Opening another
+organization or National in a different tab does not change those destinations.
+An unscoped cross-company collection remains cross-company. Each request still
+checks organization access and destination permissions.
 
 Company administrators can open **Linux clients → Application version profiles**
 to define application release-file, JSON, regex or Git-tag detection. The method

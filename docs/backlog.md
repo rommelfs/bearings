@@ -693,7 +693,7 @@ Implemented administrator-controlled application-probes.v1 profiles: fixed MISP 
 
 ### Make company and national workspace navigation context-specific
 
-Implemented company-scoped inventory/review/rollout/monitoring/action/risk links and company administration, distinct national research/data-review/evidence/coordination/platform menu, shared desktop/mobile lists and reauthorized company selection. Explicit scoped links survive another tab changing preference; global unscoped collections remain wide. Personal account tools retain personal scope. No roles, memberships or endpoint policy change. Workspace/denial/query-budget tests and 390/1440 Chromium toggle flows passed. See docs/user-guide/infrastructure-overview.md.
+Implemented company-scoped inventory/review/rollout/monitoring/action/risk links and company administration, distinct national research/data-review/evidence/coordination/platform menu, shared desktop/mobile lists and reauthorized company selection. Explicit scoped links survive another tab changing preference; global unscoped collections remain wide. Personal account tools retain personal scope. No roles, memberships or endpoint policy change. Workspace/denial/query-budget tests and 390/1440 Chromium toggle flows passed. Follow-up: separate landing links, collapsible groups, nested client navigation and explicit transitions between National and company infrastructure. Scope follows the route and organization on desktop and mobile. See docs/user-guide/infrastructure-overview.md.
 
 
 - Implemented: scoped application-profile GUI with native syntax validation,

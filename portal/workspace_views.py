@@ -12,7 +12,6 @@ from .circl_views import private_response
 from .models import Membership
 
 SESSION_COMPANY = "bearings_workspace_company"
-SESSION_MODE = "bearings_workspace_mode"
 
 
 def remembered_company(request):
@@ -45,6 +44,11 @@ def view_switch(request, selected, operator):
         "client-platforms",
         "client-rollouts",
         "client-profiles",
+        "misp",
+        "misp-event",
+        "misp-connections",
+        "getting-started",
+        "demo-explore",
     }
     selector = (match.kwargs.get("slug") if match else None) or (
         request.GET.get("organization", "") if route in scoped_queries else ""
@@ -60,10 +64,18 @@ def view_switch(request, selected, operator):
             if cached and str(selector) in {cached.slug, str(cached.pk)}
             else organizations_for(request.user).filter(criteria).first()
         )
-        if actual:
-            selected = actual
-            if operator and request.session.get(SESSION_COMPANY) != selected.pk:
-                request.session[SESSION_COMPANY] = selected.pk
+    national_page = (
+        request.path.startswith(("/circl/", "/operator/", "/admin/"))
+        or route in {"rtir", "rt-new", "rt-ticket", "demo-data", "company-merge", "companies"}
+        or (operator and route == "review-followup" and request.GET.get("workspace") == "national")
+    )
+    # Only an authorized organization carried by the request sets the company context.
+    # The remembered company remains a switch destination, independent of open tabs.
+    company_page = bool(actual and not national_page)
+    if company_page:
+        selected = actual
+        if operator and request.session.get(SESSION_COMPANY) != selected.pk:
+            request.session[SESSION_COMPANY] = selected.pk
     if selected is None and operator:
         own = Membership.objects.filter(
             user=request.user, organization__slug="circl", organization__merged_into=None
@@ -72,41 +84,6 @@ def view_switch(request, selected, operator):
             own = own.filter(organization__operator_visibility=True)
         membership = own.select_related("organization").first()
         selected = membership.organization if membership else None
-    national_page = (
-        request.path.startswith(("/circl/", "/operator/", "/admin/"))
-        or request.GET.get("workspace") == "national"
-    )
-    # Shared collection routes without an organization are explicitly the wide
-    # view, even if another browser tab last visited a company workspace.
-    wide = (
-        route
-        in {
-            "home",
-            "inventory",
-            "overview",
-            "discovery",
-            "issues",
-            "risk-register",
-            "company-actions",
-            "notifications",
-            "plum",
-            "linux-client-downloads",
-        }
-        and not actual
-    )
-    company_page = bool(
-        selected
-        and not national_page
-        and not wide
-        and (
-            actual
-            or request.GET.get("workspace") == "company"
-            or request.session.get(SESSION_MODE) == "company"
-        )
-    )
-    mode = "company" if company_page else "national"
-    if operator and request.session.get(SESSION_MODE) != mode:
-        request.session[SESSION_MODE] = mode
     return {
         "switch_company_label": f"{selected.name} infrastructure" if selected else "Company infrastructure",
         "switch_company_url": company_url(selected)
@@ -114,7 +91,7 @@ def view_switch(request, selected, operator):
         else reverse("workspace-switch") + "?open=company",
         "switch_company_active": company_page,
         "switch_national_active": bool(operator and not company_page),
-        "navigation_company": selected if company_page else None,
+        "navigation_company": actual if company_page else None,
         "workspace_national": bool(operator and not company_page),
         "selected_company_workspace": selected,
     }

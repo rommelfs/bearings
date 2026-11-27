@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import OuterRef, Subquery
 from django.shortcuts import get_object_or_404, render, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
@@ -68,6 +69,9 @@ def detail(request, slug):
     org = organization(request, slug)
     require(can_configure_review(request.user, org))
     policy = get_object_or_404(InventoryReviewPolicy, organization=org)
+    destination = reverse("review-followup", args=[slug])
+    if request.GET.get("workspace") == "national":
+        destination += "?workspace=national"
     form = RecipientForm(
         request.POST if request.method == "POST" and request.POST.get("action") == "preview" else None
     )
@@ -93,7 +97,7 @@ def detail(request, slug):
                 messages.success(
                     request, "Follow-up queued. Delivery rechecks current recipients and review policy."
                 )
-                return redirect("review-followup", slug=slug)
+                return redirect(destination)
             elif action == "feedback" and feedback.is_valid():
                 record_feedback(
                     request.user,
@@ -105,7 +109,7 @@ def detail(request, slug):
                     request,
                     "Delivery evidence recorded. This does not confirm a data review or emergency availability.",
                 )
-                return redirect("review-followup", slug=slug)
+                return redirect(destination)
             elif action not in {"preview", "feedback"}:
                 require(False)
         except ValidationError as failure:

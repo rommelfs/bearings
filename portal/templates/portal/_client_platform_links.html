@@ -1,9 +1,13 @@
-{% firstof org.slug request.GET.organization as client_organization %}
-{% if sidebar %}<div class="nav-client-platforms" role="navigation" aria-label="Inventory clients">{% else %}<nav class="client-platform-links" aria-label="Inventory clients">{% endif %}
-  <a{% if not sidebar %} class="button"{% endif %} href="{% url 'linux-client-downloads' %}{% if client_organization %}?organization={{ client_organization|urlencode }}{% endif %}"{% if platform == 'linux' or request.resolver_match.url_name == 'linux-client-downloads' %} aria-current="page"{% endif %}>Linux</a>
-  <a{% if not sidebar %} class="button"{% endif %} href="{% url 'windows-client-downloads' %}{% if client_organization %}?organization={{ client_organization|urlencode }}{% endif %}"{% if platform == 'windows' or request.resolver_match.url_name == 'windows-client-downloads' %} aria-current="page"{% endif %}>Windows</a>
+{% firstof navigation_company.slug org.slug request.GET.organization as client_organization %}
+{% with route=request.resolver_match.url_name %}
+{% if sidebar %}<ul class="nav-client-platforms">
+  <li><a href="{{ clients_url }}"{% if route == 'client-platforms' %} aria-current="page"{% endif %}>Client overview</a></li>
+{% else %}<nav class="client-platform-links" aria-label="Inventory clients">{% endif %}
+  {% if sidebar %}<li>{% endif %}<a{% if not sidebar %} class="button"{% endif %} href="{% url 'linux-client-downloads' %}{% if client_organization %}?organization={{ client_organization|urlencode }}{% endif %}"{% if platform == 'linux' or route == 'linux-client-downloads' %} aria-current="page"{% endif %}>Linux</a>{% if sidebar %}</li>{% endif %}
+  {% if sidebar %}<li>{% endif %}<a{% if not sidebar %} class="button"{% endif %} href="{% url 'windows-client-downloads' %}{% if client_organization %}?organization={{ client_organization|urlencode }}{% endif %}"{% if platform == 'windows' or route == 'windows-client-downloads' %} aria-current="page"{% endif %}>Windows</a>{% if sidebar %}</li>{% endif %}
   {% if client_rollout_allowed %}
-  <a{% if not sidebar %} class="button"{% endif %} href="{% url 'client-rollouts' %}{% if client_rollout_slug %}?organization={{ client_rollout_slug|urlencode }}{% endif %}"{% if platform == 'rollouts' or request.resolver_match.url_name == 'agent-fleets' or request.resolver_match.url_name == 'client-rollouts' %} aria-current="page"{% endif %}>Rollout keys</a>
-  <a{% if not sidebar %} class="button"{% endif %} href="{% url 'client-profiles' %}{% if client_rollout_slug %}?organization={{ client_rollout_slug|urlencode }}{% endif %}"{% if platform == 'profiles' or request.resolver_match.url_name == 'application-profiles' or request.resolver_match.url_name == 'client-profiles' %} aria-current="page"{% endif %}>Profiles</a>
+  {% if sidebar %}<li>{% endif %}<a{% if not sidebar %} class="button"{% endif %} href="{% url 'client-rollouts' %}{% if client_rollout_slug %}?organization={{ client_rollout_slug|urlencode }}{% endif %}"{% if platform == 'rollouts' or route == 'agent-fleets' or route == 'client-rollouts' %} aria-current="page"{% endif %}>Rollout keys</a>{% if sidebar %}</li>{% endif %}
+  {% if sidebar %}<li>{% endif %}<a{% if not sidebar %} class="button"{% endif %} href="{% url 'client-profiles' %}{% if client_rollout_slug %}?organization={{ client_rollout_slug|urlencode }}{% endif %}"{% if platform == 'profiles' or route == 'application-profiles' or route == 'client-profiles' %} aria-current="page"{% endif %}>Profiles</a>{% if sidebar %}</li>{% endif %}
   {% endif %}
-{% if sidebar %}</div>{% else %}</nav>{% endif %}
+{% if sidebar %}</ul>{% else %}</nav>{% endif %}
+{% endwith %}

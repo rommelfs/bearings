@@ -122,7 +122,7 @@ class InventoryStatusTests(Fixture):
         self.assertEqual(result["client"]["label"], "Client binding needs review")
         self.assertEqual(result["receipt"], {})
 
-    def test_agent_routes_use_clients_navigation_and_optional_groups_open_for_active_destination(self):
+    def test_agent_routes_use_clients_navigation_and_open_current_group(self):
         self.login(self.reader)
         response = self.client.get(reverse("agent-center", args=[self.a.slug]))
         self.assertEqual(response.context["workspace_area"], "clients")
@@ -133,12 +133,9 @@ class InventoryStatusTests(Fixture):
         self.assertTrue(clients["active"])
         self.assertEqual(clients["url"], reverse("client-platforms") + "?organization=" + self.a.slug)
         self.assertNotIn("Administration", [g["label"] for g in groups])
-        self.assertEqual(
-            [g["label"] for g in groups if not g["collapsible"]],
-            ["Overview", "Inventory", "Security", "Response"],
-        )
+        self.assertEqual([g["label"] for g in groups if g["open"]], ["Inventory"])
         self.assertNotContains(response, 'href="' + reverse("demo-explore") + '"')
         response = self.client.get(reverse("misp-connections"))
         group = next(g for g in response.context["navigation_groups"] if g["label"] == "My integrations")
-        self.assertTrue(group["active"])
+        self.assertTrue(group["open"])
         self.assertContains(response, 'class="nav-group nav-disclosure" open')

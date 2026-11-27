@@ -38,6 +38,9 @@ PATHS = {
     "chevron": '<path d="m9 5 7 7-7 7"/>',
 }
 ALIASES = {
+    "infrastructure-status": "overview",
+    "organizations": "companies",
+    "national-evidence": "review",
     "actions": "issues",
     "platform": "settings",
     "applications": "overview",
