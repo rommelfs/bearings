@@ -104,7 +104,15 @@ def enrollment_failure(stderr):
         )
     known = {
         "invalid rollout credential on stdin": "Invalid rollout-key format; paste the complete existing rollout key at the hidden prompt",
-        "another rollout is pending; inspect state without resetting the device key": "Another rollout is pending for this device; retry its original rollout key or ask the administrator to reconcile it; do not delete state",
+        "another rollout is pending; inspect state without resetting the device key": "Another rollout is pending for this device; use its original key or run archive-bootstrap after checking the server reservation",
+        "another rollout is pending; use its original key or archive the abandoned bootstrap": "Another rollout is pending for this device; use its original key or run archive-bootstrap after checking the server reservation",
+        "rollout key rejected; check whether it is invalid or expired and verify the rollout settings": "Rollout key rejected (HTTP 403). Check whether the key is invalid or expired and confirm the rollout settings. Use archive-bootstrap before switching keys if the server has no reservation for this device",
+        "device registration or enrollment exists; bootstrap state retained": "A device registration or enrollment exists. Review it with your Bearings administrator",
+        "grant or enrollment request exists or cannot be checked; bootstrap state retained": "An enrollment grant or request exists or cannot be verified. Review it with your Bearings administrator",
+        "cannot read the pending bootstrap; state retained": "Cannot read the pending bootstrap. Local state retained",
+        "pending bootstrap identity is invalid; state retained": "Pending bootstrap identity could not be verified. Local state retained",
+        "bootstrap archive already exists or cannot be checked; state retained": "Bootstrap archive already exists or cannot be checked. Local state retained",
+        "could not archive the bootstrap; state retained": "Could not archive the bootstrap. Local state retained",
         "HTTPS delivery failed; check connectivity, trusted CA and configured proxy": "Verified HTTPS registration failed; check connectivity, CA trust and configured proxy",
         "local hostname unavailable or too long": "Local hostname unavailable or too long for registration",
         "local interface enumeration failed": "Local interface enumeration failed during registration",
@@ -133,14 +141,14 @@ def run(args, *, account=None, capture=False, input=None):
     if result.returncode:
         phase = (
             " " + str(args[1])
-            if len(args) > 1 and args[1] in {"version", "init", "bootstrap", "enroll"}
+            if len(args) > 1 and args[1] in {"version", "init", "bootstrap", "enroll", "archive-bootstrap"}
             else ""
         )
         detail = ""
         if (
             Path(str(args[0])).name == "bearings-linux"
             and len(args) > 1
-            and args[1] in {"bootstrap", "enroll"}
+            and args[1] in {"bootstrap", "enroll", "archive-bootstrap"}
         ):
             detail = enrollment_failure(result.stderr)
         if Path(str(args[0])).name == "systemctl" and len(args) > 1:
@@ -344,7 +352,7 @@ def enrolled(account):
         raise InstallError("Existing device configuration is invalid; retained for review") from exc
 
 
-def install(binary_path, unit_path, lxc_compatible=False):
+def install(binary_path, unit_path, lxc_compatible=False, *, rollout=False):
     binary = source(binary_path, 64 * 1024 * 1024)
     arch = {"x86_64": (2, 62), "aarch64": (2, 183)}.get(platform.machine())
     if (
@@ -426,7 +434,8 @@ def install(binary_path, unit_path, lxc_compatible=False):
                 except InstallError:
                     pass
             raise
-        print(json.dumps(data))
+        if not rollout:
+            print(json.dumps(data))
     finally:
         candidate.unlink(missing_ok=True)
         stage.rmdir()
@@ -440,10 +449,11 @@ def install(binary_path, unit_path, lxc_compatible=False):
         )
     else:
         print("Client installed; service stays stopped until enrollment.")
-        print(
-            "In Bearings: company → Linux inventory reports → paste the public key above → copy registration code."
-        )
-        print(f"Then: sudo python3 {Path(__file__).name} enroll --code")
+        if not rollout:
+            print(
+                "In Bearings: company → Linux inventory reports → paste the public key above → copy registration code."
+            )
+            print(f"Then: sudo python3 {Path(__file__).name} enroll --code")
 
 
 def decode_code(code):
@@ -474,7 +484,9 @@ def ca_context(raw=None):
     return context
 
 
-def download(server, ca_file=None, lxc_compatible=False, *, automatic=False, before_install=None):
+def download(
+    server, ca_file=None, lxc_compatible=False, *, automatic=False, before_install=None, rollout=False
+):
     origin = urlsplit(server)
     if (
         origin.scheme != "https"
@@ -553,7 +565,12 @@ def download(server, ca_file=None, lxc_compatible=False, *, automatic=False, bef
         directory.chmod(0o711)
         if before_install:
             before_install(records[f"bearings-linux-{arch}"], records["bearings-linux.service"])
-        install(directory / f"bearings-linux-{arch}", directory / "bearings-linux.service", lxc_compatible)
+        install(
+            directory / f"bearings-linux-{arch}",
+            directory / "bearings-linux.service",
+            lxc_compatible,
+            rollout=rollout,
+        )
         return True
     finally:
         for child in directory.iterdir():
@@ -1172,6 +1189,7 @@ def main():
         choices=[
             "install",
             "enroll",
+            "archive-bootstrap",
             "identity",
             "start",
             "status",
@@ -1300,8 +1318,9 @@ def main():
         if args.action == "install":
             recover_update()
         if args.action == "install" and args.server:
-            download(args.server, args.ca_file, args.lxc_compatible)
-            if args.bootstrap_prompt or args.bootstrap_stdin:
+            rollout = args.bootstrap_prompt or args.bootstrap_stdin
+            download(args.server, args.ca_file, args.lxc_compatible, rollout=rollout)
+            if rollout:
                 bootstrap(args.server, args.ca_file, args.bootstrap_prompt)
         elif args.action == "install":
             directory = Path(__file__).resolve().parent
@@ -1314,6 +1333,12 @@ def main():
             if not unit.is_file():
                 unit = directory / "systemd/bearings-linux.service"
             install(binary, unit, args.lxc_compatible)
+        elif args.action == "archive-bootstrap":
+            account = lookup_account()
+            if account is None:
+                raise InstallError("Install the client first")
+            check_state(account)
+            run([CLIENT, "archive-bootstrap", "--state-dir", STATE], account=account)
         elif args.action == "enroll":
             enroll(args.grant_file, args.ca_file, args.register_host, args.code, args.code_stdin)
         elif args.action == "auto-update-enable":

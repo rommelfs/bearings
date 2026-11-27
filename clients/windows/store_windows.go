@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -151,4 +152,42 @@ func (s *store) save() error {
 		return writeState
 	}
 	return nil
+}
+
+func (s *store) saveBootstrapArchive(attempt rolloutState) error {
+	path := filepath.Join(s.dir, ".bearings-bootstrap-"+attempt.RequestID+".dpapi")
+	if rejectReparse(path) != nil {
+		return errors.New("Cannot verify the bootstrap archive path. Device state retained.")
+	}
+	plain, err := json.Marshal(attempt)
+	if err != nil {
+		return writeState
+	}
+	previous, err := readBounded(path, 8192)
+	if err == nil {
+		existing, err := protect(previous, true)
+		if err != nil || !bytes.Equal(existing, plain) {
+			return errors.New("Bootstrap archive already exists with different or unreadable data. Device state retained.")
+		}
+		return nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return errors.New("Cannot read the bootstrap archive. Device state retained.")
+	}
+	raw, err := protect(plain, false)
+	if err != nil {
+		return writeState
+	}
+	if err := atomicControlFile(path, raw); err != nil {
+		return errors.New("Could not write the bootstrap archive. Device state retained.")
+	}
+	return nil
+}
+
+func (s *store) archiveBootstrap() (string, error) {
+	archived, err := archiveBootstrap(&s.state, s.save, s.saveBootstrapArchive)
+	if err != nil {
+		return "", err
+	}
+	return bootstrapArchiveMessage(archived), nil
 }

@@ -107,7 +107,7 @@ func consoleCode() (string, error) {
 
 func run(args []string) error {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
-		fmt.Println("Bearings Windows " + version + "\nUsage: bearings-windows.exe <setup|init|enroll|collect|report|flush|status|watch|update|uninstall> [options]\nUse <command> --help to list options.")
+		fmt.Println("Bearings Windows " + version + "\nUsage: bearings-windows.exe <setup|init|enroll|archive-bootstrap|collect|report|flush|status|watch|update|uninstall> [options]\nUse <command> --help to list options.")
 		return nil
 	}
 	if args[0] == "--version" {
@@ -125,7 +125,7 @@ func run(args []string) error {
 		return localUninstall()
 	}
 	switch command {
-	case "init", "enroll", "collect", "report", "flush", "status", "watch", "update":
+	case "init", "enroll", "archive-bootstrap", "collect", "report", "flush", "status", "watch", "update":
 	default:
 		return errors.New("unknown command; use --help")
 	}
@@ -172,6 +172,13 @@ func run(args []string) error {
 	}
 	defer s.close()
 	switch command {
+	case "archive-bootstrap":
+		message, err := s.archiveBootstrap()
+		if err != nil {
+			return err
+		}
+		fmt.Println(message)
+		return nil
 	case "update":
 		return updatePreference(s, *autoUpdate)
 	case "init":

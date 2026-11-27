@@ -277,7 +277,7 @@ func getStatus(s *store, id string) error {
 }
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("use init, bootstrap, enroll, collect, report, enqueue, flush, status, watch, retirement or version")
+		return errors.New("use init, bootstrap, archive-bootstrap, enroll, collect, report, enqueue, flush, status, watch, retirement or version")
 	}
 	if args[0] == "version" {
 		fmt.Println(version)
@@ -347,6 +347,17 @@ func run(args []string) error {
 		return output(map[string]string{"public_key": s.public(), "fingerprint_sha256": hex.EncodeToString(sum[:])})
 	case "bootstrap":
 		return bootstrap(s, *server, *ca, os.Stdin)
+	case "archive-bootstrap":
+		name, err := archiveBootstrap(s)
+		if err != nil {
+			return err
+		}
+		if name == "" {
+			fmt.Println("No pending bootstrap to archive.")
+		} else {
+			fmt.Println("Bootstrap archived as " + name + ". Device key retained.")
+		}
+		return nil
 	case "enroll":
 		if *grantFile == "" {
 			return errors.New("supply --grant-file; bearer secrets are not accepted on the command line")

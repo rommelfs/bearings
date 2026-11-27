@@ -115,7 +115,7 @@ func enrollGrant(s *state, save func() error, g grant, ca, hostname string) (enr
 	claim := g.Schema == windowsGrant
 	newHost := hostname != ""
 	if !newHost && s.Rollout != nil {
-		return result, errors.New("another rollout is pending; use its original key")
+		return result, errors.New(pendingRolloutMessage)
 	}
 	if (claim && g.PublicKey != "") || (!claim && (g.Schema != "bearings.agent.grant.v1" || g.PublicKey != s.publicKey())) ||
 		g.RegisterHost != newHost || (newHost && (claim || g.AssetID != "" || s.Rollout == nil)) ||

@@ -304,3 +304,36 @@ func TestSelfUpdateRemovalKeepsUnrelatedFiles(t *testing.T) {
 		t.Fatalf("unrelated file changed: %v", err)
 	}
 }
+
+func TestSelfUpdateBootstrapArchiveDPAPI(t *testing.T) {
+	dir := t.TempDir()
+	s, err := openStore(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.close()
+	key := s.state.publicKey()
+	attempt := &rolloutState{Server: "https://bearings.example", Fleet: identifier(), RequestID: identifier()}
+	s.state.Rollout = attempt
+	if err := s.save(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.saveBootstrapArchive(*attempt); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.archiveBootstrap(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.load(filepath.Join(dir, "state.dpapi"), false); err != nil || s.state.publicKey() != key || s.state.Rollout != nil {
+		t.Fatalf("protected state did not preserve the existing key and clear the attempt: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, ".bearings-bootstrap-"+attempt.RequestID+".dpapi"))
+	if err != nil || bytes.Contains(raw, []byte(attempt.RequestID)) {
+		t.Fatal("archive is missing or unprotected")
+	}
+	plain, err := protect(raw, true)
+	var saved rolloutState
+	if err != nil || json.Unmarshal(plain, &saved) != nil || saved != *attempt {
+		t.Fatal("protected archive did not retain the exact pending attempt")
+	}
+}

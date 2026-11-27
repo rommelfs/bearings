@@ -30,6 +30,24 @@ and determines their inventory mode. Windows verifies HTTPS using the system
 certificate store. For a signed-out schedule, use the manual setup and verify
 that the reporting account can access its Windows profile and DPAPI state.
 
+### Recover an abandoned rollout
+
+If the key is rejected, check whether it is invalid or expired and confirm the
+rollout settings. The same pending attempt can be retried with its original
+key. To use a new key, first ask the Bearings administrator to verify that
+the device has no server-side enrollment or reservation. In setup, choose
+**Archive pending rollout** and confirm. The equivalent PowerShell command
+runs under the same Windows account:
+
+```powershell
+.\bearings-windows.exe archive-bootstrap
+```
+
+The attempt is saved in a DPAPI-protected archive. The client retains its
+device key and refuses the operation if it has a grant, an enrollment request
+or a registered device. Paste the new rollout key into the setup window and
+choose **Register and enable reports**.
+
 ### PowerShell setup
 
 Open PowerShell in the directory containing the EXE.

@@ -172,6 +172,10 @@ class InstallerTests(unittest.TestCase):
             (b"server refused request (HTTP 403); input remains local\n", "HTTP 403"),
             (b"invalid rollout credential on stdin\n", "Invalid rollout-key format"),
             (
+                b"rollout key rejected; check whether it is invalid or expired and verify the rollout settings\n",
+                "invalid or expired",
+            ),
+            (
                 b"another rollout is pending; inspect state without resetting the device key\n",
                 "Another rollout is pending",
             ),

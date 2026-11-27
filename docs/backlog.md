@@ -2,6 +2,14 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## Abandoned rollout recovery
+
+Linux and Windows explain rejected rollout keys and support archiving
+an abandoned local Bootstrap attempt. The device key is retained. A grant,
+enrollment request or registered device blocks archival. Windows offers the
+same action in its setup window. The operator verifies the corresponding
+server reservation before replacing the rollout key.
+
 ## Software accounting and explained CVE coverage — 2026-11-25
 
 Implemented a scoped, paginated installation ledger with mutually exclusive inventory categories and separate unlinked/excluded client observations. Overview promotes that workflow, names Linux-only machine metrics and exposes gaps outside diagnostics. Current application proof requires the same watch/source, latest complete snapshot, immutable revision and unchanged input/version; historical inputs remain visible without a current verdict. Bounded examples preserve evaluated versions, rule identities and human decisions; foreign/restricted data is withheld. Existing package currentness is reused without claiming full application coverage. Synthetic PostgreSQL and desktop/mobile offline browser validation; no new vendor rules, production actions or automatic merge. See [user guide](user-guide/software-coverage.md).

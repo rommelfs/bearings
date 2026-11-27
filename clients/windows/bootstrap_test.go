@@ -4,6 +4,7 @@ package main
 import (
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -128,5 +129,53 @@ func TestUninstallExchangeUsesTheConfiguredDevice(t *testing.T) {
 	}
 	if _, err := uninstallRequest(&s, "acknowledge"); err == nil {
 		t.Fatal("accepted an acknowledgment for another device")
+	}
+}
+
+func TestArchiveBootstrapPreservesIdentityAndPendingStateOnFailure(t *testing.T) {
+	s := initialState()
+	key := s.publicKey()
+	attempt := &rolloutState{Server: "https://bearings.example", Fleet: identifier(), RequestID: identifier()}
+	s.Rollout = attempt
+	var writes []rolloutState
+	archive := func(value rolloutState) error {
+		writes = append(writes, value)
+		return nil
+	}
+	fail := func() error { return errors.New("synthetic save failure") }
+	ok := func() error { return nil }
+	attempt.Grant = &grant{}
+	if archived, err := archiveBootstrap(&s, ok, archive); err == nil || archived || len(writes) != 0 {
+		t.Fatal("archive allowed when a grant was retained")
+	}
+	attempt.Grant = nil
+	if archived, err := archiveBootstrap(&s, fail, archive); err == nil || archived || s.Rollout != attempt {
+		t.Fatal("failed state save discarded the pending request")
+	}
+	if archived, err := archiveBootstrap(&s, ok, archive); err != nil || !archived || s.Rollout != nil {
+		t.Fatal("pending attempt was not archived")
+	}
+	if len(writes) != 2 || writes[0] != writes[1] || writes[1].RequestID != attempt.RequestID || s.publicKey() != key {
+		t.Fatal("archive changed the attempt or device key")
+	}
+}
+
+func TestBootstrapExplainsRejectedRolloutKey(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer server.Close()
+	old := defaultServer
+	defaultServer = server.URL
+	defer func() { defaultServer = old }()
+	ca := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(ca, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0600); err != nil {
+		t.Fatal(err)
+	}
+	s := initialState()
+	token := identifier() + ".synthetic-rollout-bearer-1234567890"
+	_, err := bootstrap(&s, func() error { return nil }, token, ca, "example-windows")
+	if err == nil || !strings.Contains(err.Error(), "invalid or expired") || strings.Contains(err.Error(), token) || s.Rollout == nil || s.Rollout.Grant != nil {
+		t.Fatalf("unexpected rollout denial or pending state: %v", err)
 	}
 }

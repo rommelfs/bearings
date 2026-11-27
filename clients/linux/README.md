@@ -14,7 +14,7 @@ For automatic registration, create one expiring, quota-limited rollout key in th
 sudo python3 bearings-install.py --server https://bearings.example --bootstrap-prompt
 ```
 
-The hidden prompt accepts the company rollout key. Deployment jobs use `--bootstrap-stdin` and secret-manager stdin instead; no per-host key copy or asset creation is needed. Every host retains its own key. New hosts are self-reported Bearings observations, including with read-only NetBox; hostnames/IPs never auto-attach a key to an existing asset or grant NetBox writes. Expiry, quota, creator permission and revocation are rechecked. See [rollout/recovery/Ansible](../../docs/integrations/linux-rollout.md).
+The hidden prompt accepts the company rollout key. Deployment jobs use `--bootstrap-stdin` and secret-manager stdin instead; no per-host key copy or asset creation is needed. Every host retains its own key. New hosts are self-reported Bearings observations, including with read-only NetBox; hostnames/IPs never auto-attach a key to an existing asset or grant NetBox writes. Expiry, quota, creator permission and revocation are rechecked. See [rollout/recovery/Ansible](../../docs/integrations/linux-rollout.md). Use `sudo python3 bearings-install.py archive-bootstrap` only after confirming that an abandoned local attempt has no server reservation. The command preserves the device key and refuses to archive a grant or enrollment.
 
 For explicit single-host enrollment instead, replace the example origin with the trusted Bearings installation:
 

@@ -3023,3 +3023,18 @@ optional combined RT/RTIR image built with the official package sources. The
 Go client cross-builds for Windows x64, ARM64 and x86. The native Windows
 updater workflow includes a synthetic release cleanup and file preservation
 test for the combined client. All fixtures use synthetic state.
+
+## Recovery after a rejected rollout key
+
+Synthetic HTTPS tests cover HTTP 403 on Linux and Windows. The diagnostic
+mentions invalid or expired keys and preserves the request context. A second
+rollout can start after archiving the abandoned local attempt with the
+original device key. Client guards block archival when a grant, pending
+enrollment or device registration exists. Windows tests also cover recovery
+after a failed protected-state save and retrying an existing DPAPI archive.
+
+Linux and portable Windows race tests pass. Windows tests cross-compile for
+x64, ARM64 and x86. The native Windows workflow exercises DPAPI archival of
+the public retry context with the existing device key retained. The command
+acts on local state. An administrator checks the server reservation before
+switching rollout keys.

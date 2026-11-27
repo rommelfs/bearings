@@ -290,3 +290,49 @@ func TestDpkgSourcePackageMetadataAndLegacyCompatibility(t *testing.T) {
 		t.Fatal("empty source version accepted as complete")
 	}
 }
+
+func TestArchiveBootstrapAfterRolloutDenial(t *testing.T) {
+	s, err := openStore(filepath.Join(t.TempDir(), "state"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.close()
+	key := s.public()
+	srv, ca := trustedTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	token := newID() + "." + strings.Repeat("x", 43)
+	if err = bootstrap(s, srv.URL, ca, strings.NewReader(token)); err == nil || !strings.Contains(err.Error(), "invalid or expired") {
+		t.Fatalf("rollout denial did not explain invalid or expired keys: %v", err)
+	}
+	path := filepath.Join(s.dir, "bootstrap.json")
+	pending, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grantPath := filepath.Join(s.dir, "bootstrap-grant.json")
+	if err = os.WriteFile(grantPath, []byte("synthetic"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = archiveBootstrap(s); err == nil {
+		t.Fatal("archive allowed when a grant was retained")
+	}
+	if err = os.Remove(grantPath); err != nil {
+		t.Fatal(err)
+	}
+	name, err := archiveBootstrap(s)
+	if err != nil || name == "" {
+		t.Fatalf("archive failed: %s %v", name, err)
+	}
+	raw, err := os.ReadFile(filepath.Join(s.dir, name))
+	if err != nil || !bytes.Equal(raw, pending) || s.public() != key || bytes.Contains(raw, []byte(token)) {
+		t.Fatal("archive did not preserve the attempt and device key without the bearer")
+	}
+	if next, err := archiveBootstrap(s); err != nil || next != "" {
+		t.Fatalf("archive should be idempotent: %s %v", next, err)
+	}
+	newToken := newID() + "." + strings.Repeat("y", 43)
+	if err = bootstrap(s, srv.URL, ca, strings.NewReader(newToken)); err == nil || !strings.Contains(err.Error(), "invalid or expired") {
+		t.Fatalf("fresh rollout was blocked locally: %v", err)
+	}
+}

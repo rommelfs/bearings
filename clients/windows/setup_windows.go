@@ -40,6 +40,7 @@ const (
 	sendReport
 	checkReport
 	enableSchedule
+	archiveRollout
 )
 
 type windowClass struct {
@@ -110,6 +111,7 @@ func (w *setupWindow) controls(server, note string) error {
 		w.add("BUTTON", "Send report", tabStop, sendReport, 218, 132, 105, 30),
 		w.add("BUTTON", "Check status", tabStop, checkReport, 331, 132, 106, 30),
 		w.add("BUTTON", "Enable automatic reports", tabStop, enableSchedule, 20, 174, 190, 30),
+		w.add("BUTTON", "Archive pending rollout", tabStop, archiveRollout, 218, 174, 195, 30),
 	}
 	for _, control := range append(parts, append(w.buttons, w.code, w.note)...) {
 		if control == 0 {
@@ -146,6 +148,8 @@ func (w *setupWindow) operation(action uintptr, code string) (string, error) {
 		}
 	}
 	switch action {
+	case archiveRollout:
+		return s.archiveBootstrap()
 	case enrollKey:
 		hostname, err := os.Hostname()
 		if err != nil && rolloutInput(code) {
@@ -228,11 +232,19 @@ func (w *setupWindow) event(hwnd uintptr, message uint32, word, param uintptr) u
 	switch message {
 	case wmCommand:
 		action := word & 0xffff
-		if action >= enrollKey && action <= enableSchedule && !w.busy {
+		if action >= enrollKey && action <= archiveRollout && !w.busy {
 			if action == enableSchedule {
 				answer, _, _ := messageBox.Call(hwnd,
 					uintptr(unsafe.Pointer(utf16Text("Install a copy in your Windows profile and create a task that sends inventory and checks signed Bearings client updates every six hours while you are signed in?"))),
 					uintptr(unsafe.Pointer(utf16Text("Enable Bearings reports"))), 0x124) // Yes/No with No as default
+				if answer != 6 {
+					return 0
+				}
+			}
+			if action == archiveRollout {
+				answer, _, _ := messageBox.Call(hwnd,
+					uintptr(unsafe.Pointer(utf16Text("Archive this pending rollout only after your administrator confirms there is no server reservation for this device. Keep the existing device key and archive the pending attempt?"))),
+					uintptr(unsafe.Pointer(utf16Text("Archive pending rollout"))), 0x124)
 				if answer != 6 {
 					return 0
 				}

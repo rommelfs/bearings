@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,7 +61,7 @@ func bootstrap(s *store, server, ca string, input io.Reader) error {
 			return err
 		}
 		if context.Server != server || context.Fleet != parts[0] || context.Request.PublicKey != s.public() || context.Request.Schema != "bearings.agent.bootstrap.v1" || !uuidPattern.MatchString(context.Request.RequestID) {
-			return errors.New("another rollout is pending; inspect state without resetting the device key")
+			return errors.New("another rollout is pending; use its original key or archive the abandoned bootstrap")
 		}
 	} else if os.IsNotExist(err) {
 		if s.config.EnrollmentID != "" {
@@ -81,7 +82,12 @@ func bootstrap(s *store, server, ca string, input io.Reader) error {
 			return e
 		}
 		payload, _ := json.Marshal(context.Request)
-		response, _, err = send(client, server, "/api/v1/agent/bootstrap/", "fleet:"+parts[0], s.key, payload, token)
+		defer client.CloseIdleConnections()
+		var status int
+		response, status, err = send(client, server, "/api/v1/agent/bootstrap/", "fleet:"+parts[0], s.key, payload, token)
+		if err != nil && status == http.StatusForbidden {
+			return errors.New("rollout key rejected; check whether it is invalid or expired and verify the rollout settings")
+		}
 	}
 	if err != nil {
 		return err
@@ -104,4 +110,38 @@ func bootstrap(s *store, server, ca string, input io.Reader) error {
 		return err
 	}
 	return syncDir(s.dir)
+}
+
+func archiveBootstrap(s *store) (string, error) {
+	if s.config.DeviceID != "" || s.config.EnrollmentID != "" || s.config.EnrollmentRequest != "" {
+		return "", errors.New("device registration or enrollment exists; bootstrap state retained")
+	}
+	for _, name := range []string{"bootstrap-grant.json", "enrollment.json"} {
+		if _, err := os.Lstat(filepath.Join(s.dir, name)); !os.IsNotExist(err) {
+			return "", errors.New("grant or enrollment request exists or cannot be checked; bootstrap state retained")
+		}
+	}
+	path := filepath.Join(s.dir, "bootstrap.json")
+	raw, err := safeRead(path, 4096)
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", errors.New("cannot read the pending bootstrap; state retained")
+	}
+	var attempt bootstrapState
+	if decode(raw, &attempt) != nil || attempt.Request.Schema != "bearings.agent.bootstrap.v1" ||
+		!uuidPattern.MatchString(attempt.Request.RequestID) || !uuidPattern.MatchString(attempt.Fleet) ||
+		attempt.Request.PublicKey != s.public() {
+		return "", errors.New("pending bootstrap identity is invalid; state retained")
+	}
+	name := "bootstrap-" + attempt.Request.RequestID + ".archived.json"
+	target := filepath.Join(s.dir, name)
+	if _, err := os.Lstat(target); !os.IsNotExist(err) {
+		return "", errors.New("bootstrap archive already exists or cannot be checked; state retained")
+	}
+	if err := os.Rename(path, target); err != nil {
+		return "", errors.New("could not archive the bootstrap; state retained")
+	}
+	return name, syncDir(s.dir)
 }
