@@ -42,18 +42,10 @@ def current_package_proofs():
     # Same proof/input contract as DistroMatch.inputs_changed, evaluated in SQL so
     # a page never requires hydrating the entire inventory or counting stale proof.
     feed_keys = Q(pk__in=[])
-    for distro, versions in (
-        ("ubuntu", distro_sources.UBUNTU),
-        ("debian", distro_sources.DEBIAN),
-        ("rhel", distro_sources.RHEL),
-    ):
-        for version in versions:
-            version_q = Q(component__device__os__version=version)
-            if distro != "ubuntu":
-                version_q |= Q(component__device__os__version__startswith=version + ".")
-            feed_keys |= (
-                Q(component__device__os__id=distro, advisory__feed__key=f"{distro}:{version}") & version_q
-            )
+    for key in distro_sources.supported_keys():
+        feed_keys |= Q(advisory__feed__key=key) & distro_sources.host_release_filter(
+            key, os_path="component__device__os"
+        )
     return (
         DistroMatch.objects.annotate(
             saved_version=KT("queue_proof__version"),

@@ -186,14 +186,9 @@ def _ready_feed_scope():
     for feed in DistroFeed.objects.filter(enabled=True, key__in=distro_sources.supported_keys()):
         if distro_cves.feed_state(feed) != "ready":
             continue
-        distro, release = feed.key.split(":")
-        versions = Q(os__version=release)
-        if distro != "ubuntu":
-            versions |= Q(os__version__startswith=release + ".")
-        scope |= (
-            Q(os__id=distro, distro_summary__feed=feed.key, distro_summary__generation=str(feed.generation))
-            & versions
-        )
+        scope |= Q(
+            distro_summary__feed=feed.key, distro_summary__generation=str(feed.generation)
+        ) & distro_sources.host_release_filter(feed.key, os_path="os")
     return scope
 
 

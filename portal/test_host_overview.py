@@ -11,6 +11,7 @@ from .tests import Fixture
 from . import test_ubuntu_status as fixture
 from .distro_fix_evidence import HasVendorFix
 from .distro_projection import DistroVendorFixInputsV1
+from .distro_verdicts import vendor_fix_targets
 from .models import Asset, AssetIssue, DistroMatch, Finding, SourceRecord
 
 
@@ -223,6 +224,7 @@ class HostOverviewTests(Fixture):
                     .get()
                 )
                 self.assertEqual(actual, (expected, expected))
+                self.assertEqual(bool(vendor_fix_targets(proof, "ubuntu:24.04")), expected)
 
     def test_bulk_snapshot_update_recomputes_vendor_fix_without_losing_affectedness(self):
         self.cached()

@@ -24,7 +24,13 @@ from .models import (
 )
 from .notifications import digest
 from .presentation import ACTIVE_REVIEWS
-from .review_queue import classified, outreach_exclusion
+from .review_queue import (
+    CLEARED_VERDICTS,
+    CURRENT_AFFECTED,
+    classified,
+    discovery_version_status,
+    outreach_exclusion,
+)
 from .review_update_preview import FIX_FEED, FIX_PROOF, fix_targets
 from .service_mail import mail_subject
 
@@ -115,9 +121,7 @@ def contacts_for(org):
 def target_rows(findings):
     return {
         row["pk"]: fix_targets(row)
-        for row in classified(findings)
-        .filter(package_current=True, distro_match__queue_proof__verdict="affected")
-        .values("pk", FIX_FEED, FIX_PROOF)
+        for row in classified(findings).filter(CURRENT_AFFECTED).values("pk", FIX_FEED, FIX_PROOF)
     }
 
 
@@ -261,19 +265,32 @@ def action_text(group, bearings_url, org):
 
 def verification_for(actor, case):
     org = case.finding.organization
-    rows = classified(findings_for(actor, org).filter(pk__in=case.snapshot["finding_ids"])).values_list(
-        "pk", "status", "analyst_applicability", "package_current", "distro_match__queue_proof__verdict"
+    rows = (
+        classified(findings_for(actor, org).filter(pk__in=case.snapshot["finding_ids"]))
+        .annotate(discovery_version=discovery_version_status())
+        .values_list(
+            "pk",
+            "status",
+            "analyst_applicability",
+            "package_current",
+            "distro_match__queue_proof__verdict",
+            "discovery_version",
+        )
     )
     states = {}
-    for pk, status, assessment, current, verdict in rows:
-        if current and verdict in {"fixed", "not_matched"}:
+    for pk, status, assessment, current, verdict, discovery in rows:
+        if current and verdict in CLEARED_VERDICTS:
             label = "Vendor fix verified" if verdict == "fixed" else "Outside current vendor rule"
+        elif discovery == "not_affected":
+            label = "Installed version outside the published affected range"
         elif status == "resolved":
             label = "Resolved in Bearings"
         elif assessment == "not_affected":
             label = "Assessed as unaffected"
         elif current and verdict == "affected":
             label = "Affected package version still present"
+        elif discovery == "affected":
+            label = "Installed version in the published affected range"
         else:
             label = "Verification pending"
         states[pk] = label

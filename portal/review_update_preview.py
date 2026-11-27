@@ -5,7 +5,7 @@ from django.db.models.functions import RowNumber
 
 from .distro_fix_evidence import HasVendorFix
 from .distro_verdicts import vendor_fix_targets
-from .review_queue import classified
+from .review_queue import CURRENT_AFFECTED, classified
 
 TARGET_PREVIEW_LIMIT = 3
 FIX_PROOF = "distro_match__vendor_fix_inputs"
@@ -21,7 +21,7 @@ def fix_targets(row):
 def _current_fix_rows(findings):
     return (
         classified(findings)
-        .filter(package_current=True, distro_match__queue_proof__verdict="affected")
+        .filter(CURRENT_AFFECTED)
         .alias(has_vendor_fix=HasVendorFix(F(FIX_PROOF)))
         .filter(has_vendor_fix=True)
         .order_by("installation__product__name", "pk")

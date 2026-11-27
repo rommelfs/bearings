@@ -24,6 +24,15 @@ def inputs(component, device):
     )
 
 
+def receipt_matches_inputs(component, device, feed):
+    receipt = component.distro_check
+    return (
+        receipt.get("version") == VERSION
+        and receipt.get("generation") == str(feed.generation)
+        and receipt.get("input_hash") == inputs(component, device)
+    )
+
+
 def has_version_conditions(node):
     return any(state.get("field") == "evr" for group in node.get("states", []) for state in group) or any(
         has_version_conditions(child) for child in node.get("children", [])

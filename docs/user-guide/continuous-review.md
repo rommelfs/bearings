@@ -151,3 +151,11 @@ counts. The installed release, product identity and current advisory must
 match the saved evaluation. The range match and any saved analyst decision
 are both visible when they disagree. Distribution coverage remains measured
 against distribution feeds.
+
+Linux inventory and coverage examples share the same check that a saved
+package result was produced for the current input, evaluator and feed
+generation. FlowIntel verification uses the same current version evidence
+as review pages, including supported MISP affected-range decisions. A
+vendor-listed fixed version remains separate from the availability of that
+update on the host. Windows product/build discovery and Windows Update
+evidence are separate checks.

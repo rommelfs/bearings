@@ -2905,3 +2905,26 @@ generic discovery fallbacks excluded from the current MISP match predicate.
 
 The focused PostgreSQL run passed 82 tests. Django checks, migration drift
 and Ruff passed. Distribution coverage retains its distribution-feed scope.
+
+## CVE evaluation duplication review
+
+Reviewed manual and scheduled CVE discovery, Linux package and runtime
+kernel checks, Windows product/build discovery, Windows Update evidence,
+organization and national review projections, notification candidates, and
+FlowIntel verification. Linux CVE evaluation uses the shared OVAL evaluator
+with package and runtime kernel inputs. Windows version rules are evaluated
+through the product watch. Windows Update inventory is evidence of local
+update state and uses its own data model.
+
+The Linux inventory display and coverage examples had independently checked
+the evaluator version, feed generation and input fingerprint of package
+receipts. Both now use the same validation. The host coverage and review
+queries share the database predicate for the releases covered by a feed. The fix preview and remediation
+plan share the current affected-package predicate. FlowIntel verification
+now also reads the current MISP version proof from the review classifier.
+
+The database computes package-proof freshness and vendor-fix existence for
+filtering and aggregation before pagination. The in-memory freshness check
+also supports unsaved evidence, and fix rendering reads the version and
+channel details. The regression suite compares these implementations for
+changed package inputs and exact or malformed vendor fix evidence.

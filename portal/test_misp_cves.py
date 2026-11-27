@@ -1,6 +1,7 @@
 """Regression for publicly documented MISP affected-version formats."""
 
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.urls import reverse
@@ -195,6 +196,28 @@ class MispVersionTests(Fixture):
         self.installation.save(update_fields=["version"])
         self.assertNotContains(self.client.get(home), heading)
         self.assertNotContains(self.client.get(review, {"state": "affected"}), "CVE-2026-132144")
+
+    def test_remediation_verification_consumes_current_application_proof(self):
+        from .remediation import verification_for
+
+        self.installation.version = "2.5.47"
+        self.installation.save(update_fields=["version"])
+        self.refresh(TOTP)
+        finding = Finding.objects.get()
+        case = SimpleNamespace(finding=finding, snapshot={"finding_ids": [finding.pk]})
+        self.assertEqual(
+            verification_for(self.analyst, case)[finding.pk],
+            "Installed version in the published affected range",
+        )
+
+        self.installation.version = "2.5.48"
+        self.installation.save(update_fields=["version"])
+        self.assertEqual(verification_for(self.analyst, case)[finding.pk], "Verification pending")
+        self.refresh(TOTP)
+        self.assertEqual(
+            verification_for(self.analyst, case)[finding.pk],
+            "Installed version outside the published affected range",
+        )
 
     def test_generic_fallback_is_not_a_current_misp_version_match(self):
         record = deepcopy(CIRCL)
