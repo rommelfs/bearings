@@ -1,5 +1,5 @@
-<article class="national-panel" aria-label="{{ item.record__external_id }}">
-<div class="row"><h3><a href="{% url 'circl-findings' %}?record={{ item.record__external_id|urlencode }}">{{ item.record__external_id }} →</a></h3><span class="badge">Source severity: {{ item.severity|title }}</span></div>
+{% load ui_cve %}<article class="national-panel" aria-label="{{ item.record__external_id }}">
+<div class="row"><h3><a href="{% url 'circl-findings' %}?record={{ item.record__external_id|urlencode }}">{{ item.record__external_id }} →</a> {% cve_lookup item.record__external_id %}</h3><span class="badge">Source severity: {{ item.severity|title }}</span></div>
 <p>{{ item.companies }} compan{{ item.companies|pluralize:'y,ies' }} · {{ item.assets }} server{{ item.assets|pluralize }} / asset{{ item.assets|pluralize }} · {{ item.affected }} analyst-confirmed affected review{{ item.affected|pluralize }} · {{ item.reviews }} outstanding review{{ item.reviews|pluralize }}{% if item.accepted %} ({{ item.accepted }} accepted risk){% endif %}</p>
 {% for finding in item.examples %}
 <div class="finding-example">

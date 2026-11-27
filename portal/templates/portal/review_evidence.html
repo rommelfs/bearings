@@ -1,8 +1,8 @@
-{% extends 'portal/base.html' %}
+{% extends 'portal/base.html' %}{% load ui_cve %}
 {% block title %}Review evidence · Bearings{% endblock %}
 {% block content %}
 <p><a href="{{ return_url }}">← {{ return_label|default:"Vulnerability review" }}</a></p>
-<h1>{{ finding.record.external_id|upper }} · Review evidence</h1>
+<h1>{{ finding.record.external_id|upper }} · Review evidence {% cve_lookup finding.record.external_id %}</h1>
 <p><a href="{% url 'asset' finding.organization.slug finding.installation.asset_id %}">{{ finding.installation.asset.name }}</a></p>
 {% if remediation_url %}<p><a class="button" href="{{ remediation_url }}">Notify about this CVE →</a></p>{% endif %}
 {% include "portal/_notification_access.html" %}

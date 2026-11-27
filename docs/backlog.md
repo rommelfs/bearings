@@ -681,7 +681,7 @@ Implemented scoped SQL classification before queue aggregation/pagination: curre
 
 ### Separate Ubuntu CVEs without a published fix from actionable reviews
 
-Implemented a dedicated evidence filter for current Canonical statuses without a published fix. Saved assessments and worked issues are preserved. Ubuntu Negligible priority is displayed separately from CVSS. Migration 0081 adds the retained status reason to the compact review projection. See [distribution advisory matching](integrations/distro-cves.md).
+Implemented a dedicated evidence filter for current Canonical statuses without a published fix. Saved assessments and worked issues are preserved. Ubuntu Negligible priority is displayed separately from CVSS. Current Canonical needs-triage evidence is monitored separately from actionable findings. Migration 0081 adds the retained status reason to the compact review projection. See [distribution advisory matching](integrations/distro-cves.md).
 
 ### Explain vendor ESM fix paths and separate CVSS from distributor priority
 
@@ -883,3 +883,16 @@ The default machine and software tables now split unique CVEs with affected evid
 ## Whole-workspace navigation audit — 2026-11-26
 
 Measured render completion across the locally reachable links for six user roles and repeated the routes against the revised checkout. Dense package-CVE fixtures exercise the queries behind inventory, infrastructure, attention, asset and Intelligence views. Reduced repeat proof checks and national example hydration and repaired permission- or setup-dependent 404 links. See [navigation audit](performance/navigation-20261126.md).
+
+### Link CVE identifiers to public CIRCL Vulnerability-Lookup records
+
+Implemented a reusable **CIRCL ↗** link beside CVE identifiers in portal
+workflows. Only the public CVE identifier reaches the fixed destination.
+Local evidence links remain available. See [public CVE references](user-guide/infrastructure-overview.md#public-cve-references).
+
+
+### Explain the next step on company data-review follow-up
+
+The follow-up page shows review confirmation status, a direct review link,
+reminder availability and collapsible mail history and provider feedback.
+See [company data reviews](user-guide/infrastructure-overview.md#follow-up-a-company-data-review).

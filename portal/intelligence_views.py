@@ -26,7 +26,7 @@ from .presentation import decorate_finding, severity_first, vulnerability_summar
 from .overview_queries import bounded_list, read_snapshot
 from .queue_context import return_url
 from .review_cases import case_identity, case_page, evidence_page
-from .review_queue import classified, discovery_version_status
+from .review_queue import VENDOR_MONITORING_BUCKETS, classified, discovery_version_status
 from .review_update_preview import add_case_fix_previews
 from .review_work import RECHECK_DISCOVERY, scoped_work
 from .ubuntu_status import NO_FIX_REASON_LABELS
@@ -177,7 +177,7 @@ def intelligence(request, slug):
                 "page": evidence_page(visible, finding, request.GET.get("page")),
                 "remediation_url": (
                     notification_links([finding]).get(finding.record.external_id.upper())
-                    if assessment_scope != "vendor_no_fix"
+                    if assessment_scope not in VENDOR_MONITORING_BUCKETS
                     else None
                 ),
                 "return_url": return_url(request) or list_url,
@@ -198,7 +198,7 @@ def intelligence(request, slug):
         editable = can_edit(request.user, org) or can_operator_review(request.user, org)
         links = notification_links(page)
         for finding in page:
-            if finding.queue_bucket != "vendor_no_fix":
+            if finding.queue_bucket not in VENDOR_MONITORING_BUCKETS:
                 finding.remediation_url = links.get(finding.record.external_id.upper())
         if editable:
             for finding in page:
@@ -240,7 +240,7 @@ def intelligence(request, slug):
             params["finding" if finding.evidence_count == 1 else "case"] = finding.pk
             params["return_to"] = request.get_full_path()
             finding.case_url = "?" + params.urlencode()
-            if finding.queue_bucket != "vendor_no_fix":
+            if finding.queue_bucket not in VENDOR_MONITORING_BUCKETS:
                 finding.remediation_url = links.get(finding.record.external_id.upper())
 
     modes = []

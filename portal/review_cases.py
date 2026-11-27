@@ -8,7 +8,7 @@ from django.db.models.functions import Cast, Least, Upper
 from .presentation import SEVERITY_ORDER, severity_first, severity_rank
 from .review_queue import BUCKETS, classified, discovery_version_status
 from .review_update_preview import FIX_FEED, FIX_PROOF, fix_targets
-from .ubuntu_status import NO_FIX_REASON_LABELS
+from .ubuntu_status import NO_FIX_REASON_LABELS, TRIAGE_LABEL
 
 CVE_ID = r"^CVE-[0-9]{4}-[0-9]{4,}$"
 BUCKET_ORDER = tuple(key for key, _ in BUCKETS if key != "all")
@@ -253,6 +253,8 @@ def evidence_page(visible, finding, number):
             )
             if row["queue_bucket"] == "vendor_no_fix":
                 row["result"] = NO_FIX_REASON_LABELS[row["distro_match__queue_proof__uncertainty_reason"]]
+            elif row["queue_bucket"] == "vendor_triage":
+                row["result"] = TRIAGE_LABEL
             if row["distro_match__queue_proof__verdict"] == "affected":
                 row["update_targets"] = fix_targets(row)
         elif row["distro_match__pk"]:

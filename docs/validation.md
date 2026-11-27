@@ -3071,3 +3071,12 @@ automatic remediation and issue filtering, the detail label, saved affected
 assessments, and publication of a versioned fix. The full PostgreSQL suite
 ran 1,167 tests with five skips. The new classification cases also passed
 on SQLite. No production inventory or notifications were used.
+
+
+### Ubuntu evaluation and public CVE links
+
+Synthetic package evidence covers current Canonical triage, outdated vendor
+evidence, default review and remediation filtering, the separate vendor
+monitoring filter and precedence for saved affected decisions. The shared CVE
+link test checks the fixed public destination, accessible name, referrer
+suppression and rejection of malformed or private input.

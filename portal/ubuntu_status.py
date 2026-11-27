@@ -20,6 +20,9 @@ NO_FIX_REASON_LABELS = {
     "vendor_fix_pending": "Ubuntu has a fix pending publication",
 }
 
+TRIAGE_REASON = "vendor_needs_triage"
+TRIAGE_LABEL = "Awaiting Ubuntu evaluation"
+
 STATUSES = {"released", "not-affected", "needed", "needs-triage", "pending", "ignored", "deferred", "dne"}
 
 
@@ -241,7 +244,7 @@ class Resolver:
         result["ubuntu_status"] = evidence
         result["uncertainty_reason"] = "vendor_status_unresolved"
         labels = {
-            "needs-triage": "vendor_needs_triage",
+            "needs-triage": TRIAGE_REASON,
             "needed": "vendor_unfixed",
             "pending": "vendor_fix_pending",
             "deferred": "vendor_deferred",

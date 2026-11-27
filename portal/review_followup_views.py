@@ -11,9 +11,16 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 from .access import is_analyst, organizations_for, require, audit, organization
 from .circl_views import private_response
-from .inventory_review import can_configure_review, reminder_recipients
+from .inventory_review import can_configure_review, owner_can_review, reminder_recipients
 from .models import InventoryReviewPolicy, InventoryReviewDelivery
-from .review_followup import deliveries_for, delivery_label, preview_token, queue_followup, record_feedback
+from .review_followup import (
+    deliveries_for,
+    delivery_label,
+    preview_token,
+    queue_followup,
+    record_feedback,
+    requests_in_cooldown,
+)
 
 
 @login_required
@@ -54,7 +61,13 @@ class DeliveryChoice(forms.ModelChoiceField):
 
 class FeedbackForm(forms.Form):
     delivery = DeliveryChoice(queryset=InventoryReviewDelivery.objects.none())
-    outcome = forms.ChoiceField(choices=[("bounced", "Bounce reported"), ("delivered", "Delivery reported")])
+    outcome = forms.ChoiceField(
+        choices=[
+            ("", "Select an outcome"),
+            ("bounced", "Bounce reported"),
+            ("delivered", "Delivery reported"),
+        ]
+    )
     note = forms.CharField(
         max_length=1000,
         widget=forms.Textarea(attrs={"rows": 2}),
@@ -75,7 +88,14 @@ def detail(request, slug):
     form = RecipientForm(
         request.POST if request.method == "POST" and request.POST.get("action") == "preview" else None
     )
-    form.fields["recipient"].choices = [(email, email) for email in reminder_recipients(policy)]
+    is_due = policy.next_due <= timezone.localdate()
+    recipients = reminder_recipients(policy) if is_due else []
+    recent = set(requests_in_cooldown(policy).values_list("recipient", flat=True)) if recipients else set()
+    available_recipients = [email for email in recipients if email not in recent]
+    form.fields["recipient"].choices = [
+        ("", "Select a recipient"),
+        *((email, email) for email in available_recipients),
+    ]
     feedback = FeedbackForm(
         request.POST if request.method == "POST" and request.POST.get("action") == "feedback" else None
     )
@@ -128,6 +148,11 @@ def detail(request, slug):
                 "form": form,
                 "feedback": feedback,
                 "deliveries": rows,
+                "is_due": is_due,
+                "can_confirm_review": owner_can_review(request.user, org),
+                "has_recipients": bool(recipients),
+                "can_send_reminder": bool(available_recipients),
+                "has_smtp_deliveries": feedback.fields["delivery"].queryset.exists(),
                 "token": token,
                 "recipient": recipient,
                 "error": error,

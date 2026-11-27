@@ -39,18 +39,20 @@ def delivery_label(item):
     return "Queued" if item.status == "pending" else "Suppressed by current policy"
 
 
+def requests_in_cooldown(policy):
+    return policy.deliveries.filter(
+        due_date=policy.next_due,
+        created_at__gte=timezone.now() - timedelta(days=policy.reminder_days),
+    )
+
+
 def preview_token(actor, policy, recipient):
     require(can_configure_review(actor, policy.organization))
     if policy.next_due > timezone.localdate() or recipient not in reminder_recipients(policy):
         raise ValidationError(
             "Review is no longer due or this recipient is not currently eligible. Verify contact details first."
         )
-    recent = policy.deliveries.filter(
-        due_date=policy.next_due,
-        recipient=recipient,
-        created_at__gte=timezone.now() - timedelta(days=policy.reminder_days),
-    ).exists()
-    if recent:
+    if requests_in_cooldown(policy).filter(recipient=recipient).exists():
         raise ValidationError(
             "A request for this recipient already exists within the reminder cooldown. Inspect its status first."
         )

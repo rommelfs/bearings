@@ -2227,3 +2227,22 @@ h1,h2,h3,.brand{font-family:Raleway,Arial,sans-serif}
   }
   .software-coverage-table td { width: 100%; padding: 0.6rem; }
 }
+
+.cve-lookup {
+  display: inline-block;
+  margin-inline-start: 0.2em;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--link);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.cve-lookup:hover,
+.cve-lookup:focus-visible {
+  background: #edf3f5;
+}

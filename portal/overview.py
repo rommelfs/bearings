@@ -198,6 +198,7 @@ def _review_counts():
             "review_pending",
             "review_unresolved",
             "review_vendor_no_fix",
+            "review_vendor_triage",
             "automatic_affected",
             "critical",
             "high",
@@ -352,6 +353,7 @@ def _company_state(org, watches, counts):
             "review_pending",
             "review_unresolved",
             "review_vendor_no_fix",
+            "review_vendor_triage",
             "automatic_affected",
             "review_cleared",
             "critical",
@@ -403,8 +405,8 @@ def _company_state(org, watches, counts):
         state.update(status="Current evaluation pending", tone="incomplete")
     elif state["review_unresolved"]:
         state.update(status="Vendor clarification pending", tone="incomplete")
-    elif state["review_vendor_no_fix"] and not state["coverage_gaps"]:
-        state.update(status="Monitoring vendor fixes", tone="recorded")
+    elif (state["review_vendor_no_fix"] or state["review_vendor_triage"]) and not state["coverage_gaps"]:
+        state.update(status="Monitoring Ubuntu advisories", tone="recorded")
     elif not state["assets"]:
         state.update(status="No active inventory", tone="incomplete")
     elif state["coverage_gaps"]:

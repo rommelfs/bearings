@@ -25,8 +25,9 @@ in evidence and monitoring. They leave the default **Needs attention** queue
 and automatic remediation selection. A saved affected assessment or an
 explicitly worked issue remains visible in its workflow.
 
-Missing, conflicting and expired vendor evidence retains its own review or
-evaluation state. If Canonical publishes a versioned fix, normal evaluation
+Current Canonical `needs-triage` evidence goes to **Awaiting Ubuntu evaluation**.
+These cases await a vendor decision and are excluded from automatic remediation. Missing, conflicting
+and expired vendor evidence retains its own review or evaluation state. If Canonical publishes a versioned fix, normal evaluation
 returns older affected installations to the queue. Ubuntu priority and CVSS
 are displayed independently, including Ubuntu's Negligible priority.
 Apply migration 0081 on the Bearings server before enabling the new views.

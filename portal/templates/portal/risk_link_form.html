@@ -1,7 +1,7 @@
-{% extends 'portal/base.html' %}{% block title %}Choose a risk scenario · Bearings{% endblock %}{% block content %}
+{% extends 'portal/base.html' %}{% load ui_cve %}{% block title %}Choose a risk scenario · Bearings{% endblock %}{% block content %}
 {% if guided %}<a href="{% url 'case-guide' org.slug finding.pk %}?step=risk{% if queue_return_url %}&amp;return_to={{ queue_return_url|urlencode }}{% endif %}">← Return to the guided case</a>{% else %}<a href="{% url 'intelligence' org.slug %}?finding={{ finding.pk }}#finding-{{ finding.pk }}">← Asset → Vulnerability → Risk</a>{% endif %}
 <p class="eyebrow">RISK ASSESSMENT / ANALYST SELECTION</p><h1>Choose a risk scenario</h1>
-<p class="intro">{{ finding.installation.asset.name }} → {{ finding.installation.product.name }} → {{ finding.record.external_id }}</p>
+<p class="intro">{{ finding.installation.asset.name }} → {{ finding.installation.product.name }} → {{ finding.record.external_id }} {% cve_lookup finding.record.external_id %}</p>
 <p>Search by scenario name, threat, asset type or general weakness. Preview a scenario, then explain why it fits this particular asset. Bearings handles catalog identifiers automatically.</p>
 <aside>A catalog scenario describes a possible risk. Selecting it does not confirm affectedness, compromise or an organizational risk score. Searches stay in Bearings; only public catalog identifiers are used to verify a selected reference with MOSP.</aside>
 {% if selected %}<section id="scenario-preview" class="scenario-preview"><p class="eyebrow">2 / REVIEW YOUR SELECTION</p><h2>{{ selected.description }}</h2><p>{{ selected.source.name }} · {{ selected.source.language }} · CC0-1.0{% if scenario.fixture %} · <span class="badge warning">Synthetic scenario</span>{% endif %}</p>

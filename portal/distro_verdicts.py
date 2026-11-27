@@ -1,6 +1,6 @@
 """Package-version verdicts are separate from local exploitability and human workflow."""
 
-from .ubuntu_status import NO_FIX_REASON_LABELS
+from .ubuntu_status import NO_FIX_REASON_LABELS, TRIAGE_REASON
 
 
 def decorate_package_verdict(finding):
@@ -29,6 +29,11 @@ def decorate_package_verdict(finding):
             "unresolved": "Package affectedness unresolved",
         }.get(proof.get("verdict"), "Package affectedness unresolved"),
         "current": True,
+        "vendor_triage": bool(
+            proof.get("verdict") == "unresolved"
+            and proof.get("ubuntu_status")
+            and proof.get("uncertainty_reason") == TRIAGE_REASON
+        ),
         "vendor_no_fix_status": (
             NO_FIX_REASON_LABELS.get(proof.get("uncertainty_reason"))
             if proof.get("verdict") == "unresolved" and proof.get("ubuntu_status")

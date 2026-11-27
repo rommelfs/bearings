@@ -1,5 +1,5 @@
-{% extends 'portal/base.html' %}{% block content %}
-<p><a href="{% url 'issue' org.slug issue.pk %}">← {{ issue.title }}</a> / <a href="{% url 'asset' org.slug issue.asset_id %}">{{ issue.asset.name }}</a></p><p class="eyebrow">AUTOMATIC SCENARIO DRAFT</p><h1>{{ draft.title }}</h1>
+{% extends 'portal/base.html' %}{% load ui_cve %}{% block content %}
+<p><a href="{% url 'issue' org.slug issue.pk %}">← {{ issue.title }}</a> {% cve_lookup issue.title %} / <a href="{% url 'asset' org.slug issue.asset_id %}">{{ issue.asset.name }}</a></p><p class="eyebrow">AUTOMATIC SCENARIO DRAFT</p><h1>{{ draft.title }}</h1>
 <aside><strong>Automatically generated · hypothesis requiring review.</strong> The draft uses the recorded asset/issue and source evidence. It does not confirm affectedness, exploitation, business risk or deficient company processes.</aside>
 <div class="asset-layout"><article><h2>Possible consequences</h2><p>{{ draft.consequence }}</p><h3>Suggested next action</h3><p>{{ draft.next_action }}</p></article><article><h2>Why this scenario?</h2><p>{{ draft.basis }}</p><p>{{ draft.assumptions }}</p><p class="muted">Rule {{ draft.rule }} · {{ issue.asset.get_kind_display }} · {{ issue.get_kind_display }}</p><a href="{% url 'issue-evidence' org.slug issue.pk %}">Read the source evidence →</a></article></div>
 <section><h2>Suggested MOSP / MONARC scenarios</h2><p>Selected automatically from the cached public CC0 catalog by asset type and draft topic. Review the template's general weakness and its relevance to this company before adopting it.</p>

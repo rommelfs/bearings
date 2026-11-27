@@ -1,7 +1,7 @@
-{% extends "portal/base.html" %}
+{% extends "portal/base.html" %}{% load ui_cve %}
 {% block content %}
 <a href="{% if asset %}{% url 'asset' org.slug asset.pk %}{% else %}{% url 'intelligence' org.slug %}{% endif %}">← Back to {{ org.name }}</a>
-<h1>Prepare notification · {% if asset %}{{ asset.name }}{% else %}{{ cve|upper }}{% endif %}</h1>
+<h1>Prepare notification · {% if asset %}{{ asset.name }}{% else %}{{ cve|upper }} {% cve_lookup cve %}{% endif %}</h1>
 <p>{% if asset %}Open CVE reviews for this machine.{% else %}Open reviews for this CVE across {{ org.name }}.{% endif %} The plan includes grouped vendor fixes and internal verification tasks.</p>
 {% if existing %}
 <h2>Already tracked</h2>
@@ -26,7 +26,7 @@
 </form>
 <details><summary>Reviews in this selection</summary>
   <ul>{% for review in reviews %}
-  <li><a href="{% url 'intelligence' org.slug %}?finding={{ review.pk }}#finding-{{ review.pk }}">{{ review.record.external_id }} · {{ review.installation.asset.name }} · {{ review.installation.product.name }}</a> · Review ID {{ review.pk }}</li>
+  <li><a href="{% url 'intelligence' org.slug %}?finding={{ review.pk }}#finding-{{ review.pk }}">{{ review.record.external_id }} · {{ review.installation.asset.name }} · {{ review.installation.product.name }}</a> {% cve_lookup review.record.external_id %} · Review ID {{ review.pk }}</li>
   {% endfor %}</ul>
 </details>
 {% elif not existing %}<p>No eligible open CVE reviews in this scope. A notification plan includes only open reviews with evidence approved for sharing.</p>{% endif %}

@@ -28,7 +28,7 @@ from .misp_cves import COMPATIBLE_PROOFS, MATCHED_RANGE
 from .distro_projection import ComparableJSON
 from .overview_queries import SNAPSHOT_PROOF_IDS
 from .presentation import ACTIVE_REVIEWS
-from .ubuntu_status import NO_FIX_REASON_LABELS
+from .ubuntu_status import NO_FIX_REASON_LABELS, TRIAGE_LABEL, TRIAGE_REASON
 
 
 BUCKETS = (
@@ -36,6 +36,7 @@ BUCKETS = (
     ("unresolved", "Vendor clarification needed"),
     ("pending", "Awaiting current evaluation"),
     ("vendor_no_fix", "No Ubuntu fix published"),
+    ("vendor_triage", TRIAGE_LABEL),
     ("cleared", "Fixed or not affected"),
     ("all", "All retained open reviews"),
 )
@@ -168,13 +169,19 @@ def classified(reviews, *, organizations=None, assets=None, package_evidence=Tru
 
 
 CLEARED_VERDICTS = ("fixed", "not_matched")
-NO_FIX_EVIDENCE = Q(
+UBUNTU_UNRESOLVED_EVIDENCE = Q(
     distro_match__queue_proof__verdict="unresolved",
     distro_match__queue_proof__feed__startswith="ubuntu:",
     distro_match__queue_proof__ubuntu_missing=False,
-    distro_match__queue_proof__uncertainty_reason__in=tuple(NO_FIX_REASON_LABELS),
 )
-NON_ACTION_BUCKETS = ("cleared", "vendor_no_fix")
+NO_FIX_EVIDENCE = UBUNTU_UNRESOLVED_EVIDENCE & Q(
+    distro_match__queue_proof__uncertainty_reason__in=tuple(NO_FIX_REASON_LABELS)
+)
+VENDOR_TRIAGE_EVIDENCE = UBUNTU_UNRESOLVED_EVIDENCE & Q(
+    distro_match__queue_proof__uncertainty_reason=TRIAGE_REASON
+)
+VENDOR_MONITORING_BUCKETS = ("vendor_no_fix", "vendor_triage")
+NON_ACTION_BUCKETS = ("cleared", *VENDOR_MONITORING_BUCKETS)
 MISP_CATALOGUE_GAP = Q(
     rule=DISCOVERY_RULE,
     status="new",
@@ -252,7 +259,7 @@ def current_version_exclusion():
 
 
 def outreach_exclusion():
-    return current_version_exclusion() | MISP_CATALOGUE_GAP | Q(queue_bucket="vendor_no_fix")
+    return current_version_exclusion() | MISP_CATALOGUE_GAP | Q(queue_bucket__in=VENDOR_MONITORING_BUCKETS)
 
 
 def bucket_expression(*, human="action", affected="action", manual="action"):
@@ -269,6 +276,7 @@ def bucket_expression(*, human="action", affected="action", manual="action"):
         When(distro_match__queue_proof__verdict="affected", then=Value(affected)),
         When(distro_match__queue_proof__verdict__in=CLEARED_VERDICTS, then=Value("cleared")),
         When(NO_FIX_EVIDENCE, then=Value("vendor_no_fix")),
+        When(VENDOR_TRIAGE_EVIDENCE, then=Value("vendor_triage")),
         default=Value("unresolved"),
         output_field=CharField(),
     )

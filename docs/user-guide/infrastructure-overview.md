@@ -506,3 +506,22 @@ available after a timeout, redirect, or other failed response. Retry CVE
 assessment to recover the evaluated priorities and counts, or follow **Open
 full inventory** for the full retained inventory. A preview reflects the
 authorized inventory and carries no package or assessment totals.
+
+### Public CVE references
+
+Select **CIRCL ↗** beside a CVE to open the public record in
+Vulnerability-Lookup in a new tab. The CVE's Bearings link still opens its
+scoped inventory or review evidence. The public link carries only the CVE
+identifier and suppresses the Bearings page referrer.
+
+
+### Follow up a company data review
+
+In National, open **Company data reviews** and select a company. **Open
+infrastructure data review** leads to the contacts, network scope, inventory
+and confirmation. A company administrator confirms on that page. For a due
+review, operators can preview and approve a reminder to an eligible recipient
+once the cooldown permits it. **Reminder history** shows recorded requests.
+**Record a verified mail-provider report** is available for recording actual
+delivery or bounce evidence. SMTP relay acceptance and review completion are
+separate events.

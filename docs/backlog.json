@@ -149,7 +149,15 @@
       },
       {
         "title": "Separate Ubuntu CVEs without a published fix from actionable reviews",
-        "body": "Use current exact Canonical release/source-package evidence to distinguish vulnerable without a fix, deferred, ignored and pending publication. Keep evidence filter and concrete status, exclude automatic remediation and unworked shells, and preserve analyst decisions. Display Negligible as Ubuntu priority independently of CVSS. Migration 0081 projects the retained status reason without reading full snapshots on list queries."
+        "body": "Use current exact Canonical release/source-package evidence to distinguish vulnerable without a fix, deferred, ignored and pending publication. Keep evidence filter and concrete status, exclude automatic remediation and unworked shells, and preserve analyst decisions. Display Negligible as Ubuntu priority independently of CVSS. Current Canonical needs-triage evidence is monitored separately from actionable findings. Migration 0081 projects the retained status reason without reading full snapshots on list queries."
+      },
+      {
+        "title": "Explain the next step on company data-review follow-up",
+        "body": "Show confirmation status and a primary link to the company inventory review. Make reminder availability reflect the existing per-recipient cooldown. Collapse request history and verified SMTP provider reports; require an explicit report outcome. Preserve review and delivery permissions."
+      },
+      {
+        "title": "Link CVE identifiers to public CIRCL Vulnerability-Lookup records",
+        "body": "A reusable, keyboard-accessible CIRCL link sits beside CVE identifiers throughout the portal, including national and company review, inventory, package and kernel evidence and response. Strict CVE validation and no referrer preserve public-only navigation; local review links keep their existing destinations."
       },
       {
         "title": "Explain vendor ESM fix paths and separate CVSS from distributor priority",

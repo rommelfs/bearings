@@ -1,17 +1,18 @@
-<article class="review-cue severity-{% if finding.queue_bucket == 'vendor_no_fix' or finding.queue_bucket == 'cleared' and not finding.evidence_conflict and not finding.discovery_recheck %}none{% else %}{{ finding.severity_key }}{% endif %}" id="review-{{ finding.pk }}">
+{% load ui_cve %}<article class="review-cue severity-{% if finding.queue_bucket == 'vendor_no_fix' or finding.queue_bucket == 'vendor_triage' or finding.queue_bucket == 'cleared' and not finding.evidence_conflict and not finding.discovery_recheck %}none{% else %}{{ finding.severity_key }}{% endif %}" id="review-{{ finding.pk }}">
   <div class="review-heading">
     <div>
       <p class="eyebrow"><a href="{{ organization_url }}">{{ finding.organization.name }}</a>{% if not hide_case_category %} / {{ finding.case_category }}{% endif %}</p>
-      <h2><a href="{{ case_url }}">{{ finding.record.external_id|upper }}</a></h2>
+      <h2><a href="{{ case_url }}">{{ finding.record.external_id|upper }}</a> {% cve_lookup finding.record.external_id %}</h2>
       <p>{{ finding.source_summary.title }}</p>
     </div>
     {% include 'portal/severity.html' with severity_return_url=request.get_full_path %}
   </div>
   {% if finding.evidence_conflict %}<p class="badge warning">Current affected version conflicts with a saved assessment</p>{% elif finding.discovery_recheck %}<p class="badge warning">New evidence needs review despite a saved assessment</p>{% endif %}
   {% if finding.vendor_no_fix_status %}<p><strong>No Ubuntu fix published.</strong> {{ finding.vendor_no_fix_status }} for this release and source package <code>{{ finding.vendor_no_fix_source }}</code>.</p>{% endif %}
+  {% if finding.queue_bucket == 'vendor_triage' %}<p><strong>Awaiting Ubuntu evaluation.</strong> Canonical is still assessing this release and source package.</p>{% endif %}
   <p><strong>Server</strong> <a href="{{ asset_url }}">{{ finding.installation.asset.name }}</a></p>
   <p><strong>Software in this case</strong>
-    {% for name, state in finding.software_preview %}{{ name }}{% if state == 'cleared' and not finding.evidence_conflict and not finding.discovery_recheck %} (fixed or not affected){% elif state == 'pending' %} (awaiting evaluation){% elif state == 'unresolved' %} (vendor clarification needed){% elif state == 'vendor_no_fix' %} (no Ubuntu fix published){% endif %}{% if not forloop.last %}, {% endif %}{% empty %}{{ finding.installation.product.name }}{% endfor %}
+    {% for name, state in finding.software_preview %}{{ name }}{% if state == 'cleared' and not finding.evidence_conflict and not finding.discovery_recheck %} (fixed or not affected){% elif state == 'pending' %} (awaiting evaluation){% elif state == 'unresolved' %} (vendor clarification needed){% elif state == 'vendor_no_fix' %} (no Ubuntu fix published){% elif state == 'vendor_triage' %} (awaiting Ubuntu evaluation){% endif %}{% if not forloop.last %}, {% endif %}{% empty %}{{ finding.installation.product.name }}{% endfor %}
     {% if finding.more_software %} · {{ finding.more_software }} more{% endif %}
   </p>
   {% include "portal/_discovery_version.html" %}

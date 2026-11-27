@@ -10,6 +10,7 @@ from django.db.models.functions import Coalesce
 from .discovery import RULE as DISCOVERY_RULE
 from .models import DistroMatchRevision, Finding, IssueHistory, IssueRevision
 from .presentation import ACTIVE_REVIEWS
+from .ubuntu_status import TRIAGE_LABEL
 from .query_integrity import consistent
 from .review_cases import CVE_ID, case_identity
 from .review_queue import (
@@ -46,6 +47,7 @@ REVIEW_SCOPES = (
     ("unresolved", "Vendor clarification"),
     ("pending", "Awaiting evaluation"),
     ("vendor_no_fix", "No Ubuntu fix published"),
+    ("vendor_triage", TRIAGE_LABEL),
     ("cleared", "Fixed or not affected"),
     ("all", "All evidence"),
 )

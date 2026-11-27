@@ -1,4 +1,4 @@
-{% extends 'portal/base.html' %}{% block content %}{% if queue_return_url %}<p><a href="{{ queue_return_url }}">← Back to filtered list</a></p>{% elif is_detail %}<p><a href="{{ intelligence_list_url }}">← Back to intelligence</a></p>{% endif %}
+{% extends 'portal/base.html' %}{% load ui_cve %}{% block content %}{% if queue_return_url %}<p><a href="{{ queue_return_url }}">← Back to filtered list</a></p>{% elif is_detail %}<p><a href="{{ intelligence_list_url }}">← Back to intelligence</a></p>{% endif %}
 <a href="{% url 'organization' org.slug %}">← {{ org.name }}</a><p class="eyebrow">EVIDENCE & RISK SCENARIOS</p><h1>Asset → Vulnerability → Risk</h1>
 <p>Follow source evidence from inventory to a vulnerability review and an explicitly selected MONARC scenario. A catalog reference is a review hypothesis, not a confirmed risk, affectedness or compromise.</p>
 {% include "portal/_notification_access.html" %}
@@ -17,7 +17,7 @@
 {% url 'organization' org.slug as organization_url %}
 {% url 'asset' org.slug finding.installation.asset_id as asset_url %}
 {% include "portal/_review_host_case.html" with case_url=finding.case_url hide_case_category=True %}
-{% else %}<article class="finding-detail severity-{{ finding.severity_key }}" id="finding-{{ finding.pk }}"><div class="review-heading"><div><p class="eyebrow"><a href="{% url 'asset' org.slug finding.installation.asset.pk %}">{{ finding.installation.asset.name }}</a></p><h2>{{ finding.record.external_id }}</h2><p>{{ finding.source_summary.title }}</p></div>{% include 'portal/severity.html' %}</div>
+{% else %}<article class="finding-detail severity-{{ finding.severity_key }}" id="finding-{{ finding.pk }}"><div class="review-heading"><div><p class="eyebrow"><a href="{% url 'asset' org.slug finding.installation.asset.pk %}">{{ finding.installation.asset.name }}</a></p><h2>{{ finding.record.external_id }} {% cve_lookup finding.record.external_id %}</h2><p>{{ finding.source_summary.title }}</p></div>{% include 'portal/severity.html' %}</div>
 {% if finding.remediation_url %}<p><a class="button" href="{{ finding.remediation_url }}">Notify about this CVE →</a></p>{% endif %}
 <div class="evidence-chain">
 <section><h3>1 / Inventory asset</h3><h3><a href="{% url 'asset' org.slug finding.installation.asset.pk %}">{{ finding.installation.asset.name }} →</a></h3>{% include 'portal/asset_facts.html' with asset=finding.installation.asset facts=finding.asset_context %}<p class="muted">Inventory seen {{ finding.installation.asset.inventory_seen_at|default:'Not yet imported' }}</p><a href="{% url 'asset' org.slug finding.installation.asset.pk %}">All asset details →</a>{% if finding.installation.asset.source_url %}<p><a href="{{ finding.installation.asset.source_url }}" target="_blank" rel="noopener noreferrer">Open NetBox →</a></p>{% endif %}{% if finding.installation.asset.missing_since %}<p class="badge warning">Missing inventory object retained for review</p>{% endif %}</section>

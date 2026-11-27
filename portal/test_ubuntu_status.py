@@ -139,6 +139,39 @@ class UbuntuStatusTests(Fixture):
         self.assertContains(self.client.get(url), CVE)
         self.assertTrue(remediation.work(self.admin, self.a).exists())
 
+    def test_current_ubuntu_triage_is_visible_as_monitoring_and_keeps_assessment_precedence(self):
+        from . import remediation
+        from .review_queue import classified
+        from .review_work import scoped_work
+
+        row = self.cached(status="needs-triage", version="")
+        self.prepare()
+        url = reverse("intelligence", args=[self.a.slug])
+        self.login(self.admin)
+        findings = Finding.objects.all()
+        finding = classified(findings).get()
+        self.assertEqual(finding.queue_bucket, "vendor_triage")
+        for view in ("cve", "machine", "software"):
+            self.assertEqual(self.client.get(url, {"view": view}).context["page"].paginator.count, 0)
+            page = self.client.get(url, {"view": view, "state": "vendor_triage"}).context["page"]
+            self.assertEqual(page.paginator.count, 1)
+        response = self.client.get(url, {"state": "vendor_triage"})
+        self.assertContains(response, "Canonical is still assessing this release and source package")
+        self.assertContains(response, f'href="https://vulnerability.circl.lu/vuln/{CVE.lower()}"')
+        self.assertNotContains(response, "Notify about this CVE")
+        self.assertFalse(scoped_work(findings, "unresolved").exists())
+        self.assertFalse(scoped_work(findings, "vendor_no_fix").exists())
+        self.assertFalse(remediation.work(self.admin, self.a).exists())
+        self.assertEqual(self.client.get(reverse("issues")).context["page"].paginator.count, 0)
+
+        findings.update(analyst_applicability="affected")
+        self.assertTrue(scoped_work(findings, "attention").exists())
+        findings.update(analyst_applicability="unassessed")
+        row.last_success = timezone.now() - timedelta(hours=13)
+        row.save(update_fields=["last_success"])
+        self.assertEqual(classified(findings).get().queue_bucket, "pending")
+        self.assertTrue(scoped_work(findings, "attention").exists())
+
     def test_no_fix_evidence_keeps_a_saved_affected_assessment_actionable(self):
         from .review_queue import classified
         from .review_work import scoped_work

@@ -306,6 +306,33 @@ class FollowupTests(Fixture):
         self.assertTrue(item.acknowledged)
         self.assertEqual(delivery_label(item), "Data review completed")
 
+    def test_followup_page_prioritizes_confirmation_and_explains_the_cooldown(self):
+        self.login(self.analyst)
+        url = f"/organizations/{self.a.slug}/review/followup/?workspace=national"
+        page = self.client.get(url)
+        self.assertContains(page, "Awaiting company confirmation")
+        self.assertContains(page, "Open infrastructure data review")
+        self.assertContains(page, f'href="/organizations/{self.a.slug}/review/"')
+        self.assertContains(page, "A company administrator can check and confirm")
+        self.assertContains(page, "Preview reminder")
+        self.assertNotContains(page, "Record a verified mail-provider report")
+
+        InventoryReviewDelivery.objects.create(
+            policy=self.policy,
+            due_date=self.policy.next_due,
+            recipient=self.contact.email,
+            fingerprint="synthetic-recent-request",
+            status="sent",
+            transport="smtp",
+        )
+        page = self.client.get(url)
+        self.assertContains(page, "A reminder has already been requested")
+        self.assertNotContains(page, "Preview reminder")
+        self.assertContains(page, "<summary>Record a verified mail-provider report</summary>", html=True)
+        self.assertContains(page, "Select an outcome")
+        self.assertContains(page, "Accepted by SMTP relay")
+        self.assertFalse(self.policy.confirmations.exists())
+
     def test_company_cannot_configure_feedback_queue_or_dpo_escalation(self):
         self.login(self.admin)
         self.assertEqual(self.client.get("/circl/review-followups/").status_code, 403)
