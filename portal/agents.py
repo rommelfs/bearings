@@ -13,6 +13,10 @@ from django.utils import timezone
 from .access import audit, require, role_for
 from .agent_freshness import recent_device
 from .agent_protocol import (
+    COMPACT_SCOPES,
+    COMPLETE_SCOPES,
+    MACOS_MANAGER,
+    MACOS_SCOPE,
     INVENTORY_CHECK,
     decode,
     identifier,
@@ -319,7 +323,7 @@ def receive(device_id, raw, signature_input, signature, request_url, content_typ
     data = decode(raw)
     check = data.get("schema") == INVENTORY_CHECK
     if check and device.os.get("id") == "windows":
-        raise ValueError("Inventory checks require a Linux client")
+        raise ValueError("Compact inventory checks are unavailable for this client")
     observed = inventory_check_data(data) if check else report_data(data)
     digest = hashlib.sha256(raw).hexdigest()
     existing = AgentReport.objects.filter(pk=data["report_id"]).defer("body").first()
@@ -406,7 +410,11 @@ def _apply_full_inventory_metadata(device, data, row):
     device.inventory_baseline_gaps = []
     device.inventory_verified_at = None
     fields = ["inventory_baseline_id", "inventory_baseline_gaps", "inventory_verified_at"]
-    if not data["complete"] or data["scope"] != "system-packages":
+    if data["scope"] == MACOS_SCOPE and not data["complete"]:
+        device.inventory_capture_at = row.observed_at
+        device.inventory_capture_gaps = ["packages"]
+        fields.extend(CAPTURE_FIELDS)
+    if not data["complete"] or data["scope"] not in COMPACT_SCOPES:
         return fields
     inventory = {
         key: value
@@ -543,7 +551,7 @@ def process_one(device_id, report_id):
                         raise ValidationError(
                             "Release Windows version ownership before changing product identity"
                         )
-                if c.installation_id and value["manager"] == "win-reg":
+                if c.installation_id and value["manager"] in {"win-reg", MACOS_MANAGER}:
                     # Mapping/freshness may change without a version change.
                     watched_products.add(c.installation.product_id)
                 c.windows = value.get("windows", {})
@@ -624,7 +632,7 @@ def process_one(device_id, report_id):
             for value in data["services"]:
                 runtime[value["name"]] = {**value, "observed_at": row.observed_at.isoformat()}
             device.services = list(runtime.values())
-            if data["complete"] and data["scope"] in {"system-packages", "windows-machine"}:
+            if data["complete"] and data["scope"] in COMPLETE_SCOPES:
                 device.last_complete_at = row.observed_at
             device.last_observed_at = row.observed_at
             device.applied_sequence = row.sequence
@@ -752,7 +760,7 @@ def bind(actor, org, component_id, installation_id=None, create=False):
             from .manifest_inventory import product_identifier
 
             identifier = product_identifier(component)
-        elif component.manager == "win-reg":
+        elif component.manager in {"win-reg", MACOS_MANAGER}:
             identifier = component.package_identity["product"]
         elif component.manager == "binary":
             identifier = (
@@ -770,7 +778,7 @@ def bind(actor, org, component_id, installation_id=None, create=False):
             asset=device.asset,
             product=product,
             version="",
-            is_operating_system=component.windows.get("kind") == "os",
+            is_operating_system=package_inventory.is_operating_system(component),
         )
     else:
         installation = (
@@ -787,8 +795,8 @@ def bind(actor, org, component_id, installation_id=None, create=False):
 
         if not compatible(installation.product, component):
             raise ValidationError("Choose the corresponding product for this application probe")
-    if component.manager == "win-reg" and installation.is_operating_system != (
-        component.windows["kind"] == "os"
+    if component.manager in {"win-reg", MACOS_MANAGER} and (
+        installation.is_operating_system != package_inventory.is_operating_system(component)
     ):
         raise ValidationError("Choose an installation with the matching operating-system classification")
     old = installation.version

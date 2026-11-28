@@ -10,5 +10,5 @@
 {% endif %}
 <label for="enrollment-code">Registration code</label><textarea id="enrollment-code" readonly rows="8" spellcheck="false" autocomplete="off" style="width:100%">{{ code }}</textarea>
 <p>Select the code and copy it. No file upload or download is needed for registration.</p>
-<p><a href="{% url 'agent-center' org.slug %}">Back to Linux / Windows inventory reports</a> · <a href="{% url 'linux-client-downloads' %}">Linux installer and instructions</a>{% if not register_host %} · <a href="{% url 'windows-client-downloads' %}">Windows download and setup</a>{% endif %}</p>
+<p><a href="{% url 'agent-center' org.slug %}">Back to client inventory observations</a> · <a href="{% url 'linux-client-downloads' %}">Linux installer and instructions</a>{% if not register_host %} · <a href="{% url 'windows-client-downloads' %}">Windows download and setup</a>{% endif %}</p>
 {% endblock %}

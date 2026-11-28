@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//go:build linux
+//go:build linux || darwin
 
 package main
 
@@ -90,7 +90,9 @@ func (s *store) enqueueInventoryCapture(r *report, captureErr error) error {
 			return s.enqueue(r)
 		}
 		check.ReportID, check.ObservedAt, check.BaselineID = r.ReportID, r.ObservedAt, baseline.ReportID
-		check.Gaps = *r.Gaps
+		if r.Gaps != nil {
+			check.Gaps = *r.Gaps
+		}
 	}
 	return s.enqueueObservation(check.ReportID, &check.Sequence, &check)
 }
@@ -121,7 +123,7 @@ func readPendingObservation(raw []byte) (pendingObservation, error) {
 			return pendingObservation{}, err
 		}
 		item := pendingObservation{ReportID: r.ReportID, Sequence: r.Sequence, Extended: r.Gaps != nil}
-		if item.Extended && r.Complete && r.Scope == "system-packages" {
+		if item.Extended && r.Complete && (r.Scope == "system-packages" || r.Scope == "macos-machine") {
 			var err error
 			item.Fingerprint, err = r.inventoryFingerprint()
 			return item, err

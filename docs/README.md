@@ -13,6 +13,7 @@ Reviewed 19 November 2026. Bearings is a runnable development/pilot workspace; p
 - [Linux installer and roll-outs](integrations/linux-rollout.md): central downloads, clipboard/stdin registration and automation boundaries.
 - [Automatic distribution CVE discovery](integrations/distro-cves.md): supported vendor feeds, native package versions, source metadata and partial coverage.
 - [Windows inventory client](integrations/windows-agent.md): automatic authenticated OS/build and machine-installed software observations; native target acceptance pending.
+- [macOS inventory client](integrations/macos-agent.md)
 - [Linux inventory client](integrations/linux-agent.md): authenticated patch observations, explicit first-host registration and safe source ownership.
 - [Current project steps and priorities](product/next-priorities.md): implemented increments and the next acceptance gates.
 

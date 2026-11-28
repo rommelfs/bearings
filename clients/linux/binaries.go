@@ -23,10 +23,6 @@ import (
 	"time"
 )
 
-type binaryEvidence struct {
-	Path   string `json:"path"`
-	SHA256 string `json:"sha256"`
-}
 type binaryProbe struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`

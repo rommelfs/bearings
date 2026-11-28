@@ -66,6 +66,7 @@ ROUTES = {
         "client-profiles",
         "linux-client-downloads",
         "windows-client-downloads",
+        "macos-client-downloads",
         "agent-fleets",
         "agent-center",
         "kernel-evidence",

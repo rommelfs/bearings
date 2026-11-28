@@ -112,20 +112,20 @@ def client_server(current):
     return values[0]
 
 
-def windows_release_key(current):
+def client_release_key(current, target):
     """One stable operator trust anchor; losing it requires recovery, never rotation."""
     directory(CONFIG)
-    key = CONFIG / "windows-release.key"
-    previous = re.findall(r"(?m)^BEARINGS_WINDOWS_CLIENT_DIR=(.*)$", current)
+    key = CONFIG / f"{target}-release.key"
+    previous = re.findall(rf"(?m)^BEARINGS_{target.upper()}_CLIENT_DIR=(.*)$", current)
     values = shlex.split(previous[0]) if len(previous) == 1 else []
     manifest = Path(values[0]) / "update.json" if len(values) == 1 else None
     if key.exists() or key.is_symlink():
         seed = base64.b64decode(protected_read(key).strip(), validate=True)
         if len(seed) != 32:
-            raise ValueError("Invalid Windows release key; restore the protected backup")
+            raise ValueError(f"Invalid {target} release key; restore the protected backup")
     else:
         if manifest is not None and manifest.exists():
-            raise ValueError("Windows release key missing; restore its protected backup before publishing")
+            raise ValueError(f"{target} release key missing; restore its protected backup before publishing")
         fd = os.open(key, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, "w") as stream:
             stream.write(base64.b64encode(secrets.token_bytes(32)).decode("ascii") + "\n")
@@ -134,8 +134,12 @@ def windows_release_key(current):
     return key, manifest if manifest is not None and manifest.exists() else None
 
 
+def windows_release_key(current):
+    return client_release_key(current, "windows")
+
+
 def prepare_clients(*, restart=True):
-    """Build both release sets before switching their environment pointers together."""
+    """Build all release sets before switching their environment pointers together."""
     if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
         raise ValueError(
             "Publish only a clean reviewed checkout; keep downloaded installers outside the repository"
@@ -159,17 +163,24 @@ def prepare_clients(*, restart=True):
                 "GOPROXY": "https://proxy.golang.org",
                 "GOSUMDB": "sum.golang.org",
             }
-            for target in ("linux", "windows"):
+            server = None
+            for target in ("linux", "windows", "macos"):
                 server_args = []
-                if target == "windows":
-                    server = client_server(protected_read(BEARINGS_ENV))
-                    key, previous = windows_release_key(protected_read(BEARINGS_ENV))
+                if target != "linux":
+                    current = protected_read(BEARINGS_ENV)
+                    if server is None:
+                        server = client_server(current)
+                    key, previous = (
+                        windows_release_key(current)
+                        if target == "windows"
+                        else client_release_key(current, target)
+                    )
                     server_args = ["--server", server, "--signing-key", key]
                     if previous is not None:
                         server_args += ["--previous-manifest", previous]
                 run(
                     [
-                        ROOT / ".venv/bin/python" if target == "windows" else sys.executable,
+                        ROOT / ".venv/bin/python" if target != "linux" else sys.executable,
                         ROOT / f"scripts/build_{target}_client.py",
                         "--go",
                         compiler,
@@ -180,10 +191,11 @@ def prepare_clients(*, restart=True):
                     cwd=ROOT,
                     env=build_env,
                 )
-        for path in (release / "linux", release / "windows"):
-            path.chmod(0o755)
-        for path in (release / "windows").iterdir():
-            path.chmod(0o644)
+        for target in ("linux", "windows", "macos"):
+            (release / target).chmod(0o755)
+            if target != "linux":
+                for path in (release / target).iterdir():
+                    path.chmod(0o644)
         release.chmod(0o755)
         current = protected_read(BEARINGS_ENV)
         if client_server(current) != server:
@@ -193,6 +205,7 @@ def prepare_clients(*, restart=True):
             {
                 "BEARINGS_LINUX_CLIENT_DIR": str(release / "linux"),
                 "BEARINGS_WINDOWS_CLIENT_DIR": str(release / "windows"),
+                "BEARINGS_MACOS_CLIENT_DIR": str(release / "macos"),
             },
         )
         directory(CONFIG)
@@ -210,7 +223,7 @@ def prepare_clients(*, restart=True):
             write(BEARINGS_ENV, current)
             run(["systemctl", "restart", "bearings-web"])
             raise
-    print("Linux and Windows downloads prepared for /downloads/linux/ and /downloads/windows/.")
+    print("Linux, Windows and macOS downloads prepared.")
 
 
 def prepare_linux_client():

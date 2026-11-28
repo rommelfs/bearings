@@ -41,6 +41,7 @@ def view_switch(request, selected, operator):
         "plum",
         "linux-client-downloads",
         "windows-client-downloads",
+        "macos-client-downloads",
         "client-platforms",
         "client-rollouts",
         "client-profiles",

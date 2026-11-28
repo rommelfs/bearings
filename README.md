@@ -14,6 +14,8 @@ To preview the website locally and open it in your browser: `python3 scripts/dev
 
 ## Implemented
 
+- [macOS inventory client](docs/integrations/macos-agent.md) for Intel and Apple Silicon, with server-hosted downloads, organization rollout keys, signed 15-minute reporting, client updates and retirement.
+
 - Machine-based infrastructure indicators: current distribution-version-match and evaluation-coverage proportions with explicit denominators, partial/unknown coverage and one highest source priority per machine. “What needs attention?” defaults to compact machine teasers; the previous grouped-action view remains selectable. Software-family cases separate proven version evidence, application applicability, vendor clarification and retained reviews; raw package/CVE counts remain technical detail. Forward-only national machine-percentage history preserves gaps.
 
 - The technical retained-review view provides pending, unresolved, cleared and retained-all filters and distinct-identifier counts. Rows show current automatic package evidence, explicitly supported fix versions and Ubuntu Pro / ESM Apps or ESM Infra channels separately from saved analyst decisions. Host update availability and entitlement remain unverified; stale proof withholds fix advice.

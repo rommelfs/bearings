@@ -58,6 +58,8 @@ urlpatterns = [
     ),
     path("downloads/linux/", client_downloads.index, name="linux-client-downloads"),
     path("downloads/linux/<str:name>", client_downloads.artifact, name="linux-client-artifact"),
+    path("downloads/macos/", client_downloads.macos, name="macos-client-downloads"),
+    path("downloads/macos/<str:name>", client_downloads.macos_artifact, name="macos-client-artifact"),
     path("downloads/windows/", client_downloads.windows, name="windows-client-downloads"),
     path("downloads/windows/<str:name>", client_downloads.windows_artifact, name="windows-client-artifact"),
     path("api/v1/agent/enroll/", agent_api.enrollment, name="agent-enroll"),

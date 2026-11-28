@@ -298,6 +298,10 @@
       {
         "title": "Account for every recorded software installation and expose CVE coverage gaps",
         "body": "Implemented organization-scoped paginated installation accounting, disjoint inventory prerequisites and separate unlinked/excluded client observations. Promote the ledger in the infrastructure overview and host inventory; label existing machine ratios as Linux package checks and expose coverage gaps outside diagnostics. Per-row application evidence verifies watch/source identity, latest successful snapshot membership, immutable advisory/evaluation revision and unchanged inputs; prior evaluated version is retained. Bound and escape examples, separate analyst decisions and withhold foreign or restricted data. Reuse existing Linux proof checks; no claim of complete discovery, manufacturer coverage or safe zero results. Synthetic PostgreSQL and offline desktop/mobile browser checks; no new migration, client update, production actions or automatic merge. See docs/user-guide/software-coverage.md and docs/validation.md."
+      },
+      {
+        "title": "Native macOS inventory client",
+        "body": "Implemented self-contained Apple Silicon and Intel app archives published from Bearings, organization rollout keys, app and package receipt inventory, Homebrew observations, compact reporting, launchd scheduling, signed automatic client updates, and local or server-requested retirement. Complete native macOS validation and independently reviewed Apple patch/CVE rules remain open."
       }
     ]
   },

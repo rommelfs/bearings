@@ -17,6 +17,15 @@ from http_message_signatures import HTTPMessageVerifier, HTTPSignatureKeyResolve
 MAX_BYTES = 1_000_000
 MAX_COMPONENTS = 5000
 TAG = "bearings.agent.v1"
+MACOS_SCOPE = "macos-machine"
+MACOS_MANAGER = "mac-app"
+COMPACT_SCOPES = {"system-packages", MACOS_SCOPE}
+COMPLETE_SCOPES = COMPACT_SCOPES | {"windows-machine"}
+MACOS_ID = r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}"
+MACOS_COMPONENT = re.compile(
+    rf"mac-app:(?:os|receipt:{MACOS_ID}|bundle:{MACOS_ID}:[0-9a-f]{{64}}|"
+    rf"brew:[a-z0-9][a-z0-9+._@-]{{0,127}}:[0-9a-f]{{64}})"
+)
 INVENTORY_CHECK = "bearings.agent.inventory-check.v1"
 INVENTORY_GAPS = {"packages", "network", "applications"}
 COVERED = ("@method", "@path", "@authority", "content-digest", "content-type", "x-bearings-key")
@@ -144,7 +153,7 @@ def text(value, length, pattern=None):
 
 def package_scope(name, scope):
     return (
-        scope in {"system-packages", "windows-machine"}
+        scope in COMPLETE_SCOPES
         or scope == "nginx-packages"
         and (name == "nginx" or name.startswith(("nginx-", "libnginx-mod-")))
     )
@@ -204,7 +213,7 @@ def report_data(data):
         raise ValueError("Invalid report schema")
     if "gaps" in data:
         inventory_gaps(data["gaps"])
-        if data["scope"] != "system-packages" or "packages" in data["gaps"]:
+        if data["scope"] not in COMPACT_SCOPES or "packages" in data["gaps"]:
             raise ValueError("Invalid full inventory coverage")
     observed = observation_time(data)
     if (
@@ -215,6 +224,7 @@ def report_data(data):
             "selected-packages",
             "configured-binaries",
             "windows-machine",
+            MACOS_SCOPE,
         )
         or type(data["complete"]) is not bool
     ):
@@ -224,7 +234,7 @@ def report_data(data):
     exact(
         data["os"],
         ("id", "version", "architecture", "kernel", "reboot_hint"),
-        ("kernel_scope", "windows_update"),
+        ("kernel_scope", "windows_update", "build"),
     )
     if not isinstance(data["os"].get("kernel_scope", "unknown"), str) or data["os"].get(
         "kernel_scope", "unknown"
@@ -235,6 +245,23 @@ def report_data(data):
     if data["os"]["reboot_hint"] not in ("present", "not_observed", "unknown"):
         raise ValueError("Invalid reboot hint")
     windows = data["scope"] == "windows-machine"
+    macos = data["scope"] == MACOS_SCOPE
+    if macos != (data["os"]["id"] == "macos") or ("build" in data["os"] and not macos):
+        raise ValueError("macOS OS and machine scope must agree")
+    if macos:
+        operating = data["os"]
+        text(operating.get("build"), 32, r"[0-9]{1,4}[A-Z][0-9]{1,10}[a-z]?")
+        text(operating["version"], 32, r"[0-9]+\.[0-9]+(?:\.[0-9]+)?")
+        text(operating["kernel"], 32, r"[0-9]+\.[0-9]+(?:\.[0-9]+)?")
+        if (
+            "host" in data
+            or data["services"]
+            or operating["architecture"] not in {"x86_64", "arm64"}
+            or operating.get("kernel_scope") != "host"
+            or operating["reboot_hint"] != "unknown"
+            or ("gaps" in data and not data["complete"])
+        ):
+            raise ValueError("macOS inventory only covers machine OS and installation metadata")
     if windows != (data["os"]["id"] == "windows"):
         raise ValueError("Windows OS and machine scope must agree")
     if windows and (
@@ -343,6 +370,17 @@ def report_data(data):
             keys.add(c["key"])
             managers.add(c["manager"])
             continue
+        if macos:
+            exact(c, ("key", "manager", "name", "version", "architecture"))
+            text(c["key"], 255, MACOS_COMPONENT)
+            text(c["name"], 128)
+            if c["version"] != "":
+                text(c["version"], 120)
+            if c["manager"] != MACOS_MANAGER or c["architecture"] != "all" or c["key"] in keys:
+                raise ValueError("Invalid or duplicate macOS installation")
+            keys.add(c["key"])
+            managers.add(c["manager"])
+            continue
         binary = c.get("manager") == "binary"
         fields = ("key", "manager", "name", "version", "architecture")
         if not binary and "source" in c:
@@ -397,6 +435,11 @@ def report_data(data):
             or data["os"]["kernel"] != data["os"]["version"]
         ):
             raise ValueError("Windows OS build observations must agree")
+    if macos and not any(
+        c["key"] == "mac-app:os" and c["name"] == "macOS" and c["version"] == data["os"]["version"]
+        for c in components
+    ):
+        raise ValueError("macOS snapshot requires its reported OS version")
     if len(managers) != 1:
         raise ValueError("One package database per snapshot")
     if not isinstance(data["services"], list) or len(data["services"]) > 1:

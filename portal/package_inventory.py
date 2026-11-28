@@ -4,10 +4,15 @@ import re
 import json
 from urllib.parse import quote, urlencode
 from .agent_freshness import recent_component
+from .agent_protocol import MACOS_MANAGER
 from .models import AgentComponent, AgentReport, Installation, Product
 from .access import audit
 
 MAX_AUTO_PACKAGES = 5000
+
+
+def is_operating_system(component):
+    return component.windows.get("kind") == "os" or component.key == "mac-app:os"
 
 
 def identity(component, os):
@@ -22,6 +27,18 @@ def identity(component, os):
             "distribution": "windows",
             "release": os.get("version", ""),
             "namespace_basis": "machine registry declaration; CVE applicability unknown",
+        }
+    if manager == MACOS_MANAGER and os.get("id") == "macos":
+        _, kind, *parts = component.key.split(":")
+        identifier = parts[0] if parts else "macos"
+        return {
+            "product": f"pkg:generic/macos-{kind}/{quote(identifier, safe='')}",
+            "name": component.name,
+            "manager": manager,
+            "distribution": "macos",
+            "release": os["version"],
+            "build": os["build"],
+            "namespace_basis": "local bundle, installer receipt or formula declaration; CVE applicability unknown",
         }
     if manager == "manifest":
         from .manifest_inventory import product_identifier
@@ -89,7 +106,7 @@ def project(device):
             recent_component(),
             installation__isnull=True,
             inventory_excluded=False,
-            manager__in=["dpkg", "rpm", "win-reg"],
+            manager__in=["dpkg", "rpm", "win-reg", MACOS_MANAGER],
             missing_since__isnull=True,
         )
         .exclude(package_identity__has_key="unsupported")
@@ -142,7 +159,7 @@ def project(device):
                 asset_id=device.asset_id,
                 product=products[(c.package_identity["name"], c.package_identity["product"])],
                 version=c.version,
-                is_operating_system=c.windows.get("kind") == "os",
+                is_operating_system=is_operating_system(c),
             )
             for c in selected
         ],

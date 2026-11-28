@@ -3080,3 +3080,14 @@ evidence, default review and remediation filtering, the separate vendor
 monitoring filter and precedence for saved affected decisions. The shared CVE
 link test checks the fixed public destination, accessible name, referrer
 suppression and rejection of malformed or private input.
+
+## macOS inventory client
+
+Validation uses synthetic organizations and deployment paths, a PostgreSQL
+test database, and Linux-hosted Go tests for bundle/receipt identity, Homebrew,
+and release signatures. The macOS executable and native smoke tests can be
+cross-compiled for Intel and Apple Silicon. Run `go test ./...` from
+`clients/linux` on each supported Mac architecture to exercise actual
+`sw_vers`, the local inventory and private state locking. Native Finder and
+Gatekeeper approval, launchd registration and execution, and a signed update
+and removal on a disposable Mac still require target-platform validation.

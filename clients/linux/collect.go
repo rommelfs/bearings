@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,73 +19,6 @@ import (
 	"syscall"
 	"time"
 )
-
-type operatingSystem struct {
-	ID           string `json:"id"`
-	Version      string `json:"version"`
-	Architecture string `json:"architecture"`
-	Kernel       string `json:"kernel"`
-	KernelScope  string `json:"kernel_scope,omitempty"`
-	RebootHint   string `json:"reboot_hint"`
-}
-type packageSource struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
-type component struct {
-	Manifest     *manifestEvidence `json:"manifest,omitempty"`
-	Source       *packageSource    `json:"source,omitempty"`
-	Binary       *binaryEvidence   `json:"binary,omitempty"`
-	Key          string            `json:"key"`
-	Manager      string            `json:"manager"`
-	Name         string            `json:"name"`
-	Version      string            `json:"version"`
-	Architecture string            `json:"architecture"`
-}
-type service struct {
-	Name     string `json:"name"`
-	State    string `json:"state"`
-	Coverage string `json:"coverage"`
-}
-type report struct {
-	Applications []component     `json:"applications,omitempty"`
-	Host         *declaredHost   `json:"host,omitempty"`
-	Schema       string          `json:"schema"`
-	ReportID     string          `json:"report_id"`
-	Sequence     int64           `json:"sequence"`
-	ObservedAt   string          `json:"observed_at"`
-	Scope        string          `json:"scope"`
-	Complete     bool            `json:"complete"`
-	OS           operatingSystem `json:"os"`
-	Components   []component     `json:"components"`
-	Services     []service       `json:"services"`
-	Gaps         *[]string       `json:"gaps,omitempty"`
-}
-type cappedBuffer struct {
-	bytes.Buffer
-	limit int
-}
-
-func (b *cappedBuffer) Write(p []byte) (int, error) {
-	if b.Len()+len(p) > b.limit {
-		return 0, errors.New("collector output exceeded its safety limit")
-	}
-	return b.Buffer.Write(p)
-}
-func command(path string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, path, args...)
-	cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL=C", "LANG=C"}
-	output := &cappedBuffer{limit: 4 * 1024 * 1024}
-	stderr := &cappedBuffer{limit: 8192}
-	cmd.Stdout = output
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		return nil, errors.New("read-only collector failed or timed out; no complete snapshot produced")
-	}
-	return output.Bytes(), nil
-}
 
 var packageName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9+_.-]{0,127}$`)
 var archName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
@@ -171,18 +103,6 @@ func packages() ([]component, error) {
 		return parsePackages(raw, "rpm")
 	}
 	return nil, errors.New("supported dpkg or RPM package database not found")
-}
-func readBounded(path string, max int64) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	raw, err := io.ReadAll(io.LimitReader(f, max+1))
-	if err != nil || int64(len(raw)) > max {
-		return nil, errors.New("collector input exceeds safety limit")
-	}
-	return raw, nil
 }
 func osRelease(raw []byte) map[string]string {
 	values := map[string]string{}

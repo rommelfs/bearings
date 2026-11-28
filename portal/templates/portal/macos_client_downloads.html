@@ -1,0 +1,35 @@
+{% extends "portal/base.html" %}
+{% load ui_icons %}
+{% block title %}macOS inventory client · Bearings{% endblock %}
+{% block content %}
+<section class="client-downloads">
+  {% include "portal/_client_platform_links.html" with platform="macos" %}
+  <h1 class="icon-heading">{% ui_icon "clients" %}Bearings for macOS</h1>
+  <p>Report the macOS version and build, system-wide app bundles, installer receipts and Homebrew formulae. Requires macOS 13 or later. The app includes its runtime.</p>
+  <h2>Download</h2>
+  {% if ready %}
+  <p>Choose the chip or processor shown under <strong>Apple menu → About This Mac</strong>.</p>
+  <ul>
+    {% for label, filename in packages %}
+    <li><a href="{% url 'macos-client-artifact' filename %}">Download for {{ label }}</a></li>
+    {% endfor %}
+  </ul>
+  <p><a href="{% url 'macos-client-artifact' 'SHA256SUMS' %}">SHA-256 checksums</a> · <a href="{% url 'macos-client-artifact' 'bearings-macos-source.zip' %}">Source and licenses</a></p>
+  {% else %}
+  <p>The macOS downloads have not been prepared for this server. Ask the Bearings operator to publish the client release.</p>
+  {% endif %}
+  <h2>Install and register</h2>
+  <ol>
+    <li>Extract the ZIP and open <strong>Bearings.app</strong> in the account that should send reports.</li>
+    <li>Choose <strong>Register and enable reports</strong>, then paste your organization's rollout key. Obtain a key from your administrator{% if client_rollout_allowed %} or open <a href="{% url 'client-rollouts' %}{% if request.GET.organization %}?organization={{ request.GET.organization|urlencode }}{% endif %}">Rollout keys</a> if you manage them{% endif %}.</li>
+    <li>Use <strong>Check report status</strong> to verify registration and delivery. <strong>Applied</strong> means the report was processed on the server.</li>
+  </ol>
+  <p>The server-built app is shipped without Apple Developer ID signing or notarization. Follow your organization's macOS software approval process if Gatekeeper blocks it.</p>
+  <h2>Rollout and periodic reports</h2>
+  <p>Install as the account that will send reports. Bearings installs the app in <code>~/Applications</code> and registers a LaunchAgent that runs at sign-in and every 15 minutes while signed in. The Mac reports changes and sends compact check-ins when its inventory stays the same.</p>
+  <p>For managed rollout, supply the rollout key on standard input through your deployment secret manager and run the following as the reporting user.</p>
+  <pre><code>./Bearings.app/Contents/MacOS/bearings-macos install</code></pre>
+  <h2>Update and uninstall</h2>
+  <p>The installed app verifies and installs signed client releases from this Bearings server. Use <strong>Check for client update</strong> to check immediately. Automatic client updates can be turned off in the app. Use <strong>Uninstall</strong> in the app or request retirement in Bearings to deregister and remove it during a scheduled run.</p>
+</section>
+{% endblock %}

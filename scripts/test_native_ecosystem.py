@@ -129,7 +129,7 @@ class NativeDeploymentTests(unittest.TestCase):
                 self.assertEqual(env.read_text(), current)
                 self.assertNotEqual(args[0], "systemctl")
                 builds.append(Path(args[1]).name)
-                if builds[-1] == "build_windows_client.py":
+                if builds[-1] in {"build_windows_client.py", "build_macos_client.py"}:
                     self.assertEqual(args[args.index("--server") + 1], "https://bearings.example.invalid")
                 target = args[-1]
                 target.mkdir()
@@ -149,12 +149,15 @@ class NativeDeploymentTests(unittest.TestCase):
             ):
                 native.prepare_clients(restart=False)
 
-            self.assertEqual(builds, ["build_linux_client.py", "build_windows_client.py"])
+            self.assertEqual(
+                builds, ["build_linux_client.py", "build_windows_client.py", "build_macos_client.py"]
+            )
             self.assertTrue(old.is_dir())
             self.assertEqual((config / "bearings-before-client-builds.env").read_text(), current)
             published = next(path for path in releases.iterdir() if path != old)
             self.assertIn(f'BEARINGS_LINUX_CLIENT_DIR="{published / "linux"}"', env.read_text())
             self.assertIn(f'BEARINGS_WINDOWS_CLIENT_DIR="{published / "windows"}"', env.read_text())
+            self.assertIn(f'BEARINGS_MACOS_CLIENT_DIR="{published / "macos"}"', env.read_text())
             self.assertIn("DJANGO_SECRET_KEY=synthetic-retained-key", env.read_text())
             self.assertEqual((published / "windows/SHA256SUMS").stat().st_mode & 0o777, 0o644)
 

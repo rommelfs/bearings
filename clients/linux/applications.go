@@ -20,15 +20,6 @@ import (
 	"time"
 )
 
-type manifestEvidence struct {
-	ProfileSHA256 string `json:"profile_sha256,omitempty"`
-	Identifier    string `json:"identifier,omitempty"`
-	Commit        string `json:"commit,omitempty"`
-	Dirty         *bool  `json:"dirty,omitempty"`
-	Method        string `json:"method"`
-	Path          string `json:"path"`
-	SHA256        string `json:"sha256"`
-}
 type applicationProbe struct {
 	Name           string   `json:"name,omitempty"`
 	Identifier     string   `json:"identifier,omitempty"`
