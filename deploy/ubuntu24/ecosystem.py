@@ -254,7 +254,7 @@ def has_notarized_macos_release(manifest):
     return json.loads(raw).get("schema") == "bearings.macos-release-envelope.v2"
 
 
-def build_unsigned_macos(compiler, output, origin, key, previous):
+def build_unsigned_macos(compiler, output, origin, key, previous, *, env):
     args = [
         ROOT / ".venv/bin/python",
         ROOT / "scripts/build_macos_client.py",
@@ -270,7 +270,7 @@ def build_unsigned_macos(compiler, output, origin, key, previous):
     ]
     if previous is not None:
         args += ["--previous-manifest", previous]
-    run(args, cwd=ROOT)
+    run(args, cwd=ROOT, env=env)
     output.chmod(0o755)
 
 
@@ -323,6 +323,19 @@ def prepare_clients(*, restart=True, macos_release=None):
                     cwd=ROOT,
                     env=build_env,
                 )
+            current = protected_read(BEARINGS_ENV)
+            if client_server(current) != server:
+                raise ValueError("BEARINGS_PUBLIC_URL changed during the client build. Retry publication.")
+            macos_path = None
+            if macos_release is not None:
+                key, previous = client_release_key(current, "macos")
+                stage_macos_release(Path(macos_release).resolve(), release / "macos", server, key, previous)
+                macos_path = str(release / "macos")
+            else:
+                key, previous = client_release_key(current, "macos")
+                if not has_notarized_macos_release(previous):
+                    build_unsigned_macos(compiler, release / "macos", server, key, previous, env=build_env)
+                    macos_path = str(release / "macos")
         for target in ("linux", "windows"):
             (release / target).chmod(0o755)
             if target != "linux":
@@ -336,15 +349,8 @@ def prepare_clients(*, restart=True, macos_release=None):
             "BEARINGS_LINUX_CLIENT_DIR": str(release / "linux"),
             "BEARINGS_WINDOWS_CLIENT_DIR": str(release / "windows"),
         }
-        if macos_release is not None:
-            key, previous = client_release_key(current, "macos")
-            stage_macos_release(Path(macos_release).resolve(), release / "macos", server, key, previous)
-            paths["BEARINGS_MACOS_CLIENT_DIR"] = str(release / "macos")
-        else:
-            key, previous = client_release_key(current, "macos")
-            if not has_notarized_macos_release(previous):
-                build_unsigned_macos(compiler, release / "macos", server, key, previous)
-                paths["BEARINGS_MACOS_CLIENT_DIR"] = str(release / "macos")
+        if macos_path is not None:
+            paths["BEARINGS_MACOS_CLIENT_DIR"] = macos_path
         updated = merge_environment(current, paths)
         directory(CONFIG)
         backup = CONFIG / "bearings-before-client-builds.env"
