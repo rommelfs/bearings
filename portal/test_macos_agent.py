@@ -119,6 +119,8 @@ class MacOSAgentTests(Fixture):
             records = []
             for name in MACOS_ARTIFACTS.keys() - {"SHA256SUMS"}:
                 body = ("synthetic payload for " + name).encode()
+                if name == "update.json":
+                    body = b'{"schema":"bearings.macos-release-envelope.v2"}'
                 Path(directory, name).write_bytes(body)
                 records.append(f"{hashlib.sha256(body).hexdigest()}  {name}")
             Path(directory, "SHA256SUMS").write_text("\n".join(records) + "\n")
@@ -126,5 +128,11 @@ class MacOSAgentTests(Fixture):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertIn(b"synthetic payload", b"".join(response.streaming_content))
+            manifest = Path(directory, "update.json")
+            ready = manifest.read_bytes()
+            manifest.write_bytes(ready.replace(b"envelope.v2", b"envelope.v1"))
+            self.assertNotContains(self.client.get("/downloads/macos/"), url)
+            self.assertEqual(self.client.get(url).status_code, 404)
+            manifest.write_bytes(ready)
             Path(directory, "bearings-macos-arm64.zip").write_text("modified")
             self.assertEqual(self.client.get(url).status_code, 404)

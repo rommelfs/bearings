@@ -5,7 +5,6 @@ package main
 import (
 	"bytes"
 	"context"
-	_ "embed"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -21,9 +20,6 @@ import (
 const launchLabel = "lu.circl.bearings.inventory"
 
 var macServer string // HTTPS origin embedded by prepare-clients.
-
-//go:embed macos_app.plist
-var macAppPlist []byte
 
 type macInstall struct {
 	app, binary, launch, state string
@@ -62,58 +58,6 @@ func plistEscape(value string) string {
 	return buf.String()
 }
 
-func (m macInstall) installApp() error {
-	info := filepath.Join(m.app, "Contents", "Info.plist")
-	if existing, err := os.Lstat(m.app); err == nil {
-		if !existing.IsDir() {
-			return errors.New("an unrelated path occupies ~/Applications/Bearings.app")
-		}
-		format, err := safeRead(info, 16384)
-		if err != nil || !bytes.Equal(format, macAppPlist) {
-			return errors.New("an unrelated or modified app occupies ~/Applications/Bearings.app")
-		}
-		executable, err := os.Lstat(m.binary)
-		if err != nil || !executable.Mode().IsRegular() || executable.Mode().Perm() != 0700 {
-			return errors.New("installed Bearings executable is missing or unsafe")
-		}
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	parent := filepath.Dir(m.app)
-	if err := os.MkdirAll(parent, 0700); err != nil {
-		return err
-	}
-	stage, err := os.MkdirTemp(parent, ".bearings-app-*")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(stage)
-	bin := filepath.Join(stage, "Contents", "MacOS")
-	if err := os.MkdirAll(bin, 0700); err != nil {
-		return err
-	}
-	executable, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	f, err := os.Open(executable)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if err := replaceBinary(filepath.Join(bin, "bearings-macos"), f, maxMacBinary); err != nil {
-		return err
-	}
-	if err := writePrivate(filepath.Join(stage, "Contents", "Info.plist"), macAppPlist); err != nil {
-		return err
-	}
-	if err := os.Rename(stage, m.app); err != nil {
-		return err
-	}
-	return syncDir(parent)
-}
-
 func (m macInstall) enable() error {
 	if _, err := origin(macServer); err != nil {
 		return errors.New("download a configured Bearings app from your server")
@@ -148,10 +92,11 @@ func (m macInstall) enable() error {
 }
 
 func (m macInstall) uninstall(s *store, action string) error {
-	info := filepath.Join(m.app, "Contents", "Info.plist")
-	if format, err := safeRead(info, 16384); err == nil && !bytes.Equal(format, macAppPlist) {
-		return errors.New("the installed app has unfamiliar metadata; removal stopped")
-	} else if err != nil && !os.IsNotExist(err) {
+	if _, err := os.Lstat(m.app); err == nil {
+		if err := macBundleIdentity(m.app); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
 		return err
 	}
 	if s.config.DeviceID != "" {
@@ -167,13 +112,8 @@ func (m macInstall) uninstall(s *store, action string) error {
 	if err := removeIfPresent(m.launch); err != nil {
 		return err
 	}
-	for _, path := range []string{m.binary, filepath.Join(m.app, "Contents", "Info.plist")} {
-		if err := removeIfPresent(path); err != nil {
-			return err
-		}
-	}
-	for _, path := range []string{filepath.Dir(m.binary), filepath.Join(m.app, "Contents"), m.app} {
-		_ = os.Remove(path) // Preserve any unrelated files alongside the installed client.
+	if err := os.RemoveAll(m.app); err != nil {
+		return err
 	}
 	if err := os.RemoveAll(m.state); err != nil {
 		return err
@@ -241,6 +181,9 @@ func (m macInstall) periodic(s *store, compact bool) (result error) {
 func (m macInstall) setup(s *store, input io.Reader) error {
 	if _, err := origin(macServer); err != nil {
 		return errors.New("download a configured Bearings app from your server")
+	}
+	if err := m.installApp(); err != nil {
+		return err
 	}
 	if s.config.DeviceID == "" {
 		if err := bootstrap(s, macServer, "", input); err != nil {

@@ -1,6 +1,7 @@
 """Public, fixed-name distribution of operator-built client artifacts; public artifacts and private, organization-scoped rollout controls."""
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import stat
@@ -47,7 +48,6 @@ MACOS_PACKAGES = (
 )
 MACOS_ARTIFACTS = {
     **{filename: 32 * 1024 * 1024 for _, filename in MACOS_PACKAGES},
-    **{f"bearings-macos-{arch}": 32 * 1024 * 1024 for arch in ("arm64", "amd64")},
     "bearings-macos-source.zip": 32 * 1024 * 1024,
     "SHA256SUMS": 16384,
     "update.json": 65536,
@@ -210,6 +210,16 @@ def _open_macos(name):
     return _open(name, settings.MACOS_CLIENT_DOWNLOAD_DIR, MACOS_ARTIFACTS)
 
 
+def _macos_ready():
+    if not _complete_release(_open_macos, MACOS_ARTIFACTS):
+        return False
+    try:
+        with _open_macos("update.json") as manifest:
+            return json.load(manifest).get("schema") == "bearings.macos-release-envelope.v2"
+    except (ValueError, AttributeError, Http404, OSError):
+        return False
+
+
 @never_cache
 @require_GET
 def macos(request):
@@ -217,7 +227,7 @@ def macos(request):
         request,
         "portal/macos_client_downloads.html",
         {
-            "ready": _complete_release(_open_macos, MACOS_ARTIFACTS),
+            "ready": _macos_ready(),
             "packages": MACOS_PACKAGES,
             **rollout_navigation(request, None),
         },
@@ -226,7 +236,7 @@ def macos(request):
 
 @require_GET
 def macos_artifact(request, name):
-    if name not in MACOS_ARTIFACTS or not _complete_release(_open_macos, MACOS_ARTIFACTS):
+    if name not in MACOS_ARTIFACTS or not _macos_ready():
         raise Http404
     response = _download(_open_macos, name)
     if name == "update.json":

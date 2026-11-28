@@ -3091,3 +3091,9 @@ cross-compiled for Intel and Apple Silicon. Run `go test ./...` from
 `sw_vers`, the local inventory and private state locking. Native Finder and
 Gatekeeper approval, launchd registration and execution, and a signed update
 and removal on a disposable Mac still require target-platform validation.
+
+The notarized app publication additionally requires a Developer ID Application
+identity and Apple acceptance on a Mac signing station. Linux tests can verify
+signed release manifests, ZIP integrity and rejection of the legacy format.
+Apple trust, stapling, Finder launch and the visible icon require macOS
+validation of the issued package.

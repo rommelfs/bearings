@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"debug/macho"
 	"encoding/base64"
@@ -83,16 +82,40 @@ func (m macInstall) update(s *store) error {
 		return nil
 	}
 	asset := release.Assets[runtime.GOARCH]
-	binary, err := fetchMac(client, macServer, "bearings-macos-"+runtime.GOARCH, asset.Size)
+	raw, err = fetchMac(client, macServer, "bearings-macos-"+runtime.GOARCH+".zip", asset.Size)
 	if err != nil {
 		return err
 	}
-	if len(binary) != asset.Size || digest(binary) != asset.Hash {
-		return errors.New("macOS client download differs from the signed manifest")
+	if len(raw) != asset.Size || digest(raw) != asset.Hash {
+		return errors.New("macOS app download differs from the signed manifest")
 	}
-	image, err := macho.NewFile(bytes.NewReader(binary))
+	if err := validateMacArchive(raw); err != nil {
+		return err
+	}
+	stage, err := os.MkdirTemp(filepath.Dir(m.app), ".bearings-update-*")
 	if err != nil {
-		return errors.New("invalid macOS executable")
+		return err
+	}
+	// Keep the previous bundle if rollback cannot restore its original path.
+	defer func() {
+		if _, err := os.Lstat(m.app); err == nil {
+			_ = os.RemoveAll(stage)
+		}
+	}()
+	archive := filepath.Join(stage, "update.zip")
+	if err := os.WriteFile(archive, raw, 0600); err != nil {
+		return err
+	}
+	if err := appleTool("/usr/bin/ditto", "-x", "-k", archive, stage); err != nil {
+		return err
+	}
+	candidate := filepath.Join(stage, "Bearings.app")
+	if err := verifyMacBundle(candidate); err != nil {
+		return err
+	}
+	image, err := macho.Open(filepath.Join(candidate, "Contents", "MacOS", "bearings-macos"))
+	if err != nil {
+		return err
 	}
 	defer image.Close()
 	expected := macho.CpuAmd64
@@ -100,38 +123,10 @@ func (m macInstall) update(s *store) error {
 		expected = macho.CpuArm64
 	}
 	if image.Cpu != expected || image.Type != macho.TypeExec {
-		return errors.New("macOS executable has the wrong architecture or image type")
+		return errors.New("macOS update executable has the wrong architecture or image type")
 	}
-	// Remember the signed sequence before replacing the executable. If replacement
-	// fails, the existing binary can still retry the same release.
 	if err := writePrivate(counter, []byte(strconv.FormatInt(release.Sequence, 10))); err != nil {
 		return err
 	}
-	return replaceBinary(m.binary, bytes.NewReader(binary), maxMacBinary)
-}
-
-func replaceBinary(path string, source io.Reader, maxBytes int64) error {
-	f, err := os.CreateTemp(filepath.Dir(path), ".bearings-macos-*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	n, err := io.Copy(f, io.LimitReader(source, maxBytes+1))
-	if err == nil && (n == 0 || n > maxBytes) {
-		err = errors.New("invalid macOS executable size")
-	}
-	if err == nil {
-		err = f.Chmod(0700)
-	}
-	if err == nil {
-		err = f.Sync()
-	}
-	closeErr := f.Close()
-	if err = errors.Join(err, closeErr); err != nil {
-		return err
-	}
-	if err := os.Rename(f.Name(), path); err != nil {
-		return err
-	}
-	return syncDir(filepath.Dir(path))
+	return m.activateBundle(candidate, stage)
 }

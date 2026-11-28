@@ -4,6 +4,8 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -21,14 +23,14 @@ func TestMacReleaseAuthenticatesOriginAndAssets(t *testing.T) {
 	hash := strings.Repeat("a", 64)
 	asset := map[string]any{"sha256": hash, "size": 12}
 	payload, err := json.Marshal(map[string]any{
-		"schema": "bearings.macos-release.v1", "origin": server, "sequence": 123,
+		"schema": "bearings.macos-release.v2", "origin": server, "sequence": 123,
 		"assets": map[string]any{"arm64": asset, "amd64": asset},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	envelope := map[string]string{
-		"schema":    "bearings.macos-release-envelope.v1",
+		"schema":    "bearings.macos-release-envelope.v2",
 		"payload":   base64.StdEncoding.EncodeToString(payload),
 		"signature": base64.StdEncoding.EncodeToString(ed25519.Sign(private, payload)),
 	}
@@ -51,5 +53,37 @@ func TestMacReleaseAuthenticatesOriginAndAssets(t *testing.T) {
 	}
 	if _, err := verifyMacRelease(raw, server, public); err == nil {
 		t.Fatal("accepted a tampered release manifest")
+	}
+}
+
+func TestMacBundleArchiveRequiresResourcesAndResistsTraversal(t *testing.T) {
+	pack := func(extra string, includeSeal bool) []byte {
+		t.Helper()
+		var body bytes.Buffer
+		w := zip.NewWriter(&body)
+		files := []string{"Info.plist", "MacOS/bearings-macos", "Resources/Bearings.icns"}
+		if includeSeal {
+			files = append(files, "_CodeSignature/CodeResources")
+		}
+		if extra != "" {
+			files = append(files, extra)
+		}
+		for _, file := range files {
+			if _, err := w.Create("Bearings.app/Contents/" + file); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+		return body.Bytes()
+	}
+	if err := validateMacArchive(pack("", true)); err != nil {
+		t.Fatal(err)
+	}
+	for _, unsupported := range [][]byte{pack("", false), pack("../../../elsewhere", true)} {
+		if err := validateMacArchive(unsupported); err == nil {
+			t.Fatal("accepted an unsealed or out-of-scope archive")
+		}
 	}
 }

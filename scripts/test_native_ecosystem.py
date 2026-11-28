@@ -129,7 +129,7 @@ class NativeDeploymentTests(unittest.TestCase):
                 self.assertEqual(env.read_text(), current)
                 self.assertNotEqual(args[0], "systemctl")
                 builds.append(Path(args[1]).name)
-                if builds[-1] in {"build_windows_client.py", "build_macos_client.py"}:
+                if builds[-1] in {"build_windows_client.py", "stage_macos_client.py"}:
                     self.assertEqual(args[args.index("--server") + 1], "https://bearings.example.invalid")
                 target = args[-1]
                 target.mkdir()
@@ -147,10 +147,10 @@ class NativeDeploymentTests(unittest.TestCase):
                 patch.object(native, "client_compiler", return_value="/synthetic/go"),
                 patch.object(native, "run", side_effect=run),
             ):
-                native.prepare_clients(restart=False)
+                native.prepare_clients(restart=False, macos_release=root / "approved-mac-release")
 
             self.assertEqual(
-                builds, ["build_linux_client.py", "build_windows_client.py", "build_macos_client.py"]
+                builds, ["build_linux_client.py", "build_windows_client.py", "stage_macos_client.py"]
             )
             self.assertTrue(old.is_dir())
             self.assertEqual((config / "bearings-before-client-builds.env").read_text(), current)

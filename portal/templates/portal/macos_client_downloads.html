@@ -16,7 +16,7 @@
   </ul>
   <p><a href="{% url 'macos-client-artifact' 'SHA256SUMS' %}">SHA-256 checksums</a> · <a href="{% url 'macos-client-artifact' 'bearings-macos-source.zip' %}">Source and licenses</a></p>
   {% else %}
-  <p>The macOS downloads have not been prepared for this server. Ask the Bearings operator to publish the client release.</p>
+  <p>A signed and Apple-notarized macOS release is not available on this server yet.</p>
   {% endif %}
   <h2>Install and register</h2>
   <ol>
@@ -24,7 +24,6 @@
     <li>Choose <strong>Register and enable reports</strong>, then paste your organization's rollout key. Obtain a key from your administrator{% if client_rollout_allowed %} or open <a href="{% url 'client-rollouts' %}{% if request.GET.organization %}?organization={{ request.GET.organization|urlencode }}{% endif %}">Rollout keys</a> if you manage them{% endif %}.</li>
     <li>Use <strong>Check report status</strong> to verify registration and delivery. <strong>Applied</strong> means the report was processed on the server.</li>
   </ol>
-  <p>The server-built app is shipped without Apple Developer ID signing or notarization. Follow your organization's macOS software approval process if Gatekeeper blocks it.</p>
   <h2>Rollout and periodic reports</h2>
   <p>Install as the account that will send reports. Bearings installs the app in <code>~/Applications</code> and registers a LaunchAgent that runs at sign-in and every 15 minutes while signed in. The Mac reports changes and sends compact check-ins when its inventory stays the same.</p>
   <p>For managed rollout, supply the rollout key on standard input through your deployment secret manager and run the following as the reporting user.</p>

@@ -138,7 +138,7 @@ def windows_release_key(current):
     return client_release_key(current, "windows")
 
 
-def prepare_clients(*, restart=True):
+def prepare_clients(*, restart=True, macos_release=None):
     """Build all release sets before switching their environment pointers together."""
     if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
         raise ValueError(
@@ -164,17 +164,13 @@ def prepare_clients(*, restart=True):
                 "GOSUMDB": "sum.golang.org",
             }
             server = None
-            for target in ("linux", "windows", "macos"):
+            for target in ("linux", "windows"):
                 server_args = []
                 if target != "linux":
                     current = protected_read(BEARINGS_ENV)
                     if server is None:
                         server = client_server(current)
-                    key, previous = (
-                        windows_release_key(current)
-                        if target == "windows"
-                        else client_release_key(current, target)
-                    )
+                    key, previous = windows_release_key(current)
                     server_args = ["--server", server, "--signing-key", key]
                     if previous is not None:
                         server_args += ["--previous-manifest", previous]
@@ -191,7 +187,7 @@ def prepare_clients(*, restart=True):
                     cwd=ROOT,
                     env=build_env,
                 )
-        for target in ("linux", "windows", "macos"):
+        for target in ("linux", "windows"):
             (release / target).chmod(0o755)
             if target != "linux":
                 for path in (release / target).iterdir():
@@ -200,14 +196,30 @@ def prepare_clients(*, restart=True):
         current = protected_read(BEARINGS_ENV)
         if client_server(current) != server:
             raise ValueError("BEARINGS_PUBLIC_URL changed during the client build. Retry publication.")
-        updated = merge_environment(
-            current,
-            {
-                "BEARINGS_LINUX_CLIENT_DIR": str(release / "linux"),
-                "BEARINGS_WINDOWS_CLIENT_DIR": str(release / "windows"),
-                "BEARINGS_MACOS_CLIENT_DIR": str(release / "macos"),
-            },
-        )
+        paths = {
+            "BEARINGS_LINUX_CLIENT_DIR": str(release / "linux"),
+            "BEARINGS_WINDOWS_CLIENT_DIR": str(release / "windows"),
+        }
+        if macos_release is not None:
+            key, previous = client_release_key(current, "macos")
+            args = [
+                ROOT / ".venv/bin/python",
+                ROOT / "scripts/stage_macos_client.py",
+                "--source",
+                Path(macos_release).resolve(),
+                "--server",
+                server,
+                "--signing-key",
+                key,
+            ]
+            if previous is not None:
+                args += ["--previous-manifest", previous]
+            run([*args, "--output", release / "macos"], cwd=ROOT)
+            (release / "macos").chmod(0o755)
+            for path in (release / "macos").iterdir():
+                path.chmod(0o644)
+            paths["BEARINGS_MACOS_CLIENT_DIR"] = str(release / "macos")
+        updated = merge_environment(current, paths)
         directory(CONFIG)
         backup = CONFIG / "bearings-before-client-builds.env"
         if not backup.exists():
@@ -223,7 +235,9 @@ def prepare_clients(*, restart=True):
             write(BEARINGS_ENV, current)
             run(["systemctl", "restart", "bearings-web"])
             raise
-    print("Linux, Windows and macOS downloads prepared.")
+    print("Linux and Windows downloads prepared.")
+    if macos_release is not None:
+        print("Notarized macOS downloads prepared.")
 
 
 def prepare_linux_client():
@@ -1290,6 +1304,9 @@ def main():
         aliases=["prepare-linux-client"],
         help="Build and publish reviewed Linux and Windows client artifacts",
     )
+    client_build.add_argument(
+        "--macos-release", type=Path, help="Import an approved notarized macOS release directory"
+    )
     client_build.add_argument("--no-restart", action="store_true", help="Leave web restart to the upgrade")
     mail = sub.add_parser("configure-mail", help="Stage the approved CIRCL relay without enabling delivery")
     mail.add_argument(
@@ -1375,7 +1392,7 @@ def main():
     descriptor = os.open("/etc/bearings/ecosystem.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
     if args.action in {"prepare-clients", "prepare-linux-client"}:
-        prepare_clients(restart=not args.no_restart)
+        prepare_clients(restart=not args.no_restart, macos_release=args.macos_release)
         return
     if args.action == "install":
         state = initialize(args)

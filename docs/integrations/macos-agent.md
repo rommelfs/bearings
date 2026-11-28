@@ -8,21 +8,54 @@ queue.
 
 ## Publish the downloads
 
-On a native Ubuntu Bearings installation, update to a reviewed server revision,
-apply any server migrations and run the following from the checkout as the server operator.
+On a Mac configured as the Bearings release-signing station, install the
+organization's **Developer ID Application** certificate and private key in the
+release keychain. Configure an Apple `notarytool` keychain profile and make
+Xcode command-line tools, Go and the frozen Bearings Python environment
+available. Keep Apple credentials on this Mac.
+
+Use the same protected Bearings Ed25519 release key on the signing station
+and the Ubuntu publisher. For an existing deployment, use its current
+`macos-release.key` in the protected ecosystem configuration and copy the
+currently published `update.json` to the signing station for sequence
+continuity. For a first release, provision the same base64-encoded 32-byte
+release seed in both protected locations before building. The seed and Apple
+credentials belong outside the repository and the download directory.
+
+On the signing Mac, from the reviewed checkout:
+
+```sh
+uv sync --frozen
+uv run --frozen python scripts/build_macos_client.py \
+  --go /path/to/go \
+  --server https://bearings.example.org \
+  --signing-key /private/release-keys/macos-release.key \
+  --apple-identity 'Developer ID Application: Example Organization (TEAMID1234)' \
+  --apple-team TEAMID1234 \
+  --notary-profile bearings-notary \
+  --previous-manifest /private/release-keys/previous-macos-update.json \
+  --output /private/release-output/bearings-macos
+```
+
+Omit `--previous-manifest` for the first release. The builder adds the
+Bearings icon, signs the complete app, submits both architectures to Apple,
+staples the accepted tickets, validates the bundles and signs the hashes of
+the final ZIP files with the Bearings release key. Transfer only the output
+directory to the Ubuntu server.
+
+On Ubuntu, after installing the reviewed server revision:
 
 ```sh
 cd /opt/bearings
-python3 deploy/ubuntu24/ecosystem.py prepare-clients
+python3 deploy/ubuntu24/ecosystem.py prepare-clients \
+  --macos-release /path/to/approved/bearings-macos
 ```
 
-The command builds Linux, Windows and macOS downloads in one release directory
-and restarts the web service. Use `--no-restart` when running it before a planned
-service start. It configures the HTTPS origin from `BEARINGS_PUBLIC_URL` and
-creates a separate protected `macos-release.key` on first publication. Back up
-that key with the other protected deployment credentials. Later releases reuse
-the key and advance the signed sequence. Publish subsequent server revisions
-with the same command to distribute updated client builds.
+The server verifies the signed manifest, HTTPS origin, sequence and ZIP hashes,
+stages the downloads alongside its Linux and Windows builds, and restarts the
+web service. Use `--no-restart` during an upgrade before the planned service
+start. A regular `prepare-clients` run keeps the existing macOS publication.
+The first-generation unsigned bundles no longer appear as downloads.
 
 ## Download and install
 
@@ -37,10 +70,11 @@ with the same command to distribute updated client builds.
 5. Choose **Check report status** and look for **applied**. **Pending** means the
    server has received the report and is still processing it.
 
-The stock ZIP is built without Apple Developer ID signing or notarization. Where
-Gatekeeper blocks it, use your organization's macOS software approval process.
-For a private HTTPS CA, distribute the trust certificate through macOS before
-installation.
+Published ZIPs contain a Developer ID-signed app with a stapled notarization
+ticket. If you previously downloaded the unsigned build, download the
+replacement and open it. Run **Register and enable reports** to repair an
+existing installation using its retained device state. For a private HTTPS
+CA, distribute the trust certificate through macOS before installation.
 
 ## Rollout, reporting and updates
 
@@ -71,9 +105,11 @@ remediation rules require dedicated evidence.
 
 The client periodically checks its own updates from the configured server.
 It verifies the pinned publisher signature, increasing release sequence, hash
-and executable architecture before atomically replacing the installed binary.
+and Apple code signature before replacing the complete app bundle.
+Replacing the complete bundle preserves its icon, signature and notarization.
 The next run executes the replacement, keeping the device key, counter and
-queue. Use **Check for client update** to check immediately. Automatic client updates can be turned off in the app.
+queue. Use **Check for client update** to check immediately. Automatic client
+updates can be turned off in the app.
 
 ## Troubleshooting and uninstall
 

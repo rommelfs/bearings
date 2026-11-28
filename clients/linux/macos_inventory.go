@@ -32,7 +32,7 @@ var macBuild = regexp.MustCompile(`^[0-9]{1,4}[A-Z][0-9]{1,10}[a-z]?$`)
 var plistKeys = map[string]bool{
 	"CFBundleIdentifier": true, "CFBundleName": true,
 	"CFBundleShortVersionString": true, "CFBundleVersion": true,
-	"PackageIdentifier": true, "PackageVersion": true,
+	"CFBundleExecutable": true, "PackageIdentifier": true, "PackageVersion": true,
 }
 
 func plistInfo(raw []byte) (map[string]string, error) {
