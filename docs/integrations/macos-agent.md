@@ -10,7 +10,8 @@ queue.
 
 On Ubuntu, the regular client build publishes the Apple Silicon and Intel
 ZIPs without requiring a Mac signing station. A previously published notarized
-release takes precedence. The unsigned build includes the Bearings icon and
+release takes precedence. The unsigned build includes the Bearings mark as
+128- and 256-pixel ICNS images and
 uses Go's platform-required ad-hoc executable signing on Apple Silicon. An
 Ed25519 Bearings release manifest authenticates automatic updates on HTTPS.
 
@@ -22,7 +23,8 @@ python3 deploy/ubuntu24/ecosystem.py prepare-clients
 Use an unsigned release only on Macs whose software policy permits it.
 Finder can block unsigned browser downloads. After verifying the server's
 SHA-256 checksum and extracting the ZIP, start the client from Terminal in
-the extracted directory.
+the extracted directory. A macOS policy that blocks the unsigned executable
+requires an approved release from your software distribution process.
 
 ```sh
 ./Bearings.app/Contents/MacOS/bearings-macos

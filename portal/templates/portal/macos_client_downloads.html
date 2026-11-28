@@ -20,11 +20,11 @@
   {% endif %}
   <h2>Install and register</h2>
   {% if release_kind == "unsigned" %}
-  <p>This release has no Apple Developer ID or notarization. Use it only where your macOS software policy permits. Finder can block a downloaded unsigned app. After verifying the ZIP checksum and extracting the package, run the app from Terminal in the extracted directory.</p>
+  <p>This release has no Apple Developer ID or notarization. Use it only where your macOS software policy permits. Finder can reject unsigned browser downloads before registration. The Terminal command applies where unsigned execution is permitted by macOS and your organization. After verifying the ZIP checksum and extracting the package, run the app from Terminal in the extracted directory.</p>
   <pre><code>./Bearings.app/Contents/MacOS/bearings-macos</code></pre>
   {% endif %}
   <ol>
-    <li>Run <strong>Bearings.app</strong> in the account that should send reports.</li>
+    <li>{% if release_kind == "unsigned" %}Use the Terminal command above{% else %}Open <strong>Bearings.app</strong>{% endif %} in the account that should send reports.</li>
     <li>Choose <strong>Register and enable reports</strong>, then paste your organization's rollout key. Obtain a key from your administrator{% if client_rollout_allowed %} or open <a href="{% url 'client-rollouts' %}{% if request.GET.organization %}?organization={{ request.GET.organization|urlencode }}{% endif %}">Rollout keys</a> if you manage them{% endif %}.</li>
     <li>Use <strong>Check report status</strong> to verify registration and delivery. <strong>Applied</strong> means the report was processed on the server.</li>
   </ol>

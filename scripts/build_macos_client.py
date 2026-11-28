@@ -8,7 +8,6 @@ import json
 import os
 from pathlib import Path
 import stat
-import struct
 import platform
 import re
 import shutil
@@ -131,12 +130,6 @@ def notarize(app, output, identity, profile):
     subprocess.run(args, check=True)
 
 
-def unsigned_icon(output):
-    png = LOGO_PNG.read_bytes()
-    icon = b"icp6" + struct.pack(">I", len(png) + 8) + png
-    output.write_bytes(b"icns" + struct.pack(">I", len(icon) + 8) + icon)
-
-
 def build(
     compiler,
     output,
@@ -183,7 +176,7 @@ def build(
         path = ROOT / filename
         if path.is_symlink():
             raise ValueError("Refusing symlink in client source archive")
-        if path.suffix in {".go", ".plist", ".mod"}:
+        if path.suffix in {".go", ".plist", ".mod", ".icns"}:
             source["source/" + path.name] = path.read_bytes()
     if set(CLIENT.glob("*.go")) - {CLIENT / Path(name).name for name in source}:
         raise ValueError("Add all reviewed Go files to version control before building")
@@ -206,7 +199,7 @@ def build(
         staging.mkdir()
         icon = work / "Bearings.icns"
         if unsigned:
-            unsigned_icon(icon)
+            shutil.copyfile(CLIENT / "Bearings.icns", icon)
         else:
             make_icon(work, icon)
         assets = {}

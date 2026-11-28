@@ -5,19 +5,33 @@ import hashlib
 from io import BytesIO
 import json
 from pathlib import Path
+import struct
 from tempfile import TemporaryDirectory
 import unittest
 from zipfile import ZipFile
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from scripts.build_macos_client import ENVELOPE_SCHEMA, LEGACY_SCHEMA, SCHEMA
+from scripts.build_macos_client import CLIENT, ENVELOPE_SCHEMA, LEGACY_SCHEMA, SCHEMA
 from scripts.stage_macos_client import stage
 
 ORIGIN = "https://bearings.example.invalid"
 
 
 class MacOSPublicationTests(unittest.TestCase):
+    def test_bearings_icon_uses_standard_icns_png_sizes(self):
+        data = (CLIENT / "Bearings.icns").read_bytes()
+        self.assertEqual(struct.unpack_from(">4sI", data), (b"icns", len(data)))
+        offset = 8
+        for kind, pixels in ((b"ic07", 128), (b"ic08", 256)):
+            actual, size = struct.unpack_from(">4sI", data, offset)
+            self.assertEqual(actual, kind)
+            png = data[offset + 8 : offset + size]
+            self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(struct.unpack_from(">II", png, 16), (pixels, pixels))
+            offset += size
+        self.assertEqual(offset, len(data))
+
     def test_staging_requires_authenticated_new_format_and_untampered_archives(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)

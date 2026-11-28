@@ -5,7 +5,8 @@ Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHu
 ## macOS publication without Apple signing
 
 The Ubuntu build provides an unsigned client with the Bearings icon and
-authenticated updates. Existing notarized releases take precedence. The
+authenticated updates. The Finder icon uses standard 128- and 256-pixel ICNS
+images. Existing notarized releases take precedence. The
 download page distinguishes the two modes and documents Terminal startup.
 
 ## Automatic macOS client publication
