@@ -24,7 +24,11 @@ Use an unsigned release only on Macs whose software policy permits it.
 Finder can block unsigned browser downloads. After verifying the server's
 SHA-256 checksum and extracting the ZIP, start the client from Terminal in
 the extracted directory. A macOS policy that blocks the unsigned executable
-requires an approved release from your software distribution process.
+requires an approved release from your software distribution process. The
+unsigned client accepts a valid local ad-hoc signature and keeps its bundle
+seal during installation. If an installation has a local seal, authenticated
+client updates are also sealed with the built-in macOS signing tool. macOS
+still decides whether to allow the new executable to launch.
 
 ```sh
 ./Bearings.app/Contents/MacOS/bearings-macos

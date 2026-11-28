@@ -31,3 +31,49 @@ func TestNativeMacInventoryAndPrivateState(t *testing.T) {
 		t.Fatal("native state directory is not private")
 	}
 }
+
+func TestNativeMacAdHocBundle(t *testing.T) {
+	app := filepath.Join(t.TempDir(), "Bearings.app")
+	contents := filepath.Join(app, "Contents")
+	source, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plist, err := os.ReadFile("macos_app.plist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	icon := filepath.Join(contents, "Resources", "Bearings.icns")
+	for _, item := range []struct {
+		path string
+		body []byte
+		mode os.FileMode
+	}{
+		{filepath.Join(contents, "Info.plist"), plist, 0600},
+		{filepath.Join(contents, "MacOS", "bearings-macos"), binary, 0700},
+		{icon, []byte("original resource"), 0600},
+	} {
+		if err := os.MkdirAll(filepath.Dir(item.path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(item.path, item.body, item.mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := appleTool("/usr/bin/codesign", "--force", "--sign", "-", app); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyMacBundle(app); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(icon, []byte("changed resource"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyMacBundle(app); err == nil {
+		t.Fatal("accepted a tampered ad-hoc bundle")
+	}
+}

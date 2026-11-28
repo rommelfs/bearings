@@ -3,12 +3,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -52,19 +54,40 @@ func macBundleIdentity(app string) error {
 	return nil
 }
 
+func macResourceSeal(app string) string {
+	return filepath.Join(app, "Contents", "_CodeSignature")
+}
+
+func verifyAdHocMacSeal(app string) error {
+	seal, err := os.Lstat(macResourceSeal(app))
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !seal.IsDir() || strings.ContainsAny(app, "\r\n") {
+		return errors.New("invalid Bearings app signature directory or path")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	details, err := exec.CommandContext(ctx, "/usr/bin/codesign", "--display", "--verbose=4", app).CombinedOutput()
+	if err != nil || !bytes.Contains(append(details, '\n'), []byte("\nSignature=adhoc\n")) {
+		return errors.New("use the Apple-signed client to manage a Developer ID bundle")
+	}
+	return appleTool("/usr/bin/codesign", "--verify", "--strict", app)
+}
+
 func verifyMacBundle(app string) error {
 	if err := macBundleIdentity(app); err != nil {
 		return err
 	}
 	if macAppleTeam == "" {
-		if _, err := os.Lstat(filepath.Join(app, "Contents", "_CodeSignature")); !os.IsNotExist(err) {
-			return errors.New("use the Apple-signed client to manage a Developer ID bundle")
-		}
 		icon, err := os.Lstat(filepath.Join(app, "Contents", "Resources", "Bearings.icns"))
 		if err != nil || !icon.Mode().IsRegular() {
 			return errors.New("the Bearings app bundle is missing its resources")
 		}
-		return nil
+		return verifyAdHocMacSeal(app)
 	}
 	if !appleTeamPattern.MatchString(macAppleTeam) {
 		return errors.New("this build does not pin an Apple Developer ID team")
@@ -79,23 +102,6 @@ func verifyMacBundle(app string) error {
 }
 
 func (m macInstall) installApp() error {
-	replace := false
-	if _, err := os.Lstat(m.app); err == nil {
-		if err := macBundleIdentity(m.app); err != nil {
-			return err
-		}
-		if verifyMacBundle(m.app) == nil {
-			return nil
-		}
-		if macAppleTeam == "" {
-			if _, err := os.Lstat(filepath.Join(m.app, "Contents", "_CodeSignature")); !os.IsNotExist(err) {
-				return errors.New("the existing Bearings app requires its original approval or a Developer ID build")
-			}
-		}
-		replace = true
-	} else if !os.IsNotExist(err) {
-		return err
-	}
 	executable, err := os.Executable()
 	if err != nil {
 		return err
@@ -106,6 +112,28 @@ func (m macInstall) installApp() error {
 	}
 	app := filepath.Dir(filepath.Dir(filepath.Dir(executable)))
 	if err := verifyMacBundle(app); err != nil {
+		return err
+	}
+
+	replace := false
+	if _, err := os.Lstat(m.app); err == nil {
+		if err := macBundleIdentity(m.app); err != nil {
+			return err
+		}
+		if verifyMacBundle(m.app) == nil {
+			_, installedSeal := os.Lstat(macResourceSeal(m.app))
+			_, sourceSeal := os.Lstat(macResourceSeal(app))
+			if macAppleTeam != "" || !os.IsNotExist(installedSeal) || sourceSeal != nil {
+				return nil
+			}
+			// Keep the locally approved seal when repairing an earlier unsealed installation.
+		} else if macAppleTeam == "" {
+			if _, err := os.Lstat(macResourceSeal(m.app)); !os.IsNotExist(err) {
+				return errors.New("the existing Bearings app requires its original approval or a Developer ID build")
+			}
+		}
+		replace = true
+	} else if !os.IsNotExist(err) {
 		return err
 	}
 	parent := filepath.Dir(m.app)

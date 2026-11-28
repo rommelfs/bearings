@@ -3107,3 +3107,7 @@ The Ubuntu publication tests also exercise the unsigned macOS build with the
 operator subprocess environment. The publisher provisions an explicit Go
 cache and workspace before calling the cross-compiler, including when the
 subprocess has no home directory in its environment.
+
+A local ad-hoc bundle seal is validated separately from Developer ID trust.
+The native fixture covers acceptance of an intact resource seal and refusal
+after changing an app resource. This fixture requires macOS codesign at runtime.

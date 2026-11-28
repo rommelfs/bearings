@@ -128,6 +128,20 @@ func (m macInstall) update(s *store) error {
 	if image.Cpu != expected || image.Type != macho.TypeExec {
 		return errors.New("macOS update executable has the wrong architecture or image type")
 	}
+	// Preserve an existing local ad-hoc seal on an update authenticated by
+	// the configured Bearings publisher. macOS still applies its launch policy.
+	if macAppleTeam == "" {
+		if _, err := os.Lstat(macResourceSeal(m.app)); err == nil {
+			if err := appleTool("/usr/bin/codesign", "--force", "--sign", "-", candidate); err != nil {
+				return err
+			}
+			if err := verifyAdHocMacSeal(candidate); err != nil {
+				return err
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
 	if err := writePrivate(counter, []byte(strconv.FormatInt(release.Sequence, 10))); err != nil {
 		return err
 	}
