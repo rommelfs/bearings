@@ -76,6 +76,7 @@ class MacOSAgentTests(Fixture):
         response = self.send(compact)
         self.assertIn(response.status_code, (200, 202), response.content)
         self.assertEqual(response.json()["status"], "applied")
+        self.assertEqual(response["Bearings-MacOS-Coverage"], "1")
 
         self.relax()
         incomplete = self.mac_report(3)
@@ -91,11 +92,31 @@ class MacOSAgentTests(Fixture):
         self.assertFalse(self.device.components.filter(missing_since__isnull=False).exists())
 
         self.relax()
-        reduced = self.mac_report(4)
+        self.assertIn("source unspecified", self.device.inventory_gap_labels[0])
+
+        identified = self.mac_report(4)
+        identified.update(
+            complete=False, gaps=["macos-installer-receipts"], components=incomplete["components"]
+        )
+        self.assertEqual(self.send(identified).status_code, 202)
+        agents.process_pending()
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.inventory_gap_labels, ["macOS installer receipts"])
+        self.assertFalse(self.device.components.filter(missing_since__isnull=False).exists())
+        self.login(self.admin)
+        page = self.client.get(self.url("asset", pk=self.asset.pk))
+        self.assertContains(page, "incomplete (macOS installer receipts)")
+        self.assertContains(page, "Latest applied macOS-client observation")
+
+        self.relax()
+        reduced = self.mac_report(5)
         reduced["components"] = reduced["components"][:1]
         self.assertEqual(self.send(reduced).status_code, 202)
         agents.process_pending()
         self.assertEqual(self.device.components.filter(missing_since__isnull=False).count(), 3)
+        self.device.refresh_from_db()
+        self.assertFalse(self.device.inventory_capture_gaps)
+        self.assertIsNotNone(self.device.inventory_success_at)
 
     def test_macos_scope_refuses_inconsistent_os_and_component_identity(self):
         report = self.mac_report()
@@ -104,6 +125,16 @@ class MacOSAgentTests(Fixture):
             report_data(report)
         report = self.mac_report()
         report["scope"] = "system-packages"
+        with self.assertRaises(ValueError):
+            report_data(report)
+
+    def test_mac_coverage_cannot_be_used_by_other_scopes_or_claim_completeness(self):
+        report = self.mac_report()
+        report["gaps"] = ["macos-homebrew"]
+        with self.assertRaises(ValueError):
+            report_data(report)
+        report = test_agents.AgentTests.data(self)
+        report["gaps"] = ["macos-installer-receipts"]
         with self.assertRaises(ValueError):
             report_data(report)
 

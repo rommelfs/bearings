@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ type inventoryCheck struct {
 }
 
 type inventoryBaseline struct {
+	MacCoverage bool   `json:"-"`
 	Supported   bool   `json:"supported"`
 	ReportID    string `json:"report_id"`
 	Fingerprint string `json:"fingerprint"`
@@ -36,14 +38,19 @@ type inventoryBaseline struct {
 func (s *store) readInventoryBaseline() (inventoryBaseline, error) {
 	var baseline inventoryBaseline
 	raw, err := safeRead(filepath.Join(s.dir, "inventory-baseline.json"), 1024)
-	if os.IsNotExist(err) {
-		return baseline, nil
-	}
-	if err != nil {
+	if err == nil {
+		if err := decode(raw, &baseline); err != nil {
+			return inventoryBaseline{}, errors.New("invalid local inventory baseline")
+		}
+	} else if !os.IsNotExist(err) {
 		return baseline, err
 	}
-	if err = decode(raw, &baseline); err != nil {
-		return inventoryBaseline{}, errors.New("invalid local inventory baseline")
+	if runtime.GOOS == "darwin" {
+		raw, err := safeRead(filepath.Join(s.dir, "macos-coverage"), 1)
+		if err != nil && !os.IsNotExist(err) {
+			return baseline, err
+		}
+		baseline.MacCoverage = string(raw) == "1"
 	}
 	return baseline, nil
 }
@@ -52,6 +59,17 @@ func (s *store) writeInventoryBaseline(baseline inventoryBaseline) error {
 	raw, err := json.Marshal(baseline)
 	if err != nil {
 		return err
+	}
+	if runtime.GOOS == "darwin" {
+		// Keep the negotiated capability separate so older binaries can still read the baseline.
+		path := filepath.Join(s.dir, "macos-coverage")
+		if baseline.MacCoverage {
+			if err := writePrivate(path, []byte("1")); err != nil {
+				return err
+			}
+		} else if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
 	}
 	return writePrivate(filepath.Join(s.dir, "inventory-baseline.json"), raw)
 }
@@ -64,16 +82,27 @@ func (r report) inventoryFingerprint() (string, error) {
 	return digest(raw), err
 }
 
+func (r *report) applyCoverageCapabilities(baseline inventoryBaseline) {
+	if r.Scope == macScope && !r.Complete && !baseline.MacCoverage {
+		r.Gaps = nil
+	}
+}
+
 func (s *store) enqueueInventoryCapture(r *report, captureErr error) error {
 	baseline, err := s.readInventoryBaseline()
 	if err != nil {
 		return err
 	}
+	if captureErr == nil {
+		r.applyCoverageCapabilities(baseline)
+	}
 	if !baseline.Supported {
 		if captureErr != nil {
 			return captureErr
 		}
-		r.Gaps = nil
+		if r.Scope != macScope || !baseline.MacCoverage {
+			r.Gaps = nil
+		}
 		return s.enqueue(r)
 	}
 	check := inventoryCheck{Schema: inventoryCheckSchema, ReportID: newID(), Gaps: []string{}}
@@ -102,6 +131,7 @@ type pendingObservation struct {
 	Sequence    int64
 	Check       bool
 	Extended    bool
+	MacCoverage bool
 	Fingerprint string
 }
 
@@ -122,7 +152,7 @@ func readPendingObservation(raw []byte) (pendingObservation, error) {
 		if err := decode(raw, &r); err != nil {
 			return pendingObservation{}, err
 		}
-		item := pendingObservation{ReportID: r.ReportID, Sequence: r.Sequence, Extended: r.Gaps != nil}
+		item := pendingObservation{ReportID: r.ReportID, Sequence: r.Sequence, Extended: r.Gaps != nil, MacCoverage: r.Scope == macScope && !r.Complete && r.Gaps != nil}
 		if item.Extended && r.Complete && (r.Scope == "system-packages" || r.Scope == "macos-machine") {
 			var err error
 			item.Fingerprint, err = r.inventoryFingerprint()

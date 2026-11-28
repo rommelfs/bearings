@@ -186,6 +186,7 @@ def reports(request):
         )
         response = private(JsonResponse(agents.receipt(row), status=202 if row.status == "pending" else 200))
         response["Bearings-Inventory-Check"] = "1"
+        response["Bearings-MacOS-Coverage"] = "1"
         return response
     except OverflowError:
         response = private(JsonResponse({"error": "Device backlog full; retry later"}, status=429))
@@ -206,6 +207,7 @@ def reports(request):
             )
         )
         response["Bearings-Inventory-Check"] = "1"
+        response["Bearings-MacOS-Coverage"] = "1"
         return response
     except OperationalError:
         return private(JsonResponse({"error": "Temporarily unavailable"}, status=503))

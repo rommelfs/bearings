@@ -156,7 +156,16 @@ sign-in and every 15 minutes during the user's graphical session, including
 after opening and closing the app. A first run and inventory changes send full
 observations. Once the server accepts a complete baseline, unchanged runs send
 compact signed check-ins. Inaccessible inventory leaves existing observations
-in place and reduces recorded coverage.
+in place and reduces recorded coverage. Bearings identifies unreadable
+installed applications, system applications, installer receipts or Homebrew
+sources. The local summary shows coverage without transmitting anything:
+
+```sh
+"$HOME/Applications/Bearings.app/Contents/MacOS/bearings-macos" coverage
+```
+
+Earlier client reports can only identify an unspecified macOS software gap.
+The first full capture establishes the complete-inventory baseline.
 
 The client observes the running macOS version, build and Darwin kernel, app
 bundles under `/Applications` and `/System/Applications`, installer receipts and

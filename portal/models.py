@@ -2273,6 +2273,17 @@ class AgentDevice(models.Model):
         return bool(self.uninstall_requested_at and at - self.uninstall_requested_at <= timedelta(days=30))
 
     @property
+    def inventory_gap_labels(self):
+        from .agent_protocol import MACOS_INVENTORY_GAPS
+
+        return [
+            "macOS software coverage (source unspecified)"
+            if source == "packages" and self.os.get("id") == "macos"
+            else MACOS_INVENTORY_GAPS.get(source, source)
+            for source in self.inventory_capture_gaps
+        ]
+
+    @property
     def inventory_is_applied(self):
         sequence = self.inventory_admitted_sequence
         return self.applied_sequence == (self.last_sequence if sequence is None else sequence)

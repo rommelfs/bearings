@@ -412,7 +412,7 @@ def _apply_full_inventory_metadata(device, data, row):
     fields = ["inventory_baseline_id", "inventory_baseline_gaps", "inventory_verified_at"]
     if data["scope"] == MACOS_SCOPE and not data["complete"]:
         device.inventory_capture_at = row.observed_at
-        device.inventory_capture_gaps = ["packages"]
+        device.inventory_capture_gaps = data.get("gaps", ["packages"])
         fields.extend(CAPTURE_FIELDS)
     if not data["complete"] or data["scope"] not in COMPACT_SCOPES:
         return fields

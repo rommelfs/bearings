@@ -56,3 +56,31 @@ func TestMacInventoryBundleAndReceipt(t *testing.T) {
 		t.Fatalf("wrong Homebrew observation: %v %+v", err, seen)
 	}
 }
+
+func TestMacCoverageIdentifiesSourcesAndAcceptsMissingHomebrew(t *testing.T) {
+	apps, systemApps, receipts := t.TempDir(), t.TempDir(), t.TempDir()
+	missingCellar := filepath.Join(t.TempDir(), "missing")
+	seen := map[string]component{}
+	if gaps := macInventoryGaps(seen, apps, systemApps, receipts, []string{missingCellar}); len(gaps) != 0 {
+		t.Fatalf("optional Homebrew is not a gap: %v", gaps)
+	}
+	if err := os.Mkdir(filepath.Join(apps, "Broken.app"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(receipts, "com.example.pkg.plist"), []byte("invalid"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gaps := macInventoryGaps(seen, apps, systemApps, receipts, []string{missingCellar})
+	if len(gaps) != 2 || gaps[0] != "macos-applications" || gaps[1] != "macos-installer-receipts" {
+		t.Fatalf("wrong macOS coverage detail: %v", gaps)
+	}
+	capture := report{Scope: macScope, Gaps: &gaps}
+	capture.applyCoverageCapabilities(inventoryBaseline{MacCoverage: true})
+	if capture.Gaps == nil {
+		t.Fatal("capable receiver lost the source details")
+	}
+	capture.applyCoverageCapabilities(inventoryBaseline{Supported: true})
+	if capture.Gaps != nil {
+		t.Fatal("older receiver was sent unsupported source details")
+	}
+}

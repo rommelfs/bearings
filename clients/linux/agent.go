@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -190,9 +191,11 @@ func flush(s *store) error {
 		var headers http.Header
 		response, status, err := sendWithHeaders(client, s.config.URL, reportPath, "device:"+s.config.DeviceID, s.key, raw, "", &headers)
 		supportsChecks := headers.Get("Bearings-Inventory-Check") == "1"
+		supportsMacCoverage := runtime.GOOS == "darwin" && headers.Get("Bearings-MacOS-Coverage") == "1"
 		if err != nil {
 			// A legacy receiver cannot admit the new format. Only automatic observations use it.
-			if status == http.StatusForbidden && !supportsChecks && (pending.Check || pending.Extended) {
+			if status == http.StatusForbidden &&
+				((!supportsChecks && (pending.Check || pending.Extended)) || (!supportsMacCoverage && pending.MacCoverage)) {
 				if err = s.writeInventoryBaseline(inventoryBaseline{}); err != nil {
 					return err
 				}
@@ -214,6 +217,7 @@ func flush(s *store) error {
 			return errors.New("inconsistent server receipt")
 		}
 		nextBaseline := pending.baselineAfterReceipt(baseline, supportsChecks, ack)
+		nextBaseline.MacCoverage = supportsMacCoverage
 		if nextBaseline != baseline {
 			if err = s.writeInventoryBaseline(nextBaseline); err != nil {
 				return err

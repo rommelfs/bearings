@@ -55,7 +55,7 @@ def synchronization_status(asset, device):
         elif device.inventory_capture_gaps:
             client = {
                 "label": "Inventory check incomplete",
-                "detail": "Last check could not verify " + ", ".join(device.inventory_capture_gaps) + ".",
+                "detail": "Last check could not verify " + ", ".join(device.inventory_gap_labels) + ".",
                 "tone": "warning",
             }
         elif not device.last_observed_at:

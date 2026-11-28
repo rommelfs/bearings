@@ -28,6 +28,12 @@ MACOS_COMPONENT = re.compile(
 )
 INVENTORY_CHECK = "bearings.agent.inventory-check.v1"
 INVENTORY_GAPS = {"packages", "network", "applications"}
+MACOS_INVENTORY_GAPS = {
+    "macos-applications": "installed macOS applications",
+    "macos-system-applications": "macOS system applications",
+    "macos-installer-receipts": "macOS installer receipts",
+    "macos-homebrew": "Homebrew packages",
+}
 COVERED = ("@method", "@path", "@authority", "content-digest", "content-type", "x-bearings-key")
 
 
@@ -169,11 +175,11 @@ def observation_time(data):
     return observed
 
 
-def inventory_gaps(values):
+def inventory_gaps(values, allowed=INVENTORY_GAPS):
     if (
         not isinstance(values, list)
-        or len(values) > len(INVENTORY_GAPS)
-        or any(not isinstance(value, str) or value not in INVENTORY_GAPS for value in values)
+        or len(values) > len(allowed)
+        or any(not isinstance(value, str) or value not in allowed for value in values)
         or len(set(values)) != len(values)
     ):
         raise ValueError("Invalid inventory coverage")
@@ -211,10 +217,6 @@ def report_data(data):
     )
     if data["schema"] != TAG:
         raise ValueError("Invalid report schema")
-    if "gaps" in data:
-        inventory_gaps(data["gaps"])
-        if data["scope"] not in COMPACT_SCOPES or "packages" in data["gaps"]:
-            raise ValueError("Invalid full inventory coverage")
     observed = observation_time(data)
     if (
         data["scope"]
@@ -229,6 +231,16 @@ def report_data(data):
         or type(data["complete"]) is not bool
     ):
         raise ValueError("Invalid coverage")
+    if "gaps" in data:
+        gaps = data["gaps"]
+        if data["scope"] == MACOS_SCOPE:
+            inventory_gaps(gaps, MACOS_INVENTORY_GAPS)
+            if bool(gaps) == data["complete"]:
+                raise ValueError("macOS coverage must agree with report completeness")
+        else:
+            inventory_gaps(gaps)
+            if data["scope"] != "system-packages" or "packages" in gaps:
+                raise ValueError("Invalid full inventory coverage")
     if data["scope"] in ("selected-packages", "configured-binaries") and data["complete"]:
         raise ValueError("Selected packages cannot assert completeness")
     exact(
@@ -259,7 +271,6 @@ def report_data(data):
             or operating["architecture"] not in {"x86_64", "arm64"}
             or operating.get("kernel_scope") != "host"
             or operating["reboot_hint"] != "unknown"
-            or ("gaps" in data and not data["complete"])
         ):
             raise ValueError("macOS inventory only covers machine OS and installation metadata")
     if windows != (data["os"]["id"] == "windows"):

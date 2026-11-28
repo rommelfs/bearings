@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -270,19 +269,10 @@ func collectMac() (*report, error) {
 		return nil, errors.New("unexpected macOS release, build or Darwin kernel format")
 	}
 	seen := map[string]component{"os": macComponent("os", "macOS", operating.Version)}
-	complete := true
-	for _, path := range []string{"/Applications", "/System/Applications", "/private/var/db/receipts"} {
-		ok, err := scanMacRoot(path, strings.HasSuffix(path, "/receipts"), seen)
-		if err != nil && !os.IsPermission(err) && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("cannot capture macOS inventory: %w", err)
-		}
-		complete = complete && ok && err == nil
-	}
-	for _, path := range []string{"/opt/homebrew/Cellar", "/usr/local/Cellar"} {
-		if err := scanHomebrew(path, seen); err != nil && !os.IsNotExist(err) {
-			complete = false
-		}
-	}
+	gaps := macInventoryGaps(seen,
+		"/Applications", "/System/Applications", "/private/var/db/receipts",
+		[]string{"/opt/homebrew/Cellar", "/usr/local/Cellar"},
+	)
 	if len(seen) > 5000 {
 		return nil, errors.New("macOS inventory exceeds the server observation limit")
 	}
@@ -291,9 +281,30 @@ func collectMac() (*report, error) {
 		components = append(components, item)
 	}
 	slices.SortFunc(components, func(a, b component) int { return strings.Compare(a.Key, b.Key) })
-	var gaps *[]string
-	if complete {
-		gaps = &[]string{}
+	return &report{Schema: tag, ReportID: newID(), ObservedAt: time.Now().UTC().Format(time.RFC3339Nano), Scope: macScope, OS: operating, Complete: len(gaps) == 0, Components: components, Services: []service{}, Gaps: &gaps}, nil
+}
+
+func macInventoryGaps(seen map[string]component, apps, systemApps, receipts string, cellars []string) []string {
+	gaps := []string{}
+	for _, source := range []struct {
+		path, gap string
+		receipts  bool
+	}{
+		{apps, "macos-applications", false},
+		{systemApps, "macos-system-applications", false},
+		{receipts, "macos-installer-receipts", true},
+	} {
+		ok, err := scanMacRoot(source.path, source.receipts, seen)
+		if err != nil || !ok {
+			gaps = append(gaps, source.gap)
+		}
 	}
-	return &report{Schema: tag, ReportID: newID(), ObservedAt: time.Now().UTC().Format(time.RFC3339Nano), Scope: macScope, OS: operating, Complete: complete, Components: components, Services: []service{}, Gaps: gaps}, nil
+	for _, path := range cellars {
+		if err := scanHomebrew(path, seen); err != nil && !os.IsNotExist(err) {
+			if !slices.Contains(gaps, "macos-homebrew") {
+				gaps = append(gaps, "macos-homebrew")
+			}
+		}
+	}
+	return gaps
 }

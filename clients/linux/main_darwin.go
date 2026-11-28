@@ -167,6 +167,11 @@ func (m macInstall) periodic(s *store, compact bool) (result error) {
 	} else if captureErr != nil {
 		return captureErr
 	} else {
+		baseline, baselineErr := s.readInventoryBaseline()
+		if baselineErr != nil {
+			return baselineErr
+		}
+		observation.applyCoverageCapabilities(baseline)
 		err = s.enqueue(observation)
 	}
 	if err != nil {
@@ -222,10 +227,13 @@ func run(args []string) error {
 }
 
 func (m macInstall) run(action string, input io.Reader) error {
-	if action == "collect" {
+	if action == "collect" || action == "coverage" {
 		r, err := collectMac()
 		if err != nil {
 			return err
+		}
+		if action == "coverage" {
+			return output(map[string]any{"complete": r.Complete, "gaps": *r.Gaps})
 		}
 		return output(r)
 	}
@@ -262,7 +270,7 @@ func (m macInstall) run(action string, input io.Reader) error {
 	case "uninstall":
 		return m.uninstall(s, "local")
 	default:
-		return errors.New("use install, collect, report, flush, status, update, updates-on, updates-off, archive-bootstrap, uninstall or version")
+		return errors.New("use install, collect, coverage, report, flush, status, update, updates-on, updates-off, archive-bootstrap, uninstall or version")
 	}
 }
 
