@@ -206,6 +206,44 @@ class NativeDeploymentTests(unittest.TestCase):
                 self.assertEqual(sum("--unsigned" in call.args[0] for call in execute.call_args_list), 1)
                 self.assertIn(env_key, env.read_text())
 
+    def test_macos_only_publication_retains_other_platform_pointers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            config, releases, apps = (root / part for part in ("config", "releases", "apps"))
+            for path in (config, releases, apps):
+                path.mkdir()
+            env = root / "bearings.env"
+            original = (
+                'BEARINGS_PUBLIC_URL="https://bearings.example.invalid"\n'
+                'BEARINGS_LINUX_CLIENT_DIR="/retained/linux"\n'
+                'BEARINGS_WINDOWS_CLIENT_DIR="/retained/windows"\n'
+            )
+            env.write_text(original)
+
+            def run(args, **kwargs):
+                if args[0] == "git":
+                    return SimpleNamespace(stdout="")
+                self.assertEqual(Path(args[1]).name, "build_macos_client.py")
+                self.assertIn("--unsigned", args)
+                Path(args[args.index("--output") + 1]).mkdir()
+
+            with (
+                patch.object(native, "CONFIG", config),
+                patch.object(native, "CLIENT_RELEASES", releases),
+                patch.object(native, "APPS", apps),
+                patch.object(native, "BEARINGS_ENV", env),
+                patch.object(native, "protected_read", side_effect=Path.read_text),
+                patch.object(native, "directory"),
+                patch.object(native, "run", side_effect=run) as execute,
+                patch.object(native, "client_compiler", return_value="/go"),
+                patch.object(native, "client_release_key", return_value=(config / "macos-release.key", None)),
+            ):
+                native.prepare_clients(restart=False, platform_target="macos")
+                output = next(releases.iterdir()) / "macos"
+                self.assertEqual(execute.call_count, 2)
+                self.assertIn(original, env.read_text())
+                self.assertIn(f'BEARINGS_MACOS_CLIENT_DIR="{output}"', env.read_text())
+
     def test_automatic_macos_publication_retains_release_and_skips_current_revision(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

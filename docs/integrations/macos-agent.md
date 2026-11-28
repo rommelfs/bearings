@@ -17,8 +17,11 @@ Ed25519 Bearings release manifest authenticates automatic updates on HTTPS.
 
 ```sh
 cd /opt/bearings
-python3 deploy/ubuntu24/ecosystem.py prepare-clients
+python3 deploy/ubuntu24/ecosystem.py prepare-clients --platform macos
 ```
+
+Omit `--platform macos` to rebuild all platforms. A macOS-only publication
+keeps the existing Linux and Windows downloads and update manifests active.
 
 Use an unsigned release only on Macs whose software policy permits it.
 Finder can block unsigned browser downloads. After verifying the server's

@@ -274,8 +274,11 @@ def build_unsigned_macos(compiler, output, origin, key, previous, *, env):
     output.chmod(0o755)
 
 
-def prepare_clients(*, restart=True, macos_release=None):
-    """Build all release sets before switching their environment pointers together."""
+def prepare_clients(*, restart=True, macos_release=None, platform_target="all"):
+    """Build the selected release sets before switching their environment pointers together."""
+    if platform_target not in {"all", "macos"}:
+        raise ValueError("Choose all client builds or macOS only")
+    other_targets = ("linux", "windows") if platform_target == "all" else ()
     if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
         raise ValueError(
             "Publish only a clean reviewed checkout; keep downloaded installers outside the repository"
@@ -300,7 +303,7 @@ def prepare_clients(*, restart=True, macos_release=None):
                 "GOSUMDB": "sum.golang.org",
             }
             server = None
-            for target in ("linux", "windows"):
+            for target in other_targets:
                 server_args = []
                 if target != "linux":
                     current = protected_read(BEARINGS_ENV)
@@ -324,6 +327,8 @@ def prepare_clients(*, restart=True, macos_release=None):
                     env=build_env,
                 )
             current = protected_read(BEARINGS_ENV)
+            if server is None:
+                server = client_server(current)
             if client_server(current) != server:
                 raise ValueError("BEARINGS_PUBLIC_URL changed during the client build. Retry publication.")
             macos_path = None
@@ -336,7 +341,7 @@ def prepare_clients(*, restart=True, macos_release=None):
                 if not has_notarized_macos_release(previous):
                     build_unsigned_macos(compiler, release / "macos", server, key, previous, env=build_env)
                     macos_path = str(release / "macos")
-        for target in ("linux", "windows"):
+        for target in other_targets:
             (release / target).chmod(0o755)
             if target != "linux":
                 for path in (release / target).iterdir():
@@ -345,12 +350,13 @@ def prepare_clients(*, restart=True, macos_release=None):
         current = protected_read(BEARINGS_ENV)
         if client_server(current) != server:
             raise ValueError("BEARINGS_PUBLIC_URL changed during the client build. Retry publication.")
-        paths = {
-            "BEARINGS_LINUX_CLIENT_DIR": str(release / "linux"),
-            "BEARINGS_WINDOWS_CLIENT_DIR": str(release / "windows"),
-        }
+        paths = {f"BEARINGS_{target.upper()}_CLIENT_DIR": str(release / target) for target in other_targets}
         if macos_path is not None:
             paths["BEARINGS_MACOS_CLIENT_DIR"] = macos_path
+        if not paths:
+            shutil.rmtree(release)
+            print("Existing notarized macOS downloads retained.")
+            return
         updated = merge_environment(current, paths)
         directory(CONFIG)
         backup = CONFIG / "bearings-before-client-builds.env"
@@ -372,7 +378,8 @@ def prepare_clients(*, restart=True, macos_release=None):
             enable_macos_release()
         except (OSError, ValueError, subprocess.CalledProcessError) as exc:
             print(f"Could not configure the macOS release timer: {exc}", file=sys.stderr)
-    print("Linux and Windows downloads prepared.")
+    if other_targets:
+        print("Linux and Windows downloads prepared.")
     if macos_release is not None:
         print("Notarized macOS downloads prepared.")
     elif (release / "macos").exists():
@@ -1443,10 +1450,16 @@ def main():
     client_build = sub.add_parser(
         "prepare-clients",
         aliases=["prepare-linux-client"],
-        help="Build and publish reviewed Linux and Windows client artifacts",
+        help="Build and publish reviewed client artifacts",
     )
     client_build.add_argument(
         "--macos-release", type=Path, help="Import an approved notarized macOS release directory"
+    )
+    client_build.add_argument(
+        "--platform",
+        choices=("all", "macos"),
+        default="all",
+        help="Build only the macOS downloads and retain the Linux and Windows releases",
     )
     client_build.add_argument("--no-restart", action="store_true", help="Leave web restart to the upgrade")
     mail = sub.add_parser("configure-mail", help="Stage the approved CIRCL relay without enabling delivery")
@@ -1539,7 +1552,9 @@ def main():
         enable_macos_release()
         return
     if args.action in {"prepare-clients", "prepare-linux-client"}:
-        prepare_clients(restart=not args.no_restart, macos_release=args.macos_release)
+        prepare_clients(
+            restart=not args.no_restart, macos_release=args.macos_release, platform_target=args.platform
+        )
         return
     if args.action == "install":
         state = initialize(args)
