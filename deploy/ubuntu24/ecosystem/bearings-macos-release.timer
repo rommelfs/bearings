@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for an unpublished Bearings macOS release
+ConditionPathExists=/etc/bearings/ecosystem/macos-signer
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=15min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

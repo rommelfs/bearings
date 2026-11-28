@@ -3097,3 +3097,8 @@ identity and Apple acceptance on a Mac signing station. Linux tests can verify
 signed release manifests, ZIP integrity and rejection of the legacy format.
 Apple trust, stapling, Finder launch and the visible icon require macOS
 validation of the issued package.
+
+Automatic macOS publication is tested with synthetic transfer archives and a
+mock signing station. The operator-side tests check idempotent activation and
+preservation of the active release when the signer fails. A provisioned Mac
+signing keychain and Apple notarization account are needed for a live run.

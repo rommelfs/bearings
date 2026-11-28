@@ -1,0 +1,11 @@
+[Unit]
+Description=Build and publish the notarized Bearings macOS client
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/bearings/ecosystem/macos-signer
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/bearings/deploy/ubuntu24/ecosystem.py publish-macos
+TimeoutStartSec=35min
+UMask=0022

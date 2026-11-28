@@ -6,6 +6,7 @@ certificates and a healthy local IdP; it preserves existing Bearings environment
 """
 
 import argparse
+from contextlib import contextmanager
 import base64
 import fcntl
 import hashlib
@@ -36,6 +37,7 @@ CONFIG = Path("/etc/bearings/ecosystem")
 APPS = Path("/opt/bearings-services")
 CLIENT_RELEASES = Path("/var/www/bearings/client-builds")
 BEARINGS_ENV = Path("/etc/bearings/bearings.env")
+OPERATOR_LOCK = Path("/etc/bearings/ecosystem.lock")
 ISSUER = "https://sso.bearings.circl.lu/realms/bearings"
 HOSTS = {name: name + ".bearings.circl.lu" for name in ("netbox", "flowintel", "sso")}
 USERS = {name: "bearings_" + name for name in ("netbox", "flowintel", "keycloak")}
@@ -138,6 +140,110 @@ def windows_release_key(current):
     return client_release_key(current, "windows")
 
 
+def stage_macos_release(source, output, server, key, previous):
+    args = [
+        ROOT / ".venv/bin/python",
+        ROOT / "scripts/stage_macos_client.py",
+        "--source",
+        source,
+        "--server",
+        server,
+        "--signing-key",
+        key,
+        "--output",
+        output,
+    ]
+    if previous is not None:
+        args += ["--previous-manifest", previous]
+    run(args, cwd=ROOT)
+    output.chmod(0o755)
+    for path in output.iterdir():
+        path.chmod(0o644)
+
+
+def enable_macos_release():
+    for name in ("macos-signer", "macos-signer.key", "macos-signer.known_hosts", "macos-release.key"):
+        protected_read(CONFIG / name)
+    for suffix in ("service", "timer"):
+        name = "bearings-macos-release." + suffix
+        write(Path("/etc/systemd/system") / name, (TEMPLATES / name).read_text(), mode=0o644)
+    run(["systemctl", "daemon-reload"])
+    run(["systemctl", "enable", "--now", "bearings-macos-release.timer"])
+
+
+@contextmanager
+def macos_publication_lock():
+    fd = os.open(OPERATOR_LOCK, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "rb"):
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+
+
+def macos_revision():
+    if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
+        raise ValueError("Publish only the clean deployed Bearings revision")
+    return run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture=True).stdout.strip()
+
+
+def publish_macos():
+    destination = protected_read(CONFIG / "macos-signer").strip()
+    identity = CONFIG / "macos-signer.key"
+    known_hosts = CONFIG / "macos-signer.known_hosts"
+    for path in (identity, known_hosts, CONFIG / "macos-release.key"):
+        protected_read(path)
+    with macos_publication_lock():
+        revision = macos_revision()
+        current = protected_read(BEARINGS_ENV)
+        origin = client_server(current)
+        key, previous = client_release_key(current, "macos")
+        if previous is not None:
+            receipt = previous.with_name("source-revision")
+            if receipt.exists() and receipt.read_text().strip() == revision:
+                return
+    directory(CLIENT_RELEASES, mode=0o755)
+    release = Path(tempfile.mkdtemp(prefix="macos-", dir=CLIENT_RELEASES))
+    try:
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "signed-release"
+            options = [
+                "--destination",
+                destination,
+                "--identity",
+                identity,
+                "--known-hosts",
+                known_hosts,
+                "--revision",
+                revision,
+                "--origin",
+                origin,
+                "--output",
+                source,
+            ]
+            if previous is not None:
+                options += ["--previous", previous]
+            run([sys.executable, ROOT / "scripts/macos_signing.py", "fetch", *options], cwd=ROOT)
+            with macos_publication_lock():
+                current = protected_read(BEARINGS_ENV)
+                _, latest = client_release_key(current, "macos")
+                if macos_revision() != revision or client_server(current) != origin or latest != previous:
+                    raise ValueError("Server revision or release changed; the timer will retry publication")
+                output = release / "macos"
+                stage_macos_release(source, output, origin, key, previous)
+                write(output / "source-revision", revision + "\n", mode=0o644)
+                release.chmod(0o755)
+                write(BEARINGS_ENV, merge_environment(current, {"BEARINGS_MACOS_CLIENT_DIR": str(output)}))
+                try:
+                    run(["systemctl", "try-restart", "bearings-web"])
+                except subprocess.CalledProcessError:
+                    write(BEARINGS_ENV, current)
+                    run(["systemctl", "start", "bearings-web"])
+                    raise
+    except Exception:
+        shutil.rmtree(release)
+        raise
+    print("Notarized macOS client release published.")
+
+
 def prepare_clients(*, restart=True, macos_release=None):
     """Build all release sets before switching their environment pointers together."""
     if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
@@ -202,22 +308,7 @@ def prepare_clients(*, restart=True, macos_release=None):
         }
         if macos_release is not None:
             key, previous = client_release_key(current, "macos")
-            args = [
-                ROOT / ".venv/bin/python",
-                ROOT / "scripts/stage_macos_client.py",
-                "--source",
-                Path(macos_release).resolve(),
-                "--server",
-                server,
-                "--signing-key",
-                key,
-            ]
-            if previous is not None:
-                args += ["--previous-manifest", previous]
-            run([*args, "--output", release / "macos"], cwd=ROOT)
-            (release / "macos").chmod(0o755)
-            for path in (release / "macos").iterdir():
-                path.chmod(0o644)
+            stage_macos_release(Path(macos_release).resolve(), release / "macos", server, key, previous)
             paths["BEARINGS_MACOS_CLIENT_DIR"] = str(release / "macos")
         updated = merge_environment(current, paths)
         directory(CONFIG)
@@ -235,6 +326,11 @@ def prepare_clients(*, restart=True, macos_release=None):
             write(BEARINGS_ENV, current)
             run(["systemctl", "restart", "bearings-web"])
             raise
+    if (CONFIG / "macos-signer").exists():
+        try:
+            enable_macos_release()
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            print(f"Could not configure the macOS release timer: {exc}", file=sys.stderr)
     print("Linux and Windows downloads prepared.")
     if macos_release is not None:
         print("Notarized macOS downloads prepared.")
@@ -1298,6 +1394,8 @@ def main():
         help="Explicitly omit inner mount sandbox for constrained LXC",
     )
     sub.add_parser("activate")
+    sub.add_parser("enable-macos-release", help="Enable the automatic notarized macOS release timer")
+    sub.add_parser("publish-macos", help="Run one automatic macOS release check")
     sub.add_parser("credentials")
     client_build = sub.add_parser(
         "prepare-clients",
@@ -1388,9 +1486,15 @@ def main():
     ]:
         raise ValueError("Existing native production Bearings settings required")
     os.umask(0o022)  # Public code/dependencies stay readable even from a root shell with umask 077.
+    if args.action == "publish-macos":
+        publish_macos()
+        return
     # A single operator operation at a time, including management and activation.
-    descriptor = os.open("/etc/bearings/ecosystem.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    descriptor = os.open(OPERATOR_LOCK, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    if args.action == "enable-macos-release":
+        enable_macos_release()
+        return
     if args.action in {"prepare-clients", "prepare-linux-client"}:
         prepare_clients(restart=not args.no_restart, macos_release=args.macos_release)
         return

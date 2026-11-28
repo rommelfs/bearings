@@ -161,6 +161,64 @@ class NativeDeploymentTests(unittest.TestCase):
             self.assertIn("DJANGO_SECRET_KEY=synthetic-retained-key", env.read_text())
             self.assertEqual((published / "windows/SHA256SUMS").stat().st_mode & 0o777, 0o644)
 
+    def test_automatic_macos_publication_retains_release_and_skips_current_revision(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            config, releases = root / "config", root / "releases"
+            config.mkdir()
+            releases.mkdir()
+            revision = "a" * 40
+            key = config / "macos-release.key"
+            for name in ("macos-signer", "macos-signer.key", "macos-signer.known_hosts", key.name):
+                (config / name).write_text("signer@mac.example.invalid")
+            env = root / "bearings.env"
+            env.write_text('BEARINGS_PUBLIC_URL="https://bearings.example.invalid"\n')
+            calls = []
+
+            def published():
+                values = native.shlex.split(env.read_text().split("BEARINGS_MACOS_CLIENT_DIR=")[1])
+                return Path(values[0])
+
+            def run(args, **kwargs):
+                calls.append(args)
+                if "fetch" in args:
+                    Path(args[args.index("--output") + 1]).mkdir()
+
+            def stage(source, output, *args):
+                self.assertTrue(source.is_dir())
+                output.mkdir()
+                (output / "update.json").write_text("synthetic")
+
+            def current_manifest(*args):
+                if "BEARINGS_MACOS_CLIENT_DIR=" not in env.read_text():
+                    return key, None
+                return key, published() / "update.json"
+
+            with (
+                patch.object(native, "CONFIG", config),
+                patch.object(native, "CLIENT_RELEASES", releases),
+                patch.object(native, "BEARINGS_ENV", env),
+                patch.object(native, "OPERATOR_LOCK", root / "lock"),
+                patch.object(native, "protected_read", side_effect=Path.read_text),
+                patch.object(native, "directory"),
+                patch.object(native, "macos_revision", return_value=revision) as version,
+                patch.object(native, "client_release_key", side_effect=current_manifest),
+                patch.object(native, "stage_macos_release", side_effect=stage),
+                patch.object(native, "run", side_effect=run) as execute,
+            ):
+                native.publish_macos()
+                active = published()
+                self.assertEqual((active / "source-revision").read_text().strip(), revision)
+                self.assertEqual(calls[-1], ["systemctl", "try-restart", "bearings-web"])
+                native.publish_macos()
+                self.assertEqual(len(calls), 2)
+                version.return_value = "b" * 40
+                execute.side_effect = subprocess.CalledProcessError(1, ["ssh"])
+                with self.assertRaises(subprocess.CalledProcessError):
+                    native.publish_macos()
+                self.assertEqual(published(), active)
+                self.assertEqual(list(releases.iterdir()), [active.parent])
+
     def test_failed_windows_build_keeps_both_environment_paths(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

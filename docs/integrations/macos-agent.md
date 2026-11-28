@@ -6,56 +6,88 @@ origin and the macOS trust store. Reports use an independent Ed25519 device key,
 signed observations, sequence numbers, acknowledgments and a private on-disk
 queue.
 
-## Publish the downloads
+## Publish automatically
 
-On a Mac configured as the Bearings release-signing station, install the
-organization's **Developer ID Application** certificate and private key in the
-release keychain. Configure an Apple `notarytool` keychain profile and make
-Xcode command-line tools, Go and the frozen Bearings Python environment
-available. Keep Apple credentials on this Mac.
+The Ubuntu publisher asks the signing Mac to build the currently deployed Git
+revision. The Mac builds both architectures, adds the Bearings icon, signs and
+notarizes the apps, staples the tickets, and returns the release through SSH.
+Ubuntu checks the signed manifest, HTTPS origin, sequence and ZIP hashes before
+switching the downloads. Failed builds or transfers retain the last release.
+The timer checks every 15 minutes and skips revisions that were published
+successfully. The usual server upgrade requires no macOS-specific command.
 
-Use the same protected Bearings Ed25519 release key on the signing station
-and the Ubuntu publisher. For an existing deployment, use its current
-`macos-release.key` in the protected ecosystem configuration and copy the
-currently published `update.json` to the signing station for sequence
-continuity. For a first release, provision the same base64-encoded 32-byte
-release seed in both protected locations before building. The seed and Apple
-credentials belong outside the repository and the download directory.
+### Configure the signing Mac once
 
-On the signing Mac, from the reviewed checkout:
+Use a dedicated Mac account and clean checkout of the Bearings repository.
+Install Go, uv, and the Xcode command-line tools. Import the organization's
+**Developer ID Application** identity into a release keychain and configure an
+Apple `notarytool` keychain profile. Make the signing identity and profile
+accessible without interactive prompts to the dedicated SSH account. Test
+keychain access in that account's noninteractive SSH session. Apple
+credentials remain on the Mac.
 
-```sh
-uv sync --frozen
-uv run --frozen python scripts/build_macos_client.py \
-  --go /path/to/go \
-  --server https://bearings.example.org \
-  --signing-key /private/release-keys/macos-release.key \
-  --apple-identity 'Developer ID Application: Example Organization (TEAMID1234)' \
-  --apple-team TEAMID1234 \
-  --notary-profile bearings-notary \
-  --previous-manifest /private/release-keys/previous-macos-update.json \
-  --output /private/release-output/bearings-macos
+Provide the same protected Bearings Ed25519 release seed on Ubuntu and the
+Mac. Reuse the existing `macos-release.key` where one already exists. For a
+first release, provision the same base64-encoded 32-byte key in both private
+locations. The previous manifest and the resulting artifacts travel
+automatically. Release keys belong outside the repository and download paths.
+
+Save a private `signer.json` owned by the Mac account. Example:
+
+```json
+{
+  "origin": "https://bearings.example.org",
+  "checkout": "/Users/bearings/bearings-signing",
+  "approved_ref": "refs/heads/main",
+  "lock": "/Users/bearings/private/signing.lock",
+  "uv": "/Users/bearings/.local/bin/uv",
+  "go": "/opt/homebrew/bin/go",
+  "release_key": "/Users/bearings/private/macos-release.key",
+  "apple_identity": "Developer ID Application: Example Organization (TEAMID1234)",
+  "apple_team": "TEAMID1234",
+  "notary_profile": "bearings-notary"
+}
 ```
 
-Omit `--previous-manifest` for the first release. The builder adds the
-Bearings icon, signs the complete app, submits both architectures to Apple,
-staples the accepted tickets, validates the bundles and signs the hashes of
-the final ZIP files with the Bearings release key. Transfer only the output
-directory to the Ubuntu server.
+Set `approved_ref` to the protected branch or reviewed tag that contains the
+deployed revision. The signing account runs release code from commits
+reachable from that ref in the Bearings GitHub repository. Protect the ref
+accordingly. Install a reviewed copy of `scripts/macos_signing.py` **outside**
+the signing checkout so the SSH entry point stays fixed. Authorize the
+publisher's dedicated SSH public key with a forced command in the signing
+account's `authorized_keys`:
 
-On Ubuntu, after installing the reviewed server revision:
+```text
+restrict,command="/absolute/path/python3 /Users/bearings/private/macos_signing.py serve --config /Users/bearings/private/signer.json" ssh-ed25519 PUBLIC_KEY
+```
+
+### Configure Ubuntu once
+
+Create these root-owned files under `/etc/bearings/ecosystem` with mode
+`0600`:
+
+| File | Contents |
+| --- | --- |
+| `macos-signer` | SSH destination in `user@host` form |
+| `macos-signer.key` | Dedicated noninteractive SSH private key |
+| `macos-signer.known_hosts` | The Mac SSH host key verified through a trusted channel |
+| `macos-release.key` | Existing or newly provisioned Bearings macOS release seed |
+
+From the updated Ubuntu checkout:
 
 ```sh
 cd /opt/bearings
-python3 deploy/ubuntu24/ecosystem.py prepare-clients \
-  --macos-release /path/to/approved/bearings-macos
+python3 deploy/ubuntu24/ecosystem.py enable-macos-release
+systemctl list-timers bearings-macos-release.timer
+journalctl -u bearings-macos-release.service -n 60 --no-pager
 ```
 
-The server verifies the signed manifest, HTTPS origin, sequence and ZIP hashes,
-stages the downloads alongside its Linux and Windows builds, and restarts the
-web service. Use `--no-restart` during an upgrade before the planned service
-start. A regular `prepare-clients` run keeps the existing macOS publication.
-The first-generation unsigned bundles no longer appear as downloads.
+The timer detects the next deployed revision and publishes it when Apple
+accepts the build. The standard `prepare-clients` command also installs or
+refreshes the timer when the signer is configured. An operator can use
+`systemctl start bearings-macos-release.service` to run the same automated
+check immediately. A manual import of a signed release remains available
+through `prepare-clients --macos-release DIRECTORY` for recovery.
 
 ## Download and install
 

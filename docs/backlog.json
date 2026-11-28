@@ -301,7 +301,7 @@
       },
       {
         "title": "Native macOS inventory client",
-        "body": "Implemented self-contained Apple Silicon and Intel app archives published from Bearings, organization rollout keys, app and package receipt inventory, Homebrew observations, compact reporting, launchd scheduling, signed automatic client updates, and local or server-requested retirement. The replacement publication flow builds a Developer ID-signed and notarized app with the Bearings icon and retains the full bundle during updates. Native macOS acceptance and Apple patch/CVE rules remain open."
+        "body": "Implemented self-contained Apple Silicon and Intel app archives published from Bearings, organization rollout keys, app and package receipt inventory, Homebrew observations, compact reporting, launchd scheduling, signed automatic client updates, and local or server-requested retirement. The replacement publication flow builds a Developer ID-signed and notarized app with the Bearings icon and retains the full bundle during updates. An Ubuntu timer requests the deployed revision over pinned SSH and publishes verified artifacts from a configured Mac signer. Native macOS acceptance and Apple patch/CVE rules remain open."
       }
     ]
   },
