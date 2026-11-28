@@ -161,7 +161,11 @@ observations. Once the server accepts a complete baseline, unchanged runs send
 compact signed check-ins. Inaccessible inventory leaves existing observations
 in place and reduces recorded coverage. Bearings identifies unreadable
 installed applications, system applications, installer receipts or Homebrew
-sources. The local summary lists the first 50 affected paths and errors
+sources. macOS app bundles can carry a flat property list or the plist of a
+wrapped mobile app. The client accepts links within the app bundle. Repeated
+plist values are accepted when they agree. Conflicting fields remain unknown,
+and missing or conflicting bundle identities still appear as coverage gaps.
+The local summary lists the first 50 affected paths and errors
 without transmitting them or accessing credentials:
 
 ```sh

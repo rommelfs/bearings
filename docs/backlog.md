@@ -10,7 +10,9 @@ Linux and Windows release pointers during that operation.
 ## macOS inventory coverage
 
 Partial macOS reports identify the incomplete source. The client provides a
-local coverage summary with affected paths and reasons. Older reporters
+local coverage summary with affected paths and reasons. The collector supports
+flat and wrapped app bundles and keeps unambiguous metadata when optional
+property list fields conflict. Older reporters
 retain their generic status.
 
 ## macOS publication without Apple signing

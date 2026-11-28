@@ -53,6 +53,7 @@ func plistInfo(raw []byte) (map[string]string, error) {
 	}
 	d := xml.NewDecoder(bytes.NewReader(raw))
 	result := map[string]string{}
+	conflicted := map[string]bool{}
 	depth := 0
 	key := ""
 	for {
@@ -73,11 +74,14 @@ func plistInfo(raw []byte) (map[string]string, error) {
 				if item.Name.Local == "key" {
 					key = value
 				} else {
-					if plistKeys[key] {
-						if _, repeated := result[key]; repeated {
-							return nil, errors.New("duplicate property list field")
+					if plistKeys[key] && !conflicted[key] {
+						value = strings.TrimSpace(value)
+						if previous, repeated := result[key]; repeated && previous != value {
+							delete(result, key)
+							conflicted[key] = true
+						} else {
+							result[key] = value
 						}
-						result[key] = strings.TrimSpace(value)
 					}
 					key = ""
 				}
@@ -94,14 +98,22 @@ func plistInfo(raw []byte) (map[string]string, error) {
 }
 
 func readPlist(root *os.Root, name string) (map[string]string, error) {
-	info, err := root.Lstat(name)
+	return readMacPlist(root, name, false)
+}
+
+func readMacPlist(root *os.Root, name string, containedLinks bool) (map[string]string, error) {
+	stat, flags := root.Lstat, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW
+	if containedLinks {
+		stat, flags = root.Stat, os.O_RDONLY|syscall.O_NONBLOCK
+	}
+	info, err := stat(name)
 	if err != nil {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() || info.Size() > maxPlist {
 		return nil, errors.New("property list must be a bounded regular file")
 	}
-	f, err := root.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	f, err := root.OpenFile(name, flags, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +127,55 @@ func readPlist(root *os.Root, name string) (map[string]string, error) {
 		return nil, errors.New("property list could not be read within its size limit")
 	}
 	return plistInfo(raw)
+}
+
+func readMacBundleInfo(root *os.Root, name string) (map[string]string, string, error) {
+	const conventional = "Contents/Info.plist"
+	display := filepath.Join(name, conventional)
+	app, err := root.OpenRoot(name)
+	if err != nil {
+		return nil, display, err
+	}
+	defer app.Close()
+	// The app root confines metadata links even when a wrapper links its plist
+	// or WrappedBundle to another directory inside the app.
+	var missing error
+	for _, relative := range []string{conventional, "Info.plist", "WrappedBundle/Info.plist", "WrappedBundle/Contents/Info.plist"} {
+		info, err := readMacPlist(app, relative, true)
+		if !os.IsNotExist(err) {
+			return info, filepath.Join(name, relative), err
+		}
+		if missing == nil {
+			missing = err
+		}
+	}
+	entries, err := readMacDirectory(app, "Wrapper")
+	if os.IsNotExist(err) {
+		return nil, display, missing
+	}
+	if err != nil {
+		return nil, filepath.Join(name, "Wrapper"), err
+	}
+	var wrapped string
+	for _, entry := range entries {
+		if entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".app") {
+			if wrapped != "" {
+				return nil, filepath.Join(name, "Wrapper"), errors.New("multiple wrapped application bundles")
+			}
+			wrapped = filepath.Join("Wrapper", entry.Name())
+		}
+	}
+	if wrapped == "" {
+		return nil, display, missing
+	}
+	for _, leaf := range []string{"Info.plist", conventional} {
+		relative := filepath.Join(wrapped, leaf)
+		info, err := readMacPlist(app, relative, true)
+		if !os.IsNotExist(err) {
+			return info, filepath.Join(name, relative), err
+		}
+	}
+	return nil, display, missing
 }
 
 func observationText(value string, length int) bool {
@@ -173,11 +234,10 @@ func scanMacRoot(path string, receipt bool, seen map[string]component, issue fun
 				key := "receipt:" + id
 				seen[key] = macComponent(key, id, info["PackageVersion"])
 			case !receipt && entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".app"):
-				plist := filepath.Join(name, "Contents", "Info.plist")
-				info, err := readPlist(root, plist)
+				info, plist, err := readMacBundleInfo(root, name)
 				id := info["CFBundleIdentifier"]
 				if err == nil && !bundleID.MatchString(id) {
-					err = errors.New("CFBundleIdentifier is missing or unsupported")
+					err = errors.New("CFBundleIdentifier is missing, unsupported or conflicting")
 				}
 				if err != nil {
 					incomplete(plist, err)

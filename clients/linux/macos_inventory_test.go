@@ -91,3 +91,68 @@ func TestMacCoverageIdentifiesSourcesAndAcceptsMissingHomebrew(t *testing.T) {
 		t.Fatal("older receiver was sent unsupported source details")
 	}
 }
+
+func TestMacApplicationInventoryReadsFlatAndWrappedBundles(t *testing.T) {
+	apps := t.TempDir()
+	add := func(relative, id string) {
+		t.Helper()
+		path := filepath.Join(apps, relative)
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		data := "<plist><dict><key>CFBundleIdentifier</key><string>" + id + "</string></dict></plist>"
+		if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	add("Flat.app/Info.plist", "com.example.flat")
+	add("Wrapper.app/Wrapper/Mobile.app/Info.plist", "com.example.mobile")
+	add("Linked.app/Wrapper/Linked.app/Contents/Info.plist", "com.example.linked")
+	if err := os.Symlink("Wrapper/Linked.app", filepath.Join(apps, "Linked.app", "WrappedBundle")); err != nil {
+		t.Fatal(err)
+	}
+	add("Alias.app/Wrapper/Mobile.app/Info.plist", "com.example.alias")
+	if err := os.Symlink("Wrapper/Mobile.app/Info.plist", filepath.Join(apps, "Alias.app", "Info.plist")); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]component{}
+	if complete, err := scanMacRoot(apps, false, seen, nil); err != nil || !complete {
+		t.Fatalf("valid alternate layout was skipped: %t %v", complete, err)
+	}
+	for bundle, id := range map[string]string{"Flat.app": "flat", "Wrapper.app": "mobile", "Linked.app": "linked", "Alias.app": "alias"} {
+		key := "bundle:com.example." + id + ":" + digest([]byte(filepath.Join(apps, bundle)))
+		if seen[key].Name != "com.example."+id {
+			t.Fatalf("no observation for %s", bundle)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(apps, "OutOfBundle.app"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../Flat.app", filepath.Join(apps, "OutOfBundle.app", "WrappedBundle")); err != nil {
+		t.Fatal(err)
+	}
+	if complete, err := scanMacRoot(apps, false, seen, nil); err != nil || complete || len(seen) != 4 {
+		t.Fatalf("accepted a wrapped bundle outside the app directory: %t %v %+v", complete, err, seen)
+	}
+}
+
+func TestMacPlistRetainsUnambiguousFieldsAfterDuplicates(t *testing.T) {
+	info, err := plistInfo([]byte(`<plist><dict>
+		<key>CFBundleIdentifier</key><string>com.example.app</string>
+		<key>CFBundleIdentifier</key><string>com.example.app</string>
+		<key>CFBundleName</key><string>Example</string>
+		<key>CFBundleVersion</key><string>1</string>
+		<key>CFBundleVersion</key><string>2</string>
+		<key>CFBundleVersion</key><string>1</string>
+	</dict></plist>`))
+	if err != nil || info["CFBundleIdentifier"] != "com.example.app" || info["CFBundleName"] != "Example" || info["CFBundleVersion"] != "" {
+		t.Fatalf("unambiguous fields lost or conflicting version accepted: %v %v", info, err)
+	}
+	info, err = plistInfo([]byte(`<plist><dict>
+		<key>CFBundleIdentifier</key><string>com.example.first</string>
+		<key>CFBundleIdentifier</key><string>com.example.second</string>
+	</dict></plist>`))
+	if err != nil || info["CFBundleIdentifier"] != "" {
+		t.Fatalf("selected a conflicting bundle identity: %v %v", info, err)
+	}
+}

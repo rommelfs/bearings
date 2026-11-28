@@ -3115,3 +3115,7 @@ after changing an app resource. This fixture requires macOS codesign at runtime.
 macOS inventory diagnostics report individual path errors locally. Synthetic
 fixtures cover a missing application property list and a broken receipt.
 The UTF-16 property list test requires a native Mac with Apple plutil.
+
+Publication can target macOS while preserving existing Linux and Windows
+download pointers. Coverage fixtures include flat and wrapped app property
+lists, contained and escaping links, and duplicate or conflicting metadata.
