@@ -244,6 +244,36 @@ def publish_macos():
     print("Notarized macOS client release published.")
 
 
+def has_notarized_macos_release(manifest):
+    if manifest is None:
+        return False
+    with manifest.open("rb") as stream:
+        raw = stream.read(65537)
+    if len(raw) > 65536:
+        raise ValueError("Published macOS manifest exceeds its size limit")
+    return json.loads(raw).get("schema") == "bearings.macos-release-envelope.v2"
+
+
+def build_unsigned_macos(compiler, output, origin, key, previous):
+    args = [
+        ROOT / ".venv/bin/python",
+        ROOT / "scripts/build_macos_client.py",
+        "--go",
+        compiler,
+        "--server",
+        origin,
+        "--signing-key",
+        key,
+        "--unsigned",
+        "--output",
+        output,
+    ]
+    if previous is not None:
+        args += ["--previous-manifest", previous]
+    run(args, cwd=ROOT)
+    output.chmod(0o755)
+
+
 def prepare_clients(*, restart=True, macos_release=None):
     """Build all release sets before switching their environment pointers together."""
     if run(["git", "status", "--porcelain"], cwd=ROOT, capture=True).stdout.strip():
@@ -310,6 +340,11 @@ def prepare_clients(*, restart=True, macos_release=None):
             key, previous = client_release_key(current, "macos")
             stage_macos_release(Path(macos_release).resolve(), release / "macos", server, key, previous)
             paths["BEARINGS_MACOS_CLIENT_DIR"] = str(release / "macos")
+        else:
+            key, previous = client_release_key(current, "macos")
+            if not has_notarized_macos_release(previous):
+                build_unsigned_macos(compiler, release / "macos", server, key, previous)
+                paths["BEARINGS_MACOS_CLIENT_DIR"] = str(release / "macos")
         updated = merge_environment(current, paths)
         directory(CONFIG)
         backup = CONFIG / "bearings-before-client-builds.env"
@@ -334,6 +369,8 @@ def prepare_clients(*, restart=True, macos_release=None):
     print("Linux and Windows downloads prepared.")
     if macos_release is not None:
         print("Notarized macOS downloads prepared.")
+    elif (release / "macos").exists():
+        print("macOS downloads prepared without Apple signing.")
 
 
 def prepare_linux_client():

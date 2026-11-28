@@ -62,6 +62,9 @@ func (m macInstall) update(s *store) error {
 	if _, err := os.Lstat(m.binary); err != nil {
 		return errors.New("install the app before checking for client updates")
 	}
+	if err := verifyMacBundle(m.app); err != nil {
+		return err
+	}
 	client, err := transport(s.config.CAFile)
 	if err != nil {
 		return err
@@ -71,7 +74,7 @@ func (m macInstall) update(s *store) error {
 	if err != nil {
 		return err
 	}
-	release, err := verifyMacRelease(raw, macServer, key)
+	release, err := verifyMacRelease(raw, macServer, key, macAppleTeam != "")
 	if err != nil {
 		return err
 	}
@@ -89,7 +92,7 @@ func (m macInstall) update(s *store) error {
 	if len(raw) != asset.Size || digest(raw) != asset.Hash {
 		return errors.New("macOS app download differs from the signed manifest")
 	}
-	if err := validateMacArchive(raw); err != nil {
+	if err := validateMacArchive(raw, macAppleTeam != ""); err != nil {
 		return err
 	}
 	stage, err := os.MkdirTemp(filepath.Dir(m.app), ".bearings-update-*")

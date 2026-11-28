@@ -161,6 +161,50 @@ class NativeDeploymentTests(unittest.TestCase):
             self.assertIn("DJANGO_SECRET_KEY=synthetic-retained-key", env.read_text())
             self.assertEqual((published / "windows/SHA256SUMS").stat().st_mode & 0o777, 0o644)
 
+    def test_prepare_builds_unsigned_only_before_notarized_release(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config, releases, apps = (root / part for part in ("config", "releases", "apps"))
+            for path in (config, releases, apps):
+                path.mkdir()
+            env = root / "bearings.env"
+            env.write_text('BEARINGS_PUBLIC_URL="https://bearings.example.invalid"\n')
+            mac_key = config / "macos-release.key"
+
+            def run(args, **kwargs):
+                if args[0] == "git":
+                    return SimpleNamespace(stdout="")
+                target = args[-1]
+                target.mkdir()
+
+            def unsigned(compiler, output, server, key, previous):
+                output.mkdir()
+
+            with (
+                patch.object(native, "CONFIG", config),
+                patch.object(native, "CLIENT_RELEASES", releases),
+                patch.object(native, "APPS", apps),
+                patch.object(native, "BEARINGS_ENV", env),
+                patch.object(native, "protected_read", side_effect=Path.read_text),
+                patch.object(native, "directory"),
+                patch.object(native, "run", side_effect=run),
+                patch.object(native, "client_compiler", return_value="/go"),
+                patch.object(native, "windows_release_key", return_value=(config / "windows.key", None)),
+                patch.object(native, "client_release_key", return_value=(mac_key, None)) as key,
+                patch.object(native, "build_unsigned_macos", side_effect=unsigned) as build,
+            ):
+                native.prepare_clients(restart=False)
+                build.assert_called_once()
+                published = next(releases.iterdir()) / "macos"
+                env_key = f'BEARINGS_MACOS_CLIENT_DIR="{published}"'
+                self.assertIn(env_key, env.read_text())
+                manifest = published / "update.json"
+                manifest.write_text('{"schema":"bearings.macos-release-envelope.v2"}')
+                key.return_value = (mac_key, manifest)
+                native.prepare_clients(restart=False)
+                build.assert_called_once()
+                self.assertIn(env_key, env.read_text())
+
     def test_automatic_macos_publication_retains_release_and_skips_current_revision(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

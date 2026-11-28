@@ -210,14 +210,18 @@ def _open_macos(name):
     return _open(name, settings.MACOS_CLIENT_DOWNLOAD_DIR, MACOS_ARTIFACTS)
 
 
-def _macos_ready():
+def _macos_release_kind():
     if not _complete_release(_open_macos, MACOS_ARTIFACTS):
-        return False
+        return ""
     try:
         with _open_macos("update.json") as manifest:
-            return json.load(manifest).get("schema") == "bearings.macos-release-envelope.v2"
+            schema = json.load(manifest).get("schema")
+            return {
+                "bearings.macos-release-envelope.v2": "notarized",
+                "bearings.macos-unsigned-envelope.v1": "unsigned",
+            }.get(schema, "")
     except (ValueError, AttributeError, Http404, OSError):
-        return False
+        return ""
 
 
 @never_cache
@@ -227,7 +231,7 @@ def macos(request):
         request,
         "portal/macos_client_downloads.html",
         {
-            "ready": _macos_ready(),
+            "release_kind": _macos_release_kind(),
             "packages": MACOS_PACKAGES,
             **rollout_navigation(request, None),
         },
@@ -236,7 +240,7 @@ def macos(request):
 
 @require_GET
 def macos_artifact(request, name):
-    if name not in MACOS_ARTIFACTS or not _macos_ready():
+    if name not in MACOS_ARTIFACTS or not _macos_release_kind():
         raise Http404
     response = _download(_open_macos, name)
     if name == "update.json":

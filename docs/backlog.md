@@ -2,6 +2,12 @@
 
 Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHub publication is authorized for the public `rommelfs/bearings` repository. `uv run python scripts/sync_backlog.py` publishes missing milestones and issues idempotently by exact title, checks the expected repository identity, and updates nothing already present. The backlog is published as [milestones](https://github.com/rommelfs/bearings/milestones) and [issues](https://github.com/rommelfs/bearings/issues?q=is%3Aissue). The first slice ([#1](https://github.com/rommelfs/bearings/issues/1)) is complete; current issue state is tracked on GitHub. A second publisher run created zero duplicate issues.
 
+## macOS publication without Apple signing
+
+The Ubuntu build provides an unsigned client with the Bearings icon and
+authenticated updates. Existing notarized releases take precedence. The
+download page distinguishes the two modes and documents Terminal startup.
+
 ## Automatic macOS client publication
 
 The Ubuntu timer requests each clean deployed revision from a configured Mac

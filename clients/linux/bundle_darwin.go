@@ -56,6 +56,16 @@ func verifyMacBundle(app string) error {
 	if err := macBundleIdentity(app); err != nil {
 		return err
 	}
+	if macAppleTeam == "" {
+		if _, err := os.Lstat(filepath.Join(app, "Contents", "_CodeSignature")); !os.IsNotExist(err) {
+			return errors.New("use the Apple-signed client to manage a Developer ID bundle")
+		}
+		icon, err := os.Lstat(filepath.Join(app, "Contents", "Resources", "Bearings.icns"))
+		if err != nil || !icon.Mode().IsRegular() {
+			return errors.New("the Bearings app bundle is missing its resources")
+		}
+		return nil
+	}
 	if !appleTeamPattern.MatchString(macAppleTeam) {
 		return errors.New("this build does not pin an Apple Developer ID team")
 	}
@@ -76,6 +86,11 @@ func (m macInstall) installApp() error {
 		}
 		if verifyMacBundle(m.app) == nil {
 			return nil
+		}
+		if macAppleTeam == "" {
+			if _, err := os.Lstat(filepath.Join(m.app, "Contents", "_CodeSignature")); !os.IsNotExist(err) {
+				return errors.New("the existing Bearings app requires its original approval or a Developer ID build")
+			}
 		}
 		replace = true
 	} else if !os.IsNotExist(err) {

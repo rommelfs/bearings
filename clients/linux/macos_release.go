@@ -29,7 +29,7 @@ type macRelease struct {
 	} `json:"assets"`
 }
 
-func verifyMacRelease(raw []byte, server string, key ed25519.PublicKey) (macRelease, error) {
+func verifyMacRelease(raw []byte, server string, key ed25519.PublicKey, appleSigned bool) (macRelease, error) {
 	var envelope struct {
 		Schema    string `json:"schema"`
 		Payload   string `json:"payload"`
@@ -37,8 +37,12 @@ func verifyMacRelease(raw []byte, server string, key ed25519.PublicKey) (macRele
 	}
 	var release macRelease
 	invalid := errors.New("invalid or unauthenticated macOS client release")
+	envelopeSchema, payloadSchema := "bearings.macos-unsigned-envelope.v1", "bearings.macos-unsigned-release.v1"
+	if appleSigned {
+		envelopeSchema, payloadSchema = "bearings.macos-release-envelope.v2", "bearings.macos-release.v2"
+	}
 	if len(raw) > 65536 || len(key) != ed25519.PublicKeySize ||
-		decode(raw, &envelope) != nil || envelope.Schema != "bearings.macos-release-envelope.v2" {
+		decode(raw, &envelope) != nil || envelope.Schema != envelopeSchema {
 		return release, invalid
 	}
 	payload, err := base64.StdEncoding.Strict().DecodeString(envelope.Payload)
@@ -49,7 +53,7 @@ func verifyMacRelease(raw []byte, server string, key ed25519.PublicKey) (macRele
 	if err != nil || !ed25519.Verify(key, payload, signature) || decode(payload, &release) != nil {
 		return release, invalid
 	}
-	if release.Schema != "bearings.macos-release.v2" || release.Origin != server || release.Sequence < 1 || len(release.Assets) != 2 {
+	if release.Schema != payloadSchema || release.Origin != server || release.Sequence < 1 || len(release.Assets) != 2 {
 		return release, invalid
 	}
 	for _, arch := range []string{"amd64", "arm64"} {
@@ -61,7 +65,7 @@ func verifyMacRelease(raw []byte, server string, key ed25519.PublicKey) (macRele
 	return release, nil
 }
 
-func validateMacArchive(raw []byte) error {
+func validateMacArchive(raw []byte, appleSigned bool) error {
 	invalid := errors.New("invalid macOS app archive")
 	z, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
 	if err != nil || len(z.File) > 128 {
@@ -86,7 +90,10 @@ func validateMacArchive(raw []byte) error {
 		}
 		seen[name] = !entry.Mode().IsDir()
 	}
-	for _, name := range []string{"Info.plist", "MacOS/bearings-macos", "Resources/Bearings.icns", "_CodeSignature/CodeResources"} {
+	if appleSigned != seen["Bearings.app/Contents/_CodeSignature/CodeResources"] {
+		return invalid
+	}
+	for _, name := range []string{"Info.plist", "MacOS/bearings-macos", "Resources/Bearings.icns"} {
 		if !seen["Bearings.app/Contents/"+name] {
 			return invalid
 		}

@@ -38,11 +38,11 @@ func TestMacReleaseAuthenticatesOriginAndAssets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	release, err := verifyMacRelease(raw, server, public)
+	release, err := verifyMacRelease(raw, server, public, true)
 	if err != nil || release.Sequence != 123 || release.Assets["arm64"].Hash != hash {
 		t.Fatalf("valid signed release: %+v %v", release, err)
 	}
-	if _, err := verifyMacRelease(raw, "https://other.example", public); err == nil {
+	if _, err := verifyMacRelease(raw, "https://other.example", public, true); err == nil {
 		t.Fatal("accepted a release for a different server")
 	}
 	replaced := strings.Replace(string(payload), hash, strings.Repeat("b", 64), 1)
@@ -51,7 +51,7 @@ func TestMacReleaseAuthenticatesOriginAndAssets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := verifyMacRelease(raw, server, public); err == nil {
+	if _, err := verifyMacRelease(raw, server, public, true); err == nil {
 		t.Fatal("accepted a tampered release manifest")
 	}
 }
@@ -78,11 +78,17 @@ func TestMacBundleArchiveRequiresResourcesAndResistsTraversal(t *testing.T) {
 		}
 		return body.Bytes()
 	}
-	if err := validateMacArchive(pack("", true)); err != nil {
+	if err := validateMacArchive(pack("", true), true); err != nil {
 		t.Fatal(err)
 	}
+	if err := validateMacArchive(pack("", false), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := verifyMacRelease(nil, "https://example.test", nil, false); err == nil {
+		t.Fatal("accepted an unauthenticated unsigned-build manifest")
+	}
 	for _, unsupported := range [][]byte{pack("", false), pack("../../../elsewhere", true)} {
-		if err := validateMacArchive(unsupported); err == nil {
+		if err := validateMacArchive(unsupported, true); err == nil {
 			t.Fatal("accepted an unsealed or out-of-scope archive")
 		}
 	}

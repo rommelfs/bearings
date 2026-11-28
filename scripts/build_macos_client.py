@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import struct
 import platform
 import re
 import shutil
@@ -30,6 +31,9 @@ SCHEMA = "bearings.macos-release.v2"
 LEGACY_SCHEMA = "bearings.macos-release.v1"
 LOGO = ROOT / "portal/static/portal/brand/bearings-mark.webp"
 ENVELOPE_SCHEMA = "bearings.macos-release-envelope.v2"
+UNSIGNED_SCHEMA = "bearings.macos-unsigned-release.v1"
+UNSIGNED_ENVELOPE = "bearings.macos-unsigned-envelope.v1"
+LOGO_PNG = LOGO.with_name("bearings-favicon.png")
 LEGACY_ENVELOPE = "bearings.macos-release-envelope.v1"
 
 
@@ -63,8 +67,8 @@ def next_sequence(private, previous_path, server):
     private.public_key().verify(base64.b64decode(envelope["signature"], validate=True), payload)
     record = json.loads(payload)
     if (
-        envelope["schema"] not in {ENVELOPE_SCHEMA, LEGACY_ENVELOPE}
-        or record["schema"] not in {SCHEMA, LEGACY_SCHEMA}
+        envelope["schema"] not in {ENVELOPE_SCHEMA, LEGACY_ENVELOPE, UNSIGNED_ENVELOPE}
+        or record["schema"] not in {SCHEMA, LEGACY_SCHEMA, UNSIGNED_SCHEMA}
         or record["origin"] != server
         or type(record["sequence"]) is not int
         or not 1 <= record["sequence"] < (1 << 63) - 1
@@ -127,13 +131,39 @@ def notarize(app, output, identity, profile):
     subprocess.run(args, check=True)
 
 
-def build(compiler, output, server, signing_key, *, identity, team, profile, previous_manifest=None):
-    if platform.system() != "Darwin":
-        raise ValueError(
-            "Build the public macOS release on a Mac with Developer ID Application and notarytool"
-        )
-    if not re.fullmatch(r"[A-Z0-9]{10}", team) or not identity.startswith("Developer ID Application:"):
-        raise ValueError("Supply a Developer ID Application identity and its ten-character Apple team ID")
+def unsigned_icon(output):
+    png = LOGO_PNG.read_bytes()
+    icon = b"icp6" + struct.pack(">I", len(png) + 8) + png
+    output.write_bytes(b"icns" + struct.pack(">I", len(icon) + 8) + icon)
+
+
+def build(
+    compiler,
+    output,
+    server,
+    signing_key,
+    *,
+    identity=None,
+    team=None,
+    profile=None,
+    previous_manifest=None,
+    unsigned=False,
+):
+    if unsigned:
+        if any((identity, team, profile)):
+            raise ValueError("Choose either a Developer ID or the unsigned macOS build")
+        team = ""
+    else:
+        if platform.system() != "Darwin":
+            raise ValueError("Build the notarized macOS release on an Apple signing station")
+        if (
+            not team
+            or not re.fullmatch(r"[A-Z0-9]{10}", team)
+            or not identity
+            or not profile
+            or (not identity.startswith("Developer ID Application:"))
+        ):
+            raise ValueError("Supply a Developer ID Application identity, team and notary profile")
     server = build_server(server)
     if not command(compiler, "version").startswith("go version go"):
         raise ValueError("Supply a Go language compiler")
@@ -175,7 +205,10 @@ def build(compiler, output, server, signing_key, *, identity, team, profile, pre
         staging = work / "release"
         staging.mkdir()
         icon = work / "Bearings.icns"
-        make_icon(work, icon)
+        if unsigned:
+            unsigned_icon(icon)
+        else:
+            make_icon(work, icon)
         assets = {}
         for arch in ARCHITECTURES:
             app = work / arch / "Bearings.app"
@@ -193,19 +226,24 @@ def build(compiler, output, server, signing_key, *, identity, team, profile, pre
                 check=True,
             )
             name = staging / f"bearings-macos-{arch}.zip"
-            notarize(app, name, identity, profile)
-            verify = command("/usr/bin/codesign", "-dv", "--verbose=4", str(app), stderr=subprocess.STDOUT)
-            if f"TeamIdentifier={team}" not in verify.splitlines():
-                raise ValueError("Apple signing team does not match the embedded update requirement")
+            if unsigned:
+                shutil.make_archive(str(name.with_suffix("")), "zip", root_dir=app.parent, base_dir=app.name)
+            else:
+                notarize(app, name, identity, profile)
+                verify = command(
+                    "/usr/bin/codesign", "-dv", "--verbose=4", str(app), stderr=subprocess.STDOUT
+                )
+                if f"TeamIdentifier={team}" not in verify.splitlines():
+                    raise ValueError("Apple signing team does not match the embedded update requirement")
             size = name.stat().st_size
             if not 0 < size <= 32 * 1024 * 1024:
                 raise ValueError("macOS distributable archive exceeds its size limit")
             assets[arch] = {"sha256": hashlib.sha256(name.read_bytes()).hexdigest(), "size": size}
-        finish_release(compiler, staging, env, source, private, server, sequence, assets)
+        finish_release(compiler, staging, env, source, private, server, sequence, assets, unsigned=unsigned)
         staging.rename(output)
 
 
-def finish_release(compiler, output, env, source, private, server, sequence, assets):
+def finish_release(compiler, output, env, source, private, server, sequence, assets, *, unsigned):
     go_root = Path(command(compiler, "env", "GOROOT", env=env))
     archive(
         output / "bearings-macos-source.zip",
@@ -215,18 +253,24 @@ def finish_release(compiler, output, env, source, private, server, sequence, ass
             "LICENSE": (ROOT / "LICENSE").read_bytes(),
             "LICENSE-Go": (go_root / "LICENSE").read_bytes(),
             "bearings-mark.webp": LOGO.read_bytes(),
+            "bearings-favicon.png": LOGO_PNG.read_bytes(),
             "build_macos_client.py": Path(__file__).read_bytes(),
             "build_windows_client.py": Path(__file__).with_name("build_windows_client.py").read_bytes(),
         },
     )
     payload = json.dumps(
-        {"schema": SCHEMA, "origin": server, "sequence": sequence, "assets": assets},
+        {
+            "schema": UNSIGNED_SCHEMA if unsigned else SCHEMA,
+            "origin": server,
+            "sequence": sequence,
+            "assets": assets,
+        },
         separators=(",", ":"),
     ).encode()
     (output / "update.json").write_text(
         json.dumps(
             {
-                "schema": ENVELOPE_SCHEMA,
+                "schema": UNSIGNED_ENVELOPE if unsigned else ENVELOPE_SCHEMA,
                 "payload": base64.b64encode(payload).decode("ascii"),
                 "signature": base64.b64encode(private.sign(payload)).decode("ascii"),
             },
@@ -247,9 +291,10 @@ if __name__ == "__main__":
     parser.add_argument("--server", required=True)
     parser.add_argument("--signing-key", required=True, type=Path)
     parser.add_argument("--previous-manifest", type=Path)
-    parser.add_argument("--apple-identity", required=True)
-    parser.add_argument("--apple-team", required=True)
-    parser.add_argument("--notary-profile", required=True)
+    parser.add_argument("--apple-identity")
+    parser.add_argument("--apple-team")
+    parser.add_argument("--notary-profile")
+    parser.add_argument("--unsigned", action="store_true")
     args = parser.parse_args()
     build(
         args.go,
@@ -260,4 +305,5 @@ if __name__ == "__main__":
         team=args.apple_team,
         profile=args.notary_profile,
         previous_manifest=args.previous_manifest,
+        unsigned=args.unsigned,
     )

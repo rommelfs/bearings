@@ -6,7 +6,33 @@ origin and the macOS trust store. Reports use an independent Ed25519 device key,
 signed observations, sequence numbers, acknowledgments and a private on-disk
 queue.
 
-## Publish automatically
+## Publish without Apple signing
+
+On Ubuntu, the regular client build publishes the Apple Silicon and Intel
+ZIPs without requiring a Mac signing station. A previously published notarized
+release takes precedence. The unsigned build includes the Bearings icon and
+uses Go's platform-required ad-hoc executable signing on Apple Silicon. An
+Ed25519 Bearings release manifest authenticates automatic updates on HTTPS.
+
+```sh
+cd /opt/bearings
+python3 deploy/ubuntu24/ecosystem.py prepare-clients
+```
+
+Use an unsigned release only on Macs whose software policy permits it.
+Finder can block unsigned browser downloads. After verifying the server's
+SHA-256 checksum and extracting the ZIP, start the client from Terminal in
+the extracted directory.
+
+```sh
+./Bearings.app/Contents/MacOS/bearings-macos
+```
+
+The unsigned and Apple-signed builds have distinct update manifests. Migrating
+between them requires installing the newly approved bundle. The device
+registration is stored separately.
+
+## Publish with Apple signing
 
 The Ubuntu publisher asks the signing Mac to build the currently deployed Git
 revision. The Mac builds both architectures, adds the Bearings icon, signs and
@@ -102,8 +128,8 @@ through `prepare-clients --macos-release DIRECTORY` for recovery.
 5. Choose **Check report status** and look for **applied**. **Pending** means the
    server has received the report and is still processing it.
 
-Published ZIPs contain a Developer ID-signed app with a stapled notarization
-ticket. If you previously downloaded the unsigned build, download the
+The Apple-signed release contains a Developer ID-signed app with a stapled
+notarization ticket. The download page identifies unsigned releases. If you previously downloaded the unsigned build, download the
 replacement and open it. Run **Register and enable reports** to repair an
 existing installation using its retained device state. For a private HTTPS
 CA, distribute the trust certificate through macOS before installation.
