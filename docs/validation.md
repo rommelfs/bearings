@@ -3111,3 +3111,7 @@ subprocess has no home directory in its environment.
 A local ad-hoc bundle seal is validated separately from Developer ID trust.
 The native fixture covers acceptance of an intact resource seal and refusal
 after changing an app resource. This fixture requires macOS codesign at runtime.
+
+macOS inventory diagnostics report individual path errors locally. Synthetic
+fixtures cover a missing application property list and a broken receipt.
+The UTF-16 property list test requires a native Mac with Apple plutil.

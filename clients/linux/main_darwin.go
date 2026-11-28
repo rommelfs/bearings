@@ -227,13 +227,27 @@ func run(args []string) error {
 }
 
 func (m macInstall) run(action string, input io.Reader) error {
-	if action == "collect" || action == "coverage" {
-		r, err := collectMac()
+	if action == "coverage" {
+		issues := []macCoverageIssue{}
+		total := 0
+		r, err := collectMacWithCoverage(func(issue macCoverageIssue) {
+			total++
+			if len(issues) < 50 {
+				issues = append(issues, issue)
+			}
+		})
 		if err != nil {
 			return err
 		}
-		if action == "coverage" {
-			return output(map[string]any{"complete": r.Complete, "gaps": *r.Gaps})
+		return output(map[string]any{
+			"complete": r.Complete, "gaps": *r.Gaps,
+			"issues": issues, "additional_issues": total - len(issues),
+		})
+	}
+	if action == "collect" {
+		r, err := collectMac()
+		if err != nil {
+			return err
 		}
 		return output(r)
 	}

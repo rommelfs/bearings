@@ -77,3 +77,15 @@ func TestNativeMacAdHocBundle(t *testing.T) {
 		t.Fatal("accepted a tampered ad-hoc bundle")
 	}
 }
+
+func TestNativeMacUTF16PropertyList(t *testing.T) {
+	xml := `<?xml version="1.0" encoding="UTF-16"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.example.UTF16</string></dict></plist>`
+	raw := []byte{0xff, 0xfe}
+	for _, ch := range []byte(xml) {
+		raw = append(raw, ch, 0)
+	}
+	info, err := plistInfo(raw)
+	if err != nil || info["CFBundleIdentifier"] != "com.example.UTF16" {
+		t.Fatalf("could not read native UTF-16 property list: %v %v", info, err)
+	}
+}

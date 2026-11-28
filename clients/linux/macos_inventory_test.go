@@ -28,7 +28,7 @@ func TestMacInventoryBundleAndReceipt(t *testing.T) {
 		<key>Other</key><dict><key>CFBundleIdentifier</key><string>unrelated</string></dict>
 	</dict></plist>`)
 	seen := map[string]component{}
-	ok, err := scanMacRoot(apps, false, seen)
+	ok, err := scanMacRoot(apps, false, seen, nil)
 	if !ok || err != nil || len(seen) != 1 {
 		t.Fatalf("app coverage: %t %v %v", ok, err, seen)
 	}
@@ -38,7 +38,7 @@ func TestMacInventoryBundleAndReceipt(t *testing.T) {
 		t.Fatalf("wrong app observation: %+v", seen[key])
 	}
 	write(apps, "Broken.app/Contents/Info.plist", "invalid")
-	if ok, err = scanMacRoot(apps, false, seen); ok || err != nil {
+	if ok, err = scanMacRoot(apps, false, seen, nil); ok || err != nil {
 		t.Fatalf("failing app must mark coverage incomplete: %t %v", ok, err)
 	}
 	receipts := t.TempDir()
@@ -46,7 +46,7 @@ func TestMacInventoryBundleAndReceipt(t *testing.T) {
 		<key>PackageIdentifier</key><string>com.example.pkg</string>
 		<key>PackageVersion</key><string>1.4</string>
 	</dict></plist>`)
-	ok, err = scanMacRoot(receipts, true, seen)
+	ok, err = scanMacRoot(receipts, true, seen, nil)
 	if !ok || err != nil || seen["receipt:com.example.pkg"].Version != "1.4" {
 		t.Fatalf("wrong receipt observation: %t %v %+v", ok, err, seen)
 	}
@@ -61,7 +61,7 @@ func TestMacCoverageIdentifiesSourcesAndAcceptsMissingHomebrew(t *testing.T) {
 	apps, systemApps, receipts := t.TempDir(), t.TempDir(), t.TempDir()
 	missingCellar := filepath.Join(t.TempDir(), "missing")
 	seen := map[string]component{}
-	if gaps := macInventoryGaps(seen, apps, systemApps, receipts, []string{missingCellar}); len(gaps) != 0 {
+	if gaps := macInventoryGaps(seen, apps, systemApps, receipts, []string{missingCellar}, nil); len(gaps) != 0 {
 		t.Fatalf("optional Homebrew is not a gap: %v", gaps)
 	}
 	if err := os.Mkdir(filepath.Join(apps, "Broken.app"), 0700); err != nil {
@@ -70,7 +70,14 @@ func TestMacCoverageIdentifiesSourcesAndAcceptsMissingHomebrew(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(receipts, "com.example.pkg.plist"), []byte("invalid"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	gaps := macInventoryGaps(seen, apps, systemApps, receipts, []string{missingCellar})
+	var issues []macCoverageIssue
+	gaps := macInventoryGaps(seen, apps, systemApps, receipts, []string{missingCellar}, func(issue macCoverageIssue) {
+		issues = append(issues, issue)
+	})
+	if len(issues) != 2 || issues[0].Path != filepath.Join(apps, "Broken.app", "Contents", "Info.plist") ||
+		issues[1].Source != "macos-installer-receipts" {
+		t.Fatalf("unexpected local diagnostics: %v", issues)
+	}
 	if len(gaps) != 2 || gaps[0] != "macos-applications" || gaps[1] != "macos-installer-receipts" {
 		t.Fatalf("wrong macOS coverage detail: %v", gaps)
 	}

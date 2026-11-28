@@ -5,7 +5,8 @@ Canonical issue/milestone definitions are in [backlog.json](backlog.json). GitHu
 ## macOS inventory coverage
 
 Partial macOS reports identify the incomplete source. The client provides a
-local coverage summary and older reporters retain their generic status.
+local coverage summary with affected paths and reasons. Older reporters
+retain their generic status.
 
 ## macOS publication without Apple signing
 

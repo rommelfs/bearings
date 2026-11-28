@@ -35,7 +35,11 @@ var plistKeys = map[string]bool{
 }
 
 func plistInfo(raw []byte) (map[string]string, error) {
-	if bytes.HasPrefix(raw, []byte("bplist00")) {
+	// Apple also accepts UTF-16 plists. Normalize those with the same bounded
+	// system parser used for binary plists.
+	utf16 := len(raw) >= 2 && ((raw[0] == 0xff && raw[1] == 0xfe) ||
+		(raw[0] == 0xfe && raw[1] == 0xff) || raw[0] == 0 || raw[1] == 0)
+	if bytes.HasPrefix(raw, []byte("bplist00")) || utf16 {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "/usr/bin/plutil", "-convert", "xml1", "-o", "-", "-")
@@ -43,7 +47,7 @@ func plistInfo(raw []byte) (map[string]string, error) {
 		out := &cappedBuffer{limit: maxPlist}
 		cmd.Stdout = out
 		if err := cmd.Run(); err != nil {
-			return nil, errors.New("cannot decode binary property list")
+			return nil, errors.New("cannot normalize property list")
 		}
 		raw = out.Bytes()
 	}
@@ -125,13 +129,25 @@ func macComponent(key, name, version string) component {
 	return component{Key: "mac-app:" + key, Manager: "mac-app", Name: name, Version: version, Architecture: "all"}
 }
 
-func scanMacRoot(path string, receipt bool, seen map[string]component) (bool, error) {
+type macCoverageIssue struct {
+	Source string `json:"source"`
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+func scanMacRoot(path string, receipt bool, seen map[string]component, issue func(string, error)) (bool, error) {
 	root, err := os.OpenRoot(path)
 	if err != nil {
 		return false, err
 	}
 	defer root.Close()
 	complete := true
+	incomplete := func(name string, err error) {
+		complete = false
+		if issue != nil {
+			issue(filepath.Join(path, name), err)
+		}
+	}
 	var visit func(string, int) error
 	visit = func(dir string, depth int) error {
 		entries, err := readMacDirectory(root, dir)
@@ -147,17 +163,24 @@ func scanMacRoot(path string, receipt bool, seen map[string]component) (bool, er
 					continue
 				}
 				info, err := readPlist(root, name)
-				if err != nil || info["PackageIdentifier"] != id {
-					complete = false
+				if err == nil && info["PackageIdentifier"] != id {
+					err = errors.New("PackageIdentifier does not match the installer receipt")
+				}
+				if err != nil {
+					incomplete(name, err)
 					continue
 				}
 				key := "receipt:" + id
 				seen[key] = macComponent(key, id, info["PackageVersion"])
 			case !receipt && entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".app"):
-				info, err := readPlist(root, filepath.Join(name, "Contents", "Info.plist"))
+				plist := filepath.Join(name, "Contents", "Info.plist")
+				info, err := readPlist(root, plist)
 				id := info["CFBundleIdentifier"]
-				if err != nil || !bundleID.MatchString(id) {
-					complete = false
+				if err == nil && !bundleID.MatchString(id) {
+					err = errors.New("CFBundleIdentifier is missing or unsupported")
+				}
+				if err != nil {
+					incomplete(plist, err)
 					continue
 				}
 				display := info["CFBundleName"]
@@ -173,7 +196,7 @@ func scanMacRoot(path string, receipt bool, seen map[string]component) (bool, er
 			case !receipt && entry.IsDir() && depth < 2 &&
 				!strings.HasPrefix(entry.Name(), ".") && !strings.Contains(entry.Name(), "."):
 				if err := visit(name, depth+1); err != nil {
-					complete = false
+					incomplete(name, err)
 				}
 			}
 			if len(seen) > 5000 {
@@ -235,13 +258,20 @@ func readMacDirectory(root *os.Root, dir string) ([]os.DirEntry, error) {
 	}
 	defer f.Close()
 	entries, err := f.ReadDir(8193)
-	if len(entries) > 8192 || (err != nil && err != io.EOF) {
-		return nil, errors.New("macOS inventory directory exceeds its read limit or could not be read")
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	if len(entries) > 8192 {
+		return nil, errors.New("macOS inventory directory exceeds its read limit")
 	}
 	return entries, nil
 }
 
 func collectMac() (*report, error) {
+	return collectMacWithCoverage(nil)
+}
+
+func collectMacWithCoverage(issue func(macCoverageIssue)) (*report, error) {
 	operating := operatingSystem{ID: "macos", Architecture: "arm64", KernelScope: "host", RebootHint: "unknown"}
 	if runtime.GOARCH == "amd64" {
 		operating.Architecture = "x86_64"
@@ -271,7 +301,7 @@ func collectMac() (*report, error) {
 	seen := map[string]component{"os": macComponent("os", "macOS", operating.Version)}
 	gaps := macInventoryGaps(seen,
 		"/Applications", "/System/Applications", "/private/var/db/receipts",
-		[]string{"/opt/homebrew/Cellar", "/usr/local/Cellar"},
+		[]string{"/opt/homebrew/Cellar", "/usr/local/Cellar"}, issue,
 	)
 	if len(seen) > 5000 {
 		return nil, errors.New("macOS inventory exceeds the server observation limit")
@@ -284,7 +314,7 @@ func collectMac() (*report, error) {
 	return &report{Schema: tag, ReportID: newID(), ObservedAt: time.Now().UTC().Format(time.RFC3339Nano), Scope: macScope, OS: operating, Complete: len(gaps) == 0, Components: components, Services: []service{}, Gaps: &gaps}, nil
 }
 
-func macInventoryGaps(seen map[string]component, apps, systemApps, receipts string, cellars []string) []string {
+func macInventoryGaps(seen map[string]component, apps, systemApps, receipts string, cellars []string, issue func(macCoverageIssue)) []string {
 	gaps := []string{}
 	for _, source := range []struct {
 		path, gap string
@@ -294,13 +324,24 @@ func macInventoryGaps(seen map[string]component, apps, systemApps, receipts stri
 		{systemApps, "macos-system-applications", false},
 		{receipts, "macos-installer-receipts", true},
 	} {
-		ok, err := scanMacRoot(source.path, source.receipts, seen)
+		record := func(path string, err error) {
+			if issue != nil {
+				issue(macCoverageIssue{Source: source.gap, Path: path, Reason: err.Error()})
+			}
+		}
+		ok, err := scanMacRoot(source.path, source.receipts, seen, record)
+		if err != nil {
+			record(source.path, err)
+		}
 		if err != nil || !ok {
 			gaps = append(gaps, source.gap)
 		}
 	}
 	for _, path := range cellars {
 		if err := scanHomebrew(path, seen); err != nil && !os.IsNotExist(err) {
+			if issue != nil {
+				issue(macCoverageIssue{Source: "macos-homebrew", Path: path, Reason: err.Error()})
+			}
 			if !slices.Contains(gaps, "macos-homebrew") {
 				gaps = append(gaps, "macos-homebrew")
 			}

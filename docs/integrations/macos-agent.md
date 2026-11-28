@@ -158,7 +158,8 @@ observations. Once the server accepts a complete baseline, unchanged runs send
 compact signed check-ins. Inaccessible inventory leaves existing observations
 in place and reduces recorded coverage. Bearings identifies unreadable
 installed applications, system applications, installer receipts or Homebrew
-sources. The local summary shows coverage without transmitting anything:
+sources. The local summary lists the first 50 affected paths and errors
+without transmitting them or accessing credentials:
 
 ```sh
 "$HOME/Applications/Bearings.app/Contents/MacOS/bearings-macos" coverage
